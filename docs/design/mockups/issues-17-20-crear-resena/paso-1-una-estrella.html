@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Crear reseña · PASO 1 · VARIANTE 1 ESTRELLA
+  Issue: #19 (TheMonstersP4). Al seleccionar exactamente 1★ se activa la rama:
+  justificación en texto libre OBLIGATORIA + al menos una imagen OBLIGATORIA.
+  El envío se bloquea si falta cualquiera de las dos. Si el usuario sube el
+  rating, esta exigencia deja de aplicar. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calificación (1★) · Nueva reseña</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .appbar__title span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .stepper { display: flex; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4) var(--sp-4); }
+  .step { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .step__bar { height: 4px; border-radius: var(--md-shape-full); background: var(--md-surface-container-highest); }
+  .step--done .step__bar, .step--current .step__bar { background: var(--md-primary); }
+  .step__label { font-size: 11px; font-weight: 600; letter-spacing: -.1px; color: var(--md-on-surface-variant); }
+  .step--current .step__label { color: var(--md-on-surface); }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-3) var(--sp-4) 120px; }
+
+  .stars-row { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--sp-3) 0 var(--sp-5); }
+  .stars { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .stars .ms { font-size: 40px; }
+  .stars .on { color: #f5a623; }
+  .stars .off { color: var(--md-outline-variant); }
+  .verdict { font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .verdict span { color: var(--md-on-surface-variant); font-weight: 600; }
+
+  /* Bloque obligatorio de 1 estrella (#19) */
+  .required-block { border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-md); padding: var(--sp-4); background: var(--md-surface-container-low); }
+  .required-block__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .required-block__head .ms { font-size: 20px; color: var(--md-on-surface); }
+  .required-block__head b { font-size: 15px; font-weight: 700; letter-spacing: -.2px; color: var(--md-on-surface); }
+  .required-block p { margin: 0 0 var(--sp-4); font-size: 13px; line-height: 19px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .req-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: -.12px; color: var(--md-on-surface); margin-bottom: var(--sp-2); }
+  .req-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--md-error); }
+
+  .ta { width: 100%; min-height: 88px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-sm); background: var(--md-surface); padding: 12px 14px; font-family: var(--md-font); font-size: 15px; letter-spacing: -.2px; color: var(--md-on-surface); resize: none; outline: none; line-height: 1.45; }
+  .ta::placeholder { color: var(--md-on-surface-variant); }
+
+  .photo-req { display: flex; gap: var(--sp-3); margin-top: var(--sp-4); }
+  .photo-add { width: 88px; height: 88px; flex: none; border: 1.5px dashed var(--md-outline); border-radius: var(--md-shape-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--md-surface); color: var(--md-on-surface-variant); cursor: pointer; }
+  .photo-add .ms { font-size: 24px; }
+  .photo-add span { font-size: 11px; font-weight: 600; }
+  .photo-thumb { width: 88px; height: 88px; border-radius: var(--md-shape-md); background: var(--md-surface-container-highest); position: relative; overflow: hidden; }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-thumb .x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center; }
+  .photo-thumb .x .ms { font-size: 15px; }
+
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="validacion.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title">
+        <b>Nueva reseña</b>
+        <span>Cancha La Sabana</span>
+      </div>
+    </header>
+
+    <div class="stepper">
+      <div class="step step--current"><div class="step__bar"></div><div class="step__label">Calificación</div></div>
+      <div class="step"><div class="step__bar"></div><div class="step__label">Cuestionario</div></div>
+      <div class="step"><div class="step__bar"></div><div class="step__label">Comentario</div></div>
+    </div>
+
+    <div class="scroll">
+      <div class="stars-row">
+        <div class="stars">
+          <span class="ms ms--fill on">star</span>
+          <span class="ms off">star</span>
+          <span class="ms off">star</span>
+          <span class="ms off">star</span>
+          <span class="ms off">star</span>
+        </div>
+        <div class="verdict">Mala <span>· 1 de 5 estrellas</span></div>
+      </div>
+
+      <div class="required-block">
+        <div class="required-block__head"><span class="ms">priority_high</span><b>Contanos qué pasó</b></div>
+        <p>Como es la calificación más baja, pedimos un motivo y una foto para dar contexto antes de publicar.</p>
+
+        <div class="req-label"><span class="dot"></span> MOTIVO (OBLIGATORIO)</div>
+        <textarea class="ta" placeholder="Ej.: la cancha estaba inundada y no se podía jugar."></textarea>
+
+        <div class="req-label" style="margin-top:var(--sp-4)"><span class="dot"></span> FOTO (OBLIGATORIA)</div>
+        <div class="photo-req">
+          <button class="photo-add"><span class="ms">add_a_photo</span><span>Agregar</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="actionbar">
+      <button class="md-btn md-btn--filled md-btn--full">Continuar</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

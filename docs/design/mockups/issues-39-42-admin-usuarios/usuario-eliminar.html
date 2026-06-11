@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Administrador — Eliminar cuenta · DIÁLOGO (#41)
+  Borrado LÓGICO: la cuenta pasa a inactivo, pierde acceso operativo, pero se
+  conserva el historial (no es borrado físico). Reversible. Solo admin.
+  Diálogo MD3 sobre scrim. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eliminar cuenta · Admin</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; color: var(--md-on-surface); }
+
+  .scroll { flex: 1; overflow: hidden; padding: var(--sp-5) var(--sp-4); }
+  .ghost { opacity: .5; }
+  .ghost__row { display: flex; align-items: center; gap: var(--sp-3); }
+  .ghost__avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--md-surface-container-highest); }
+  .ghost__line { height: 12px; border-radius: 6px; background: var(--md-surface-container-highest); }
+
+  .scrim { position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,.32); }
+  .dialog { position: absolute; z-index: 21; left: var(--sp-5); right: var(--sp-5); bottom: 50%; transform: translateY(50%); background: var(--md-surface); border-radius: var(--md-shape-lg); padding: var(--sp-6) var(--sp-5) var(--sp-5); box-shadow: var(--md-elev-3); }
+  .dialog__icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--md-error-container); margin: 0 auto var(--sp-4); }
+  .dialog__icon .ms { font-size: 28px; color: var(--md-error); }
+  .dialog h2 { margin: 0 0 var(--sp-3); text-align: center; color: var(--md-on-surface); }
+  .dialog p { margin: 0 0 var(--sp-5); text-align: center; font-size: 14px; line-height: 21px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .dialog p b { color: var(--md-on-surface); font-weight: 700; }
+  .dialog__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .btn-danger { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: var(--md-shape-full); background: var(--md-error); color: var(--md-on-error); font-size: 16px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; border: none; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="usuario-detalle.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title"><div class="md-title-large">Cuenta</div></div>
+    </header>
+
+    <div class="scroll">
+      <div class="ghost">
+        <div class="ghost__row"><div class="ghost__avatar"></div><div style="flex:1"><div class="ghost__line" style="width:50%"></div><div class="ghost__line" style="width:30%; margin-top:8px"></div></div></div>
+      </div>
+    </div>
+
+    <div class="scrim"></div>
+    <div class="dialog" role="alertdialog" aria-labelledby="dlg-title">
+      <div class="dialog__icon"><span class="ms">person_off</span></div>
+      <h2 id="dlg-title" class="md-title-large">¿Eliminar esta cuenta?</h2>
+      <p><b>Mejengas CR</b> quedará <b>inactiva</b> y perderá acceso. Se conserva el historial y podés reactivarla más adelante.</p>
+      <div class="dialog__actions">
+        <a class="btn-danger" href="usuarios.html">Eliminar cuenta</a>
+        <a class="md-btn md-btn--text md-btn--full" href="usuario-detalle.html">Cancelar</a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

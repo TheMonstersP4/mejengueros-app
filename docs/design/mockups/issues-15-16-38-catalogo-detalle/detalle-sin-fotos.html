@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Detalle de cancha · ESTADO SIN FOTOS (#16)
+  Regla del spec: la ausencia de imágenes NO invalida el detalle. Se muestra un
+  placeholder estable en lugar de la galería y el resto de la información (nombre,
+  ubicación, mapa, horarios, servicios) se presenta normal. No hay vista ampliada.
+  Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mejengas Curridabat · Detalle</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .scroll { flex: 1; overflow-y: auto; padding-bottom: 96px; }
+
+  /* Hero placeholder (sin fotos) — estable, no roto */
+  .hero { position: relative; height: 200px; background: var(--md-surface-container); display: grid; place-items: center; }
+  .hero__ph { text-align: center; color: var(--md-on-surface-variant); }
+  .hero__ph .ms { font-size: 40px; }
+  .hero__ph p { margin: 8px 0 0; font-size: 13px; font-weight: 600; letter-spacing: -.12px; }
+  .hero__top { position: absolute; top: var(--sp-3); left: var(--sp-3); right: var(--sp-3); display: flex; justify-content: space-between; }
+  .iconbtn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: none; cursor: pointer; background: var(--md-surface); color: var(--md-on-surface); text-decoration: none; border: var(--apple-hairline); }
+  .iconbtn .ms { font-size: 22px; }
+
+  .head { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+  .head h1 { margin: 0 0 8px; color: var(--md-on-surface); }
+  .head__norating { font-size: 13px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .head__loc { display: flex; align-items: flex-start; gap: 6px; margin-top: var(--sp-3); color: var(--md-on-surface-variant); font-size: 14px; line-height: 20px; letter-spacing: -.2px; }
+  .head__loc .ms { font-size: 18px; flex: none; }
+
+  .section { padding: var(--sp-5) var(--sp-4); border-top: var(--apple-hairline); }
+  .section h2 { margin: 0 0 var(--sp-3); color: var(--md-on-surface); }
+  .map { height: 150px; border-radius: var(--md-shape-md); background: var(--md-surface-container); position: relative; overflow: hidden; border: 1px solid var(--md-outline-variant); }
+  .map::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(var(--md-outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--md-outline-variant) 1px, transparent 1px); background-size: 28px 28px; opacity: .35; }
+  .map__pin { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-100%); font-size: 32px; color: var(--md-primary); }
+
+  .hours { display: flex; flex-direction: column; }
+  .hours__row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: var(--apple-hairline); font-size: 15px; letter-spacing: -.2px; }
+  .hours__row:last-child { border-bottom: none; }
+  .hours__day { color: var(--md-on-surface); font-weight: 600; }
+  .hours__val { color: var(--md-on-surface-variant); font-weight: 600; }
+
+  .services { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .svc { display: flex; align-items: center; gap: var(--sp-3); }
+  .svc__icon { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--md-surface-container); color: var(--md-on-surface); }
+  .svc__txt b { display: block; font-size: 15px; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .svc__txt span { font-size: 12px; color: var(--md-on-surface-variant); }
+  .svc__val { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <div class="scroll">
+      <!-- Hero placeholder: sin fotos, estable -->
+      <div class="hero">
+        <div class="hero__ph">
+          <span class="ms">image</span>
+          <p>Esta cancha aún no tiene fotos</p>
+        </div>
+        <div class="hero__top">
+          <a class="iconbtn" href="catalogo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+          <button class="iconbtn" aria-label="Guardar en favoritas"><span class="ms">favorite_border</span></button>
+        </div>
+      </div>
+
+      <div class="head">
+        <h1 class="md-headline-small">Mejengas Curridabat</h1>
+        <div class="head__norating">Todavía sin reseñas</div>
+        <div class="head__loc">
+          <span class="ms">location_on</span>
+          <span>San José · Curridabat — Plaza Cristal, segundo nivel.</span>
+        </div>
+      </div>
+
+      <section class="section">
+        <h2 class="md-title-medium">Ubicación</h2>
+        <div class="map"><span class="map__pin ms ms--fill">location_on</span></div>
+      </section>
+
+      <section class="section">
+        <h2 class="md-title-medium">Horarios</h2>
+        <div class="hours">
+          <div class="hours__row"><span class="hours__day">Lunes a viernes</span><span class="hours__val">09:00 – 21:00</span></div>
+          <div class="hours__row"><span class="hours__day">Sábado y domingo</span><span class="hours__val">08:00 – 22:00</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="md-title-medium">Servicios</h2>
+        <div class="services">
+          <div class="svc">
+            <span class="svc__icon ms">local_parking</span>
+            <div class="svc__txt"><b>Parqueo</b><span>Disponible para jugadores</span></div>
+            <span class="svc__val ms" style="color:var(--md-primary)">check</span>
+          </div>
+          <div class="svc">
+            <span class="svc__icon ms">grass</span>
+            <div class="svc__txt"><b>Tipo de césped</b><span>Superficie de juego</span></div>
+            <span class="svc__val">Híbrido</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="actionbar">
+      <button class="md-btn md-btn--filled md-btn--full">Dejar reseña</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

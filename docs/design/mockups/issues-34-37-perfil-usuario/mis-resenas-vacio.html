@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Mis reseñas · ESTADO VACÍO (#34)
+  Si el usuario aún no escribió ninguna reseña, se comunica un estado vacío claro.
+  Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis reseñas · Sin reseñas</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); border-bottom: var(--apple-hairline); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title .md-title-large { color: var(--md-on-surface); }
+
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: var(--sp-6) var(--sp-8); background: var(--md-surface-container); }
+  .empty__icon { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; background: var(--md-surface); border: var(--apple-hairline); margin-bottom: var(--sp-5); }
+  .empty__icon .ms { font-size: 40px; color: var(--md-on-surface-variant); }
+  .empty h2 { margin: 0 0 8px; color: var(--md-on-surface); }
+  .empty p { margin: 0 0 var(--sp-5); max-width: 260px; color: var(--md-on-surface-variant); font-size: 14px; line-height: 20px; letter-spacing: -.2px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="perfil.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title"><div class="md-title-large">Mis reseñas</div></div>
+    </header>
+
+    <div class="empty">
+      <div class="empty__icon"><span class="ms">rate_review</span></div>
+      <h2 class="md-title-large">Todavía no escribiste reseñas</h2>
+      <p>Cuando juegues en una cancha y dejes tu reseña, la vas a ver acá con tu calificación y comentario.</p>
+      <a class="md-btn md-btn--filled" href="../issues-15-16-38-catalogo-detalle/catalogo.html">Explorar canchas</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

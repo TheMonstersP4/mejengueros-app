@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Editar perfil · CAMBIAR FOTO (#37)
+  Sheet de selección de origen de imagen. La subida usa la infra de URL firmada
+  de #28 (backend); acá solo se elige origen. Reemplaza la foto anterior; no hay
+  "quitar sin reemplazar" en el MVP. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cambiar foto</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title .md-title-large { color: var(--md-on-surface); }
+
+  /* Pantalla anterior atenuada */
+  .scroll { flex: 1; overflow: hidden; padding: var(--sp-5) var(--sp-4); }
+  .ghost { opacity: .5; display: flex; flex-direction: column; align-items: center; }
+  .ghost__avatar { width: 100px; height: 100px; border-radius: 50%; background: var(--md-surface-container-highest); }
+
+  /* Scrim + bottom sheet */
+  .scrim { position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,.32); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--md-surface); border-radius: var(--md-shape-lg) var(--md-shape-lg) 0 0; padding: var(--sp-3) var(--sp-4) var(--sp-6); box-shadow: var(--md-elev-3); }
+  .sheet__grab { width: 36px; height: 4px; border-radius: var(--md-shape-full); background: var(--md-outline-variant); margin: 0 auto var(--sp-4); }
+  .sheet h2 { margin: 0 0 var(--sp-4); text-align: center; color: var(--md-on-surface); }
+  .sheet-opt { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-2); text-decoration: none; color: var(--md-on-surface); }
+  .sheet-opt + .sheet-opt { border-top: var(--apple-hairline); }
+  .sheet-opt__icon { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: var(--md-surface-container); color: var(--md-on-surface); }
+  .sheet-opt b { font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+  .sheet-cancel { display: block; width: 100%; text-align: center; margin-top: var(--sp-3); padding: var(--sp-3); color: var(--md-primary); font-size: 15px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="editar-perfil.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title"><div class="md-title-large">Editar perfil</div></div>
+    </header>
+
+    <div class="scroll">
+      <div class="ghost"><div class="ghost__avatar"></div></div>
+    </div>
+
+    <!-- Sheet de origen de imagen -->
+    <a class="scrim" href="editar-perfil.html" aria-label="Cerrar"></a>
+    <div class="sheet" role="dialog" aria-label="Cambiar foto de perfil">
+      <div class="sheet__grab"></div>
+      <h2 class="md-title-large">Cambiar foto de perfil</h2>
+      <a class="sheet-opt" href="editar-perfil.html">
+        <span class="sheet-opt__icon ms">photo_camera</span>
+        <b>Tomar foto</b>
+      </a>
+      <a class="sheet-opt" href="editar-perfil.html">
+        <span class="sheet-opt__icon ms">photo_library</span>
+        <b>Elegir de la galería</b>
+      </a>
+      <a class="sheet-cancel" href="editar-perfil.html">Cancelar</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

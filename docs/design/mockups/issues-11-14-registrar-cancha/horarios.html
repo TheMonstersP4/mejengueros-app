@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño de cancha — Onboarding · HORARIOS (sub-página dedicada)
+  Issue: #13 Horarios. Se llega desde onboarding.html (hub).
+  Patrón: HORARIO GENERAL + EXCEPCIONES.
+    - Un rango compartido se aplica a todos los días marcados como abiertos.
+    - Los días son chips abierto/cerrado (la mayoría de canchas repiten horario).
+    - Solo se agregan EXCEPCIONES cuando un día difiere del general.
+  Esto reemplaza el scroll de 7 tarjetas por ~3 controles.
+  Componentes: MD3 (selección). Estética: apple-DESIGN.md. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horarios · Registrar cancha</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+
+  /* Top app bar */
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__icon:active { transform: scale(.92); }
+  .appbar__title { flex: 1; color: var(--md-on-surface); padding-left: 4px; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-4) 120px; }
+  .lead { margin: 0 0 var(--sp-5); color: var(--md-on-surface-variant); }
+
+  /* Section headers */
+  .sec { margin-top: var(--sp-6); }
+  .sec:first-of-type { margin-top: 0; }
+  .sec__title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 var(--sp-1); color: var(--md-on-surface); }
+  .sec__hint { margin: 0 0 var(--sp-3); font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  /* General-schedule card */
+  .panel { background: var(--md-surface-container-low); border-radius: var(--md-shape-md); padding: var(--sp-4); }
+
+  /* Day chips (abierto/cerrado) */
+  .days { display: flex; gap: 6px; justify-content: space-between; }
+  .day-chip {
+    flex: 1; aspect-ratio: 1; max-width: 44px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    border: 1.5px solid var(--md-outline-variant);
+    background: var(--md-surface);
+    font-size: 13px; font-weight: 700; letter-spacing: -.2px;
+    color: var(--md-on-surface-variant); cursor: pointer;
+    transition: .15s;
+  }
+  .day-chip[aria-pressed="true"] { background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary); }
+  .day-chip:active { transform: scale(.92); }
+  .days-legend { display: flex; gap: 14px; margin-top: var(--sp-3); font-size: 12px; letter-spacing: -.12px; color: var(--md-on-surface-variant); }
+  .days-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot--open { background: var(--md-primary); }
+  .dot--closed { background: var(--md-surface); border: 1.5px solid var(--md-outline-variant); }
+
+  /* Time range */
+  .range { display: flex; align-items: flex-end; gap: var(--sp-3); margin-top: var(--sp-4); }
+  .time-field {
+    flex: 1; min-height: 56px;
+    display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    padding: 8px 14px; border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-shape-sm); background: var(--md-surface);
+    cursor: pointer; text-align: left;
+  }
+  .time-field:active { border-color: var(--md-primary); }
+  .time-field small { font-size: 11px; font-weight: 600; letter-spacing: -.08px; color: var(--md-on-surface-variant); }
+  .time-field__val { display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .time-field__val .ms { font-size: 17px; color: var(--md-on-surface-variant); }
+  .time-sep { align-self: center; color: var(--md-on-surface-variant); font-weight: 700; padding-bottom: 18px; }
+
+  /* Exceptions */
+  .exc { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .exc-row {
+    display: flex; align-items: center; gap: var(--sp-3);
+    background: var(--md-surface-container-low); border-radius: var(--md-shape-md);
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .exc-row__day { font-size: 15px; font-weight: 700; color: var(--md-on-surface); min-width: 64px; }
+  .exc-row__time { flex: 1; font-size: 14px; font-weight: 600; color: var(--md-on-surface); display: flex; align-items: center; gap: 6px; }
+  .exc-row__time .ms { font-size: 16px; color: var(--md-on-surface-variant); }
+  .exc-row__time .closed { color: var(--md-on-surface-variant); font-weight: 600; }
+  .exc-row__remove { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: none; background: none; color: var(--md-on-surface-variant); border-radius: 50%; cursor: pointer; }
+  .exc-row__remove .ms { font-size: 20px; }
+
+  .add-exc {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 52px; margin-top: 4px;
+    border: 1.5px dashed var(--md-outline-variant); border-radius: var(--md-shape-md);
+    background: none; color: var(--md-primary);
+    font-size: 15px; font-weight: 600; letter-spacing: -.2px; cursor: pointer;
+  }
+  .add-exc .ms { font-size: 20px; }
+
+  /* Bottom action bar */
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <!-- Back vuelve al hub -->
+    <header class="appbar">
+      <a class="appbar__icon" href="onboarding.html" role="button" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title"><div class="md-title-large">Horarios</div></div>
+    </header>
+
+    <div class="scroll">
+      <p class="lead md-body-medium">Definí un horario general y, si algún día abre distinto, agregalo como excepción.</p>
+
+      <!-- 1 · Días de apertura + horario general -->
+      <section class="sec">
+        <h2 class="sec__title md-title-medium">Horario general</h2>
+        <p class="sec__hint">Se aplica a todos los días marcados como abiertos.</p>
+
+        <div class="panel">
+          <div class="days">
+            <button class="day-chip" aria-pressed="true">Lu</button>
+            <button class="day-chip" aria-pressed="true">Ma</button>
+            <button class="day-chip" aria-pressed="false">Mi</button>
+            <button class="day-chip" aria-pressed="true">Ju</button>
+            <button class="day-chip" aria-pressed="true">Vi</button>
+            <button class="day-chip" aria-pressed="true">Sá</button>
+            <button class="day-chip" aria-pressed="true">Do</button>
+          </div>
+          <div class="days-legend">
+            <span><span class="dot dot--open"></span> Abierto</span>
+            <span><span class="dot dot--closed"></span> Cerrado · tocá para alternar</span>
+          </div>
+
+          <div class="range">
+            <button class="time-field"><small>Apertura</small><span class="time-field__val"><span class="ms">schedule</span>08:00</span></button>
+            <span class="time-sep">–</span>
+            <button class="time-field"><small>Cierre</small><span class="time-field__val"><span class="ms">schedule</span>22:00</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2 · Excepciones -->
+      <section class="sec">
+        <h2 class="sec__title md-title-medium">Excepciones</h2>
+        <p class="sec__hint">Días que abren en un horario distinto al general.</p>
+
+        <div class="exc">
+          <!-- Ejemplo: fin de semana con horario extendido -->
+          <div class="exc-row">
+            <span class="exc-row__day">Sábado</span>
+            <span class="exc-row__time"><span class="ms">schedule</span> 07:00 – 23:00</span>
+            <button class="exc-row__remove" aria-label="Quitar excepción"><span class="ms">close</span></button>
+          </div>
+          <div class="exc-row">
+            <span class="exc-row__day">Domingo</span>
+            <span class="exc-row__time"><span class="ms">schedule</span> 07:00 – 20:00</span>
+            <button class="exc-row__remove" aria-label="Quitar excepción"><span class="ms">close</span></button>
+          </div>
+
+          <button class="add-exc"><span class="ms">add</span> Agregar excepción</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Guardar vuelve al hub con la sección marcada completa -->
+    <div class="actionbar">
+      <button class="md-btn md-btn--filled md-btn--full">Guardar horarios</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

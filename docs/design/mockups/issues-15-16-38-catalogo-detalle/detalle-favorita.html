@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Detalle de cancha · ESTADO FAVORITA (#38)
+  Qué pasa al tocar el corazón en el detalle: la cancha queda marcada como
+  favorita. Corazón LLENO ROJO = favorita (color funcional, no segundo acento de
+  marca); contorno = no favorita. Confirmación con snackbar + deshacer. La acción
+  de favorito pertenece a #38 (no al perfil); la lista vive en #35.
+  Rol mejenguero. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cancha La Sabana · Detalle</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding-bottom: 96px; }
+
+  /* Hero: galería horizontal con scroll-snap */
+  .hero { position: relative; }
+  .gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .gallery::-webkit-scrollbar { display: none; }
+  .gallery img { flex: none; width: 390px; height: 290px; object-fit: cover; scroll-snap-align: start; display: block; }
+
+  /* Controles flotantes (apple button-icon-circular, chip translúcido) */
+  .hero__top { position: absolute; top: var(--sp-3); left: var(--sp-3); right: var(--sp-3); display: flex; justify-content: space-between; }
+  .iconbtn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: none; cursor: pointer; background: rgba(255,255,255,.92); color: var(--md-on-surface); text-decoration: none; }
+  .iconbtn .ms { font-size: 22px; }
+  .iconbtn:active { transform: scale(.92); }
+  .hero__count { position: absolute; right: var(--sp-3); bottom: var(--sp-3); display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: var(--md-shape-full); background: rgba(0,0,0,.6); color: #fff; font-size: 13px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+  .hero__count .ms { font-size: 17px; }
+
+  /* Cabecera de info */
+  .head { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+  .head h1 { margin: 0 0 8px; color: var(--md-on-surface); }
+  .head__rating { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .head__rating .stars { color: #f5a623; display: inline-flex; }
+  .head__rating .stars .ms { font-size: 17px; }
+  .head__rating b { font-weight: 700; }
+  .head__rating a { color: var(--md-primary); text-decoration: none; font-weight: 600; }
+  .head__loc { display: flex; align-items: flex-start; gap: 6px; margin-top: var(--sp-3); color: var(--md-on-surface-variant); font-size: 14px; line-height: 20px; letter-spacing: -.2px; }
+  .head__loc .ms { font-size: 18px; flex: none; }
+
+  .section { padding: var(--sp-5) var(--sp-4); border-top: var(--apple-hairline); }
+  .section h2 { margin: 0 0 var(--sp-3); color: var(--md-on-surface); }
+
+  /* Mapa */
+  .map { height: 150px; border-radius: var(--md-shape-md); background: var(--md-surface-container); position: relative; overflow: hidden; border: 1px solid var(--md-outline-variant); }
+  .map::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(var(--md-outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--md-outline-variant) 1px, transparent 1px); background-size: 28px 28px; opacity: .35; }
+  .map__pin { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-100%); font-size: 32px; color: var(--md-primary); }
+
+  /* Horarios (read-only, agrupado) */
+  .hours { display: flex; flex-direction: column; }
+  .hours__row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: var(--apple-hairline); font-size: 15px; letter-spacing: -.2px; }
+  .hours__row:last-child { border-bottom: none; }
+  .hours__day { color: var(--md-on-surface); font-weight: 600; }
+  .hours__day--today { color: var(--md-primary); }
+  .hours__val { color: var(--md-on-surface-variant); font-weight: 600; }
+  .hours__val--closed { color: var(--md-on-surface-variant); }
+  .today-pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; margin-bottom: var(--sp-3); border-radius: var(--md-shape-full); background: var(--md-primary-container); color: var(--md-on-primary-container); font-size: 13px; font-weight: 700; letter-spacing: -.2px; }
+  .today-pill .ms { font-size: 16px; }
+
+  /* Servicios */
+  .services { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .svc { display: flex; align-items: center; gap: var(--sp-3); }
+  .svc__icon { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--md-surface-container); color: var(--md-on-surface); }
+  .svc__txt b { display: block; font-size: 15px; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .svc__txt span { font-size: 12px; color: var(--md-on-surface-variant); }
+  .svc__val { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+
+  /* Bottom action bar */
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+
+  /* Snackbar de confirmación (#38) */
+  .snackbar { position: absolute; left: var(--sp-4); right: var(--sp-4); bottom: 92px; z-index: 5; display: flex; align-items: center; gap: var(--sp-3); padding: 12px 16px; background: var(--md-inverse-surface); color: var(--md-inverse-on-surface); border-radius: var(--md-shape-sm); box-shadow: var(--md-elev-3); }
+  .snackbar__heart { color: #ff5c8a; font-size: 18px; }
+  .snackbar__txt { flex: 1; font-size: 14px; font-weight: 500; letter-spacing: -.2px; }
+  .snackbar__action { color: var(--md-inverse-primary); font-weight: 700; font-size: 14px; letter-spacing: -.2px; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <div class="scroll">
+      <!-- Galería horizontal -->
+      <div class="hero">
+        <div class="gallery">
+          <img src="https://picsum.photos/seed/sabana-1/780/580" alt="Cancha La Sabana, vista 1">
+          <img src="https://picsum.photos/seed/sabana-2/780/580" alt="Cancha La Sabana, vista 2">
+          <img src="https://picsum.photos/seed/sabana-3/780/580" alt="Cancha La Sabana, vista 3">
+        </div>
+        <div class="hero__top">
+          <a class="iconbtn" href="catalogo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+          <button class="iconbtn" aria-label="Quitar de favoritas"><span class="ms ms--fill" style="color:#e0245e">favorite</span></button>
+        </div>
+        <a class="hero__count" href="galeria.html"><span class="ms">photo_library</span> Ver las 6 fotos</a>
+      </div>
+
+      <!-- Nombre + rating opcional -->
+      <div class="head">
+        <h1 class="md-headline-small">Cancha La Sabana</h1>
+        <div class="head__rating">
+          <span class="stars"><span class="ms ms--fill">star</span></span>
+          <b>4.6</b> · <a href="#">23 reseñas</a>
+        </div>
+        <div class="head__loc">
+          <span class="ms">location_on</span>
+          <span>San José · Escazú — 200 m sur de la iglesia de San Rafael, portón verde.</span>
+        </div>
+      </div>
+
+      <!-- Ubicación / mapa -->
+      <section class="section">
+        <h2 class="md-title-medium">Ubicación</h2>
+        <div class="map"><span class="map__pin ms ms--fill">location_on</span></div>
+      </section>
+
+      <!-- Horarios -->
+      <section class="section">
+        <h2 class="md-title-medium">Horarios</h2>
+        <span class="today-pill"><span class="ms">schedule</span> Abierto ahora · cierra 22:00</span>
+        <div class="hours">
+          <div class="hours__row"><span class="hours__day hours__day--today">Lunes a viernes</span><span class="hours__val">08:00 – 22:00</span></div>
+          <div class="hours__row"><span class="hours__day">Sábado</span><span class="hours__val">07:00 – 23:00</span></div>
+          <div class="hours__row"><span class="hours__day">Domingo</span><span class="hours__val">07:00 – 20:00</span></div>
+          <div class="hours__row"><span class="hours__day">Miércoles</span><span class="hours__val hours__val--closed">Cerrado</span></div>
+        </div>
+      </section>
+
+      <!-- Servicios -->
+      <section class="section">
+        <h2 class="md-title-medium">Servicios</h2>
+        <div class="services">
+          <div class="svc">
+            <span class="svc__icon ms">local_parking</span>
+            <div class="svc__txt"><b>Parqueo</b><span>Disponible para jugadores</span></div>
+            <span class="svc__val ms" style="color:var(--md-primary)">check</span>
+          </div>
+          <div class="svc">
+            <span class="svc__icon ms">lightbulb</span>
+            <div class="svc__txt"><b>Iluminación</b><span>Apta para jugar de noche</span></div>
+            <span class="svc__val ms" style="color:var(--md-primary)">check</span>
+          </div>
+          <div class="svc">
+            <span class="svc__icon ms">grass</span>
+            <div class="svc__txt"><b>Tipo de césped</b><span>Superficie de juego</span></div>
+            <span class="svc__val">Sintético</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Confirmación de favorito (#38) -->
+    <div class="snackbar">
+      <span class="snackbar__heart ms ms--fill">favorite</span>
+      <span class="snackbar__txt">Agregada a tus favoritas</span>
+      <a class="snackbar__action" href="detalle.html">Deshacer</a>
+    </div>
+
+    <!-- Acción principal: dejar reseña (la reseña se origina desde el detalle, #17) -->
+    <div class="actionbar">
+      <button class="md-btn md-btn--filled md-btn--full">Dejar reseña</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

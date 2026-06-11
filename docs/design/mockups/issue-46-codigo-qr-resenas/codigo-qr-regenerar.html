@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño — Código de reseñas · DIÁLOGO DE REGENERACIÓN
+  Issue: #46. Antes de regenerar, el sistema advierte que el código y QR actuales
+  dejarán de funcionar de inmediato para nuevas reseñas y que hay que actualizar
+  el cartel/QR físico. Si cancela, el código vigente se mantiene.
+  Diálogo MD3 (selección) sobre scrim; estética apple-DESIGN.md. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regenerar código · Cancha La Sabana</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); border-bottom: var(--apple-hairline); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .appbar__title span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  /* Fondo atenuado (estado de la pantalla anterior) */
+  .scroll { flex: 1; overflow: hidden; padding: var(--sp-5) var(--sp-4); }
+  .ghost { opacity: .5; }
+  .ghost h1 { margin: 0 0 8px; color: var(--md-on-surface); }
+  .ghost .qrcard { border: var(--apple-hairline); border-radius: var(--md-shape-lg); padding: var(--sp-6); display: flex; justify-content: center; }
+  .ghost .qr-ph { width: 160px; height: 160px; border-radius: var(--md-shape-md); background: var(--md-surface-container-highest); }
+
+  /* Scrim + diálogo */
+  .scrim { position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,.32); }
+  .dialog { position: absolute; z-index: 21; left: var(--sp-5); right: var(--sp-5); bottom: 50%; transform: translateY(50%); background: var(--md-surface); border-radius: var(--md-shape-lg); padding: var(--sp-6) var(--sp-5) var(--sp-5); box-shadow: var(--md-elev-3); }
+  .dialog__icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--md-surface-container); margin: 0 auto var(--sp-4); }
+  .dialog__icon .ms { font-size: 28px; color: var(--md-on-surface); }
+  .dialog h2 { margin: 0 0 var(--sp-3); text-align: center; color: var(--md-on-surface); }
+  .dialog p { margin: 0 0 var(--sp-5); text-align: center; font-size: 14px; line-height: 21px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .dialog p b { color: var(--md-on-surface); font-weight: 700; }
+  .dialog__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="codigo-qr.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title">
+        <b>Código de reseñas</b>
+        <span>Cancha La Sabana</span>
+      </div>
+    </header>
+
+    <!-- Pantalla anterior atenuada -->
+    <div class="scroll">
+      <div class="ghost">
+        <h1 class="md-title-large">Validación de presencia</h1>
+        <div class="qrcard"><div class="qr-ph"></div></div>
+      </div>
+    </div>
+
+    <!-- Diálogo de advertencia -->
+    <div class="scrim"></div>
+    <div class="dialog" role="alertdialog" aria-labelledby="dlg-title">
+      <div class="dialog__icon"><span class="ms">autorenew</span></div>
+      <h2 id="dlg-title" class="md-title-large">¿Regenerar el código?</h2>
+      <p>El código actual <b>481 902</b> y su QR van a dejar de funcionar al instante. Vas a tener que actualizar el cartel o el QR pegado en la cancha.</p>
+      <div class="dialog__actions">
+        <a class="md-btn md-btn--filled md-btn--full" href="codigo-qr-regenerado.html">Sí, regenerar</a>
+        <a class="md-btn md-btn--text md-btn--full" href="codigo-qr.html">Cancelar</a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

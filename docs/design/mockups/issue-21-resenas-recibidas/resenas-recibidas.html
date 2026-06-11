@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño de cancha — Reseñas recibidas
+  Issue: #21 (TheMonstersP4). El dueño CONSULTA (lectura) las reseñas de su
+  cancha. No crea, no modera, no responde, no oculta. Cada reseña muestra
+  rating, fecha, comentario, respuestas estructuradas del cuestionario (lectura
+  simple = huella de #22) y fotos. Las reseñas de 1★ incluyen su imagen
+  obligatoria (#19), ya resuelta en creación.
+  Rol dueño; sub-vista de una cancha => top app bar con back.
+  Componentes MD3 (selección); estética apple-DESIGN.md. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reseñas recibidas · Cancha La Sabana</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); border-bottom: var(--apple-hairline); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .appbar__title span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-4) var(--sp-6); background: var(--md-surface-container); }
+  .summary { font-size: 13px; font-weight: 600; letter-spacing: -.12px; color: var(--md-on-surface-variant); margin-bottom: var(--sp-4); }
+
+  .list { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .review { background: var(--md-surface); border: var(--apple-hairline); border-radius: var(--md-shape-lg); padding: var(--sp-4); }
+  .review__top { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .avatar { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; background: var(--md-surface-container-highest); color: var(--md-on-surface); letter-spacing: -.2px; }
+  .who { flex: 1; min-width: 0; }
+  .who b { display: block; font-size: 14px; font-weight: 700; letter-spacing: -.2px; color: var(--md-on-surface); }
+  .who span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+  .stars { display: inline-flex; gap: 1px; }
+  .stars .ms { font-size: 16px; }
+  .stars .on { color: #f5a623; }
+  .stars .off { color: var(--md-outline-variant); }
+
+  .review__text { margin: 0 0 var(--sp-3); font-size: 14px; line-height: 20px; color: var(--md-on-surface); letter-spacing: -.2px; }
+
+  /* Respuestas estructuradas del cuestionario (lectura simple — #22) */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-3); }
+  .tag { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: var(--md-shape-full); background: var(--md-surface-container); color: var(--md-on-surface); font-size: 12px; font-weight: 600; letter-spacing: -.12px; }
+  .tag b { color: var(--md-on-surface-variant); font-weight: 600; }
+
+  .photos { display: flex; gap: var(--sp-2); }
+  .photos img { width: 72px; height: 72px; border-radius: var(--md-shape-sm); object-fit: cover; background: var(--md-surface-container-highest); }
+
+  /* Marca de 1 estrella con evidencia */
+  .review--low { border-color: var(--md-error-container); }
+  .badge-low { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: var(--md-shape-full); background: var(--md-error-container); color: var(--md-on-error-container); font-size: 11px; font-weight: 700; letter-spacing: -.08px; margin-left: auto; }
+  .badge-low .ms { font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="../issues-11-14-registrar-cancha/gestion-cancha.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title">
+        <b>Reseñas recibidas</b>
+        <span>Cancha La Sabana</span>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <div class="summary">23 reseñas recibidas</div>
+
+      <div class="list">
+
+        <!-- Reseña 5★ con fotos -->
+        <article class="review">
+          <div class="review__top">
+            <span class="avatar">DR</span>
+            <div class="who">
+              <b>Diego R.</b>
+              <span>Hace 2 días</span>
+            </div>
+            <span class="stars">
+              <span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span>
+            </span>
+          </div>
+          <p class="review__text">Cancha impecable, el sintético está nuevo y la iluminación de noche es excelente. Volvería sin dudarlo.</p>
+          <div class="tags">
+            <span class="tag"><b>Estado:</b> Excelente</span>
+            <span class="tag"><b>Iluminación:</b> Muy buena</span>
+            <span class="tag"><b>Volvería:</b> Sí</span>
+          </div>
+          <div class="photos">
+            <img src="https://picsum.photos/seed/rev-a1/160/160" alt="Foto de la reseña">
+            <img src="https://picsum.photos/seed/rev-a2/160/160" alt="Foto de la reseña">
+          </div>
+        </article>
+
+        <!-- Reseña 4★ sin fotos -->
+        <article class="review">
+          <div class="review__top">
+            <span class="avatar">MS</span>
+            <div class="who">
+              <b>María S.</b>
+              <span>Hace 5 días</span>
+            </div>
+            <span class="stars">
+              <span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms off">star</span>
+            </span>
+          </div>
+          <p class="review__text">Muy buena cancha para jugar de noche. El parqueo justo se llena temprano, conviene llegar con tiempo.</p>
+          <div class="tags">
+            <span class="tag"><b>Estado:</b> Bueno</span>
+            <span class="tag"><b>Parqueo:</b> Justo</span>
+            <span class="tag"><b>Volvería:</b> Sí</span>
+          </div>
+        </article>
+
+        <!-- Reseña 1★ con justificación + imagen obligatoria (#19) -->
+        <article class="review review--low">
+          <div class="review__top">
+            <span class="avatar">JC</span>
+            <div class="who">
+              <b>Jonathan C.</b>
+              <span>Hace 1 semana</span>
+            </div>
+            <span class="badge-low"><span class="ms ms--fill">star</span> 1 estrella</span>
+          </div>
+          <p class="review__text">La cancha estaba inundada y no se podía jugar. Avisamos y no hubo respuesta del encargado.</p>
+          <div class="tags">
+            <span class="tag"><b>Estado:</b> Malo</span>
+            <span class="tag"><b>Volvería:</b> No</span>
+          </div>
+          <div class="photos">
+            <img src="https://picsum.photos/seed/rev-c1/160/160" alt="Evidencia de la reseña">
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

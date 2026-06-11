@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Detalle de cancha · ESTADO NO DISPONIBLE (#16)
+  Regla del spec: si la cancha fue despublicada, ocultada, desactivada o
+  eliminada antes de abrir el detalle, NO se debe mostrar información como si
+  siguiera disponible. Se comunica claro y se ofrece volver al catálogo.
+  Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cancha no disponible</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+
+  .state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: var(--sp-6) var(--sp-8); }
+  .state__icon { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; background: var(--md-surface-container); margin-bottom: var(--sp-5); }
+  .state__icon .ms { font-size: 42px; color: var(--md-on-surface-variant); }
+  .state h1 { margin: 0 0 10px; color: var(--md-on-surface); }
+  .state p { margin: 0 0 var(--sp-6); max-width: 280px; color: var(--md-on-surface-variant); font-size: 14px; line-height: 21px; letter-spacing: -.2px; }
+  .state .md-btn { min-width: 220px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="catalogo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+    </header>
+
+    <div class="state">
+      <div class="state__icon"><span class="ms">visibility_off</span></div>
+      <h1 class="md-title-large">Esta cancha ya no está disponible</h1>
+      <p>La cancha que intentás ver fue despublicada o desactivada por su dueño, así que no podemos mostrar su detalle. Seguí explorando otras canchas activas.</p>
+      <a class="md-btn md-btn--filled" href="catalogo.html">Volver al catálogo</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>
