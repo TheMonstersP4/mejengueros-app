@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class AppDatabaseMigrationTest {
 
   @Test
-  fun migrationFromVersionOneToThreePreservesAuthSessionAndCreatesPokemonTables() {
+  fun migrationFromVersionOneToFourClearsLegacyAuthSessionAndCreatesPokemonTables() {
     val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     try {
       createVersionOneSchema(driver)
@@ -19,10 +19,10 @@ class AppDatabaseMigrationTest {
           parameters = 0,
       )
 
-      AppDatabase.Schema.migrate(driver, oldVersion = 1, newVersion = 3)
+      AppDatabase.Schema.migrate(driver, oldVersion = 1, newVersion = 4)
       val database = AppDatabase(driver)
 
-      assertEquals("brock", database.authSessionQueries.selectSession().executeAsOne())
+      assertEquals(null, database.authSessionQueries.selectSession().executeAsOneOrNull())
       assertEquals(0, database.pokemonCacheQueries.selectPokemonSummaryCount().executeAsOne())
       assertFalse(database.pokemonCacheQueries.isFavorite(1).executeAsOne())
 
@@ -119,6 +119,27 @@ class AppDatabaseMigrationTest {
       val database = AppDatabase(driver)
 
       assertFalse(database.pokemonCacheQueries.isFavorite(1).executeAsOne())
+    } finally {
+      driver.close()
+    }
+  }
+
+  @Test
+  fun migrationFromVersionThreeToFourCreatesCognitoAuthTables() {
+    val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+    try {
+      createVersionTwoSchema(driver)
+      driver.execute(
+          identifier = null,
+          sql = "CREATE TABLE FavoritePokemonEntity(id INTEGER NOT NULL PRIMARY KEY)",
+          parameters = 0,
+      )
+
+      AppDatabase.Schema.migrate(driver, oldVersion = 3, newVersion = 4)
+      val database = AppDatabase(driver)
+
+      assertEquals(null, database.authSessionQueries.selectSession().executeAsOneOrNull())
+      assertEquals(null, database.authSessionQueries.selectOAuthState().executeAsOneOrNull())
     } finally {
       driver.close()
     }

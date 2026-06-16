@@ -25,8 +25,8 @@ class SharedLogicAndroidHostTest {
     try {
       dataSource.clearSession()
 
-      dataSource.saveSession(AuthSession(username = "misty"))
-      assertEquals(AuthSession(username = "misty"), dataSource.getSession())
+      dataSource.saveSession(sampleSession())
+      assertEquals(sampleSession(), dataSource.getSession())
 
       dataSource.clearSession()
       assertNull(dataSource.getSession())
@@ -34,4 +34,16 @@ class SharedLogicAndroidHostTest {
       driver.close()
     }
   }
+
+  private fun sampleSession(): AuthSession =
+      AuthSession(
+          sub = "misty",
+          email = "misty@example.com",
+          displayName = "Misty",
+          provider = "Google",
+          idToken = "id-token",
+          accessToken = "access-token",
+          refreshToken = "refresh-token",
+          expiresAtEpochSeconds = 4102444800,
+      )
 }

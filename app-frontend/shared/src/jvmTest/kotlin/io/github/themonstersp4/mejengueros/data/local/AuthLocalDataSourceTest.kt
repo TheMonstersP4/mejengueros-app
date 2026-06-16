@@ -18,32 +18,54 @@ class AuthLocalDataSourceTest {
   }
 
   @Test
-  fun saveSessionPersistsSession() {
+  fun saveSessionPersistsCognitoSession() {
     val dataSource = createDataSource()
 
-    dataSource.saveSession(AuthSession(username = "stored-user"))
+    dataSource.saveSession(sampleSession("stored-user"))
 
-    assertEquals(AuthSession(username = "stored-user"), dataSource.getSession())
+    assertEquals(sampleSession("stored-user"), dataSource.getSession())
   }
 
   @Test
   fun saveSessionReplacesExistingSession() {
     val dataSource = createDataSource()
 
-    dataSource.saveSession(AuthSession(username = "first-user"))
-    dataSource.saveSession(AuthSession(username = "second-user"))
+    dataSource.saveSession(sampleSession("first-user"))
+    dataSource.saveSession(sampleSession("second-user"))
 
-    assertEquals(AuthSession(username = "second-user"), dataSource.getSession())
+    assertEquals(sampleSession("second-user"), dataSource.getSession())
   }
 
   @Test
   fun clearSessionRemovesPersistedSession() {
     val dataSource = createDataSource()
 
-    dataSource.saveSession(AuthSession(username = "stored-user"))
+    dataSource.saveSession(sampleSession("stored-user"))
     dataSource.clearSession()
 
     assertNull(dataSource.getSession())
+  }
+
+  @Test
+  fun saveOAuthStatePersistsPendingLoginState() {
+    val dataSource = createDataSource()
+
+    dataSource.saveOAuthState(PendingOAuthState(state = "state", codeVerifier = "verifier"))
+
+    assertEquals(
+        PendingOAuthState(state = "state", codeVerifier = "verifier"),
+        dataSource.getOAuthState(),
+    )
+  }
+
+  @Test
+  fun clearOAuthStateRemovesPendingLoginState() {
+    val dataSource = createDataSource()
+
+    dataSource.saveOAuthState(PendingOAuthState(state = "state", codeVerifier = "verifier"))
+    dataSource.clearOAuthState()
+
+    assertNull(dataSource.getOAuthState())
   }
 
   private fun createDataSource(): AuthLocalDataSource {
@@ -52,4 +74,16 @@ class AuthLocalDataSourceTest {
     val database = AppDatabase(driver)
     return AuthLocalDataSource(database.authSessionQueries)
   }
+
+  private fun sampleSession(sub: String): AuthSession =
+      AuthSession(
+          sub = sub,
+          email = "$sub@example.com",
+          displayName = "Player",
+          provider = "Google",
+          idToken = "id-token-$sub",
+          accessToken = "access-token-$sub",
+          refreshToken = "refresh-token-$sub",
+          expiresAtEpochSeconds = 4102444800,
+      )
 }
