@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
 object AuthCallbackBus {
-  private val _callbackUrls = MutableSharedFlow<String>(extraBufferCapacity = 1)
+  private val _callbackUrls = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
   val callbackUrls: SharedFlow<String> = _callbackUrls
 
   fun publish(callbackUrl: String) {

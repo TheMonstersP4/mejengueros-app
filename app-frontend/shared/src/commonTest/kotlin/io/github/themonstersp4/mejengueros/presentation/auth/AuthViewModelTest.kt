@@ -76,6 +76,25 @@ class AuthViewModelTest {
   }
 
   @Test
+  fun callbackPublishedBeforeViewModelStillAuthenticatesSession() = runTest {
+    val callbacks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    callbacks.tryEmit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    val repository = FakeAuthRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+
+    val viewModel = AuthViewModel(repository, FakeOAuthBrowser(), callbacks, scope)
+    advanceUntilIdle()
+
+    assertEquals("player@example.com", viewModel.uiState.value.email)
+    assertTrue(viewModel.uiState.value.isAuthenticated)
+    assertEquals(
+        "com.themonsters.mejengueros://auth/callback?code=code&state=state",
+        repository.receivedCallback,
+    )
+    scope.cancel()
+  }
+
+  @Test
   fun signOutClearsRepositoryStateAndOpensLogoutUrl() = runTest {
     val browser = FakeOAuthBrowser()
     val repository = FakeAuthRepository(existingSession = sampleSession())
