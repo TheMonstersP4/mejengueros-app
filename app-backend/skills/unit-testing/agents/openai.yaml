@@ -1,0 +1,4 @@
+interface:
+  display_name: "Unit Testing"
+  short_description: "Unit test standards for NestJS TypeScript."
+  default_prompt: "Apply the repository unit testing standards, configure Jest coverage, and write maintainable tests without weakening production code."
