@@ -37,6 +37,7 @@ app-backend/api/src/generated/prisma/
 app-backend/api/.lambda/
 
 # Local agent workspaces
+.atl/
 .agents/
 .skills/
 **/.agents/

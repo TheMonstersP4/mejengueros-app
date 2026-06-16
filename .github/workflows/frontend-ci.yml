@@ -1,0 +1,35 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - .github/workflows/frontend-ci.yml
+      - app-frontend/**
+  pull_request:
+    paths:
+      - .github/workflows/frontend-ci.yml
+      - app-frontend/**
+
+jobs:
+  verify:
+    name: Verify KMP base
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Verify
+        run: ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
