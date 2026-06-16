@@ -15,7 +15,7 @@ shared/       Shared Compose UI and shared Kotlin logic
 
 The project intentionally does **not** create a `composeApp` module. Shared UI and shared app logic live in `shared`, because all current targets use Compose Multiplatform UI.
 
-The project also intentionally avoids Firebase and Navigation 2. It uses local/manual auth, Navigation 3, Koin, Ktor, SQLDelight, Material 3, and standard repositories/Maven Central.
+The project intentionally avoids Firebase and Navigation 2. It uses Cognito Hosted UI, Navigation 3, Koin, Ktor, SQLDelight, Material 3, and standard repositories/Maven Central.
 
 ## Module responsibilities
 
@@ -89,7 +89,7 @@ The app uses Navigation 3, not Navigation 2.
 Rules:
 
 - routes are `@Serializable` `NavKey` types;
-- authenticated navigation owns separate Home and Pokédex back stacks;
+- authenticated navigation owns separate Home and Pokedex back stacks;
 - destinations are rendered with `NavDisplay` and `entryProvider`;
 - screens stay controller-free and receive callbacks.
 
@@ -97,10 +97,10 @@ After login or session restore, users enter an authenticated shell. The shell ow
 
 ```text
 Top app bar: Mejengueros                         Sign out
-Bottom bar:  Home | Pokédex
+Bottom bar:  Home | Pokedex
 ```
 
-`Home` is the authenticated landing tab. `Pokédex` preserves its own stack, so switching to Home and back can return to the same Pokémon detail.
+`Home` is the authenticated landing tab. `Pokedex` preserves its own stack, so switching to Home and back can return to the same Pokemon detail.
 
 Navigation callbacks are split by context:
 
@@ -114,15 +114,15 @@ This keeps `AppNavHost` responsible for back stack ownership without turning nav
 
 The app uses Material 3 `NavigationBar` and `NavigationBarItem` for the bottom bar. Those components are imported from `androidx.compose.material3` and are the Compose Multiplatform/Material 3 bottom navigation API.
 
-## Pokédex feature
+## Pokedex feature
 
-The Pokédex tab is the first real feature used to exercise the SpaceX-style architecture while keeping the modern project decisions.
+The Pokedex tab is the first real feature used to exercise the SpaceX-style architecture while keeping the modern project decisions.
 
 ```text
 PokemonListScreen / PokemonDetailScreen
   -> PokemonListViewModel / PokemonDetailViewModel
     -> IPokemonRepository
-      -> IPokemonRemoteDataSource -> Ktor -> PokéAPI
+      -> IPokemonRemoteDataSource -> Ktor -> PokeAPI
       -> IPokemonLocalDataSource -> SQLDelight
 ```
 
@@ -132,25 +132,42 @@ Current behavior:
 - detail endpoint: `https://pokeapi.co/api/v2/pokemon/{id}`;
 - manual infinite scroll with `limit = 20`;
 - pull-to-refresh with Material 3 `PullToRefreshBox`;
-- endpoint-backed search against PokéAPI with paginated results;
+- endpoint-backed search against PokeAPI with paginated results;
 - stable search header that remains available during loading, empty results, and refresh;
 - local-first favorites stored in SQLDelight;
 - SQLDelight cache for list summaries and details;
 - repository fallback to local cache when non-search remote loading fails.
 
-PokéAPI does not expose a documented partial-search query parameter for `/api/v2/pokemon`. Partial search is therefore implemented by scanning paginated PokéAPI list results and filtering those remote endpoint results in the remote datasource. This keeps search endpoint-backed, but it can require more network calls for sparse queries than a real server-side search endpoint.
+PokeAPI does not expose a documented partial-search query parameter for `/api/v2/pokemon`. Partial search is therefore implemented by scanning paginated PokeAPI list results and filtering those remote endpoint results in the remote datasource. This keeps search endpoint-backed, but it can require more network calls for sparse queries than a real server-side search endpoint.
 
 ## Authentication
 
-Firebase is intentionally not part of this project. Authentication at this stage is a local/manual example only.
+Firebase is intentionally not part of this project. Authentication uses Amazon Cognito Hosted UI with Authorization Code Flow and PKCE. The mobile app does not store OAuth client secrets.
 
-The current example follows the same architectural seams intended for real features:
+The current implementation follows the same architectural seams used by other features:
 
 ```text
-LoginScreen -> AuthViewModel -> IAuthRepository -> IAuthLocalDataSource -> SQLDelight
+LoginScreen
+  -> AuthViewModel
+    -> IAuthRepository
+      -> IAuthRemoteDataSource -> Ktor -> Cognito token endpoint
+      -> IAuthLocalDataSource  -> SQLDelight
 ```
 
-The session is stored locally with SQLDelight only to demonstrate repository, datasource, and cache boundaries. It is not secure authentication and should be replaced when a real backend or product requirement exists.
+The app opens the system browser for Google or Microsoft login through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores the current session locally.
+
+Development values:
+
+```text
+COGNITO_CLIENT_ID=392mi2ii9l7usot25ksqj58gu6
+COGNITO_DOMAIN=https://mejengueros-dev-auth.auth.us-east-2.amazoncognito.com
+COGNITO_REDIRECT_URI=com.themonsters.mejengueros://auth/callback
+COGNITO_LOGOUT_URI=com.themonsters.mejengueros://auth/logout
+API_BASE_URL=https://85u7xyr1p9.execute-api.us-east-2.amazonaws.com
+WEBSOCKET_URL=wss://dilk66l4f1.execute-api.us-east-2.amazonaws.com/dev
+```
+
+The Cognito app client is public (`generate_secret = false`) and allows the `code` OAuth flow with `openid email profile` scopes.
 
 ## How to add a feature
 
