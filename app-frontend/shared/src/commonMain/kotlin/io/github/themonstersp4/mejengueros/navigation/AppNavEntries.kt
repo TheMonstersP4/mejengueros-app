@@ -56,14 +56,12 @@ private fun LoginEntry(
 ) {
   val state by authViewModel.uiState.collectAsState()
 
+  LaunchedEffect(state.isAuthenticated) { if (state.isAuthenticated) loginActions.onSignedIn() }
+
   LoginScreen(
       state = state,
-      onUsernameChange = authViewModel::updateUsername,
-      onSignIn = {
-        if (authViewModel.signIn()) {
-          loginActions.onSignedIn()
-        }
-      },
+      onGoogleSignIn = authViewModel::signInWithGoogle,
+      onMicrosoftSignIn = authViewModel::signInWithMicrosoft,
   )
 }
 
@@ -80,7 +78,7 @@ private fun HomeEntry(
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
   ) { contentPadding ->
-    HomeScreen(username = state.username, contentPadding = contentPadding)
+    HomeScreen(username = state.title, contentPadding = contentPadding)
   }
 }
 
