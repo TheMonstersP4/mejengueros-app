@@ -8,4 +8,10 @@ interface IAuthLocalDataSource {
   fun saveSession(session: AuthSession)
 
   fun clearSession()
+
+  fun getOAuthState(): PendingOAuthState?
+
+  fun saveOAuthState(state: PendingOAuthState)
+
+  fun clearOAuthState()
 }
