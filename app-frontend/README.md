@@ -167,6 +167,8 @@ API_BASE_URL=https://85u7xyr1p9.execute-api.us-east-2.amazonaws.com
 WEBSOCKET_URL=wss://dilk66l4f1.execute-api.us-east-2.amazonaws.com/dev
 ```
 
+These are public development identifiers, not secrets. Keep client secrets, real tokens, database URLs, and passwords out of git. `app-frontend/.env.example` is a reference for the values currently compiled through shared configuration; it is not loaded automatically at runtime yet.
+
 The Cognito app client is public (`generate_secret = false`) and allows the `code` OAuth flow with `openid email profile` scopes.
 
 ## How to add a feature
