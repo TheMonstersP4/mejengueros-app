@@ -1,5 +1,8 @@
 package io.github.themonstersp4.mejengueros.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class AuthSession(
     val sub: String,
     val email: String,
