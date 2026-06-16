@@ -4,5 +4,16 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.github.themonstersp4.mejengueros</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.themonsters.mejengueros</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
