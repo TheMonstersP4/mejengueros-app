@@ -1,8 +1,10 @@
 package io.github.themonstersp4.mejengueros.di.modules
 
 import io.github.themonstersp4.mejengueros.data.auth.DesktopOAuthBrowser
+import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
 import io.github.themonstersp4.mejengueros.data.auth.IRandomStringGenerator
+import io.github.themonstersp4.mejengueros.data.auth.InMemoryAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.SecureRandomStringGenerator
 import io.github.themonstersp4.mejengueros.data.local.DriverFactory
 import io.github.themonstersp4.mejengueros.data.remote.HttpClientFactory
@@ -12,6 +14,7 @@ import org.koin.dsl.module
 actual fun platformModule(): Module = module {
   single { DriverFactory() }
   single { HttpClientFactory() }
+  single<IAuthSecureStorage> { InMemoryAuthSecureStorage() }
   single<IRandomStringGenerator> { SecureRandomStringGenerator() }
   single<IOAuthBrowser> { DesktopOAuthBrowser() }
 }
