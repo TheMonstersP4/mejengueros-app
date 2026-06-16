@@ -1,0 +1,32 @@
+const ORIGIN = 'http://${origin}'
+
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})
+
+async function handleRequest(request) {
+  const url = new URL(request.url)
+  let requestedPath = url.pathname === '/' ? '/index.html' : url.pathname
+
+  if (!requestedPath.split('/').pop().includes('.')) {
+    requestedPath = requestedPath.endsWith('/') ? requestedPath + 'index.html' : requestedPath + '/index.html'
+  }
+
+  const originUrl = new URL(ORIGIN + requestedPath)
+  originUrl.search = url.search
+
+  let response = await fetch(originUrl.toString(), request)
+
+  if (response.status === 403 || response.status === 404) {
+    response = await fetch(ORIGIN + '/index.html', request)
+  }
+
+  const headers = new Headers(response.headers)
+  headers.set('Cache-Control', 'no-cache')
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  })
+}
