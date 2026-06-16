@@ -4,10 +4,10 @@ import io.github.themonstersp4.mejengueros.data.auth.Base64Url
 import io.github.themonstersp4.mejengueros.data.auth.CognitoAuthConfig
 import io.github.themonstersp4.mejengueros.data.auth.CognitoOAuthRequestFactory
 import io.github.themonstersp4.mejengueros.data.auth.IRandomStringGenerator
+import io.github.themonstersp4.mejengueros.data.auth.InMemoryAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.JwtIdTokenDecoder
 import io.github.themonstersp4.mejengueros.data.auth.OAuthCallbackParser
 import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
-import io.github.themonstersp4.mejengueros.data.local.IAuthLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
@@ -15,6 +15,7 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -24,13 +25,13 @@ import kotlinx.serialization.json.Json
 class AuthRepositoryTest {
   @Test
   fun createSignInRequestStoresPkceStateAndBuildsCognitoUrl() = runTest {
-    val localDataSource = FakeAuthLocalDataSource()
-    val repository = createRepository(localDataSource = localDataSource)
+    val secureStorage = InMemoryAuthSecureStorage()
+    val repository = createRepository(secureStorage = secureStorage)
 
     val request = repository.createSignInRequest(AuthProvider.Google)
 
-    assertEquals("state-value", localDataSource.savedOAuthState?.state)
-    assertEquals(CodeVerifier, localDataSource.savedOAuthState?.codeVerifier)
+    assertEquals("state-value", secureStorage.getOAuthState()?.state)
+    assertEquals(CodeVerifier, secureStorage.getOAuthState()?.codeVerifier)
     assertTrue(request.authorizationUrl.contains("identity_provider=Google"))
     assertTrue(request.authorizationUrl.contains("code_challenge_method=S256"))
     assertTrue(request.authorizationUrl.contains("state=state-value"))
@@ -38,13 +39,13 @@ class AuthRepositoryTest {
 
   @Test
   fun handleCallbackExchangesCodeAndSavesAuthenticatedSession() = runTest {
-    val localDataSource =
-        FakeAuthLocalDataSource(
-            PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
-        )
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveOAuthState(
+        PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
+    )
     val remoteDataSource = FakeAuthRemoteDataSource()
     val repository =
-        createRepository(localDataSource = localDataSource, remoteDataSource = remoteDataSource)
+        createRepository(secureStorage = secureStorage, remoteDataSource = remoteDataSource)
 
     val session =
         repository.handleCallback(
@@ -56,31 +57,31 @@ class AuthRepositoryTest {
     assertEquals("user-sub", session.sub)
     assertEquals("player@example.com", session.email)
     assertEquals("Google", session.provider)
-    assertEquals(session, localDataSource.savedSession)
-    assertNull(localDataSource.savedOAuthState)
+    assertEquals(session, secureStorage.getSession())
+    assertNull(secureStorage.getOAuthState())
   }
 
   @Test
   fun signOutClearsSessionAndPendingOAuthState() = runTest {
-    val localDataSource =
-        FakeAuthLocalDataSource(
-            PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
-        )
-    localDataSource.savedSession = sampleSession()
-    val repository = createRepository(localDataSource = localDataSource)
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveOAuthState(
+        PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
+    )
+    secureStorage.saveSession(sampleSession())
+    val repository = createRepository(secureStorage = secureStorage)
 
     val request = repository.signOut()
 
-    assertNull(localDataSource.savedSession)
-    assertNull(localDataSource.savedOAuthState)
+    assertNull(secureStorage.getSession())
+    assertNull(secureStorage.getOAuthState())
     assertTrue(request.logoutUrl.contains("/logout"))
   }
 
   @Test
   fun getSessionReturnsStoredSession() = runTest {
-    val localDataSource = FakeAuthLocalDataSource()
-    localDataSource.savedSession = sampleSession()
-    val repository = createRepository(localDataSource = localDataSource)
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveSession(sampleSession())
+    val repository = createRepository(secureStorage = secureStorage)
 
     val session = repository.getSession()
 
@@ -88,12 +89,85 @@ class AuthRepositoryTest {
     assertEquals("player@example.com", session.email)
   }
 
+  @Test
+  fun getSessionReturnsNullForExpiredSession() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveSession(sampleSession(expiresAtEpochSeconds = 1))
+    val repository = createRepository(secureStorage = secureStorage)
+
+    assertNull(repository.getSession())
+  }
+
+  @Test
+  fun handleCallbackRejectsInvalidState() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveOAuthState(
+        PendingOAuthState(state = "expected-state", codeVerifier = CodeVerifier)
+    )
+    val repository = createRepository(secureStorage = secureStorage)
+
+    assertFailsWith<IllegalStateException> {
+      repository.handleCallback(
+          "com.themonsters.mejengueros://auth/callback?code=auth-code&state=wrong-state"
+      )
+    }
+  }
+
+  @Test
+  fun handleCallbackRejectsErrorCallback() = runTest {
+    val repository = createRepository()
+
+    assertFailsWith<IllegalStateException> {
+      repository.handleCallback(
+          "com.themonsters.mejengueros://auth/callback?error=access_denied&error_description=Denied"
+      )
+    }
+  }
+
+  @Test
+  fun handleCallbackPropagatesTokenExchangeFailure() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveOAuthState(
+        PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
+    )
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            remoteDataSource = FakeAuthRemoteDataSource(exchangeFailure = true),
+        )
+
+    assertFailsWith<IllegalStateException> {
+      repository.handleCallback(
+          "com.themonsters.mejengueros://auth/callback?code=auth-code&state=state-value"
+      )
+    }
+  }
+
+  @Test
+  fun handleCallbackRejectsInvalidJwt() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveOAuthState(
+        PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
+    )
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            remoteDataSource = FakeAuthRemoteDataSource(idToken = "invalid-jwt"),
+        )
+
+    assertFailsWith<IllegalStateException> {
+      repository.handleCallback(
+          "com.themonsters.mejengueros://auth/callback?code=auth-code&state=state-value"
+      )
+    }
+  }
+
   private fun createRepository(
-      localDataSource: FakeAuthLocalDataSource = FakeAuthLocalDataSource(),
+      secureStorage: InMemoryAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
   ): AuthRepository =
       AuthRepository(
-          localDataSource = localDataSource,
+          secureStorage = secureStorage,
           remoteDataSource = remoteDataSource,
           requestFactory = CognitoOAuthRequestFactory(testConfig),
           pkceGenerator = PkceGenerator(FakeRandomStringGenerator()),
@@ -102,41 +176,19 @@ class AuthRepositoryTest {
           idTokenDecoder = JwtIdTokenDecoder(Json),
       )
 
-  private class FakeAuthLocalDataSource(initialState: PendingOAuthState? = null) :
-      IAuthLocalDataSource {
-    var savedSession: AuthSession? = null
-    var savedOAuthState: PendingOAuthState? = initialState
-
-    override fun getSession(): AuthSession? = savedSession
-
-    override fun saveSession(session: AuthSession) {
-      savedSession = session
-    }
-
-    override fun clearSession() {
-      savedSession = null
-    }
-
-    override fun getOAuthState(): PendingOAuthState? = savedOAuthState
-
-    override fun saveOAuthState(state: PendingOAuthState) {
-      savedOAuthState = state
-    }
-
-    override fun clearOAuthState() {
-      savedOAuthState = null
-    }
-  }
-
-  private class FakeAuthRemoteDataSource : IAuthRemoteDataSource {
+  private class FakeAuthRemoteDataSource(
+      private val idToken: String = sampleIdToken(),
+      private val exchangeFailure: Boolean = false,
+  ) : IAuthRemoteDataSource {
     var receivedCode: String? = null
     var receivedCodeVerifier: String? = null
 
     override suspend fun exchangeCode(code: String, codeVerifier: String): CognitoTokenResponseDto {
+      if (exchangeFailure) error("Token exchange failed.")
       receivedCode = code
       receivedCodeVerifier = codeVerifier
       return CognitoTokenResponseDto(
-          idToken = sampleIdToken(),
+          idToken = idToken,
           accessToken = "access-token",
           refreshToken = "refresh-token",
           expiresIn = 3600,
@@ -161,7 +213,7 @@ class AuthRepositoryTest {
             scopes = listOf("openid", "email", "profile"),
         )
 
-    fun sampleSession(): AuthSession =
+    fun sampleSession(expiresAtEpochSeconds: Long = 4102444800): AuthSession =
         AuthSession(
             sub = "user-sub",
             email = "player@example.com",
@@ -170,7 +222,7 @@ class AuthRepositoryTest {
             idToken = sampleIdToken(),
             accessToken = "access-token",
             refreshToken = "refresh-token",
-            expiresAtEpochSeconds = 4102444800,
+            expiresAtEpochSeconds = expiresAtEpochSeconds,
         )
 
     fun sampleIdToken(): String {
