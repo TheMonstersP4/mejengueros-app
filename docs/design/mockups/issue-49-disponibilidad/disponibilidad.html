@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño — Configurar disponibilidad reservable
+  Issue: #49. Días de la semana (chips) + un rango horario único → el sistema
+  genera slots EXACTOS de 1 hora [inicio, inicio+1h). Días no seleccionados =
+  cerrados. Sin intervalos distintos de 1h, sin horarios por día, sin feriados.
+  Es la base de las reservas (#50). Sub-vista del dueño => back. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disponibilidad · Cancha 1</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .appbar__title span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-5) var(--sp-4) 120px; }
+  .sec { margin-bottom: var(--sp-6); }
+  .sec__title { font-size: 12px; font-weight: 700; letter-spacing: -.12px; color: var(--md-on-surface); margin: 0 0 var(--sp-1); }
+  .sec__hint { margin: 0 0 var(--sp-3); font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .days { display: flex; gap: 6px; justify-content: space-between; }
+  .day-chip { flex: 1; aspect-ratio: 1; max-width: 44px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--md-outline-variant); background: var(--md-surface); font-size: 13px; font-weight: 700; letter-spacing: -.2px; color: var(--md-on-surface-variant); cursor: pointer; }
+  .day-chip[aria-pressed="true"] { background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary); }
+
+  .range { display: flex; align-items: flex-end; gap: var(--sp-3); }
+  .time-field { flex: 1; min-height: 56px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 14px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-sm); background: var(--md-surface); cursor: pointer; text-align: left; }
+  .time-field small { font-size: 11px; font-weight: 600; letter-spacing: -.08px; color: var(--md-on-surface-variant); }
+  .time-field__val { display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .time-field__val .ms { font-size: 17px; color: var(--md-on-surface-variant); }
+  .time-sep { align-self: center; color: var(--md-on-surface-variant); font-weight: 700; padding-bottom: 18px; }
+
+  /* Preview de slots generados */
+  .preview { background: var(--md-surface-container-low); border-radius: var(--md-shape-md); padding: var(--sp-4); }
+  .preview__head { display: flex; align-items: center; gap: 8px; margin-bottom: var(--sp-3); }
+  .preview__head .ms { font-size: 18px; color: var(--md-primary); }
+  .preview__head b { font-size: 14px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .slots { display: flex; flex-wrap: wrap; gap: 6px; }
+  .slot { height: 30px; padding: 0 10px; display: inline-flex; align-items: center; border-radius: var(--md-shape-sm); background: var(--md-surface); border: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 600; color: var(--md-on-surface); letter-spacing: -.12px; }
+  .slot--more { color: var(--md-on-surface-variant); border-style: dashed; }
+
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="../issues-12-14-48-alta-complejo-cancha/gestion-complejo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title">
+        <b>Disponibilidad</b>
+        <span>Cancha 1 · Mejengas CR</span>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <div class="sec">
+        <div class="sec__title">DÍAS DISPONIBLES</div>
+        <p class="sec__hint">Los días sin marcar quedan cerrados.</p>
+        <div class="days">
+          <button class="day-chip" aria-pressed="true">Lu</button>
+          <button class="day-chip" aria-pressed="true">Ma</button>
+          <button class="day-chip" aria-pressed="true">Mi</button>
+          <button class="day-chip" aria-pressed="true">Ju</button>
+          <button class="day-chip" aria-pressed="true">Vi</button>
+          <button class="day-chip" aria-pressed="true">Sá</button>
+          <button class="day-chip" aria-pressed="false">Do</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec__title">RANGO HORARIO</div>
+        <p class="sec__hint">El sistema genera slots de 1 hora dentro de este rango.</p>
+        <div class="range">
+          <button class="time-field"><small>Apertura</small><span class="time-field__val"><span class="ms">schedule</span>06:00</span></button>
+          <span class="time-sep">–</span>
+          <button class="time-field"><small>Cierre</small><span class="time-field__val"><span class="ms">schedule</span>22:00</span></button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec__title">SLOTS QUE SE GENERAN</div>
+        <div class="preview">
+          <div class="preview__head"><span class="ms">event_available</span><b>16 slots de 1 h por día (Lun–Sáb)</b></div>
+          <div class="slots">
+            <span class="slot">06:00</span>
+            <span class="slot">07:00</span>
+            <span class="slot">08:00</span>
+            <span class="slot">09:00</span>
+            <span class="slot">10:00</span>
+            <span class="slot">11:00</span>
+            <span class="slot slot--more">… 21:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actionbar">
+      <a class="md-btn md-btn--filled md-btn--full" href="../issues-12-14-48-alta-complejo-cancha/gestion-complejo.html">Guardar disponibilidad</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

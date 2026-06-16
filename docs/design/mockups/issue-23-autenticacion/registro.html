@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Autenticación — Registro manual
+  Issue: #23. Correo + contraseña + confirmación (+ nombre visible opcional).
+  Valida formato de correo y política mínima de contraseña. Cuenta creada en
+  Cognito; al confirmar (si aplica) puede iniciar sesión. Pre-rol. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crear cuenta · Mejengueros</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-3) var(--sp-5) var(--sp-6); display: flex; flex-direction: column; }
+  .head { margin-bottom: var(--sp-6); }
+  .head h1 { margin: 0 0 6px; color: var(--md-on-surface); }
+  .head p { margin: 0; color: var(--md-on-surface-variant); font-size: 15px; letter-spacing: -.2px; }
+  .stack { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .terms { margin-top: var(--sp-4); font-size: 12px; line-height: 17px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+  .terms a { color: var(--md-primary); font-weight: 600; text-decoration: none; }
+  .foot { margin-top: auto; padding-top: var(--sp-6); text-align: center; font-size: 14px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .foot a { color: var(--md-primary); font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="login.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+    </header>
+
+    <div class="scroll">
+      <div class="head">
+        <h1 class="md-headline-small">Crear cuenta</h1>
+        <p>Registrate con tu correo para reservar y reseñar canchas.</p>
+      </div>
+
+      <div class="stack">
+        <div class="md-field">
+          <input id="nombre" type="text" value="" placeholder=" ">
+          <label for="nombre">Nombre visible (opcional)</label>
+        </div>
+        <div class="md-field">
+          <input id="correo" type="email" value="" placeholder=" ">
+          <label for="correo">Correo electrónico</label>
+        </div>
+        <div class="md-field">
+          <input id="pass" type="password" value="" placeholder=" ">
+          <label for="pass">Contraseña</label>
+          <span class="md-field__support">Mínimo 8 caracteres, con una mayúscula y un número.</span>
+        </div>
+        <div class="md-field">
+          <input id="pass2" type="password" value="" placeholder=" ">
+          <label for="pass2">Confirmar contraseña</label>
+        </div>
+      </div>
+
+      <p class="terms">Al registrarte aceptás los <a href="#">Términos</a> y la <a href="#">Política de privacidad</a>.</p>
+
+      <div style="margin-top:var(--sp-5)">
+        <a class="md-btn md-btn--filled md-btn--full" href="verificar-cuenta.html">Crear cuenta</a>
+      </div>
+
+      <div class="foot">¿Ya tenés cuenta? <a href="login.html">Iniciá sesión</a></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

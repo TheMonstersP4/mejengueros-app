@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Autenticación — Verificar cuenta
+  Issue: #23. Cuando Cognito requiere confirmación, el usuario ingresa el código
+  enviado a su correo antes de poder iniciar sesión. Pre-rol. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificar cuenta · Mejengueros</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-5) var(--sp-5) 120px; }
+  .lead-icon { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--md-primary-container); margin: var(--sp-3) 0 var(--sp-5); }
+  .lead-icon .ms { font-size: 36px; color: var(--md-primary); }
+  .head h1 { margin: 0 0 8px; color: var(--md-on-surface); }
+  .head p { margin: 0 0 var(--sp-6); color: var(--md-on-surface-variant); font-size: 15px; line-height: 22px; letter-spacing: -.2px; }
+  .head p b { color: var(--md-on-surface); font-weight: 700; }
+
+  .otp-label { font-size: 12px; font-weight: 600; letter-spacing: -.12px; color: var(--md-on-surface-variant); margin-bottom: var(--sp-2); }
+  .otp { display: flex; gap: var(--sp-2); }
+  .otp__box { flex: 1; height: 60px; display: grid; place-items: center; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-md); background: var(--md-surface); font-size: 26px; font-weight: 700; color: var(--md-on-surface); }
+  .otp__box--filled { border-color: var(--md-on-surface); }
+  .otp__box--active { border: 2px solid var(--md-primary); }
+  .otp__caret { width: 2px; height: 28px; background: var(--md-primary); border-radius: 2px; }
+  .resend { margin-top: var(--sp-4); font-size: 13px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .resend a { color: var(--md-primary); font-weight: 600; text-decoration: none; }
+
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="registro.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+    </header>
+
+    <div class="scroll">
+      <div class="lead-icon"><span class="ms">mark_email_read</span></div>
+      <div class="head">
+        <h1 class="md-headline-small">Verificá tu correo</h1>
+        <p>Enviamos un código de 6 dígitos a <b>castrodaniel612@gmail.com</b>. Ingresalo para activar tu cuenta.</p>
+      </div>
+
+      <div class="otp-label">CÓDIGO DE VERIFICACIÓN</div>
+      <div class="otp">
+        <div class="otp__box otp__box--filled">2</div>
+        <div class="otp__box otp__box--filled">9</div>
+        <div class="otp__box otp__box--filled">5</div>
+        <div class="otp__box otp__box--active"><span class="otp__caret"></span></div>
+        <div class="otp__box"></div>
+        <div class="otp__box"></div>
+      </div>
+      <p class="resend">¿No te llegó? <a href="#">Reenviar código</a></p>
+    </div>
+
+    <div class="actionbar">
+      <a class="md-btn md-btn--filled md-btn--full" href="../issues-15-16-catalogo-detalle/catalogo.html">Verificar y entrar</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

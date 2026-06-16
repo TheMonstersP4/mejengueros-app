@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño — Gestión del complejo (hub)
+  Milestone Semana 10. Modelo Complejo -> Cancha (#48). Hub owner-facing: muestra
+  el complejo, sus canchas y el acceso a disponibilidad (#49), servicios (#14) y
+  reseñas recibidas (#21). Rol dueño => Drawer (CLAUDE.md), top-level con `menu`.
+  Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi complejo · Dueño</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; color: var(--md-on-surface); }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-3) var(--sp-4) var(--sp-6); }
+
+  .complejo { background: var(--md-surface); border: var(--apple-hairline); border-radius: var(--md-shape-md); padding: var(--sp-4); margin-bottom: var(--sp-5); }
+  .complejo h2 { margin: 0 0 6px; color: var(--md-on-surface); }
+  .complejo__loc { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .complejo__loc .ms { font-size: 16px; }
+
+  .section-label { display: flex; align-items: center; justify-content: space-between; margin: 0 0 var(--sp-2); }
+  .section-label span { font-size: 11px; font-weight: 700; letter-spacing: .4px; color: var(--md-on-surface-variant); }
+
+  .group { background: var(--md-surface); border: var(--apple-hairline); border-radius: var(--md-shape-md); overflow: hidden; }
+  .row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); text-decoration: none; cursor: pointer; }
+  .row + .row { border-top: var(--apple-hairline); }
+  .row:active { background: var(--md-surface-container-low); }
+  .row__icon { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--md-surface-container); color: var(--md-on-surface); }
+  .row__body { flex: 1; min-width: 0; }
+  .row__body b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.2px; color: var(--md-on-surface); }
+  .row__body span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+  .row__chevron { flex: none; color: var(--md-on-surface-variant); }
+  .row__chevron .ms { font-size: 22px; }
+  .pill { font-size: 11px; font-weight: 700; letter-spacing: -.08px; padding: 2px 8px; border-radius: var(--md-shape-full); }
+  .pill--on { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+  .pill--warn { background: var(--md-surface-container-high); color: var(--md-on-surface-variant); }
+
+  .add-cancha { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 52px; margin-top: var(--sp-3); border: 1.5px dashed var(--md-outline-variant); border-radius: var(--md-shape-md); background: none; color: var(--md-primary); font-size: 15px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+  .add-cancha .ms { font-size: 20px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <input type="checkbox" id="drawerToggle" aria-hidden="true">
+
+  <div class="content">
+    <header class="appbar">
+      <label class="appbar__icon" for="drawerToggle" role="button" aria-label="Abrir menú"><span class="ms">menu</span></label>
+      <div class="appbar__title"><div class="md-title-large">Mi complejo</div></div>
+    </header>
+
+    <div class="scroll">
+      <div class="complejo">
+        <h2 class="md-title-large">Mejengas CR</h2>
+        <div class="complejo__loc"><span class="ms">location_on</span> San José · Escazú — 200 m sur de la iglesia</div>
+      </div>
+
+      <div class="section-label"><span>TUS CANCHAS</span></div>
+      <div class="group">
+        <a class="row" href="../issue-49-disponibilidad/disponibilidad.html">
+          <span class="row__icon ms">sports_soccer</span>
+          <div class="row__body"><b>Cancha 1 · Fútbol 5</b><span>Sintético · disponibilidad configurada</span></div>
+          <span class="pill pill--on">Activa</span>
+          <span class="row__chevron"><span class="ms">chevron_right</span></span>
+        </a>
+        <a class="row" href="../issue-49-disponibilidad/disponibilidad.html">
+          <span class="row__icon ms">sports_soccer</span>
+          <div class="row__body"><b>Cancha 2 · Fútbol 7</b><span>Natural · falta disponibilidad</span></div>
+          <span class="pill pill--warn">Pendiente</span>
+          <span class="row__chevron"><span class="ms">chevron_right</span></span>
+        </a>
+      </div>
+      <a class="add-cancha" href="crear-cancha.html"><span class="ms">add</span> Agregar cancha</a>
+
+      <div class="section-label" style="margin-top:var(--sp-6)"><span>ACTIVIDAD</span></div>
+      <div class="group">
+        <a class="row" href="../issue-21-resenas-recibidas/resenas-recibidas.html">
+          <span class="row__icon ms">reviews</span>
+          <div class="row__body"><b>Reseñas recibidas</b><span>Lo que opinan los mejengueros</span></div>
+          <span class="row__chevron"><span class="ms">chevron_right</span></span>
+        </a>
+        <a class="row" href="#">
+          <span class="row__icon ms">calendar_month</span>
+          <div class="row__body"><b>Reservas de mis canchas</b><span>Próximas y pasadas</span></div>
+          <span class="row__chevron"><span class="ms">chevron_right</span></span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer modal (rol dueño) -->
+  <label class="scrim" for="drawerToggle" aria-label="Cerrar menú"></label>
+  <nav class="drawer" aria-label="Navegación de dueño">
+    <div class="drawer__head">
+      <span class="drawer__avatar ms ms--fill">person</span>
+      <div class="drawer__who">
+        <b>Mejengas CR</b>
+        <span>Dueño de cancha</span>
+      </div>
+      <label class="drawer__close" for="drawerToggle" role="button" aria-label="Cerrar menú"><span class="ms">close</span></label>
+    </div>
+    <a class="drawer-item drawer-item--active" href="#"><span class="ms ms--fill">sports_soccer</span> Mi complejo</a>
+    <a class="drawer-item" href="#"><span class="ms">calendar_month</span> Reservas</a>
+    <a class="drawer-item" href="../issue-21-resenas-recibidas/resenas-recibidas.html"><span class="ms">reviews</span> Reseñas</a>
+  </nav>
+</div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Mis reservas
+  Conectiva del flujo MVP (pestaña Reservas). Muestra reservas próximas y
+  finalizadas. Una reserva FINALIZADA habilita dejar reseña (#17/#51). Rol
+  mejenguero => Bottom Navigation (Reservas activa). Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis reservas</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) var(--sp-2); background: var(--md-surface); }
+  .appbar h1 { margin: 0; flex: 1; color: var(--md-on-surface); }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-3) var(--sp-4) 96px; background: var(--md-surface-container); }
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: .4px; color: var(--md-on-surface-variant); margin: var(--sp-4) 0 var(--sp-2); }
+  .section-label:first-child { margin-top: 0; }
+  .list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+  .res { background: var(--md-surface); border: var(--apple-hairline); border-radius: var(--md-shape-md); padding: var(--sp-4); }
+  .res__top { display: flex; align-items: center; gap: var(--sp-3); }
+  .res__thumb { width: 48px; height: 48px; flex: none; border-radius: var(--md-shape-sm); object-fit: cover; background: var(--md-surface-container-highest); }
+  .res__body { flex: 1; min-width: 0; }
+  .res__body b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.2px; color: var(--md-on-surface); }
+  .res__when { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 13px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .res__when .ms { font-size: 15px; }
+  .pill { font-size: 11px; font-weight: 700; letter-spacing: -.08px; padding: 3px 9px; border-radius: var(--md-shape-full); }
+  .pill--up { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+  .pill--done { background: var(--md-surface-container-high); color: var(--md-on-surface-variant); }
+
+  .res__cta { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; height: 44px; margin-top: var(--sp-3); border: 1px solid var(--md-primary); border-radius: var(--md-shape-full); color: var(--md-primary); font-size: 14px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+  .res__cta .ms { font-size: 18px; }
+  .res__done { display: flex; align-items: center; gap: 6px; margin-top: var(--sp-3); font-size: 13px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .res__done .ms { font-size: 16px; color: #f5a623; }
+
+  .bottomnav { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; height: 64px; background: var(--md-surface); border-top: var(--apple-hairline); }
+  .navitem { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--md-on-surface-variant); }
+  .navitem .ms { font-size: 24px; }
+  .navitem span { font-size: 11px; font-weight: 600; letter-spacing: -.1px; }
+  .navitem--active { color: var(--md-primary); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <h1 class="md-headline-small">Mis reservas</h1>
+    </header>
+
+    <div class="scroll">
+      <div class="section-label">PRÓXIMAS</div>
+      <div class="list">
+        <div class="res">
+          <div class="res__top">
+            <img class="res__thumb" src="https://picsum.photos/seed/cancha-sabana/120/120" alt="Cancha 1">
+            <div class="res__body">
+              <b>Mejengas CR · Cancha 1</b>
+              <div class="res__when"><span class="ms">event</span> Hoy · 19:00 – 20:00</div>
+            </div>
+            <span class="pill pill--up">Próxima</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">FINALIZADAS</div>
+      <div class="list">
+        <div class="res">
+          <div class="res__top">
+            <img class="res__thumb" src="https://picsum.photos/seed/cancha-moravia/120/120" alt="Cancha A">
+            <div class="res__body">
+              <b>Moravia FC · Cancha A</b>
+              <div class="res__when"><span class="ms">event</span> Ayer · 20:00 – 21:00</div>
+            </div>
+            <span class="pill pill--done">Finalizada</span>
+          </div>
+          <a class="res__cta" href="../issues-17-18-crear-resena/crear-resena.html"><span class="ms">rate_review</span> Dejar reseña</a>
+        </div>
+
+        <div class="res">
+          <div class="res__top">
+            <img class="res__thumb" src="https://picsum.photos/seed/cancha-tibas/120/120" alt="Cancha 2">
+            <div class="res__body">
+              <b>Complejo Curridabat · Cancha 2</b>
+              <div class="res__when"><span class="ms">event</span> 12 jun · 18:00 – 19:00</div>
+            </div>
+            <span class="pill pill--done">Finalizada</span>
+          </div>
+          <div class="res__done"><span class="ms ms--fill">star</span> Ya dejaste tu reseña</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="bottomnav" aria-label="Navegación principal">
+      <a class="navitem" href="../issues-15-16-catalogo-detalle/catalogo.html"><span class="ms">search</span><span>Buscar</span></a>
+      <a class="navitem navitem--active" href="#"><span class="ms ms--fill">calendar_month</span><span>Reservas</span></a>
+      <a class="navitem" href="../issue-51-notificaciones/notificaciones.html"><span class="ms">notifications</span><span>Notificaciones</span></a>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

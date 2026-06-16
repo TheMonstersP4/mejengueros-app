@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Crear reseña desde reserva finalizada
+  Issues: #17 (la reseña NACE de una reserva finalizada, no de QR/código) + #18
+  (rating 1–5 estrellas). Versión MVP SIMPLE: rating + comentario. SIN regla de 1
+  estrella (#19 post-MVP), SIN cuestionario (#20 post-MVP), SIN fotos obligatorias.
+  Se abre desde la notificación (#51) o "Mis reservas". Sub-vista => back.
+  Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dejar reseña</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title .md-title-large { color: var(--md-on-surface); }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-4) 120px; }
+
+  /* Contexto de la reserva */
+  .ctx { display: flex; align-items: center; gap: var(--sp-3); background: var(--md-surface-container-low); border-radius: var(--md-shape-md); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-6); }
+  .ctx img { width: 44px; height: 44px; flex: none; border-radius: var(--md-shape-sm); object-fit: cover; background: var(--md-surface-container-highest); }
+  .ctx b { display: block; font-size: 14px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .ctx span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .rate { text-align: center; margin-bottom: var(--sp-6); }
+  .rate__q { font-size: 17px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.3px; margin-bottom: var(--sp-4); }
+  .stars { display: flex; justify-content: center; gap: var(--sp-3); }
+  .stars .ms { font-size: 44px; }
+  .stars .on { color: #f5a623; }
+  .stars .off { color: var(--md-outline-variant); }
+  .rate__verdict { margin-top: var(--sp-3); font-size: 13px; font-weight: 600; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+
+  .field-label { font-size: 12px; font-weight: 700; letter-spacing: -.12px; color: var(--md-on-surface); margin-bottom: var(--sp-2); }
+  .field-label span { color: var(--md-on-surface-variant); font-weight: 600; }
+  .ta { width: 100%; min-height: 110px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-sm); background: var(--md-surface); padding: 14px; font-family: var(--md-font); font-size: 16px; letter-spacing: -.2px; color: var(--md-on-surface); resize: none; outline: none; line-height: 1.5; }
+  .ta::placeholder { color: var(--md-on-surface-variant); }
+
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="../issue-50-reservar/mis-reservas.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title"><div class="md-title-large">Dejar reseña</div></div>
+    </header>
+
+    <div class="scroll">
+      <div class="ctx">
+        <img src="https://picsum.photos/seed/cancha-moravia/120/120" alt="Cancha A">
+        <div>
+          <b>Moravia FC · Cancha A</b>
+          <span>Reserva de ayer · 20:00 – 21:00</span>
+        </div>
+      </div>
+
+      <div class="rate">
+        <div class="rate__q">¿Cómo estuvo tu mejenga?</div>
+        <div class="stars" role="radiogroup" aria-label="Calificación de 1 a 5 estrellas">
+          <span class="ms ms--fill on">star</span>
+          <span class="ms ms--fill on">star</span>
+          <span class="ms ms--fill on">star</span>
+          <span class="ms ms--fill on">star</span>
+          <span class="ms off">star</span>
+        </div>
+        <div class="rate__verdict">4 de 5 · Muy buena</div>
+      </div>
+
+      <div class="field-label">COMENTARIO <span>· opcional</span></div>
+      <textarea class="ta" placeholder="Contá tu experiencia: la cancha, la superficie, el ambiente…"></textarea>
+    </div>
+
+    <div class="actionbar">
+      <a class="md-btn md-btn--filled md-btn--full" href="resena-enviada.html">Enviar reseña</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

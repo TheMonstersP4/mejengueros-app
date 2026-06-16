@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Reservar slot de 1 hora (flujo central MVP)
+  Issue: #50. Elegir fecha → slot de 1 hora disponible → confirmar. Sin pagos, sin
+  cantidad de participantes. Un slot ocupado se muestra no seleccionable; si otro
+  lo toma primero, error de negocio (reserva-error.html). Slots provienen de la
+  disponibilidad (#49). Sub-vista => back al detalle. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reservar · Cancha 1</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .appbar__title span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-4) 132px; }
+  .label { font-size: 12px; font-weight: 700; letter-spacing: -.12px; color: var(--md-on-surface); margin: 0 0 var(--sp-3); }
+
+  /* Selector de fecha */
+  .dates { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--sp-4)) var(--sp-6); padding: 0 var(--sp-4); }
+  .dates::-webkit-scrollbar { display: none; }
+  .date { flex: none; width: 60px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-md); background: var(--md-surface); cursor: pointer; }
+  .date small { font-size: 11px; font-weight: 600; color: var(--md-on-surface-variant); letter-spacing: -.08px; text-transform: uppercase; }
+  .date b { font-size: 19px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.3px; }
+  .date--sel { background: var(--md-primary); border-color: var(--md-primary); }
+  .date--sel small, .date--sel b { color: var(--md-on-primary); }
+
+  /* Slots de 1h */
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+  .slot { height: 48px; display: grid; place-items: center; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-sm); background: var(--md-surface); font-size: 15px; font-weight: 600; color: var(--md-on-surface); letter-spacing: -.2px; cursor: pointer; }
+  .slot--taken { color: var(--md-on-surface-variant); background: var(--md-surface-container); border-color: transparent; text-decoration: line-through; cursor: default; }
+  .slot--sel { background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary); }
+
+  /* Barra de confirmación con resumen */
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+  .resumen { display: flex; align-items: center; gap: 8px; margin-bottom: var(--sp-3); font-size: 13px; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .resumen .ms { font-size: 18px; color: var(--md-primary); }
+  .resumen b { font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="../issues-15-16-catalogo-detalle/detalle.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title">
+        <b>Reservar</b>
+        <span>Mejengas CR · Cancha 1</span>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <p class="label">ELEGÍ EL DÍA</p>
+      <div class="dates">
+        <div class="date date--sel"><small>Hoy</small><b>16</b></div>
+        <div class="date"><small>Mié</small><b>17</b></div>
+        <div class="date"><small>Jue</small><b>18</b></div>
+        <div class="date"><small>Vie</small><b>19</b></div>
+        <div class="date"><small>Sáb</small><b>20</b></div>
+        <div class="date"><small>Dom</small><b>21</b></div>
+      </div>
+
+      <p class="label">HORARIOS DE 1 HORA</p>
+      <div class="slots">
+        <span class="slot slot--taken">16:00</span>
+        <span class="slot slot--taken">17:00</span>
+        <span class="slot">18:00</span>
+        <span class="slot slot--sel">19:00</span>
+        <span class="slot">20:00</span>
+        <span class="slot">21:00</span>
+      </div>
+    </div>
+
+    <div class="actionbar">
+      <div class="resumen"><span class="ms">event</span> <span>Hoy 16 · <b>19:00 – 20:00</b> · Cancha 1</span></div>
+      <a class="md-btn md-btn--filled md-btn--full" href="reserva-confirmada.html">Confirmar reserva</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

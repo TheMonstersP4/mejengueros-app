@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Detalle de cancha (MVP con reserva)
+  Issue: #16 (re-alcance Semana 10). Muestra info + DISPONIBILIDAD visible y una
+  ENTRADA A RESERVA (CTA Reservar → #50). Reseñas como rating simple. Sin QR,
+  sin favoritos. Sub-vista pusheada => back. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cancha 1 · Detalle</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .scroll { flex: 1; overflow-y: auto; padding-bottom: 96px; }
+
+  .hero { position: relative; }
+  .hero img { width: 390px; height: 260px; object-fit: cover; display: block; }
+  .hero__top { position: absolute; top: var(--sp-3); left: var(--sp-3); }
+  .iconbtn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: none; cursor: pointer; background: rgba(255,255,255,.92); color: var(--md-on-surface); text-decoration: none; }
+  .iconbtn .ms { font-size: 22px; }
+
+  .head { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+  .head h1 { margin: 0 0 8px; color: var(--md-on-surface); }
+  .head__rating { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .head__rating .ms { color: #f5a623; font-size: 17px; }
+  .head__rating a { color: var(--md-primary); text-decoration: none; font-weight: 600; }
+  .head__loc { display: flex; align-items: flex-start; gap: 6px; margin-top: var(--sp-3); color: var(--md-on-surface-variant); font-size: 14px; line-height: 20px; letter-spacing: -.2px; }
+  .head__loc .ms { font-size: 18px; flex: none; }
+
+  .section { padding: var(--sp-5) var(--sp-4); border-top: var(--apple-hairline); }
+  .section h2 { margin: 0 0 var(--sp-3); color: var(--md-on-surface); }
+
+  /* Disponibilidad visible (#16) */
+  .avail-today { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; margin-bottom: var(--sp-3); border-radius: var(--md-shape-full); background: var(--md-primary-container); color: var(--md-on-primary-container); font-size: 13px; font-weight: 700; letter-spacing: -.2px; }
+  .avail-today .ms { font-size: 16px; }
+  .slots { display: flex; flex-wrap: wrap; gap: 8px; }
+  .slot { height: 38px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: var(--md-shape-sm); border: 1px solid var(--md-outline-variant); background: var(--md-surface); font-size: 14px; font-weight: 600; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .slot--taken { color: var(--md-on-surface-variant); text-decoration: line-through; background: var(--md-surface-container); border-color: transparent; }
+
+  .services { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .svc { display: flex; align-items: center; gap: var(--sp-3); }
+  .svc__icon { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--md-surface-container); color: var(--md-on-surface); }
+  .svc__txt b { display: block; font-size: 15px; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .svc__txt span { font-size: 12px; color: var(--md-on-surface-variant); }
+  .svc__val { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--md-on-surface); }
+
+  .map { height: 140px; border-radius: var(--md-shape-md); background: var(--md-surface-container); position: relative; overflow: hidden; border: 1px solid var(--md-outline-variant); }
+  .map::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(var(--md-outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--md-outline-variant) 1px, transparent 1px); background-size: 28px 28px; opacity: .35; }
+  .map__pin { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-100%); font-size: 30px; color: var(--md-primary); }
+
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <div class="scroll">
+      <div class="hero">
+        <img src="https://picsum.photos/seed/sabana-1/780/520" alt="Mejengas CR · Cancha 1">
+        <div class="hero__top">
+          <a class="iconbtn" href="catalogo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+        </div>
+      </div>
+
+      <div class="head">
+        <h1 class="md-headline-small">Mejengas CR · Cancha 1</h1>
+        <div class="head__rating"><span class="ms ms--fill">star</span> 4.5 · <a href="#">8 reseñas</a></div>
+        <div class="head__loc">
+          <span class="ms">location_on</span>
+          <span>San José · Escazú — 200 m sur de la iglesia de San Rafael. Fútbol 5.</span>
+        </div>
+      </div>
+
+      <!-- Disponibilidad + entrada a reserva -->
+      <section class="section">
+        <h2 class="md-title-medium">Disponibilidad</h2>
+        <span class="avail-today"><span class="ms">event_available</span> Hoy · slots de 1 hora</span>
+        <div class="slots">
+          <span class="slot slot--taken">17:00</span>
+          <span class="slot">18:00</span>
+          <span class="slot">19:00</span>
+          <span class="slot">20:00</span>
+          <span class="slot">21:00</span>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="md-title-medium">Servicios</h2>
+        <div class="services">
+          <div class="svc"><span class="svc__icon ms">local_parking</span><div class="svc__txt"><b>Parqueo</b><span>Disponible</span></div><span class="svc__val ms" style="color:var(--md-primary)">check</span></div>
+          <div class="svc"><span class="svc__icon ms">lightbulb</span><div class="svc__txt"><b>Iluminación</b><span>Apta de noche</span></div><span class="svc__val ms" style="color:var(--md-primary)">check</span></div>
+          <div class="svc"><span class="svc__icon ms">grass</span><div class="svc__txt"><b>Césped</b><span>Superficie</span></div><span class="svc__val">Sintético</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="md-title-medium">Ubicación</h2>
+        <div class="map"><span class="map__pin ms ms--fill">location_on</span></div>
+      </section>
+    </div>
+
+    <div class="actionbar">
+      <a class="md-btn md-btn--filled md-btn--full" href="../issue-50-reservar/reservar.html">Reservar cancha</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

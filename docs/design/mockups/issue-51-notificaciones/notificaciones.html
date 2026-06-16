@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Mejenguero — Notificaciones
+  Issue: #51. Notificación interna PERSISTIDA. La clave: cuando una reserva
+  finaliza (y no tiene reseña), se genera una invitación a reseñar; al tocarla se
+  abre el flujo de reseña (#17). WebSocket sólo mejora la entrega en vivo, no
+  reemplaza la persistencia. Sin push del SO, sin emails. Pestaña top-level =>
+  Bottom Navigation (Notificaciones activa). Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notificaciones</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) var(--sp-2); background: var(--md-surface); }
+  .appbar h1 { margin: 0; flex: 1; color: var(--md-on-surface); }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-2) 0 96px; }
+  .notif { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-4); text-decoration: none; border-bottom: var(--apple-hairline); }
+  .notif--unread { background: var(--md-primary-container); }
+  .notif--unread.notif { background: color-mix(in srgb, var(--md-primary-container) 45%, var(--md-surface)); }
+  .notif:active { background: var(--md-surface-container-low); }
+  .notif__icon { width: 42px; height: 42px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 21px; background: var(--md-surface-container); color: var(--md-on-surface); }
+  .notif__icon--review { background: var(--md-primary-container); color: var(--md-primary); }
+  .notif__body { flex: 1; min-width: 0; }
+  .notif__body b { font-size: 14px; font-weight: 700; color: var(--md-on-surface); letter-spacing: -.2px; }
+  .notif__body p { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+  .notif__time { font-size: 11px; color: var(--md-on-surface-variant); margin-top: 6px; display: block; letter-spacing: -.08px; }
+  .notif__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--md-primary); flex: none; margin-top: 6px; }
+  .notif__cta { display: inline-flex; align-items: center; gap: 6px; margin-top: var(--sp-2); height: 34px; padding: 0 14px; border-radius: var(--md-shape-full); background: var(--md-primary); color: var(--md-on-primary); font-size: 13px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+  .notif__cta .ms { font-size: 16px; }
+
+  .bottomnav { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; height: 64px; background: var(--md-surface); border-top: var(--apple-hairline); }
+  .navitem { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--md-on-surface-variant); }
+  .navitem .ms { font-size: 24px; }
+  .navitem span { font-size: 11px; font-weight: 600; letter-spacing: -.1px; }
+  .navitem--active { color: var(--md-primary); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <h1 class="md-headline-small">Notificaciones</h1>
+    </header>
+
+    <div class="scroll">
+      <!-- Post-reserva: invitación a reseñar (#51 → #17) -->
+      <a class="notif notif--unread" href="../issues-17-18-crear-resena/crear-resena.html">
+        <span class="notif__icon notif__icon--review ms">rate_review</span>
+        <div class="notif__body">
+          <b>¿Cómo estuvo tu mejenga?</b>
+          <p>Tu reserva en Moravia FC · Cancha A terminó. Dejá tu reseña.</p>
+          <a class="notif__cta" href="../issues-17-18-crear-resena/crear-resena.html"><span class="ms">star</span> Dejar reseña</a>
+        </div>
+        <span class="notif__dot"></span>
+      </a>
+
+      <!-- Reserva confirmada -->
+      <a class="notif" href="../issue-50-reservar/mis-reservas.html">
+        <span class="notif__icon ms">event_available</span>
+        <div class="notif__body">
+          <b>Reserva confirmada</b>
+          <p>Mejengas CR · Cancha 1 — hoy 19:00 a 20:00.</p>
+          <span class="notif__time">Hace 5 min</span>
+        </div>
+      </a>
+
+      <!-- Recordatorio próximo -->
+      <a class="notif" href="#">
+        <span class="notif__icon ms">schedule</span>
+        <div class="notif__body">
+          <b>Tu mejenga es pronto</b>
+          <p>Recordá tu reserva de hoy a las 19:00 en Cancha 1.</p>
+          <span class="notif__time">Hace 1 h</span>
+        </div>
+      </a>
+    </div>
+
+    <nav class="bottomnav" aria-label="Navegación principal">
+      <a class="navitem" href="../issues-15-16-catalogo-detalle/catalogo.html"><span class="ms">search</span><span>Buscar</span></a>
+      <a class="navitem" href="../issue-50-reservar/mis-reservas.html"><span class="ms">calendar_month</span><span>Reservas</span></a>
+      <a class="navitem navitem--active" href="#"><span class="ms ms--fill">notifications</span><span>Notificaciones</span></a>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

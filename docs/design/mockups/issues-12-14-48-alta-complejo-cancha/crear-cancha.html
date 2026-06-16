@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño — Registrar primera cancha
+  Issues: #48 (Cancha asociada al Complejo) + #12 (nombre) + #14 (servicios:
+  parqueo, iluminación, tipo de césped — selección simple, sin admin avanzada).
+  Sin borrador: valida antes de guardar. Continúa a configurar disponibilidad (#49).
+  Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nueva cancha · Dueño</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title .md-title-large { color: var(--md-on-surface); }
+  .appbar__step { font-size: 12px; font-weight: 700; color: var(--md-on-surface-variant); padding-right: var(--sp-2); letter-spacing: -.12px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-4) 120px; }
+  .lead { margin: 0 0 var(--sp-5); color: var(--md-on-surface-variant); }
+  .stack { display: flex; flex-direction: column; gap: var(--sp-5); }
+
+  .q__title { font-size: 12px; font-weight: 700; letter-spacing: -.12px; color: var(--md-on-surface); margin-bottom: var(--sp-3); }
+  .opts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .opt { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-full); background: var(--md-surface); color: var(--md-on-surface); font-size: 14px; font-weight: 600; letter-spacing: -.2px; cursor: pointer; }
+  .opt--sel { background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary); }
+
+  .service { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--md-shape-md); background: var(--md-surface-container-low); }
+  .service + .service { margin-top: var(--sp-2); }
+  .service__icon { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--md-surface-container-highest); color: var(--md-on-surface-variant); }
+  .service__txt { flex: 1; }
+  .service__txt b { display: block; font-size: 15px; color: var(--md-on-surface); }
+  .service__txt span { font-size: 12px; color: var(--md-on-surface-variant); }
+
+  .hint-srv { margin: 0 0 var(--sp-3); font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+  .actionbar { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--sp-3) var(--sp-4) var(--sp-5); background: var(--md-surface); border-top: var(--apple-hairline); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="crear-complejo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title"><div class="md-title-large">Nueva cancha</div></div>
+      <span class="appbar__step">Paso 2 de 2</span>
+    </header>
+
+    <div class="scroll">
+      <p class="lead md-body-medium">En <b>Mejengas CR</b>. Registrá la cancha y sus servicios.</p>
+
+      <div class="stack">
+        <div class="md-field">
+          <input id="nombre" type="text" value="Cancha 1" placeholder=" ">
+          <label for="nombre">Nombre de la cancha</label>
+        </div>
+
+        <div>
+          <div class="q__title">TIPO DE CÉSPED</div>
+          <div class="opts">
+            <span class="opt opt--sel">Sintético</span>
+            <span class="opt">Natural</span>
+            <span class="opt">Híbrido</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="q__title">SERVICIOS</div>
+          <p class="hint-srv">Aplican a esta cancha. Podés ajustarlos luego.</p>
+          <div class="service">
+            <span class="service__icon ms">local_parking</span>
+            <div class="service__txt"><b>Parqueo</b><span>¿La cancha cuenta con parqueo?</span></div>
+            <label class="md-switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
+          </div>
+          <div class="service">
+            <span class="service__icon ms">lightbulb</span>
+            <div class="service__txt"><b>Iluminación</b><span>¿Apta para jugar de noche?</span></div>
+            <label class="md-switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actionbar">
+      <a class="md-btn md-btn--filled md-btn--full" href="../issue-49-disponibilidad/disponibilidad.html">Guardar y configurar disponibilidad</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Autenticación — Iniciar sesión
+  Issue: #23 (TheMonstersP4). Registro/login manual con correo y contraseña
+  (delegado a Cognito). Pantalla pre-rol (no lleva nav de rol). Errores seguros.
+  Milestone Semana 10 — Flujo MVP. Estética apple-DESIGN.md. Tokens en ../_shared/md3-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iniciar sesión · Mejengueros</title>
+<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-8) var(--sp-5) var(--sp-6); display: flex; flex-direction: column; }
+  .brand { display: flex; flex-direction: column; align-items: center; text-align: center; margin: var(--sp-8) 0 var(--sp-8); }
+  .brand__logo { width: 72px; height: 72px; border-radius: 22px; background: var(--md-primary); color: var(--md-on-primary); display: grid; place-items: center; margin-bottom: var(--sp-4); }
+  .brand__logo .ms { font-size: 40px; }
+  .brand h1 { margin: 0 0 6px; color: var(--md-on-surface); }
+  .brand p { margin: 0; color: var(--md-on-surface-variant); font-size: 15px; letter-spacing: -.2px; }
+
+  .stack { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .forgot { align-self: flex-end; margin-top: 4px; color: var(--md-primary); font-size: 13px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+
+  .foot { margin-top: auto; padding-top: var(--sp-6); text-align: center; font-size: 14px; color: var(--md-on-surface-variant); letter-spacing: -.2px; }
+  .foot a { color: var(--md-primary); font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <div class="scroll">
+      <div class="brand">
+        <div class="brand__logo ms ms--fill">sports_soccer</div>
+        <h1 class="md-headline-small">Mejengueros</h1>
+        <p>Encontrá cancha y armá la mejenga.</p>
+      </div>
+
+      <div class="stack">
+        <div class="md-field">
+          <input id="correo" type="email" value="" placeholder=" ">
+          <label for="correo">Correo electrónico</label>
+        </div>
+        <div class="md-field">
+          <input id="pass" type="password" value="" placeholder=" ">
+          <label for="pass">Contraseña</label>
+        </div>
+        <a class="forgot" href="#">¿Olvidaste tu contraseña?</a>
+      </div>
+
+      <div style="margin-top:var(--sp-6)">
+        <a class="md-btn md-btn--filled md-btn--full" href="../issues-15-16-catalogo-detalle/catalogo.html">Iniciar sesión</a>
+      </div>
+
+      <div class="foot">¿No tenés cuenta? <a href="registro.html">Registrate</a></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
