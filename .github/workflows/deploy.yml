@@ -1,0 +1,179 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-2
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      poc: ${{ steps.filter.outputs.poc }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'app-backend/api/**'
+            poc:
+              - 'app-backend/poc/web-chat/**'
+            workflows:
+              - '.github/**'
+
+  quality-api:
+    name: API quality gate
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-backend/api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: app-backend/api
+        run: npm ci
+
+      - name: Lint API
+        working-directory: app-backend/api
+        run: npm run lint
+
+      - name: Test API
+        working-directory: app-backend/api
+        run: npm test -- --runInBand
+
+      - name: Build API
+        working-directory: app-backend/api
+        run: npm run build
+
+  deploy-api:
+    name: Deploy API image
+    needs:
+      - changes
+      - quality-api
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load deploy config
+        env:
+          DEPLOY_CONFIG: ${{ secrets.DEPLOY_DEV_CONFIG }}
+        run: bash .github/scripts/load-deploy-config.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: deploy-api-${{ github.run_id }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-backend/api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: app-backend/api
+        run: npm ci
+
+      - name: Run API database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: bash .github/scripts/run-api-migrations.sh
+
+      - name: Deploy API Docker image
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: bash .github/scripts/deploy-api-image.sh
+
+  deploy-websocket-lambdas:
+    name: Deploy WebSocket Lambdas
+    needs:
+      - changes
+      - quality-api
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load deploy config
+        env:
+          DEPLOY_CONFIG: ${{ secrets.DEPLOY_DEV_CONFIG }}
+        run: bash .github/scripts/load-deploy-config.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-backend/api/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: deploy-websocket-${{ github.run_id }}
+
+      - name: Package WebSocket Lambdas
+        run: bash .github/scripts/package-websocket-lambdas.sh
+
+      - name: Deploy WebSocket Lambdas
+        run: bash .github/scripts/deploy-websocket-lambdas.sh
+
+  deploy-poc:
+    name: Deploy POC site
+    needs: changes
+    if: needs.changes.outputs.poc == 'true' || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load deploy config
+        env:
+          DEPLOY_CONFIG: ${{ secrets.DEPLOY_DEV_CONFIG }}
+        run: bash .github/scripts/load-deploy-config.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: deploy-poc-${{ github.run_id }}
+
+      - name: Deploy POC site
+        run: bash .github/scripts/deploy-poc-site.sh
