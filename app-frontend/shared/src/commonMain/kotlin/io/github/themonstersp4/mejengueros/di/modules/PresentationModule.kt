@@ -7,7 +7,7 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val presentationModule = module {
-  viewModel { AuthViewModel(get()) }
+  viewModel { AuthViewModel(get(), get()) }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }
 }
