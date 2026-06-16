@@ -2,15 +2,14 @@ package io.github.themonstersp4.mejengueros.di.modules
 
 import io.github.themonstersp4.mejengueros.data.auth.CognitoAuthTokenProvider
 import io.github.themonstersp4.mejengueros.data.auth.CognitoOAuthRequestFactory
+import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.IAuthTokenProvider
 import io.github.themonstersp4.mejengueros.data.auth.JwtIdTokenDecoder
 import io.github.themonstersp4.mejengueros.data.auth.OAuthCallbackParser
 import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.auth.defaultCognitoAuthConfig
 import io.github.themonstersp4.mejengueros.data.local.AppDatabase
-import io.github.themonstersp4.mejengueros.data.local.AuthLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.DriverFactory
-import io.github.themonstersp4.mejengueros.data.local.IAuthLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.IPokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.PokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoAuthRemoteDataSource
@@ -27,7 +26,6 @@ import org.koin.dsl.module
 val dataModule = module {
   single { get<DriverFactory>().createDriver() }
   single { AppDatabase(get()) }
-  single { get<AppDatabase>().authSessionQueries }
   single { get<AppDatabase>().pokemonCacheQueries }
   single { defaultAppApiConfig }
   single { defaultCognitoAuthConfig }
@@ -35,8 +33,7 @@ val dataModule = module {
   single { CognitoOAuthRequestFactory(get()) }
   single { OAuthCallbackParser() }
   single { JwtIdTokenDecoder(get()) }
-  single<IAuthLocalDataSource> { AuthLocalDataSource(get()) }
-  single<IAuthTokenProvider> { CognitoAuthTokenProvider(get()) }
+  single<IAuthTokenProvider> { CognitoAuthTokenProvider(get<IAuthSecureStorage>()) }
   single<IAuthRemoteDataSource> { CognitoAuthRemoteDataSource(get(), get()) }
   single<IAuthRepository> { AuthRepository(get(), get(), get(), get(), get(), get(), get()) }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
