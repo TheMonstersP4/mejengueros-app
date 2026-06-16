@@ -5,15 +5,5 @@ CREATE TABLE AuthSession (
     sub TEXT NOT NULL,
     email TEXT NOT NULL,
     displayName TEXT,
-    provider TEXT,
-    idToken TEXT NOT NULL,
-    accessToken TEXT NOT NULL,
-    refreshToken TEXT,
-    expiresAtEpochSeconds INTEGER NOT NULL
-);
-
-CREATE TABLE AuthOAuthState (
-    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    state TEXT NOT NULL,
-    codeVerifier TEXT NOT NULL
+    provider TEXT
 );

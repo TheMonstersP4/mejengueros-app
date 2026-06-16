@@ -125,7 +125,7 @@ class AppDatabaseMigrationTest {
   }
 
   @Test
-  fun migrationFromVersionThreeToFourCreatesCognitoAuthTables() {
+  fun migrationFromVersionThreeToFourCreatesNonSensitiveAuthProfileTable() {
     val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     try {
       createVersionTwoSchema(driver)
@@ -139,7 +139,6 @@ class AppDatabaseMigrationTest {
       val database = AppDatabase(driver)
 
       assertEquals(null, database.authSessionQueries.selectSession().executeAsOneOrNull())
-      assertEquals(null, database.authSessionQueries.selectOAuthState().executeAsOneOrNull())
     } finally {
       driver.close()
     }
