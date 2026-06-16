@@ -1,0 +1,42 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["mejengueros_dev"]
+}
+
+model User {
+  id         String   @id @default(uuid())
+  cognitoSub String   @unique
+  email      String   @unique
+  name       String?
+  pictureUrl String?
+  provider   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@schema("mejengueros_dev")
+}
+
+model ImageUpload {
+  id              String   @id @default(uuid())
+  ownerSub        String
+  ownerEmail      String?
+  ownerName       String?
+  ownerPictureUrl String?
+  ownerProvider   String?
+  purpose         String
+  objectKey       String   @unique
+  contentType     String
+  sizeBytes       Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ownerSub])
+  @@index([createdAt])
+  @@schema("mejengueros_dev")
+}
