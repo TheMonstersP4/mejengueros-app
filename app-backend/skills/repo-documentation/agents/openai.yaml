@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Documentation"
+  short_description: "Apply TSDoc and Terraform documentation rules."
+  default_prompt: "Document this code using the repo documentation standards."

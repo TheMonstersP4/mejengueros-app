@@ -1,0 +1,1 @@
+window.MEJENGUEROS_CONFIG = {};

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mejengueros Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: '#17211b',
+              moss: '#37533f',
+              cream: '#f7f0df',
+              clay: '#c46c45',
+              limewash: '#dce9bd'
+            },
+            boxShadow: {
+              soft: '0 24px 70px rgba(23, 33, 27, 0.18)'
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="min-h-screen bg-cream text-ink">
+    <main class="relative isolate min-h-screen overflow-hidden">
+      <div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,#dce9bd_0,transparent_28%),radial-gradient(circle_at_82%_12%,#f2b78c_0,transparent_24%),linear-gradient(135deg,#f7f0df,#efe0c4)]"></div>
+
+      <section class="mx-auto grid min-h-screen max-w-5xl gap-8 px-5 py-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
+        <div class="space-y-8">
+          <div>
+            <p class="mb-3 inline-flex rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-moss shadow-sm">Mejengueros</p>
+            <h1 class="max-w-xl text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl">
+              Entra al chat del equipo.
+            </h1>
+            <p class="mt-6 max-w-lg text-lg leading-8 text-ink/70">
+              Usa tu cuenta de Google o Microsoft para entrar a la sala.
+            </p>
+          </div>
+
+          <div class="grid max-w-xl gap-3 sm:grid-cols-2">
+            <button id="loginGoogle" class="rounded-2xl bg-white px-5 py-4 text-left font-bold shadow-soft transition hover:-translate-y-0.5 hover:bg-limewash">
+              Entrar con Google
+              <span class="block text-sm font-medium text-ink/55">Gmail o Google Workspace</span>
+            </button>
+            <button id="loginMicrosoft" class="rounded-2xl bg-ink px-5 py-4 text-left font-bold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-moss">
+              Entrar con Microsoft
+              <span class="block text-sm font-medium text-white/60">Outlook o Microsoft 365</span>
+            </button>
+          </div>
+
+          <div id="authError" class="hidden max-w-xl rounded-2xl border border-clay/30 bg-white/70 px-5 py-4 text-sm font-semibold text-clay shadow-soft"></div>
+        </div>
+
+        <div class="rounded-[2rem] border border-white/70 bg-white/65 p-6 shadow-soft backdrop-blur">
+          <p class="text-sm font-bold uppercase tracking-[0.24em] text-moss">Sala</p>
+          <h2 class="mt-3 text-3xl font-black">dev</h2>
+          <p class="mt-4 text-sm leading-6 text-ink/65">
+            Al iniciar sesion te llevamos directo al chat.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/runtime-config.js"></script>
+    <script src="/app.js?v=20260611-app-shell"></script>
+  </body>
+</html>

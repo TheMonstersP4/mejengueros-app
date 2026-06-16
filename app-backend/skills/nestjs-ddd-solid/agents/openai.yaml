@@ -1,0 +1,4 @@
+interface:
+  display_name: "NestJS DDD SOLID"
+  short_description: "Build NestJS APIs with DDD and SOLID."
+  default_prompt: "Use the project DDD/SOLID standards to implement this NestJS feature."

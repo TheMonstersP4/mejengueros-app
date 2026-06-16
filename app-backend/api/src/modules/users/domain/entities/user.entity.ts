@@ -1,0 +1,106 @@
+/**
+ * Properties required to rebuild a user entity from persistence.
+ */
+export interface IUserEntityProps {
+  /**
+   * Internal application user ID.
+   */
+  id: string;
+
+  /**
+   * Stable Cognito subject used to link authentication with local data.
+   */
+  cognitoSub: string;
+
+  /**
+   * Primary user email stored by the application.
+   */
+  email: string;
+
+  /**
+   * Display name received from the identity provider.
+   */
+  name?: string | null;
+
+  /**
+   * Profile image URL received from the identity provider.
+   */
+  pictureUrl?: string | null;
+
+  /**
+   * Identity provider that created the Cognito identity.
+   */
+  provider?: string | null;
+}
+
+/**
+ * User profile snapshot exposed by the domain entity.
+ */
+export interface IUserProfileSnapshot {
+  /**
+   * Internal application user ID.
+   */
+  id: string;
+
+  /**
+   * Stable Cognito subject linked to this user.
+   */
+  cognitoSub: string;
+
+  /**
+   * Primary user email.
+   */
+  email: string;
+
+  /**
+   * Display name when available.
+   */
+  name?: string;
+
+  /**
+   * Profile image URL when available.
+   */
+  pictureUrl?: string;
+
+  /**
+   * Upstream identity provider name.
+   */
+  provider?: string;
+}
+
+/**
+ * User aggregate used by application use cases.
+ *
+ * @remarks
+ * Authentication is owned by Cognito. This entity represents the local
+ * application profile that can be extended with business-specific user data.
+ */
+export class UserEntity {
+  private constructor(private readonly props: IUserEntityProps) {}
+
+  /**
+   * Rebuilds a user entity from a trusted persistence record.
+   *
+   * @param props - User properties mapped from the database.
+   * @returns User entity ready for application use.
+   */
+  static fromPersistence(props: IUserEntityProps): UserEntity {
+    return new UserEntity(props);
+  }
+
+  /**
+   * Converts the entity into the profile shape returned by use cases.
+   *
+   * @returns User profile data safe for API responses.
+   */
+  toProfile(): IUserProfileSnapshot {
+    return {
+      id: this.props.id,
+      cognitoSub: this.props.cognitoSub,
+      email: this.props.email,
+      name: this.props.name ?? undefined,
+      pictureUrl: this.props.pictureUrl ?? undefined,
+      provider: this.props.provider ?? undefined
+    };
+  }
+}

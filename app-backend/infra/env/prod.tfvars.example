@@ -1,0 +1,103 @@
+project    = "backend"
+env        = "prod"
+aws_region = "us-east-2"
+owner      = "engineering"
+
+# Network
+# VPC and two private subnets only. No NAT gateway, EC2, ECS, or VPS.
+network_vpc_cidr = "10.50.0.0/16"
+
+# Cognito
+# Cognito domain is always project-env-auth.
+cognito_callback_urls = [
+  "https://app.example.com/api/auth/callback/cognito",
+  "https://app.example.com/auth/callback"
+]
+cognito_logout_urls = [
+  "https://app.example.com/logout",
+  "https://app.example.com/login"
+]
+
+google_enabled       = false
+google_client_id     = ""
+google_client_secret = ""
+
+microsoft_tenant_id     = "9188040d-6c67-4c5b-b112-36a304b66dad"
+
+# Set true to create the Microsoft Entra OAuth app with Terraform.
+# When true, Cognito uses the generated Entra client ID and secret.
+azuread_enabled          = false
+azuread_sign_in_audience = "PersonalMicrosoftAccount"
+azuread_homepage_url     = "https://app.example.com"
+azuread_logout_url       = "https://app.example.com/logout"
+azuread_owner_object_ids = []
+
+# POC site
+poc_site_enabled            = false
+poc_site_cloudflare_enabled = false
+poc_site_cloudflare_worker_enabled = false
+poc_site_domain_name        = "example.com"
+poc_site_subdomain          = "app"
+poc_site_force_destroy      = false
+cloudflare_zone_id          = ""
+cloudflare_account_id       = ""
+cloudflare_api_token        = ""
+
+# GitHub Actions
+github_actions_enabled   = false
+github_repositories      = ["owner/repo"]
+github_branch            = "main"
+github_oidc_provider_arn = ""
+
+# PostgreSQL
+postgres_enabled             = false
+postgres_db_name             = "appdb"
+postgres_master_username     = "appadmin"
+postgres_instance_class      = "db.t4g.micro"
+postgres_allocated_storage   = 20
+postgres_publicly_accessible = false
+postgres_deletion_protection = true
+postgres_skip_final_snapshot = false
+
+# S3
+s3_bucket_name    = ""
+s3_force_destroy  = false
+s3_versioning     = true
+s3_upload_expiration_days = 30
+
+# ECR
+# ECR repository is always project-env.
+ecr_image_tag_mutability = "IMMUTABLE"
+
+# HTTP API + API Lambda
+# Disabled until a Docker image is pushed to ECR.
+api_http_enabled          = false
+api_lambda_image_tag      = "latest"
+api_lambda_vpc_enabled    = false
+api_database_secret_enabled = true
+api_lambda_memory_size    = 1024
+api_lambda_timeout        = 30
+api_log_level             = "info"
+api_cors_allowed_origins = [
+  "https://app.example.com"
+]
+api_s3_upload_url_ttl_seconds  = 300
+api_s3_profile_image_max_bytes = 5242880
+http_api_stage_name       = "$default"
+http_api_log_retention_days = 30
+
+# WebSocket API
+websocket_stage_name            = "v1"
+websocket_access_log_enabled    = true
+websocket_log_retention_days    = 30
+websocket_default_route_enabled = false
+websocket_connections_point_in_time_recovery_enabled = true
+
+# WebSocket Lambdas
+# Disabled until the API build produces a Lambda zip.
+websocket_lambda_enabled                  = false
+websocket_lambda_package_filename         = ""
+websocket_lambda_package_source_code_hash = ""
+websocket_lambda_memory_size              = 256
+websocket_lambda_timeout                  = 10
+websocket_connection_ttl_seconds          = 86400

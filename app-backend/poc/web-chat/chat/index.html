@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mejengueros | App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              cream: '#f6efe0',
+              ink: '#132018',
+              moss: '#395b42',
+              lime: '#dcebbd',
+              clay: '#cf6f45'
+            },
+            fontFamily: {
+              display: ['Trebuchet MS', 'Verdana', 'sans-serif'],
+              body: ['Georgia', 'serif']
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="min-h-screen bg-[radial-gradient(circle_at_top_left,#dcebbd_0,#f6efe0_38%,#f2c09a_100%)] text-ink">
+    <main class="mx-auto flex min-h-screen max-w-7xl flex-col gap-5 px-5 py-6">
+      <header class="rounded-[2rem] bg-white/70 px-5 py-4 shadow-sm backdrop-blur md:flex md:items-center md:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Mejengueros</p>
+          <h1 class="font-display text-3xl font-black">Panel dev</h1>
+          <p id="sessionSummary" class="text-sm text-ink/60">Cargando sesion...</p>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2 md:mt-0">
+          <button class="navButton rounded-2xl bg-ink px-4 py-3 text-sm font-black text-white" data-view="chat" type="button">Chat</button>
+          <button class="navButton rounded-2xl bg-white px-4 py-3 text-sm font-black text-ink shadow-sm" data-view="users" type="button">Usuarios</button>
+          <button class="navButton rounded-2xl bg-white px-4 py-3 text-sm font-black text-ink shadow-sm" data-view="images" type="button">Imagenes</button>
+          <a id="swaggerLink" class="rounded-2xl bg-lime px-4 py-3 text-sm font-black text-ink shadow-sm" href="#" target="_blank" rel="noreferrer">Swagger</a>
+          <button class="logoutButton rounded-2xl border border-ink/15 px-4 py-3 text-sm font-black" type="button">Cerrar sesion</button>
+        </div>
+      </header>
+
+      <section class="grid gap-5 lg:grid-cols-[0.32fr_0.68fr]">
+        <aside class="space-y-5 rounded-[2rem] bg-white/60 p-5 shadow-sm backdrop-blur">
+          <section>
+            <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Tu sesion</p>
+            <div id="sessionBox" class="mt-4 rounded-3xl bg-white/75 p-4 text-sm text-ink/70">Cargando...</div>
+          </section>
+
+          <section>
+            <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">API</p>
+            <form id="apiConfigForm" class="mt-4 space-y-3 rounded-3xl bg-white/75 p-4">
+              <label class="block text-xs font-black uppercase tracking-[0.16em] text-moss" for="apiBaseUrlInput">Base URL</label>
+              <input id="apiBaseUrlInput" class="w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm outline-none ring-clay/25 transition focus:ring-4" placeholder="https://api-id.execute-api.us-east-2.amazonaws.com" autocomplete="off" />
+              <button class="w-full rounded-2xl bg-moss px-4 py-3 text-sm font-black text-white" type="submit">Guardar API</button>
+              <p id="apiStatus" class="text-sm text-ink/55">La API se usa para usuarios, imagenes y Swagger.</p>
+            </form>
+          </section>
+
+          <section>
+            <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Sala</p>
+            <div class="mt-4 rounded-3xl bg-white/75 p-4 text-sm text-ink/70">
+              <div class="font-black text-ink">dev</div>
+              <div id="wsStatus">Conectando...</div>
+            </div>
+          </section>
+        </aside>
+
+        <section class="min-h-[680px] rounded-[2rem] bg-white/70 p-5 shadow-sm backdrop-blur">
+          <section class="appView" data-view-panel="chat">
+            <div class="flex items-start justify-between gap-4 border-b border-ink/10 pb-4">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Chat</p>
+                <h2 class="font-display text-3xl font-black">Sala dev</h2>
+                <p id="roomStatus" class="text-sm text-ink/55">Preparando sala...</p>
+              </div>
+              <div id="currentUserEmail" class="rounded-2xl bg-white px-4 py-3 text-sm font-black shadow-sm"></div>
+            </div>
+            <div id="messages" class="mt-5 flex h-[500px] flex-col gap-3 overflow-y-auto rounded-3xl bg-cream/70 p-4"></div>
+            <form id="chatForm" class="mt-4 flex gap-3">
+              <input id="messageInput" class="min-w-0 flex-1 rounded-2xl border border-ink/10 bg-white px-4 py-3 outline-none ring-clay/25 transition focus:ring-4" placeholder="Escribe un mensaje..." autocomplete="off" />
+              <button class="rounded-2xl bg-ink px-6 py-3 font-black text-white hover:bg-moss" type="submit">Enviar</button>
+            </form>
+          </section>
+
+          <section class="appView hidden" data-view-panel="users">
+            <div class="flex flex-wrap items-end justify-between gap-4 border-b border-ink/10 pb-4">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Usuarios</p>
+                <h2 class="font-display text-3xl font-black">Perfiles sincronizados</h2>
+                <p class="text-sm text-ink/55">Datos tomados del token y guardados por la API.</p>
+              </div>
+              <button id="refreshUsersButton" class="rounded-2xl bg-moss px-5 py-3 text-sm font-black text-white" type="button">Actualizar</button>
+            </div>
+            <div class="mt-5 grid gap-4 xl:grid-cols-2">
+              <article>
+                <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Perfil API</p>
+                <div id="profileBox" class="mt-3 rounded-3xl bg-white/75 p-4 text-sm text-ink/70">Cargando...</div>
+              </article>
+              <article>
+                <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Conectados al room</p>
+                <div id="connectedUsers" class="mt-3 space-y-3 text-sm text-ink/70"></div>
+              </article>
+            </div>
+            <article class="mt-6">
+              <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Usuarios en base</p>
+              <div id="usersList" class="mt-3 grid gap-3 xl:grid-cols-2"></div>
+            </article>
+          </section>
+
+          <section class="appView hidden" data-view-panel="images">
+            <div class="flex flex-wrap items-end justify-between gap-4 border-b border-ink/10 pb-4">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[0.24em] text-moss">Imagenes</p>
+                <h2 class="font-display text-3xl font-black">Subidas privadas</h2>
+                <p class="text-sm text-ink/55">S3 guarda el archivo y la API registra quien lo subio.</p>
+              </div>
+              <button id="refreshImagesButton" class="rounded-2xl bg-moss px-5 py-3 text-sm font-black text-white" type="button">Actualizar</button>
+            </div>
+            <form id="uploadForm" class="mt-5 grid gap-4 rounded-3xl bg-white/75 p-4 md:grid-cols-[1fr_auto] md:items-end">
+              <label class="block">
+                <span class="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-moss">Imagen</span>
+                <input id="imageInput" class="w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm" type="file" accept="image/jpeg,image/png,image/webp" />
+              </label>
+              <button id="uploadButton" class="rounded-2xl bg-ink px-6 py-3 text-sm font-black text-white hover:bg-moss" type="submit">Subir imagen</button>
+              <p id="uploadStatus" class="text-sm text-ink/60 md:col-span-2">Selecciona una imagen JPG, PNG o WebP.</p>
+            </form>
+            <div id="uploadedImages" class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+    <script src="/runtime-config.js"></script>
+    <script src="/app.js?v=20260611-app-shell"></script>
+  </body>
+</html>

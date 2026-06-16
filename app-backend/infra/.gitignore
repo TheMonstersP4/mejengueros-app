@@ -1,0 +1,32 @@
+# Terraform runtime files
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/crash.*.log
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# Environment values
+**/*.tfvars
+**/*.tfvars.json
+**/*.backend.hcl
+!**/*.tfvars.example
+!**/*.backend.hcl.example
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local agent workspaces
+.agents/
+.skills/
+**/.agents/
+**/.skills/
