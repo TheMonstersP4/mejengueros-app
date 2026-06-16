@@ -1,0 +1,37 @@
+version: '3'
+
+tasks:
+  format:
+    desc: Format Kotlin and Gradle Kotlin files
+    cmds:
+      - ./gradlew spotlessApply --no-configuration-cache --console=plain
+
+  check:
+    desc: Run formatting checks
+    cmds:
+      - ./gradlew spotlessCheck --no-configuration-cache --console=plain
+
+  test:
+    desc: Run shared JVM tests
+    cmds:
+      - ./gradlew :shared:jvmTest --no-configuration-cache --console=plain
+
+  android:debug:
+    desc: Build Android debug APK
+    cmds:
+      - ./gradlew :androidApp:assembleDebug --no-configuration-cache --console=plain
+
+  android:host-test:
+    desc: Run shared Android host tests
+    cmds:
+      - ./gradlew :shared:testAndroidHostTest --no-configuration-cache --console=plain
+
+  desktop:compile:
+    desc: Compile Desktop JVM app
+    cmds:
+      - ./gradlew :desktopApp:compileKotlin --no-configuration-cache --console=plain
+
+  verify:
+    desc: Run the same core checks as CI
+    cmds:
+      - ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain

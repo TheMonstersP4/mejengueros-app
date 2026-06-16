@@ -1,0 +1,14 @@
+CREATE TABLE PokemonSummaryEntity(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  imageUrl TEXT NOT NULL
+);
+
+CREATE TABLE PokemonDetailEntity(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  height INTEGER NOT NULL,
+  weight INTEGER NOT NULL,
+  imageUrl TEXT NOT NULL,
+  types TEXT NOT NULL
+);

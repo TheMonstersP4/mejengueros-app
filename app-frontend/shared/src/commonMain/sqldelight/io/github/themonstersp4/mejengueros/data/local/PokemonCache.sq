@@ -1,0 +1,85 @@
+CREATE TABLE PokemonSummaryEntity(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  imageUrl TEXT NOT NULL
+);
+
+CREATE TABLE PokemonDetailEntity(
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  height INTEGER NOT NULL,
+  weight INTEGER NOT NULL,
+  imageUrl TEXT NOT NULL,
+  types TEXT NOT NULL
+);
+
+CREATE TABLE FavoritePokemonEntity(
+  id INTEGER NOT NULL PRIMARY KEY
+);
+
+selectPokemonSummaries:
+SELECT
+  PokemonSummaryEntity.id,
+  PokemonSummaryEntity.name,
+  PokemonSummaryEntity.imageUrl,
+  FavoritePokemonEntity.id IS NOT NULL AS isFavorite
+FROM PokemonSummaryEntity
+LEFT JOIN FavoritePokemonEntity ON FavoritePokemonEntity.id = PokemonSummaryEntity.id
+ORDER BY PokemonSummaryEntity.id ASC
+LIMIT ? OFFSET ?;
+
+selectPokemonSummaryCount:
+SELECT COUNT(*) FROM PokemonSummaryEntity;
+
+selectFavoritePokemonSummaries:
+SELECT
+  PokemonSummaryEntity.id AS id,
+  PokemonSummaryEntity.name AS name,
+  PokemonSummaryEntity.imageUrl AS imageUrl
+FROM FavoritePokemonEntity
+JOIN PokemonSummaryEntity ON PokemonSummaryEntity.id = FavoritePokemonEntity.id
+UNION
+SELECT
+  PokemonDetailEntity.id AS id,
+  PokemonDetailEntity.name AS name,
+  PokemonDetailEntity.imageUrl AS imageUrl
+FROM FavoritePokemonEntity
+JOIN PokemonDetailEntity ON PokemonDetailEntity.id = FavoritePokemonEntity.id
+LEFT JOIN PokemonSummaryEntity ON PokemonSummaryEntity.id = FavoritePokemonEntity.id
+WHERE PokemonSummaryEntity.id IS NULL
+ORDER BY id ASC;
+
+upsertPokemonSummary:
+INSERT OR REPLACE INTO PokemonSummaryEntity(id, name, imageUrl)
+VALUES (?, ?, ?);
+
+selectPokemonDetail:
+SELECT
+  PokemonDetailEntity.id,
+  PokemonDetailEntity.name,
+  PokemonDetailEntity.height,
+  PokemonDetailEntity.weight,
+  PokemonDetailEntity.imageUrl,
+  PokemonDetailEntity.types,
+  FavoritePokemonEntity.id IS NOT NULL AS isFavorite
+FROM PokemonDetailEntity
+LEFT JOIN FavoritePokemonEntity ON FavoritePokemonEntity.id = PokemonDetailEntity.id
+WHERE PokemonDetailEntity.id = ?;
+
+upsertPokemonDetail:
+INSERT OR REPLACE INTO PokemonDetailEntity(id, name, height, weight, imageUrl, types)
+VALUES (?, ?, ?, ?, ?, ?);
+
+isFavorite:
+SELECT EXISTS(
+  SELECT 1 FROM FavoritePokemonEntity
+  WHERE id = ?
+);
+
+upsertFavorite:
+INSERT OR REPLACE INTO FavoritePokemonEntity(id)
+VALUES (?);
+
+deleteFavorite:
+DELETE FROM FavoritePokemonEntity
+WHERE id = ?;
