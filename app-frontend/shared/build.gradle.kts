@@ -36,6 +36,7 @@ kotlin {
     }
     androidMain.dependencies {
       implementation(libs.compose.uiToolingPreview)
+      implementation(libs.androidx.security.crypto)
       implementation(libs.koin.android)
       implementation(libs.ktor.client.okhttp)
       implementation(libs.sqldelight.driver.android)
@@ -47,6 +48,8 @@ kotlin {
       implementation(libs.compose.ui)
       implementation(libs.compose.components.resources)
       implementation(libs.compose.uiToolingPreview)
+      implementation(libs.cryptography.random)
+      implementation(libs.kotlincrypto.sha2)
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.ktor.client.core)
