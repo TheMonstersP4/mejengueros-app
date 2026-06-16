@@ -1,1 +1,52 @@
-.DS_Store.DS_Store
+# Terraform runtime files
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/crash.*.log
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# Environment values
+**/*.tfvars
+**/*.tfvars.json
+**/*.backend.hcl
+!**/*.tfvars.example
+!**/*.backend.hcl.example
+
+# Local secrets and generated files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Node.js runtime and build output
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+coverage/
+**/coverage/
+*.tsbuildinfo
+app-backend/api/src/generated/prisma/
+app-backend/api/.lambda/
+
+# Local agent workspaces
+.agents/
+.skills/
+**/.agents/
+**/.skills/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
