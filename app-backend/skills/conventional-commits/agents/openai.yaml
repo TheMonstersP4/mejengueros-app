@@ -1,0 +1,4 @@
+interface:
+  display_name: "Conventional Commits"
+  short_description: "Split changes and write focused Conventional Commit messages."
+  default_prompt: "Review my changes and suggest focused Conventional Commits."
