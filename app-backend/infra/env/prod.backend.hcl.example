@@ -1,0 +1,5 @@
+bucket         = "replace-me-terraform-state-prod"
+key            = "backend/prod/terraform.tfstate"
+region         = "us-east-2"
+encrypt        = true
+dynamodb_table = "replace-me-terraform-locks-prod"
