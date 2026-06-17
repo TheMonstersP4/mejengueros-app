@@ -2,13 +2,14 @@ package io.github.themonstersp4.mejengueros
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import io.github.themonstersp4.mejengueros.data.local.AppDatabase
-import io.github.themonstersp4.mejengueros.data.local.AuthLocalDataSource
-import io.github.themonstersp4.mejengueros.data.local.DriverFactory
+import io.github.themonstersp4.mejengueros.data.auth.AndroidAuthSecureStorage
+import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -16,24 +17,38 @@ import org.robolectric.RobolectricTestRunner
 class SharedLogicAndroidHostTest {
 
   @Test
-  fun androidDriverPersistsAndClearsAuthSession() {
+  fun androidSecureStoragePersistsAndClearsAuthSession() = runTest {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    val driver = DriverFactory(context).createDriver()
-    val database = AppDatabase(driver)
-    val dataSource = AuthLocalDataSource(database.authSessionQueries)
+    val storage = AndroidAuthSecureStorage(testPreferences(context), Json)
 
-    try {
-      dataSource.clearSession()
+    storage.clearSession()
 
-      dataSource.saveSession(sampleSession())
-      assertEquals(sampleSession(), dataSource.getSession())
+    storage.saveSession(sampleSession())
+    assertEquals(sampleSession(), storage.getSession())
 
-      dataSource.clearSession()
-      assertNull(dataSource.getSession())
-    } finally {
-      driver.close()
-    }
+    storage.clearSession()
+    assertNull(storage.getSession())
   }
+
+  @Test
+  fun androidSecureStoragePersistsAndClearsOAuthState() = runTest {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val storage = AndroidAuthSecureStorage(testPreferences(context), Json)
+    val state = PendingOAuthState(state = "state", codeVerifier = "verifier")
+
+    storage.clearOAuthState()
+
+    storage.saveOAuthState(state)
+    assertEquals(state, storage.getOAuthState())
+
+    storage.clearOAuthState()
+    assertNull(storage.getOAuthState())
+  }
+
+  private fun testPreferences(context: Context) =
+      context.getSharedPreferences("auth-secure-storage-test", Context.MODE_PRIVATE).also {
+        it.edit().clear().commit()
+      }
 
   private fun sampleSession(): AuthSession =
       AuthSession(
