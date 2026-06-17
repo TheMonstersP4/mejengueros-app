@@ -7,36 +7,36 @@ export class UserProfileResponse {
   /**
    * Internal application user ID.
    */
-  @ApiProperty()
+  @ApiProperty({ example: '01J0W5K4T2S8Q9B7J6V4M3N2P1' })
   id!: string;
 
   /**
    * Stable Cognito subject linked to this user.
    */
-  @ApiProperty()
+  @ApiProperty({ example: '21dbf550-b071-7037-4dc2-169c7a4b4c28' })
   cognitoSub!: string;
 
   /**
    * Primary user email.
    */
-  @ApiProperty()
+  @ApiProperty({ example: 'player@example.com' })
   email!: string;
 
   /**
    * Display name when available.
    */
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'David Gutierrez' })
   name?: string;
 
   /**
    * Profile image URL when available.
    */
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
   pictureUrl?: string;
 
   /**
    * Upstream identity provider name.
    */
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'Google' })
   provider?: string;
 }
