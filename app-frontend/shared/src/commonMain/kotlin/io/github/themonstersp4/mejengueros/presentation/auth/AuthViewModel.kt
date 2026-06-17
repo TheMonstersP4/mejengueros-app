@@ -18,6 +18,7 @@ class AuthViewModel(
     private val authRepository: IAuthRepository,
     private val oauthBrowser: IOAuthBrowser,
     private val callbackUrls: SharedFlow<String> = AuthCallbackBus.callbackUrls,
+    private val markCallbackConsumed: (String) -> Unit = AuthCallbackBus::markConsumed,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
   private val coroutineScope = coroutineScope ?: viewModelScope
@@ -86,6 +87,7 @@ class AuthViewModel(
                       errorMessage = error.message ?: "Unable to finish sign in.",
                   )
             }
+            .also { markCallbackConsumed(callbackUrl) }
       }
     }
   }

@@ -26,7 +26,13 @@ class AuthViewModelTest {
     val repository = FakeAuthRepository(existingSession = sampleSession())
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
 
-    val viewModel = AuthViewModel(repository, FakeOAuthBrowser(), MutableSharedFlow(), scope)
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            MutableSharedFlow(),
+            coroutineScope = scope,
+        )
     advanceUntilIdle()
 
     assertEquals("player@example.com", viewModel.uiState.value.email)
@@ -41,7 +47,13 @@ class AuthViewModelTest {
     val browser = FakeOAuthBrowser()
     val repository = FakeAuthRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = AuthViewModel(repository, browser, MutableSharedFlow(), scope)
+    val viewModel =
+        AuthViewModel(
+            repository,
+            browser,
+            MutableSharedFlow(),
+            coroutineScope = scope,
+        )
 
     viewModel.signInWithGoogle()
     advanceUntilIdle()
@@ -58,7 +70,13 @@ class AuthViewModelTest {
     val callbacks = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val repository = FakeAuthRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = AuthViewModel(repository, FakeOAuthBrowser(), callbacks, scope)
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            callbacks,
+            coroutineScope = scope,
+        )
     advanceUntilIdle()
 
     callbacks.emit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
@@ -82,7 +100,14 @@ class AuthViewModelTest {
     val repository = FakeAuthRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
 
-    val viewModel = AuthViewModel(repository, FakeOAuthBrowser(), callbacks, scope)
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            callbacks,
+            markCallbackConsumed = { callbacks.resetReplayCache() },
+            coroutineScope = scope,
+        )
     advanceUntilIdle()
 
     assertEquals("player@example.com", viewModel.uiState.value.email)
@@ -95,11 +120,48 @@ class AuthViewModelTest {
   }
 
   @Test
+  fun consumedCallbackIsNotProcessedByNewSubscriber() = runTest {
+    val callbacks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    callbacks.tryEmit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    val repository = FakeAuthRepository()
+    val firstScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val secondScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+
+    AuthViewModel(
+        repository,
+        FakeOAuthBrowser(),
+        callbacks,
+        markCallbackConsumed = { callbacks.resetReplayCache() },
+        coroutineScope = firstScope,
+    )
+    advanceUntilIdle()
+    firstScope.cancel()
+
+    AuthViewModel(
+        repository,
+        FakeOAuthBrowser(),
+        callbacks,
+        markCallbackConsumed = { callbacks.resetReplayCache() },
+        coroutineScope = secondScope,
+    )
+    advanceUntilIdle()
+
+    assertEquals(1, repository.callbackCount)
+    secondScope.cancel()
+  }
+
+  @Test
   fun signOutClearsRepositoryStateAndOpensLogoutUrl() = runTest {
     val browser = FakeOAuthBrowser()
     val repository = FakeAuthRepository(existingSession = sampleSession())
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = AuthViewModel(repository, browser, MutableSharedFlow(), scope)
+    val viewModel =
+        AuthViewModel(
+            repository,
+            browser,
+            MutableSharedFlow(),
+            coroutineScope = scope,
+        )
     advanceUntilIdle()
 
     viewModel.signOut()
@@ -115,6 +177,7 @@ class AuthViewModelTest {
       IAuthRepository {
     var receivedProvider: AuthProvider? = null
     var receivedCallback: String? = null
+    var callbackCount = 0
     var signOutCount = 0
 
     override suspend fun getSession(): AuthSession? = existingSession
@@ -126,6 +189,7 @@ class AuthViewModelTest {
 
     override suspend fun handleCallback(callbackUrl: String): AuthSession {
       receivedCallback = callbackUrl
+      callbackCount++
       return sampleSession()
     }
 
