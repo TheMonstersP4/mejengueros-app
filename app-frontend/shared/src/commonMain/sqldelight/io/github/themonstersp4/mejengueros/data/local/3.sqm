@@ -1,0 +1,9 @@
+DROP TABLE AuthSession;
+
+CREATE TABLE AuthSession (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    sub TEXT NOT NULL,
+    email TEXT NOT NULL,
+    displayName TEXT,
+    provider TEXT
+);

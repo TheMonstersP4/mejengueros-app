@@ -1,51 +1,106 @@
 package io.github.themonstersp4.mejengueros.presentation.auth
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import io.github.themonstersp4.mejengueros.data.auth.AuthCallbackBus
+import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
+import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
+import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-class AuthViewModel(private val authRepository: IAuthRepository) : ViewModel() {
+class AuthViewModel(
+    private val authRepository: IAuthRepository,
+    private val oauthBrowser: IOAuthBrowser,
+    private val callbackUrls: SharedFlow<String> = AuthCallbackBus.callbackUrls,
+    private val markCallbackConsumed: (String) -> Unit = AuthCallbackBus::markConsumed,
+    coroutineScope: CoroutineScope? = null,
+) : ViewModel() {
+  private val coroutineScope = coroutineScope ?: viewModelScope
   private val _uiState = MutableStateFlow(AuthUiState())
   val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
   init {
     restoreSession()
+    observeCallbacks()
   }
 
-  fun updateUsername(username: String) {
-    _uiState.value = _uiState.value.copy(username = username, errorMessage = null)
+  fun signInWithGoogle() {
+    startSignIn(AuthProvider.Google)
   }
 
-  fun signIn(): Boolean {
-    val username = _uiState.value.username.trim()
-    if (username.isEmpty()) {
-      _uiState.value = _uiState.value.copy(errorMessage = "Enter a username to continue.")
-      return false
-    }
-
-    val session = authRepository.signIn(username)
-    _uiState.value =
-        _uiState.value.copy(
-            username = session.username,
-            isAuthenticated = true,
-            errorMessage = null,
-        )
-    return true
+  fun signInWithMicrosoft() {
+    startSignIn(AuthProvider.Microsoft)
   }
 
   fun signOut() {
-    authRepository.signOut()
-    _uiState.value = AuthUiState()
+    coroutineScope.launch {
+      val signOutRequest = authRepository.signOut()
+      _uiState.value = AuthUiState()
+      runCatching { oauthBrowser.open(signOutRequest.logoutUrl) }
+    }
   }
 
   private fun restoreSession() {
-    val session = authRepository.getSession() ?: return
+    coroutineScope.launch { authRepository.getSession()?.let(::applyAuthenticatedSession) }
+  }
+
+  private fun startSignIn(provider: AuthProvider) {
+    coroutineScope.launch {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = true,
+              pendingProvider = provider,
+              errorMessage = null,
+          )
+      runCatching {
+            val request = authRepository.createSignInRequest(provider)
+            oauthBrowser.open(request.authorizationUrl)
+          }
+          .onFailure { error ->
+            _uiState.value =
+                _uiState.value.copy(
+                    isLoading = false,
+                    pendingProvider = null,
+                    errorMessage = error.message ?: "Unable to start sign in.",
+                )
+          }
+    }
+  }
+
+  private fun observeCallbacks() {
+    coroutineScope.launch {
+      callbackUrls.collect { callbackUrl ->
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        runCatching { authRepository.handleCallback(callbackUrl) }
+            .onSuccess(::applyAuthenticatedSession)
+            .onFailure { error ->
+              _uiState.value =
+                  _uiState.value.copy(
+                      isLoading = false,
+                      pendingProvider = null,
+                      errorMessage = error.message ?: "Unable to finish sign in.",
+                  )
+            }
+            .also { markCallbackConsumed(callbackUrl) }
+      }
+    }
+  }
+
+  private fun applyAuthenticatedSession(session: AuthSession) {
     _uiState.value =
         _uiState.value.copy(
-            username = session.username,
+            email = session.email,
+            displayName = session.displayName,
+            provider = session.provider,
             isAuthenticated = true,
+            isLoading = false,
+            pendingProvider = null,
             errorMessage = null,
         )
   }
