@@ -1,11 +1,16 @@
 package io.github.themonstersp4.mejengueros.domain.repository
 
+import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
+import io.github.themonstersp4.mejengueros.domain.model.AuthSignInRequest
+import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
 
 interface IAuthRepository {
-  fun getSession(): AuthSession?
+  suspend fun getSession(): AuthSession?
 
-  fun signIn(username: String): AuthSession
+  suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest
 
-  fun signOut()
+  suspend fun handleCallback(callbackUrl: String): AuthSession
+
+  suspend fun signOut(): AuthSignOutRequest
 }
