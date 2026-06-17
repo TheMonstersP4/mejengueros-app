@@ -149,12 +149,14 @@ The current implementation follows the same architectural seams used by other fe
 ```text
 LoginScreen
   -> AuthViewModel
-    -> IAuthRepository
+      -> IAuthRepository
       -> IAuthRemoteDataSource -> Ktor -> Cognito token endpoint
-      -> IAuthLocalDataSource  -> SQLDelight
+      -> IAuthSecureStorage    -> Android encrypted preferences / iOS Keychain / Desktop memory
 ```
 
-The app opens the system browser for Google or Microsoft login through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores the current session locally.
+The app opens the system browser for Google or Microsoft login through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores auth material in platform secure storage.
+
+SQLDelight remains available for non-sensitive local cache data. It must not store `idToken`, `accessToken`, `refreshToken`, OAuth `state`, or PKCE `codeVerifier`.
 
 Development values:
 
