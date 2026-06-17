@@ -6,7 +6,12 @@ import {
   Post,
   UseGuards
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeArrayOk,
+  ApiEnvelopeCreated,
+  ApiEnvelopeErrors
+} from '../../../../../shared/interfaces/http/swagger/api-envelope.decorators';
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
@@ -15,11 +20,11 @@ import { CreateUploadUrlUseCase } from '../../../application/use-cases/create-up
 import { ListImageUploadsUseCase } from '../../../application/use-cases/list-image-uploads.use-case';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
 import { ConfirmUploadRequest } from '../dto/confirm-upload.request';
-import type { ConfirmUploadResponse } from '../dto/confirm-upload.response';
+import { ConfirmUploadResponse } from '../dto/confirm-upload.response';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
 import { CreateUploadUrlRequest } from '../dto/create-upload-url.request';
-import type { CreateUploadUrlResponse } from '../dto/create-upload-url.response';
-import type { ImageUploadResponse } from '../dto/image-upload.response';
+import { CreateUploadUrlResponse } from '../dto/create-upload-url.response';
+import { ImageUploadResponse } from '../dto/image-upload.response';
 
 /**
  * HTTP endpoints for application-managed file uploads.
@@ -44,7 +49,16 @@ export class FilesController {
    */
   @Get('uploads')
   @UseGuards(CognitoAuthGuard)
-  @ApiOperation({ summary: 'List confirmed image uploads.' })
+  @ApiOperation({
+    summary: 'List confirmed image uploads.',
+    description:
+      'Returns confirmed image uploads with short-lived read URLs and uploader snapshots.'
+  })
+  @ApiEnvelopeArrayOk(
+    ImageUploadResponse,
+    'Confirmed image uploads wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(401, 502)
   async listUploads(): Promise<ImageUploadResponse[]> {
     return this.listImageUploads.execute();
   }
@@ -58,7 +72,20 @@ export class FilesController {
    */
   @Post('uploads')
   @UseGuards(CognitoAuthGuard)
-  @ApiOperation({ summary: 'Create a presigned image upload URL.' })
+  @ApiOperation({
+    summary: 'Create a presigned image upload URL.',
+    description:
+      'Validates the requested image purpose, MIME type, and size before returning a short-lived S3 POST form.'
+  })
+  @ApiBody({
+    description: 'Image metadata required to create a direct upload URL.',
+    type: CreateUploadUrlRequest
+  })
+  @ApiEnvelopeCreated(
+    CreateUploadUrlResponse,
+    'Presigned image upload form wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 413, 415, 502)
   async createUpload(
     @CurrentUser() user: IAuthenticatedUserOutput,
     @Body() request: CreateUploadUrlRequest
@@ -80,7 +107,20 @@ export class FilesController {
    */
   @Post('uploads/confirm')
   @UseGuards(CognitoAuthGuard)
-  @ApiOperation({ summary: 'Confirm a direct S3 image upload.' })
+  @ApiOperation({
+    summary: 'Confirm a direct S3 image upload.',
+    description:
+      'Checks the uploaded S3 object, validates ownership, stores image metadata, and returns a short-lived read URL.'
+  })
+  @ApiBody({
+    description: 'Uploaded object information returned by upload URL creation.',
+    type: ConfirmUploadRequest
+  })
+  @ApiEnvelopeCreated(
+    ConfirmUploadResponse,
+    'Confirmed image upload wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 403, 404, 502)
   async confirm(
     @CurrentUser() user: IAuthenticatedUserOutput,
     @Body() request: ConfirmUploadRequest
