@@ -26,7 +26,12 @@ describe('configureSwagger', () => {
     configureSwagger(app as never);
 
     expect(builder.setTitle).toHaveBeenCalledWith('Mejengueros API');
-    expect(builder.addBearerAuth).toHaveBeenCalledTimes(1);
+    expect(builder.addBearerAuth).toHaveBeenCalledWith({
+      bearerFormat: 'JWT',
+      description: 'Cognito ID token sent as: Bearer <token>',
+      scheme: 'bearer',
+      type: 'http'
+    });
     expect(SwaggerModule.createDocument).toHaveBeenCalledWith(app, {
       title: 'config'
     });

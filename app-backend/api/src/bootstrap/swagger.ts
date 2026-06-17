@@ -11,7 +11,12 @@ export function configureSwagger(app: INestApplication): void {
     .setTitle('Mejengueros API')
     .setDescription('HTTP API for authentication, users, and image uploads.')
     .setVersion('0.1.0')
-    .addBearerAuth()
+    .addBearerAuth({
+      bearerFormat: 'JWT',
+      description: 'Cognito ID token sent as: Bearer <token>',
+      scheme: 'bearer',
+      type: 'http'
+    })
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
