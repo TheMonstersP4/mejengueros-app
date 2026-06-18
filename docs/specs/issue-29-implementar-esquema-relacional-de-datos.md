@@ -6,7 +6,16 @@ Implementar esquema relacional mínimo para el MVP de reservas.
 
 ## Nota de re-alcance MVP
 
-Para Sprint 3, `#29` se limita al esquema mínimo necesario para demostrar el flujo principal del MVP: usuarios, complejo, canchas, servicios, disponibilidad, reservas, notificaciones y reseñas/rating. Imágenes, favoritos, cuestionarios avanzados, métricas estructuradas y reglas especiales de `1 estrella` quedan post-MVP salvo decisión explícita posterior.
+Para Sprint 2, `#29` se limita al esquema mínimo necesario para demostrar el flujo principal del MVP: usuarios, complejo, canchas, servicios, disponibilidad, reservas, notificaciones y reseñas/rating. Imágenes, favoritos, cuestionarios avanzados, métricas estructuradas y reglas especiales de `1 estrella` quedan post-MVP salvo decisión explícita posterior.
+
+## Decisión de servicios para Semana 10
+
+Para Semana 10, el MVP usa un `ServiceCatalog` cerrado y global, cargado por seed.
+
+- El dueño solo puede seleccionar servicios predefinidos.
+- `ComplexService` asocia servicios al `Complejo`.
+- `CourtService` asocia servicios a la `Cancha`.
+- Los servicios personalizados o definidos por el dueño quedan fuera de Semana 10 y se difieren para Semana 13/post-MVP.
 
 ## Objetivo
 
@@ -55,14 +64,16 @@ para que el flujo central del MVP funcione con datos persistidos en base de dato
 3. Las entidades deben tener timestamps básicos.
 4. `Complejo` es la entidad raíz de oferta deportiva.
 5. Un `Complejo` contiene una o más `Canchas`.
-6. Los servicios pueden asociarse a `Complejo` o a `Cancha` según su naturaleza.
-7. Una `Cancha` tiene reglas de disponibilidad que generan slots exactos de 1 hora.
-8. `Reserva` se asocia a usuario, cancha, `startsAt`, `endsAt` y estado básico.
-9. El modelo debe impedir más de una reserva activa para la misma cancha y hora de inicio.
-10. `Notification` debe permitir notificación post-reserva para reseñar.
-11. `Review` debe vincularse a una reserva finalizada, usuario y cancha.
-12. Una reserva no debe tener más de una reseña asociada.
-13. El rating de la reseña debe permitir valores enteros de `1` a `5`.
+6. Los servicios provienen de un catálogo predefinido y cerrado para el MVP.
+7. Los servicios pueden asociarse a `Complejo` o a `Cancha` según su naturaleza.
+8. Una `Cancha` tiene reglas de disponibilidad que generan slots exactos de 1 hora.
+9. `Reserva` se asocia a usuario, cancha, `startsAt`, `endsAt` y estado básico.
+10. El modelo debe impedir más de una reserva activa para la misma cancha y hora de inicio.
+11. `Notification` debe permitir notificación post-reserva para reseñar.
+12. `Review` debe vincularse a una reserva finalizada, usuario y cancha.
+13. Una reserva no debe tener más de una reseña asociada.
+14. El rating de la reseña debe permitir valores enteros de `1` a `5`.
+15. El MVP no permite que el dueño cree servicios personalizados.
 
 ## Flujo principal
 
@@ -84,7 +95,7 @@ para que el flujo central del MVP funcione con datos persistidos en base de dato
 
 - Identificador de usuario autenticado.
 - Datos de complejo y cancha.
-- Servicios de complejo/cancha.
+- Servicios predefinidos de complejo/cancha.
 - Reglas de disponibilidad y slots de 1 hora.
 - Reservas, notificaciones y reseñas post-reserva.
 
@@ -109,13 +120,14 @@ para que el flujo central del MVP funcione con datos persistidos en base de dato
 1. Dado un entorno con base de datos configurada, cuando se ejecuta la migración, entonces se crean las tablas mínimas del MVP sin errores.
 2. Dado un usuario autenticado, cuando se sincroniza su perfil local, entonces se crea o actualiza un registro en `User`.
 3. Dado un dueño, cuando crea un complejo y una cancha, entonces el modelo permite asociar la cancha al complejo correcto.
-4. Dado un complejo o cancha, cuando se registran servicios, entonces quedan asociados al alcance correcto.
+4. Dado un complejo o cancha, cuando se registran servicios, entonces quedan asociados al alcance correcto usando únicamente servicios predefinidos del catálogo global.
 5. Dada una cancha con disponibilidad, cuando se generan o consultan slots, entonces el modelo permite representar slots exactos de 1 hora.
 6. Dada una reserva, cuando se guarda, entonces queda asociada a usuario, cancha, inicio y fin exactos de 1 hora.
 7. Dado un slot ya reservado para una cancha, cuando otra persona intenta reservar el mismo inicio, entonces el modelo permite rechazar la duplicidad.
 8. Dada una reserva finalizada, cuando el usuario crea una reseña, entonces la reseña queda vinculada a esa reserva y no puede duplicarse para la misma reserva.
 9. Dada una reseña con rating, cuando se guarda, entonces el rating queda persistido como entero de `1` a `5`.
-10. Dado el alcance de Sprint 3, cuando se revisa el esquema, entonces no incluye favoritos, imágenes, cuestionarios avanzados ni métricas estructuradas.
+10. Dado el alcance de Sprint 2, cuando se revisa el esquema, entonces no incluye favoritos, imágenes, cuestionarios avanzados ni métricas estructuradas.
+11. Dada la configuración de servicios del MVP, cuando se revisa el esquema, entonces no permite que el dueño cree servicios personalizados.
 
 ## Definition of Done
 
