@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "docker:migration-db:up": "docker compose --env-file docker/migration-validation.env.local -f docker/docker-compose.migration-validation.yml up -d",
+    "docker:migration-db:down": "docker compose --env-file docker/migration-validation.env.local -f docker/docker-compose.migration-validation.yml down",
+    "docker:migration-db:reset": "docker compose --env-file docker/migration-validation.env.local -f docker/docker-compose.migration-validation.yml down -v --remove-orphans",
     "guard:focused-tests": "node ./scripts/ensure-no-focused-tests.cjs",
     "prebuild": "npm run prisma:generate",
     "build": "nest build",
