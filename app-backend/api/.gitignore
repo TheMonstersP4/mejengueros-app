@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+docker/migration-validation.env.local
 
 # Dependencies and generated output
 node_modules/
