@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mejengueros-local-migration-validation-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MIGRATION_DB_NAME:-mejengueros_migration_validation}
+      POSTGRES_USER: ${MIGRATION_DB_USER:-mejengueros_local}
+      POSTGRES_PASSWORD: ${MIGRATION_DB_PASSWORD:?Set MIGRATION_DB_PASSWORD in docker/migration-validation.env.local}
+    ports:
+      - "127.0.0.1:${MIGRATION_DB_PORT:-54329}:5432"
+    volumes:
+      - mejengueros_local_migration_validation_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  mejengueros_local_migration_validation_pgdata:
+    name: mejengueros_local_migration_validation_pgdata
