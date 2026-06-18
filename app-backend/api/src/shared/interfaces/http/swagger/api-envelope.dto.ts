@@ -114,7 +114,7 @@ export class ApiSuccessEnvelopeResponse {
   /**
    * Endpoint payload. The concrete schema is provided by each route.
    */
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, type: Object })
   data!: unknown;
 
   /**
@@ -143,7 +143,7 @@ export class ApiErrorEnvelopeResponse {
   /**
    * Error responses never include endpoint data.
    */
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({ example: null, nullable: true, type: Object })
   data!: null;
 
   /**
