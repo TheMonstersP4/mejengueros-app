@@ -1,39 +1,16 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
+import { UserIdentityResponse } from '../../../../../shared/interfaces/http/dto/user-identity.response';
 import { FilePurpose } from '../../../domain/enums/file-purpose.enum';
 
 /**
  * HTTP response body for the image uploader snapshot.
  */
-export class UploadedByResponse {
+export class UploadedByResponse extends UserIdentityResponse {
   /**
    * Stable Cognito subject.
    */
   @ApiProperty({ example: '21dbf550-b071-7037-4dc2-169c7a4b4c28' })
   sub!: string;
-
-  /**
-   * Email claim when available.
-   */
-  @ApiPropertyOptional({ example: 'player@example.com' })
-  email?: string;
-
-  /**
-   * Display name when available.
-   */
-  @ApiPropertyOptional({ example: 'David Gutierrez' })
-  name?: string;
-
-  /**
-   * Profile image URL when available.
-   */
-  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
-  pictureUrl?: string;
-
-  /**
-   * Upstream identity provider when available.
-   */
-  @ApiPropertyOptional({ example: 'Google' })
-  provider?: string;
 }
 
 /**
