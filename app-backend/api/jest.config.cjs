@@ -1,7 +1,10 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
-  testMatch: ['<rootDir>/test/unit/**/*.spec.ts'],
+  testMatch: [
+    '<rootDir>/test/unit/**/*.spec.ts',
+    '<rootDir>/test/integration/prisma-relational-schema.contract.spec.ts'
+  ],
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }]
   },
