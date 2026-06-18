@@ -38,6 +38,38 @@ class AuthViewModel(
     startSignIn(AuthProvider.Microsoft)
   }
 
+  fun signInWithEmail(email: String, password: String) {
+    val errorMessage =
+        if (email.isBlank() || password.isBlank()) "Ingresá tu correo y contraseña."
+        else
+            "El inicio de sesión con correo y contraseña aún no está conectado. Usá Google o Microsoft por ahora."
+
+    _uiState.value =
+        _uiState.value.copy(
+            isLoading = false,
+            pendingProvider = null,
+            errorMessage = errorMessage,
+        )
+  }
+
+  fun requestPasswordReset() {
+    _uiState.value =
+        _uiState.value.copy(
+            isLoading = false,
+            pendingProvider = null,
+            errorMessage = "La recuperación de contraseña aún no está conectada.",
+        )
+  }
+
+  fun openRegistration() {
+    _uiState.value =
+        _uiState.value.copy(
+            isLoading = false,
+            pendingProvider = null,
+            errorMessage = "El registro manual aún no está conectado.",
+        )
+  }
+
   fun signOut() {
     coroutineScope.launch {
       val signOutRequest = authRepository.signOut()
