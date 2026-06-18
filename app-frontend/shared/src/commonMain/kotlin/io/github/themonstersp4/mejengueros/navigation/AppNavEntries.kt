@@ -60,8 +60,11 @@ private fun LoginEntry(
 
   LoginScreen(
       state = state,
+      onEmailSignIn = authViewModel::signInWithEmail,
       onGoogleSignIn = authViewModel::signInWithGoogle,
       onMicrosoftSignIn = authViewModel::signInWithMicrosoft,
+      onForgotPassword = authViewModel::requestPasswordReset,
+      onRegister = authViewModel::openRegistration,
   )
 }
 
