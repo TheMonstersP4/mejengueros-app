@@ -43,6 +43,17 @@ El objetivo de esta integración inicial es dejar disponible una base revisable 
 - conectar progresivamente los flujos reales de Mejengueros;
 - reemplazar ejemplos de plantilla por casos del dominio del proyecto.
 
+## Skills locales para agentes
+
+Este repositorio tiene skills específicos por área que los agentes deben revisar antes de implementar, probar o revisar cambios. No basta con depender únicamente de `.atl/skill-registry.md`, porque el refresco del registry puede no mapear todavía los skills internos de cada subproyecto.
+
+Rutas importantes:
+
+- `app-backend/skills/`: skills del backend, infraestructura, testing, seguridad, documentación y convenciones.
+- `app-frontend/.agents/skills/`: skills del frontend KMP/Compose, Navigation 3, Koin, Ktor, testing, theming y contratos de pantallas.
+
+Regla operativa: antes de delegar o ejecutar trabajo en backend/frontend, revisar estas carpetas directamente y pasar a los subagentes los `SKILL.md` relevantes por ruta exacta.
+
 ## Specs, backlog, OpenSpec y Engram
 
 La carpeta `docs/specs/` contiene documentación funcional y de planificación usada para mantener trazabilidad entre decisiones del curso, issues y GitHub Projects.

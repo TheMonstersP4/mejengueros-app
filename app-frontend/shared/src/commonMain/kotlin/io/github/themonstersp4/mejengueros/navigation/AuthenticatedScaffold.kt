@@ -1,17 +1,15 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationBar
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosMobileScaffold
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTopAppBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthenticatedScaffold(
     selectedRoute: AuthenticatedTopLevelRoute,
@@ -22,11 +20,11 @@ fun AuthenticatedScaffold(
     onNavigateBack: (() -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-  Scaffold(
+  MejenguerosMobileScaffold(
       modifier = modifier,
       topBar = {
-        TopAppBar(
-            title = { Text("Mejengueros") },
+        MejenguerosTopAppBar(
+            title = "Mejengueros",
             navigationIcon = {
               onNavigateBack?.let { navigateBack ->
                 TextButton(onClick = navigateBack) { Text("‹ Back") }
@@ -36,20 +34,21 @@ fun AuthenticatedScaffold(
         )
       },
       bottomBar = {
-        NavigationBar {
-          NavigationBarItem(
-              selected = selectedRoute == AuthenticatedTopLevelRoute.Home,
-              onClick = onHomeSelected,
-              label = { Text("Home") },
-              icon = {},
-          )
-          NavigationBarItem(
-              selected = selectedRoute == AuthenticatedTopLevelRoute.Pokedex,
-              onClick = onPokedexSelected,
-              label = { Text("Pokédex") },
-              icon = {},
-          )
-        }
+        MejenguerosBottomNavigationBar(
+            items =
+                listOf(
+                    MejenguerosBottomNavigationItem(
+                        label = "Home",
+                        selected = selectedRoute == AuthenticatedTopLevelRoute.Home,
+                        onClick = onHomeSelected,
+                    ),
+                    MejenguerosBottomNavigationItem(
+                        label = "Pokédex",
+                        selected = selectedRoute == AuthenticatedTopLevelRoute.Pokedex,
+                        onClick = onPokedexSelected,
+                    ),
+                )
+        )
       },
       content = content,
   )
