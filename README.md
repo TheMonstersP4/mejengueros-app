@@ -18,6 +18,7 @@ La fuente operativa de seguimiento es el GitHub Project del equipo:
 |------|-----------|
 | `app-backend/` | Backend, infraestructura y despliegue. |
 | `app-frontend/` | Primera base de aplicación móvil/frontend del proyecto. |
+| `docs/design/` | Artefactos visuales y técnicos de diseño, como mockups y diagramas de base de datos. |
 | `docs/specs/` | Specs funcionales, roadmap y notas de planificación sincronizadas con issues y GitHub Projects. |
 | `.github/` | Workflows y configuración de automatización del repositorio. |
 
