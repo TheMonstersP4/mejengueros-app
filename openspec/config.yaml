@@ -1,0 +1,85 @@
+schema: spec-driven
+
+context: |
+  Stack: Monorepo with NestJS/Fastify backend, Prisma/PostgreSQL, Terraform AWS infra, and Kotlin Multiplatform frontend.
+  Architecture: Backend uses modular DDD; frontend uses shared KMP layers with repositories, datasources, and Koin.
+  Persistence: Hybrid SDD persistence via openspec files and Engram memory.
+  Existing specs: Course/backlog docs live in docs/specs and are not OpenSpec artifacts.
+  Documentation language: Project functional docs are Spanish; SDD technical artifacts stay in English.
+
+strict_tdd: true
+
+testing:
+  detected_at: 2026-06-17
+  backend:
+    root: app-backend/api
+    runner:
+      command: npm test -- --runInBand
+      framework: jest
+    layers:
+      unit:
+        available: true
+        tool: jest (test/unit)
+      integration:
+        available: true
+        tool: jest (test/integration)
+      e2e:
+        available: true
+        tool: jest config present (test/jest-e2e.json)
+    coverage:
+      available: true
+      command: npm run test:cov -- --runInBand
+      thresholds:
+        statements: 90
+        branches: 85
+        functions: 90
+        lines: 90
+    quality:
+      linter: npm run lint
+      type_checker: npm run build
+      formatter: none detected
+  frontend:
+    root: app-frontend
+    runner:
+      command: ./gradlew :shared:jvmTest --no-configuration-cache --console=plain
+      framework: kotlin.test via Gradle Kotlin Multiplatform
+    layers:
+      unit:
+        available: true
+        tool: commonTest / jvmTest
+      integration:
+        available: false
+        tool: none detected
+      e2e:
+        available: false
+        tool: none detected
+    coverage:
+      available: false
+      command: none detected
+    quality:
+      linter: ./gradlew spotlessCheck --no-configuration-cache --console=plain
+      type_checker: ./gradlew :desktopApp:compileKotlin :androidApp:assembleDebug --no-configuration-cache --console=plain
+      formatter: ./gradlew spotlessApply --no-configuration-cache --console=plain
+
+rules:
+  proposal:
+    - Keep issue-specific scope in change folders; do not modify docs/specs backlog files during init.
+    - Call out backend/frontend/infra impact explicitly.
+  specs:
+    - Use Given/When/Then scenarios.
+    - Use RFC 2119 keywords (MUST, SHOULD, MAY).
+  design:
+    - Document bounded-context changes for NestJS modules and shared KMP seams when affected.
+  tasks:
+    - Keep tasks small enough for one reviewable session.
+    - Separate backend, frontend, infra, and data work when possible.
+  apply:
+    - Follow existing backend DDD and frontend shared-module architecture.
+    tdd: true
+    test_command: app-backend/api => npm test -- --runInBand; app-frontend => ./gradlew :shared:jvmTest --no-configuration-cache --console=plain
+  verify:
+    test_command: app-backend/api => npm run test:cov -- --runInBand; app-frontend => ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
+    build_command: app-backend/api => npm run build; app-frontend => ./gradlew :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
+    coverage_threshold: 90
+  archive:
+    - Do not merge course docs/specs into openspec main specs automatically.

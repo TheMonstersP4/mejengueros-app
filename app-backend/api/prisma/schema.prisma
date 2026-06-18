@@ -9,15 +9,91 @@ datasource db {
   schemas  = ["mejengueros_dev"]
 }
 
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+
+  @@schema("mejengueros_dev")
+}
+
+enum UserRoleKind {
+  PLAYER
+  OWNER
+  ADMIN
+
+  @@schema("mejengueros_dev")
+}
+
+enum ServiceScope {
+  COMPLEX
+  COURT
+
+  @@schema("mejengueros_dev")
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+
+  @@schema("mejengueros_dev")
+}
+
+enum ComplexStatus {
+  ACTIVE
+  INACTIVE
+
+  @@schema("mejengueros_dev")
+}
+
+enum CourtStatus {
+  ACTIVE
+  INACTIVE
+
+  @@schema("mejengueros_dev")
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+
+  @@schema("mejengueros_dev")
+}
+
+enum NotificationType {
+  REVIEW_PROMPT
+
+  @@schema("mejengueros_dev")
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+
+  @@schema("mejengueros_dev")
+}
+
 model User {
-  id         String   @id @default(uuid())
-  cognitoSub String   @unique
-  email      String   @unique
-  name       String?
-  pictureUrl String?
-  provider   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String         @id @default(uuid())
+  cognitoSub    String         @unique
+  email         String         @unique
+  name          String?
+  pictureUrl    String?
+  provider      String?
+  status        UserStatus     @default(ACTIVE)
+  roles         UserRole[]
+  ownedComplexes Complex[]
+  reservations  Reservation[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@schema("mejengueros_dev")
 }
@@ -38,5 +114,171 @@ model ImageUpload {
 
   @@index([ownerSub])
   @@index([createdAt])
+  @@schema("mejengueros_dev")
+}
+
+model UserRole {
+  id        String       @id @default(uuid())
+  userId    String
+  role      UserRoleKind
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, role])
+  @@index([role])
+  @@schema("mejengueros_dev")
+}
+
+model Complex {
+  id          String         @id @default(uuid())
+  ownerId     String
+  name        String
+  address     String
+  status      ComplexStatus  @default(ACTIVE)
+  deletedAt   DateTime?
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  courts      Court[]
+  services    ComplexService[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+  @@schema("mejengueros_dev")
+}
+
+model Court {
+  id            String            @id @default(uuid())
+  complexId     String
+  name          String
+  status        CourtStatus       @default(ACTIVE)
+  deletedAt     DateTime?
+  complex       Complex           @relation(fields: [complexId], references: [id], onDelete: Restrict)
+  services      CourtService[]
+  availability  CourtAvailability?
+  reservations  Reservation[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([complexId])
+  @@index([complexId, status])
+  @@schema("mejengueros_dev")
+}
+
+model ServiceCatalog {
+  id         String          @id @default(uuid())
+  name       String          @unique
+  scope      ServiceScope
+  isActive   Boolean         @default(true)
+  complexes  ComplexService[]
+  courts     CourtService[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([scope, isActive])
+  @@schema("mejengueros_dev")
+}
+
+model ComplexService {
+  id               String         @id @default(uuid())
+  complexId        String
+  serviceCatalogId String
+  complex          Complex        @relation(fields: [complexId], references: [id], onDelete: Cascade)
+  serviceCatalog   ServiceCatalog @relation(fields: [serviceCatalogId], references: [id], onDelete: Restrict)
+  createdAt        DateTime       @default(now())
+
+  @@unique([complexId, serviceCatalogId])
+  @@index([serviceCatalogId])
+  @@schema("mejengueros_dev")
+}
+
+model CourtService {
+  id               String         @id @default(uuid())
+  courtId          String
+  serviceCatalogId String
+  court            Court          @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  serviceCatalog   ServiceCatalog @relation(fields: [serviceCatalogId], references: [id], onDelete: Restrict)
+  createdAt        DateTime       @default(now())
+
+  @@unique([courtId, serviceCatalogId])
+  @@index([serviceCatalogId])
+  @@schema("mejengueros_dev")
+}
+
+model CourtAvailability {
+  id         String                @id @default(uuid())
+  courtId    String                @unique
+  startTime  DateTime              @db.Time(0)
+  endTime    DateTime              @db.Time(0)
+  court      Court                 @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  days       CourtAvailabilityDay[]
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@schema("mejengueros_dev")
+}
+
+model CourtAvailabilityDay {
+  id             String            @id @default(uuid())
+  availabilityId String
+  day            Weekday
+  availability   CourtAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([availabilityId, day])
+  @@index([day])
+  @@schema("mejengueros_dev")
+}
+
+model Reservation {
+  id            String             @id @default(uuid())
+  userId        String
+  courtId       String
+  startsAt      DateTime
+  endsAt        DateTime
+  status        ReservationStatus  @default(CONFIRMED)
+  cancelledAt   DateTime?
+  completedAt   DateTime?
+  user          User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  court         Court              @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  notifications Notification[]
+  review        Review?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([courtId])
+  @@index([startsAt])
+  @@index([status])
+  @@index([courtId, startsAt])
+  @@schema("mejengueros_dev")
+}
+
+model Notification {
+  id            String             @id @default(uuid())
+  userId        String
+  reservationId String
+  type          NotificationType
+  status        NotificationStatus @default(PENDING)
+  sentAt        DateTime?
+  readAt        DateTime?
+  user          User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reservation   Reservation        @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([userId, status])
+  @@index([reservationId])
+  @@schema("mejengueros_dev")
+}
+
+model Review {
+  id            String       @id @default(uuid())
+  reservationId String       @unique
+  rating        Int
+  comment       String?
+  reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
   @@schema("mejengueros_dev")
 }
