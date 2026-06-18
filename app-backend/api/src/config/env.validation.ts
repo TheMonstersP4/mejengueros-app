@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import {
+  PROFILE_IMAGE_DEFAULT_MAX_BYTES,
+  PROFILE_IMAGE_HARD_MAX_BYTES
+} from '../modules/files/domain/constants/image-upload.constants';
+import {
   AppEnvironment,
   AppLogLevel,
   DEFAULT_APP_ENVIRONMENT,
@@ -41,8 +45,8 @@ const envSchema = z.object({
     .number()
     .int()
     .positive()
-    .max(8388608)
-    .default(5242880),
+    .max(PROFILE_IMAGE_HARD_MAX_BYTES)
+    .default(PROFILE_IMAGE_DEFAULT_MAX_BYTES),
   APP_S3_ALLOWED_IMAGE_MIME_TYPES: z
     .string()
     .min(1)
