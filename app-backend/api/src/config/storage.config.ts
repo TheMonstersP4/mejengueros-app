@@ -1,3 +1,5 @@
+import { PROFILE_IMAGE_DEFAULT_MAX_BYTES } from '../modules/files/domain/constants/image-upload.constants';
+
 /**
  * Storage settings for application-managed files.
  */
@@ -47,7 +49,8 @@ export function storageConfig(): IStorageConfig {
       process.env.APP_S3_UPLOAD_URL_TTL_SECONDS ?? 300
     ),
     profileImageMaxBytes: Number(
-      process.env.APP_S3_PROFILE_IMAGE_MAX_BYTES ?? 5242880
+      process.env.APP_S3_PROFILE_IMAGE_MAX_BYTES ??
+        PROFILE_IMAGE_DEFAULT_MAX_BYTES
     ),
     allowedImageMimeTypes: (
       process.env.APP_S3_ALLOWED_IMAGE_MIME_TYPES ?? 'image/jpeg,image/png,image/webp'

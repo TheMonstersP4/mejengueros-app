@@ -9,6 +9,7 @@ import { UPLOAD_URL_TTL_SECONDS } from './application/tokens/upload-url-ttl-seco
 import { ConfirmUploadUseCase } from './application/use-cases/confirm-upload.use-case';
 import { CreateUploadUrlUseCase } from './application/use-cases/create-upload-url.use-case';
 import { ListImageUploadsUseCase } from './application/use-cases/list-image-uploads.use-case';
+import { PROFILE_IMAGE_DEFAULT_MAX_BYTES } from './domain/constants/image-upload.constants';
 import { IMAGE_UPLOAD_REPOSITORY } from './domain/repositories/image-upload.repository';
 import { ImageUploadPolicyService } from './domain/services/image-upload-policy.service';
 import { DisabledImageUploadRepository } from './infrastructure/persistence/disabled-image-upload.repository';
@@ -42,7 +43,7 @@ const imageUploadRepositoryClass = process.env.DATABASE_URL
           ),
           profileImageMaxBytes: configService.get<number>(
             'storage.profileImageMaxBytes',
-            5242880
+            PROFILE_IMAGE_DEFAULT_MAX_BYTES
           ),
           keyPrefix: configService.get<string>('storage.keyPrefix', 'uploads')
         })
