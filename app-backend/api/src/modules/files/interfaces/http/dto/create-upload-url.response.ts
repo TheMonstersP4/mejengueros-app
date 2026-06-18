@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PROFILE_IMAGE_DEFAULT_MAX_BYTES } from '../../../domain/constants/image-upload.constants';
 
 /**
  * HTTP response body for direct image upload URL creation.
@@ -57,7 +58,7 @@ export class CreateUploadUrlResponse {
    */
   @ApiProperty({
     description: 'Maximum file size accepted for the selected upload purpose.',
-    example: 5242880
+    example: PROFILE_IMAGE_DEFAULT_MAX_BYTES
   })
   maxSizeBytes!: number;
 }

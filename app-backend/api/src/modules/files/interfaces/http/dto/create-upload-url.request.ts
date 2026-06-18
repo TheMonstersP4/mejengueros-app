@@ -1,5 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsInt, IsMimeType, IsPositive, Max } from 'class-validator';
+import {
+  PROFILE_IMAGE_EXAMPLE_BYTES,
+  PROFILE_IMAGE_HARD_MAX_BYTES
+} from '../../../domain/constants/image-upload.constants';
 import { FilePurpose } from '../../../domain/enums/file-purpose.enum';
 
 /**
@@ -32,12 +36,12 @@ export class CreateUploadUrlRequest {
    */
   @ApiProperty({
     description: 'Client-declared file size in bytes.',
-    example: 524288,
-    maximum: 8388608,
+    example: PROFILE_IMAGE_EXAMPLE_BYTES,
+    maximum: PROFILE_IMAGE_HARD_MAX_BYTES,
     minimum: 1
   })
   @IsInt()
   @IsPositive()
-  @Max(8388608)
+  @Max(PROFILE_IMAGE_HARD_MAX_BYTES)
   sizeBytes!: number;
 }
