@@ -1,9 +1,10 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
+import { UserIdentityResponse } from '../../../../../shared/interfaces/http/dto/user-identity.response';
 
 /**
  * HTTP response body for the authenticated user profile.
  */
-export class UserProfileResponse {
+export class UserProfileResponse extends UserIdentityResponse {
   /**
    * Internal application user ID.
    */
@@ -16,27 +17,4 @@ export class UserProfileResponse {
   @ApiProperty({ example: '21dbf550-b071-7037-4dc2-169c7a4b4c28' })
   cognitoSub!: string;
 
-  /**
-   * Primary user email.
-   */
-  @ApiProperty({ example: 'player@example.com' })
-  email!: string;
-
-  /**
-   * Display name when available.
-   */
-  @ApiPropertyOptional({ example: 'David Gutierrez' })
-  name?: string;
-
-  /**
-   * Profile image URL when available.
-   */
-  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
-  pictureUrl?: string;
-
-  /**
-   * Upstream identity provider name.
-   */
-  @ApiPropertyOptional({ example: 'Google' })
-  provider?: string;
 }
