@@ -12,7 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,10 +75,16 @@ fun MejenguerosStateContent(
           if (indicator != null) {
             indicator()
           } else {
-            Text(
-                text = defaultIndicatorText(variant),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center,
+            Icon(
+                imageVector =
+                    when (variant) {
+                      MejenguerosStateVariant.Success -> Icons.Filled.Check
+                      MejenguerosStateVariant.Error -> Icons.Filled.Close
+                      MejenguerosStateVariant.Empty -> Icons.Filled.Search
+                      MejenguerosStateVariant.Pending -> Icons.Filled.Info
+                    },
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
             )
           }
         }
@@ -261,12 +273,4 @@ private fun mejenguerosStateColors(variant: MejenguerosStateVariant): Mejenguero
               container = MaterialTheme.colorScheme.secondaryContainer,
               content = MaterialTheme.colorScheme.onSecondaryContainer,
           )
-    }
-
-private fun defaultIndicatorText(variant: MejenguerosStateVariant): String =
-    when (variant) {
-      MejenguerosStateVariant.Success -> "✓"
-      MejenguerosStateVariant.Error -> "!"
-      MejenguerosStateVariant.Empty -> "–"
-      MejenguerosStateVariant.Pending -> "…"
     }

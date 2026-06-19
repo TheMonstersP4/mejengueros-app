@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -172,7 +175,13 @@ private fun ListItemsSection() {
           title = "Reserva de hoy",
           supportingText = "20:00 · Complejo La Sabana",
           leading = { ComponentInitialsBadge(text = "R") },
-          trailing = { Text(text = "›", style = MaterialTheme.typography.titleLarge) },
+          trailing = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+          },
           showDivider = true,
       )
       MejenguerosListItem(

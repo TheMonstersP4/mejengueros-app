@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,7 +27,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 private val ReviewRatingSelectedColor = Color(0xFFF5A623)
 
@@ -51,10 +55,12 @@ fun MejenguerosRating(
     ) {
       (1..safeMaxRating).forEach { rating ->
         val selected = rating <= safeValue
-        Text(
-            text = if (selected) "★" else "☆",
+        Icon(
+            imageVector = if (selected) Icons.Filled.Star else Icons.Outlined.Star,
+            contentDescription = null,
             modifier =
                 Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+                    .size(36.dp)
                     .semantics {
                       contentDescription =
                           when {
@@ -72,8 +78,7 @@ fun MejenguerosRating(
                     ) {
                       onValueChange(rating)
                     },
-            style = MaterialTheme.typography.displaySmall.copy(fontSize = 36.sp),
-            color = if (selected) selectedColor else unselectedColor,
+            tint = if (selected) selectedColor else unselectedColor,
         )
       }
     }
