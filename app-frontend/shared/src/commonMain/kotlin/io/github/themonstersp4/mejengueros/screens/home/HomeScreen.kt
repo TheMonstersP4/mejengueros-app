@@ -14,14 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 
 @Composable
 fun HomeScreen(
     username: String,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    onOpenAvailabilitySelectors: () -> Unit = {},
 ) {
   Column(
       modifier = modifier.fillMaxSize().padding(contentPadding).padding(24.dp),
@@ -47,11 +45,6 @@ fun HomeScreen(
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center,
-    )
-    Spacer(modifier = Modifier.height(20.dp))
-    MejenguerosFullWidthPrimaryButton(
-        text = "Ver selectores de disponibilidad",
-        onClick = onOpenAvailabilitySelectors,
     )
   }
 }
