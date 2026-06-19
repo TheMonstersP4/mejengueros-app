@@ -36,9 +36,11 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPri
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosRating
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReceivedReviewCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReservationSummaryBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReviewCommentField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReviewContextCard
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReviewSummary
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPill
@@ -73,6 +75,7 @@ fun ComponentKitScreen(
     item { ReservationStatesSection() }
     item { ReservationSummarySection() }
     item { ReviewComponentsSection() }
+    item { ReceivedReviewsSection() }
   }
 }
 
@@ -353,6 +356,42 @@ private fun ReviewComponentsSection() {
                 onClick = {},
             )
           },
+      )
+    }
+  }
+}
+
+@Composable
+private fun ReceivedReviewsSection() {
+  ComponentKitSection(
+      title = "Reseñas recibidas",
+      description = "Primitivas compactas para mostrar reseñas recibidas por dueños de cancha.",
+  ) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+      MejenguerosReviewSummary(
+          reviewCountText = "8 reseñas",
+          averageText = "4.5 promedio",
+      )
+      MejenguerosReceivedReviewCard(
+          author = "Diego R.",
+          date = "Hace 2 días",
+          rating = 5,
+          comment = "Cancha impecable y la reserva por hora funcionó perfecto. Volvería.",
+          avatarInitials = "DR",
+      )
+      MejenguerosReceivedReviewCard(
+          author = "María S.",
+          date = "Hace 5 días",
+          rating = 4,
+          comment = "Muy buena para jugar de noche. La iluminación es excelente.",
+          avatarInitials = "MS",
+      )
+      MejenguerosReceivedReviewCard(
+          author = "Jonathan C.",
+          date = "Hace 1 semana",
+          rating = 3,
+          comment = "Buena cancha, aunque el parqueo se llena temprano los sábados.",
+          avatarInitials = "JC",
       )
     }
   }
