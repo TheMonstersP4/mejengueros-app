@@ -7,6 +7,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object LoginRoute : AppRoute
 
+@Serializable data object RegisterRoute : AppRoute
+
+@Serializable data object VerifyAccountRoute : AppRoute
+
 @Serializable data object HomeRoute : AppRoute
 
 @Serializable data object PokedexRoute : AppRoute
