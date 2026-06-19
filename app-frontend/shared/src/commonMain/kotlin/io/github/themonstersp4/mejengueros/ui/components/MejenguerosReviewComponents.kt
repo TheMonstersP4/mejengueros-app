@@ -56,28 +56,30 @@ fun MejenguerosRating(
         verticalAlignment = Alignment.CenterVertically,
     ) {
       (1..safeMaxRating).forEach { rating ->
-        val selected = rating <= safeValue
+        val filled = rating <= safeValue
+        val isCurrentRating = rating == safeValue
         IconButton(
             onClick = { onValueChange(rating) },
             enabled = enabled,
             modifier =
                 Modifier.size(44.dp).semantics {
                   role = Role.RadioButton
-                  this.selected = selected
+                  selected = isCurrentRating
                   contentDescription =
                       when {
-                        !enabled && selected -> "$rating de $safeMaxRating estrellas"
+                        !enabled && isCurrentRating ->
+                            "$rating de $safeMaxRating estrellas seleccionado"
                         !enabled -> "$rating de $safeMaxRating estrellas sin seleccionar"
-                        selected -> "$rating de $safeMaxRating estrellas seleccionado"
+                        isCurrentRating -> "$rating de $safeMaxRating estrellas seleccionado"
                         else -> "Seleccionar $rating de $safeMaxRating estrellas"
                       }
                 },
         ) {
           Icon(
-              imageVector = if (selected) Icons.Filled.Star else Icons.Outlined.Star,
+              imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
               contentDescription = null,
               modifier = Modifier.size(36.dp),
-              tint = if (selected) selectedColor else unselectedColor,
+              tint = if (filled) selectedColor else unselectedColor,
           )
         }
       }
