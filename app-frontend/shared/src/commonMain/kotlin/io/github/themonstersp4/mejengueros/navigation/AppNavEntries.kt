@@ -10,6 +10,8 @@ import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
+import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
+import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokemonDetailScreen
@@ -28,6 +30,13 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
+  entry<RegisterRoute> {
+    RegisterEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<VerifyAccountRoute> { VerifyAccountEntry(loginActions = loginActions) }
   entry<HomeRoute> {
     HomeEntry(
         authViewModel = authViewModel,
@@ -64,7 +73,31 @@ private fun LoginEntry(
       onGoogleSignIn = authViewModel::signInWithGoogle,
       onMicrosoftSignIn = authViewModel::signInWithMicrosoft,
       onForgotPassword = authViewModel::requestPasswordReset,
-      onRegister = authViewModel::openRegistration,
+      onRegister = loginActions.openRegister,
+  )
+}
+
+@Composable
+private fun RegisterEntry(
+    authViewModel: AuthViewModel,
+    loginActions: LoginNavigationActions,
+) {
+  val state by authViewModel.uiState.collectAsState()
+
+  RegisterScreen(
+      state = state,
+      onBackToLogin = loginActions.backToLogin,
+      onOpenVerification = loginActions.openVerification,
+  )
+}
+
+@Composable
+private fun VerifyAccountEntry(
+    loginActions: LoginNavigationActions,
+) {
+  VerifyAccountScreen(
+      onBackToRegister = loginActions.closeAuthStep,
+      onBackToLogin = loginActions.backToLogin,
   )
 }
 
