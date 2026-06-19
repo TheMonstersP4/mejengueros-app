@@ -116,7 +116,7 @@ private fun PokemonDetailContent(
           contentDescription = null,
           modifier = Modifier.size(18.dp),
       )
-      Text("Favorite")
+      Text(if (pokemon.isFavorite) "Remove from favorites" else "Add to favorites")
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       pokemon.types.forEach { type -> AssistChip(onClick = {}, label = { Text(type) }) }

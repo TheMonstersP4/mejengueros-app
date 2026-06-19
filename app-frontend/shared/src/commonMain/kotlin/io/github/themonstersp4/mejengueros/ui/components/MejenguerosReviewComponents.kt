@@ -19,7 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selectableGroup
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
@@ -47,6 +51,7 @@ fun MejenguerosRating(
       verticalArrangement = Arrangement.spacedBy(6.dp),
   ) {
     Row(
+        modifier = Modifier.semantics { selectableGroup() },
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -57,6 +62,8 @@ fun MejenguerosRating(
             enabled = enabled,
             modifier =
                 Modifier.size(44.dp).semantics {
+                  role = Role.RadioButton
+                  this.selected = selected
                   contentDescription =
                       when {
                         !enabled && selected -> "$rating de $safeMaxRating estrellas"
