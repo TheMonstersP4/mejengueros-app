@@ -4,7 +4,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -12,8 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val LightColorScheme =
-    lightColorScheme(
+private val GoalstrykeColorScheme =
+    darkColorScheme(
         primary = Primary,
         onPrimary = OnPrimary,
         primaryContainer = PrimaryContainer,
@@ -22,6 +22,10 @@ private val LightColorScheme =
         onSecondary = OnSecondary,
         secondaryContainer = SecondaryContainer,
         onSecondaryContainer = OnSecondaryContainer,
+        tertiary = Tertiary,
+        onTertiary = OnTertiary,
+        tertiaryContainer = TertiaryContainer,
+        onTertiaryContainer = OnTertiaryContainer,
         error = Error,
         onError = OnError,
         errorContainer = ErrorContainer,
@@ -29,69 +33,181 @@ private val LightColorScheme =
         background = Background,
         onBackground = OnBackground,
         surface = Surface,
-        surfaceContainer = SurfaceContainer,
+        surfaceDim = SurfaceDim,
+        surfaceBright = SurfaceBright,
+        surfaceContainerLowest = SurfaceContainerLowest,
         surfaceContainerLow = SurfaceContainerLow,
+        surfaceContainer = SurfaceContainer,
+        surfaceContainerHigh = SurfaceContainerHigh,
         surfaceContainerHighest = SurfaceContainerHighest,
         surfaceVariant = SurfaceVariant,
         onSurface = OnSurface,
         onSurfaceVariant = OnSurfaceVariant,
         outline = Outline,
         outlineVariant = OutlineVariant,
+        inverseSurface = InverseSurface,
+        inverseOnSurface = InverseOnSurface,
+        inversePrimary = InversePrimary,
     )
+
+// GOALSTRYKE uses Anton for display/button text and Archivo Narrow for body text.
+// Font files are not in the repository yet; KMP should load approved packaged font resources
+// from commonMain/composeResources/font with org.jetbrains.compose.resources.Font.
+private val BodyFontFamily = FontFamily.Default
+private val DisplayFontFamily = FontFamily.Default
 
 private val MejenguerosTypography =
     Typography(
+        displayLarge =
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 48,
+                lineHeight = 50,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.24f,
+            ),
+        displayMedium =
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 38,
+                lineHeight = 41,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.19f,
+            ),
+        displaySmall =
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 30,
+                lineHeight = 33,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.15f,
+            ),
         headlineLarge =
-            appleTextStyle(fontSize = 34, lineHeight = 38, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 30,
+                lineHeight = 34,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.15f,
+            ),
         headlineMedium =
-            appleTextStyle(fontSize = 28, lineHeight = 32, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 26,
+                lineHeight = 30,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.13f,
+            ),
         headlineSmall =
-            appleTextStyle(fontSize = 24, lineHeight = 28, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 23,
+                lineHeight = 27,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.12f,
+            ),
         titleLarge =
-            appleTextStyle(fontSize = 21, lineHeight = 25, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 20,
+                lineHeight = 24,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.10f,
+            ),
         titleMedium =
-            appleTextStyle(fontSize = 17, lineHeight = 21, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = DisplayFontFamily,
+                fontSize = 16,
+                lineHeight = 20,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.08f,
+            ),
         titleSmall =
-            appleTextStyle(fontSize = 14, lineHeight = 18, fontWeight = FontWeight.SemiBold),
-        bodyLarge = appleTextStyle(fontSize = 17, lineHeight = 25, fontWeight = FontWeight.Normal),
-        bodyMedium = appleTextStyle(fontSize = 14, lineHeight = 20, fontWeight = FontWeight.Normal),
-        bodySmall = appleTextStyle(fontSize = 12, lineHeight = 16, fontWeight = FontWeight.Normal),
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 14,
+                lineHeight = 18,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = -0.14f,
+            ),
+        bodyLarge =
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 15,
+                lineHeight = 23,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.15f,
+            ),
+        bodyMedium =
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 14,
+                lineHeight = 22,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.14f,
+            ),
+        bodySmall =
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 12,
+                lineHeight = 17,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = -0.12f,
+            ),
         labelLarge =
-            appleTextStyle(fontSize = 14, lineHeight = 18, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 14,
+                lineHeight = 18,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = -0.14f,
+            ),
         labelMedium =
-            appleTextStyle(fontSize = 12, lineHeight = 12, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 12,
+                lineHeight = 12,
+                fontWeight = FontWeight.SemiBold,
+            ),
         labelSmall =
-            appleTextStyle(fontSize = 11, lineHeight = 11, fontWeight = FontWeight.SemiBold),
+            goalstrykeTextStyle(
+                fontFamily = BodyFontFamily,
+                fontSize = 11,
+                lineHeight = 11,
+                fontWeight = FontWeight.SemiBold,
+            ),
     )
 
 private val MejenguerosShapes =
     Shapes(
-        extraSmall = RoundedCornerShape(5.dp),
-        small = RoundedCornerShape(8.dp),
-        medium = RoundedCornerShape(11.dp),
-        large = RoundedCornerShape(18.dp),
-        extraLarge = RoundedCornerShape(18.dp),
+        extraSmall = RoundedCornerShape(4.dp),
+        small = RoundedCornerShape(4.dp),
+        medium = RoundedCornerShape(8.dp),
+        large = RoundedCornerShape(12.dp),
+        extraLarge = RoundedCornerShape(16.dp),
     )
 
 @Composable
 fun MejenguerosTheme(content: @Composable () -> Unit) {
   MaterialTheme(
-      colorScheme = LightColorScheme,
+      colorScheme = GoalstrykeColorScheme,
       typography = MejenguerosTypography,
       shapes = MejenguerosShapes,
       content = content,
   )
 }
 
-private fun appleTextStyle(
+private fun goalstrykeTextStyle(
+    fontFamily: FontFamily,
     fontSize: Int,
     lineHeight: Int,
     fontWeight: FontWeight,
+    letterSpacing: Float = 0f,
 ): TextStyle =
     TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = fontFamily,
         fontSize = fontSize.sp,
         lineHeight = lineHeight.sp,
         fontWeight = fontWeight,
-        letterSpacing = (-0.2).sp,
+        letterSpacing = letterSpacing.sp,
     )
