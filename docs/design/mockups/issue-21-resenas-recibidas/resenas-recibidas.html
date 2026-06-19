@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!--
+  FLUJO: Dueño — Reseñas recibidas (versión MVP simple)
+  Issue: #21 (re-alcance Semana 10). El dueño ve las reseñas de su cancha de
+  forma SIMPLE: autor, fecha, rating y comentario. SIN dashboards, métricas,
+  fotos, moderación ni respuestas. Sub-vista del hub del dueño => back.
+  Tokens en ../_shared/goalstryke-tokens.css
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reseñas recibidas · Dueño</title>
+<link rel="stylesheet" href="../_shared/goalstryke-tokens.css">
+<style>
+  .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+  .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
+  .statusbar-icons .ms { font-size: 17px; }
+  .appbar { display: flex; align-items: center; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); background: var(--md-surface); border-bottom: var(--apple-hairline); }
+  .appbar__icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+  .appbar__icon .ms { font-size: 24px; }
+  .appbar__title { flex: 1; padding-left: 4px; }
+  .appbar__title b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: var(--md-on-surface); }
+  .appbar__title span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-4) var(--sp-6); background: var(--md-surface-container); }
+  .summary { font-size: 13px; font-weight: 600; letter-spacing: -.12px; color: var(--md-on-surface-variant); margin-bottom: var(--sp-4); }
+  .list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+  .review { background: var(--md-surface); border: var(--apple-hairline); border-radius: var(--md-shape-lg); padding: var(--sp-4); }
+  .review__top { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .avatar { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; background: var(--md-surface-container-highest); color: var(--md-on-surface); letter-spacing: -.2px; }
+  .who { flex: 1; min-width: 0; }
+  .who b { display: block; font-size: 14px; font-weight: 700; letter-spacing: -.2px; color: var(--md-on-surface); }
+  .who span { font-size: 12px; color: var(--md-on-surface-variant); letter-spacing: -.12px; }
+  .stars { display: inline-flex; gap: 1px; }
+  .stars .ms { font-size: 16px; }
+  .stars .on { color: #f5a623; }
+  .stars .off { color: var(--md-outline-variant); }
+  .review__text { margin: 0; font-size: 14px; line-height: 20px; color: var(--md-on-surface); letter-spacing: -.2px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone__status">
+    <span>9:41</span>
+    <span class="statusbar-icons"><span class="ms">network_cell</span><span class="ms">wifi</span><span class="ms">battery_full</span></span>
+  </div>
+
+  <div class="content">
+    <header class="appbar">
+      <a class="appbar__icon" href="../issues-12-14-48-alta-complejo-cancha/gestion-complejo.html" aria-label="Volver"><span class="ms">arrow_back</span></a>
+      <div class="appbar__title">
+        <b>Reseñas recibidas</b>
+        <span>Cancha 1 · Mejengas CR</span>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <div class="summary">8 reseñas · 4.5 promedio</div>
+      <div class="list">
+
+        <article class="review">
+          <div class="review__top">
+            <span class="avatar">DR</span>
+            <div class="who"><b>Diego R.</b><span>Hace 2 días</span></div>
+            <span class="stars"><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span></span>
+          </div>
+          <p class="review__text">Cancha impecable y la reserva por hora funcionó perfecto. Volvería.</p>
+        </article>
+
+        <article class="review">
+          <div class="review__top">
+            <span class="avatar">MS</span>
+            <div class="who"><b>María S.</b><span>Hace 5 días</span></div>
+            <span class="stars"><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms off">star</span></span>
+          </div>
+          <p class="review__text">Muy buena para jugar de noche. La iluminación es excelente.</p>
+        </article>
+
+        <article class="review">
+          <div class="review__top">
+            <span class="avatar">JC</span>
+            <div class="who"><b>Jonathan C.</b><span>Hace 1 semana</span></div>
+            <span class="stars"><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms ms--fill on">star</span><span class="ms off">star</span><span class="ms off">star</span></span>
+          </div>
+          <p class="review__text">Buena cancha, aunque el parqueo se llena temprano los sábados.</p>
+        </article>
+
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
