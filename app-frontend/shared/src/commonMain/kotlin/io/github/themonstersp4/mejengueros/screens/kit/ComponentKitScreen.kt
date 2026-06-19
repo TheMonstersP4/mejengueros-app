@@ -26,11 +26,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReservationSummaryBar
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPill
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPillStyle
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosThumbnail
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTicketSummary
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTicketSummaryRow
 
 @Composable
 fun ComponentKitScreen(
@@ -55,6 +61,8 @@ fun ComponentKitScreen(
     item { ThumbnailSection() }
     item { ListItemsSection() }
     item { CourtCardSection() }
+    item { ReservationStatesSection() }
+    item { ReservationSummarySection() }
   }
 }
 
@@ -191,6 +199,105 @@ private fun CourtCardSection() {
         statusText = "Disponible hoy",
     )
   }
+}
+
+@Composable
+private fun ReservationStatesSection() {
+  ComponentKitSection(
+      title = "Estados de reserva",
+      description = "Resultados reutilizables para éxito, error, vacío y backend pendiente.",
+  ) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+      MejenguerosStateContent(
+          title = "Reserva confirmada",
+          description =
+              "Tu cancha quedó bloqueada por una hora. Te enviaremos recordatorios antes del partido.",
+          variant = MejenguerosStateVariant.Success,
+          body = { DemoReservationTicket() },
+          actions = {
+            MejenguerosFullWidthPrimaryButton(
+                text = "Ver mis reservas",
+                onClick = {},
+            )
+            MejenguerosFullWidthOutlinedButton(
+                text = "Volver al catálogo",
+                onClick = {},
+            )
+          },
+      )
+      MejenguerosStateContent(
+          title = "Horario no disponible",
+          description =
+              "Alguien reservó este horario antes de confirmar. Elige otro espacio disponible.",
+          variant = MejenguerosStateVariant.Error,
+          actions = {
+            MejenguerosFullWidthPrimaryButton(
+                text = "Elegir otro horario",
+                onClick = {},
+            )
+          },
+      )
+      MejenguerosStateContent(
+          title = "Sin resultados todavía",
+          description = "Cuando existan reservas o reseñas pendientes, aparecerán en este espacio.",
+          variant = MejenguerosStateVariant.Empty,
+      )
+      MejenguerosStateContent(
+          title = "Conexión pendiente",
+          description =
+              "Este flujo visual está listo, pero la acción real depende de integrar el backend.",
+          variant = MejenguerosStateVariant.Pending,
+          actions = {
+            MejenguerosFullWidthOutlinedButton(
+                text = "Entendido",
+                onClick = {},
+                enabled = false,
+            )
+          },
+      )
+    }
+  }
+}
+
+@Composable
+private fun ReservationSummarySection() {
+  ComponentKitSection(
+      title = "Resumen de reserva",
+      description = "Ticket de confirmación y barra inferior para revisar antes de confirmar.",
+  ) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+      DemoReservationTicket()
+      MejenguerosReservationSummaryBar(
+          summary = "Cancha 5 vs 5 · Hoy 20:00",
+          supportingText = "Complejo Deportivo La Sabana · 1 hora",
+          actionText = "Confirmar reserva",
+          onActionClick = {},
+      )
+    }
+  }
+}
+
+@Composable
+private fun DemoReservationTicket() {
+  MejenguerosTicketSummary(
+      title = "Detalle de reserva",
+      rows =
+          listOf(
+              MejenguerosTicketSummaryRow(
+                  label = "Cancha",
+                  value = "Cancha 5 vs 5",
+                  supportingText = "Complejo Deportivo La Sabana",
+              ),
+              MejenguerosTicketSummaryRow(
+                  label = "Fecha",
+                  value = "Hoy, 16 de junio",
+              ),
+              MejenguerosTicketSummaryRow(
+                  label = "Horario",
+                  value = "20:00 – 21:00",
+              ),
+          ),
+  )
 }
 
 @Composable
