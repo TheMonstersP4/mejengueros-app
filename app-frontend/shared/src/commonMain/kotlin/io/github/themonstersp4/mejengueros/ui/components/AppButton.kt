@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,9 +24,9 @@ fun MejenguerosPrimaryButton(
   Button(
       onClick = onClick,
       enabled = enabled,
-      modifier = modifier.height(44.dp),
+      modifier = modifier.height(48.dp),
       shape = CircleShape,
-      contentPadding = PaddingValues(horizontal = 22.dp),
+      contentPadding = PaddingValues(horizontal = 28.dp),
       colors =
           ButtonDefaults.buttonColors(
               containerColor = MaterialTheme.colorScheme.primary,
@@ -34,7 +35,7 @@ fun MejenguerosPrimaryButton(
   ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.titleMedium,
     )
   }
 }
@@ -64,9 +65,10 @@ fun MejenguerosOutlinedButton(
   OutlinedButton(
       onClick = onClick,
       enabled = enabled,
-      modifier = modifier.height(44.dp),
+      modifier = modifier.height(48.dp),
       shape = CircleShape,
-      contentPadding = PaddingValues(horizontal = 22.dp),
+      contentPadding = PaddingValues(horizontal = 28.dp),
+      border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
       colors =
           ButtonDefaults.outlinedButtonColors(
               contentColor = MaterialTheme.colorScheme.primary,
@@ -74,7 +76,7 @@ fun MejenguerosOutlinedButton(
   ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.titleMedium,
     )
   }
 }
