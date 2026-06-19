@@ -227,21 +227,24 @@ fun MejenguerosSlotGrid(
 fun MejenguerosTimeRangeFields(
     startTime: String,
     endTime: String,
+    timeOptions: List<String>,
+    onStartSelected: (String) -> Unit,
+    onEndSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onStartClick: () -> Unit = {},
-    onEndClick: () -> Unit = {},
 ) {
   Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
     MejenguerosSelectField(
         value = startTime,
         label = "Apertura",
-        onClick = onStartClick,
+        options = timeOptions,
+        onOptionSelected = onStartSelected,
         modifier = Modifier.weight(1f),
     )
     MejenguerosSelectField(
         value = endTime,
         label = "Cierre",
-        onClick = onEndClick,
+        options = timeOptions,
+        onOptionSelected = onEndSelected,
         modifier = Modifier.weight(1f),
     )
   }

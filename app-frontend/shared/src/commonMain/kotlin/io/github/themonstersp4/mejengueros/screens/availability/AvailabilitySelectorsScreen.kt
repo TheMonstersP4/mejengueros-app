@@ -41,8 +41,11 @@ fun AvailabilitySelectorsScreen(
   var selectedDateIndex by rememberSaveable { mutableStateOf(0) }
   var selectedSlotId by rememberSaveable { mutableStateOf("07") }
   var pendingMessage by rememberSaveable { mutableStateOf<String?>(null) }
+  var startTime by rememberSaveable { mutableStateOf("06:00") }
+  var endTime by rememberSaveable { mutableStateOf("22:00") }
   val days = listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do")
   val dates = listOf("Hoy" to "16", "Mar" to "17", "Mié" to "18", "Jue" to "19")
+  val timeOptions = listOf("06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "22:00")
   val slotOptions =
       listOf(
           "06" to "06:00",
@@ -52,16 +55,17 @@ fun AvailabilitySelectorsScreen(
           "10" to "10:00",
           "11" to "11:00",
       )
-  val slots = slotOptions.map { (id, label) ->
-    val state =
-        when {
-          id == selectedSlotId -> MejenguerosSlotState.Selected
-          id == "09" -> MejenguerosSlotState.Occupied
-          id == "11" -> MejenguerosSlotState.Unavailable
-          else -> MejenguerosSlotState.Available
-        }
-    MejenguerosSlotUiModel(id = id, label = label, state = state)
-  }
+  val slots =
+      slotOptions.map { (id, label) ->
+        val state =
+            when {
+              id == selectedSlotId -> MejenguerosSlotState.Selected
+              id == "09" -> MejenguerosSlotState.Occupied
+              id == "11" -> MejenguerosSlotState.Unavailable
+              else -> MejenguerosSlotState.Available
+            }
+        MejenguerosSlotUiModel(id = id, label = label, state = state)
+      }
   val previewSlots =
       listOf(
           MejenguerosSlotUiModel("p06", "06:00", MejenguerosSlotState.Preview),
@@ -98,10 +102,17 @@ fun AvailabilitySelectorsScreen(
 
       SelectorSection(title = "Horario de operación") {
         MejenguerosTimeRangeFields(
-            startTime = "06:00",
-            endTime = "22:00",
-            onStartClick = { pendingMessage = "El selector de hora real aún no está conectado." },
-            onEndClick = { pendingMessage = "El selector de hora real aún no está conectado." },
+            startTime = startTime,
+            endTime = endTime,
+            timeOptions = timeOptions,
+            onStartSelected = { selected ->
+              startTime = selected
+              pendingMessage = "Hora de apertura seleccionada localmente."
+            },
+            onEndSelected = { selected ->
+              endTime = selected
+              pendingMessage = "Hora de cierre seleccionada localmente."
+            },
         )
       }
 
