@@ -42,8 +42,16 @@ fun AppNavHost() {
             loginBackStack.clear()
             loginBackStack.add(LoginRoute)
           },
-          openRegister = { loginBackStack.add(RegisterRoute) },
-          openVerification = { loginBackStack.add(VerifyAccountRoute) },
+          openRegister = {
+            if (loginBackStack.lastOrNull() != RegisterRoute) {
+              loginBackStack.add(RegisterRoute)
+            }
+          },
+          openVerification = {
+            if (loginBackStack.lastOrNull() != VerifyAccountRoute) {
+              loginBackStack.add(VerifyAccountRoute)
+            }
+          },
           closeAuthStep = { if (loginBackStack.size > 1) loginBackStack.removeLastOrNull() },
           backToLogin = {
             loginBackStack.clear()
