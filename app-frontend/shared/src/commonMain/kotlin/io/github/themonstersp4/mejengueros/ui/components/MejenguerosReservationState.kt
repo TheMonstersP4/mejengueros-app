@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /** Theme-driven variants for result, empty, and pending states. */
@@ -179,16 +178,12 @@ fun MejenguerosReservationSummaryBar(
           text = summary,
           style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
           color = MaterialTheme.colorScheme.onSurface,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
       )
       if (!supportingText.isNullOrBlank()) {
         Text(
             text = supportingText,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
         )
       }
       MejenguerosFullWidthPrimaryButton(
