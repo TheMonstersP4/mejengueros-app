@@ -1,6 +1,8 @@
 package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,9 +12,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -47,28 +51,30 @@ fun MejenguerosRating(
     ) {
       (1..safeMaxRating).forEach { rating ->
         val selected = rating <= safeValue
-        Surface(
-            onClick = { onValueChange(rating) },
-            enabled = enabled,
-            color = Color.Transparent,
-            contentColor = if (selected) selectedColor else unselectedColor,
+        Text(
+            text = if (selected) "★" else "☆",
             modifier =
-                Modifier.semantics {
-                  contentDescription =
-                      when {
-                        !enabled && selected -> "$rating de $safeMaxRating estrellas"
-                        !enabled -> "$rating de $safeMaxRating estrellas sin seleccionar"
-                        selected -> "$rating de $safeMaxRating estrellas seleccionado"
-                        else -> "Seleccionar $rating de $safeMaxRating estrellas"
-                      }
-                },
-        ) {
-          Text(
-              text = if (selected) "★" else "☆",
-              modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp),
-              style = MaterialTheme.typography.displaySmall.copy(fontSize = 36.sp),
-          )
-        }
+                Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+                    .semantics {
+                      contentDescription =
+                          when {
+                            !enabled && selected -> "$rating de $safeMaxRating estrellas"
+                            !enabled -> "$rating de $safeMaxRating estrellas sin seleccionar"
+                            selected -> "$rating de $safeMaxRating estrellas seleccionado"
+                            else -> "Seleccionar $rating de $safeMaxRating estrellas"
+                          }
+                    }
+                    .clickable(
+                        enabled = enabled,
+                        role = Role.Button,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                      onValueChange(rating)
+                    },
+            style = MaterialTheme.typography.displaySmall.copy(fontSize = 36.sp),
+            color = if (selected) selectedColor else unselectedColor,
+        )
       }
     }
 
