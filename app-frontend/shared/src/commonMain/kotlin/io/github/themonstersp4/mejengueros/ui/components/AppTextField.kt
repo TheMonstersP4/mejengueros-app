@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +37,9 @@ fun MejenguerosTextField(
     supportingText: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    readOnly: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
@@ -44,7 +48,10 @@ fun MejenguerosTextField(
       onValueChange = onValueChange,
       modifier = modifier.fillMaxWidth(),
       enabled = enabled,
+      readOnly = readOnly,
       singleLine = singleLine,
+      minLines = minLines,
+      maxLines = maxLines,
       isError = isError,
       label = { Text(label) },
       supportingText = supportingText?.let { message -> ({ Text(message) }) },
@@ -63,6 +70,55 @@ fun MejenguerosTextField(
               unfocusedContainerColor = MaterialTheme.colorScheme.surface,
               disabledContainerColor = MaterialTheme.colorScheme.surface,
           ),
+  )
+}
+
+@Composable
+fun MejenguerosTextArea(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isError: Boolean = false,
+    supportingText: String? = null,
+    minLines: Int = 3,
+    maxLines: Int = 5,
+) {
+  MejenguerosTextField(
+      value = value,
+      onValueChange = onValueChange,
+      label = label,
+      modifier = modifier,
+      enabled = enabled,
+      isError = isError,
+      supportingText = supportingText,
+      singleLine = false,
+      minLines = minLines,
+      maxLines = maxLines,
+  )
+}
+
+@Composable
+fun MejenguerosSelectField(
+    value: String,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isError: Boolean = false,
+    supportingText: String? = null,
+) {
+  MejenguerosTextField(
+      value = value,
+      onValueChange = {},
+      label = label,
+      modifier = modifier.clickable(enabled = enabled, onClick = onClick),
+      enabled = enabled,
+      isError = isError,
+      supportingText = supportingText,
+      readOnly = true,
+      trailingIcon = { Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant) },
   )
 }
 
