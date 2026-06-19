@@ -6,7 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,6 +34,7 @@ fun MejenguerosOtpCodeField(
 
   Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -48,7 +50,8 @@ fun MejenguerosOtpCodeField(
 
         Surface(
             modifier =
-                Modifier.size(width = 44.dp, height = 52.dp)
+                Modifier.weight(1f)
+                    .height(52.dp)
                     .border(
                         width = 1.dp,
                         color = currentBorderColor,
