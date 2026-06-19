@@ -10,6 +10,8 @@ class LoginNavigationActions(
 
 class AuthenticatedShellActions(
     val selectHome: () -> Unit,
+    val openAvailabilitySelectors: () -> Unit,
+    val closeCurrentDetail: () -> Unit,
     val selectPokedex: () -> Unit,
     val signOut: () -> Unit,
 )

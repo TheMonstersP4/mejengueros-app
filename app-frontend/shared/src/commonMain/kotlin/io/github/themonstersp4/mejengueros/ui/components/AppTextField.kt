@@ -1,12 +1,14 @@
 package io.github.themonstersp4.mejengueros.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -101,31 +103,62 @@ fun MejenguerosTextArea(
   )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MejenguerosSelectField(
     value: String,
     label: String,
-    onClick: () -> Unit,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isError: Boolean = false,
     supportingText: String? = null,
 ) {
-  Box(modifier = modifier.fillMaxWidth()) {
-    MejenguerosTextField(
+  var expanded by rememberSaveable { mutableStateOf(false) }
+
+  ExposedDropdownMenuBox(
+      expanded = expanded,
+      onExpandedChange = { if (enabled) expanded = it },
+      modifier = modifier.fillMaxWidth(),
+  ) {
+    OutlinedTextField(
         value = value,
         onValueChange = {},
-        label = label,
-        enabled = enabled,
-        isError = isError,
-        supportingText = supportingText,
-        readOnly = true,
-        trailingIcon = { Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-    )
-    Box(
         modifier =
-            Modifier.fillMaxWidth().height(64.dp).clickable(enabled = enabled, onClick = onClick)
+            Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        enabled = enabled,
+        readOnly = true,
+        singleLine = true,
+        isError = isError,
+        label = { Text(label) },
+        supportingText = supportingText?.let { message -> ({ Text(message) }) },
+        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+        shape = RoundedCornerShape(8.dp),
+        colors =
+            OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                errorLabelColor = MaterialTheme.colorScheme.error,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
+            ),
     )
+    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+      options.forEach { option ->
+        DropdownMenuItem(
+            text = { Text(option) },
+            onClick = {
+              onOptionSelected(option)
+              expanded = false
+            },
+            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+        )
+      }
+    }
   }
 }
 

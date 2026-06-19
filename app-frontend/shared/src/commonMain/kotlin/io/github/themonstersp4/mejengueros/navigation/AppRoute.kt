@@ -13,6 +13,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object HomeRoute : AppRoute
 
+@Serializable data object AvailabilitySelectorsRoute : AppRoute
+
 @Serializable data object PokedexRoute : AppRoute
 
 @Serializable data class PokemonDetailRoute(val id: Int) : AppRoute

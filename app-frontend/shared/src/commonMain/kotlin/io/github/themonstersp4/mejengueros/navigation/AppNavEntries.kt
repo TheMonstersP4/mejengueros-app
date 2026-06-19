@@ -12,6 +12,7 @@ import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewM
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
+import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokemonDetailScreen
@@ -43,6 +44,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         shellActions = shellActions,
     )
   }
+  entry<AvailabilitySelectorsRoute> { AvailabilitySelectorsEntry(shellActions = shellActions) }
   entry<PokedexRoute> {
     PokedexEntry(
         shellActions = shellActions,
@@ -114,7 +116,26 @@ private fun HomeEntry(
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
   ) { contentPadding ->
-    HomeScreen(username = state.title, contentPadding = contentPadding)
+    HomeScreen(
+        username = state.title,
+        contentPadding = contentPadding,
+        onOpenAvailabilitySelectors = shellActions.openAvailabilitySelectors,
+    )
+  }
+}
+
+@Composable
+private fun AvailabilitySelectorsEntry(
+    shellActions: AuthenticatedShellActions,
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Home,
+      onHomeSelected = shellActions.closeCurrentDetail,
+      onPokedexSelected = shellActions.selectPokedex,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+  ) { contentPadding ->
+    AvailabilitySelectorsScreen(contentPadding = contentPadding)
   }
 }
 

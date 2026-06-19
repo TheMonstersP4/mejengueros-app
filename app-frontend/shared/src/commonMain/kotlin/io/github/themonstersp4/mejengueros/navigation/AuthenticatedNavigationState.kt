@@ -53,6 +53,13 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.Pokedex
   }
 
+  fun openAvailabilitySelectors() {
+    selectedRoute = AuthenticatedTopLevelRoute.Home
+    if (homeBackStack.lastOrNull() != AvailabilitySelectorsRoute) {
+      homeBackStack.add(AvailabilitySelectorsRoute)
+    }
+  }
+
   fun openPokemonDetail(id: Int) {
     selectedRoute = AuthenticatedTopLevelRoute.Pokedex
     pokedexBackStack.add(PokemonDetailRoute(id))
