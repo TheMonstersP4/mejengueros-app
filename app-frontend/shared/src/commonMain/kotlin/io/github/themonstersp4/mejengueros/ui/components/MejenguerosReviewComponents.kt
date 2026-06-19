@@ -2,11 +2,13 @@ package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -26,6 +28,8 @@ import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
@@ -92,6 +96,128 @@ fun MejenguerosRating(
           color =
               if (enabled) MaterialTheme.colorScheme.onSurface
               else MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+  }
+}
+
+@Composable
+fun MejenguerosCompactRating(
+    value: Int,
+    modifier: Modifier = Modifier,
+    maxRating: Int = 5,
+    selectedColor: Color = ReviewRatingSelectedColor,
+    unselectedColor: Color = MaterialTheme.colorScheme.outlineVariant,
+) {
+  val safeMaxRating = maxRating.coerceAtLeast(1)
+  val safeValue = value.coerceIn(0, safeMaxRating)
+
+  Row(
+      modifier =
+          modifier.semantics(mergeDescendants = true) {
+            contentDescription = ratingLabel(safeValue, safeMaxRating)
+          },
+      horizontalArrangement = Arrangement.spacedBy(1.dp),
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+    (1..safeMaxRating).forEach { rating ->
+      val filled = rating <= safeValue
+      Icon(
+          imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
+          contentDescription = null,
+          modifier = Modifier.size(16.dp),
+          tint = if (filled) selectedColor else unselectedColor,
+      )
+    }
+  }
+}
+
+@Composable
+fun MejenguerosReviewSummary(
+    reviewCountText: String,
+    averageText: String,
+    modifier: Modifier = Modifier,
+) {
+  Text(
+      modifier = modifier.fillMaxWidth(),
+      text = "$reviewCountText · $averageText",
+      style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+  )
+}
+
+@Composable
+fun MejenguerosReceivedReviewCard(
+    author: String,
+    date: String,
+    rating: Int,
+    comment: String,
+    modifier: Modifier = Modifier,
+    avatarInitials: String? = null,
+    maxRating: Int = 5,
+) {
+  Surface(
+      modifier = modifier.fillMaxWidth(),
+      shape = MaterialTheme.shapes.large,
+      color = MaterialTheme.colorScheme.surface,
+      contentColor = MaterialTheme.colorScheme.onSurface,
+      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+  ) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+      ) {
+        if (!avatarInitials.isNullOrBlank()) {
+          ReceivedReviewAvatar(initials = avatarInitials)
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+          Text(
+              text = author,
+              style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+              color = MaterialTheme.colorScheme.onSurface,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+          )
+          Text(
+              text = date,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+          )
+        }
+        MejenguerosCompactRating(value = rating, maxRating = maxRating)
+      }
+      Text(
+          text = comment,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurface,
+      )
+    }
+  }
+}
+
+@Composable
+private fun ReceivedReviewAvatar(
+    initials: String,
+) {
+  Surface(
+      modifier = Modifier.size(38.dp),
+      shape = CircleShape,
+      color = MaterialTheme.colorScheme.surfaceContainerHighest,
+      contentColor = MaterialTheme.colorScheme.onSurface,
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      Text(
+          text = initials,
+          style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+          maxLines = 1,
+          textAlign = TextAlign.Center,
       )
     }
   }
@@ -166,7 +292,7 @@ fun MejenguerosReviewCommentField(
         verticalAlignment = Alignment.CenterVertically,
     ) {
       Text(
-          text = label.uppercase(),
+          text = label,
           style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
