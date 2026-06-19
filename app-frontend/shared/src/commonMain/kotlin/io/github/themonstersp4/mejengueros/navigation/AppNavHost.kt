@@ -18,6 +18,8 @@ private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
   serializersModule = SerializersModule {
     polymorphic(NavKey::class) {
       subclass(LoginRoute::class, LoginRoute.serializer())
+      subclass(RegisterRoute::class, RegisterRoute.serializer())
+      subclass(VerifyAccountRoute::class, VerifyAccountRoute.serializer())
       subclass(HomeRoute::class, HomeRoute.serializer())
       subclass(PokedexRoute::class, PokedexRoute.serializer())
       subclass(PokemonDetailRoute::class, PokemonDetailRoute.serializer())
@@ -39,7 +41,14 @@ fun AppNavHost() {
             authenticatedNavigationState.reset()
             loginBackStack.clear()
             loginBackStack.add(LoginRoute)
-          }
+          },
+          openRegister = { loginBackStack.add(RegisterRoute) },
+          openVerification = { loginBackStack.add(VerifyAccountRoute) },
+          closeAuthStep = { if (loginBackStack.size > 1) loginBackStack.removeLastOrNull() },
+          backToLogin = {
+            loginBackStack.clear()
+            loginBackStack.add(LoginRoute)
+          },
       )
   val shellActions =
       AuthenticatedShellActions(
@@ -65,6 +74,8 @@ fun AppNavHost() {
       onBack = {
         if (authState.isAuthenticated) {
           authenticatedNavigationState.closeCurrentDetail()
+        } else {
+          loginActions.closeAuthStep()
         }
       },
       entryProvider =

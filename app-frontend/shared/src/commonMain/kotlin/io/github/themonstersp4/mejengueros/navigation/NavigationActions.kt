@@ -2,6 +2,10 @@ package io.github.themonstersp4.mejengueros.navigation
 
 class LoginNavigationActions(
     val onSignedIn: () -> Unit,
+    val openRegister: () -> Unit,
+    val openVerification: () -> Unit,
+    val closeAuthStep: () -> Unit,
+    val backToLogin: () -> Unit,
 )
 
 class AuthenticatedShellActions(
