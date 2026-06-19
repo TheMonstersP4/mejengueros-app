@@ -58,6 +58,17 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun closeAvailabilitySelectorsReturnsToKitRoot() {
+    val state = testNavigationState()
+
+    state.openAvailabilitySelectors()
+    state.closeCurrentDetail()
+
+    assertEquals(AuthenticatedTopLevelRoute.Kit, state.selectedRoute)
+    assertEquals(listOf(KitRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun closeCurrentDetailDoesNotRemoveRootRoute() {
     val state = testNavigationState()
 
