@@ -16,8 +16,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -31,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -292,7 +300,12 @@ private fun FavoritePokemonCard(
           style = MaterialTheme.typography.titleMedium,
           color = MaterialTheme.colorScheme.onSurface,
       )
-      TextButton(onClick = onFavoriteClick, modifier = Modifier.align(Alignment.End)) { Text("★") }
+      IconButton(onClick = onFavoriteClick, modifier = Modifier.align(Alignment.End)) {
+        Icon(
+            imageVector = Icons.Filled.Star,
+            contentDescription = "Remove from favorites",
+        )
+      }
     }
   }
 }
@@ -354,11 +367,40 @@ private fun SearchHeader(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = { onModeChange(PokemonListMode.All) }) {
-          Text(if (state.mode == PokemonListMode.All) "✓ All" else "All")
+        TextButton(
+            onClick = { onModeChange(PokemonListMode.All) },
+            modifier =
+                Modifier.semantics {
+                  contentDescription =
+                      if (state.mode == PokemonListMode.All) "Selected All" else "All"
+                },
+        ) {
+          if (state.mode == PokemonListMode.All) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+          }
+          Text("All")
         }
-        TextButton(onClick = { onModeChange(PokemonListMode.Favorites) }) {
-          Text(if (state.mode == PokemonListMode.Favorites) "✓ My likes" else "My likes")
+        TextButton(
+            onClick = { onModeChange(PokemonListMode.Favorites) },
+            modifier =
+                Modifier.semantics {
+                  contentDescription =
+                      if (state.mode == PokemonListMode.Favorites) "Selected My likes"
+                      else "My likes"
+                },
+        ) {
+          if (state.mode == PokemonListMode.Favorites) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+          }
+          Text("My likes")
         }
       }
       if (state.mode == PokemonListMode.All) {
@@ -442,7 +484,13 @@ private fun PokemonSummaryRow(
             color = MaterialTheme.colorScheme.onSurface,
         )
       }
-      TextButton(onClick = onFavoriteClick) { Text(if (pokemon.isFavorite) "★" else "☆") }
+      IconButton(onClick = onFavoriteClick) {
+        Icon(
+            imageVector = if (pokemon.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+            contentDescription =
+                if (pokemon.isFavorite) "Remove from favorites" else "Add to favorites",
+        )
+      }
     }
   }
 }

@@ -1,10 +1,15 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationItem
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosMobileScaffold
@@ -28,7 +33,14 @@ fun AuthenticatedScaffold(
             title = "Mejengueros",
             navigationIcon = {
               onNavigateBack?.let { navigateBack ->
-                TextButton(onClick = navigateBack) { Text("‹ Back") }
+                TextButton(onClick = navigateBack) {
+                  Icon(
+                      imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                      contentDescription = null,
+                      modifier = Modifier.size(18.dp),
+                  )
+                  Text("Back")
+                }
               }
             },
             actions = { TextButton(onClick = onSignOut) { Text("Sign out") } },

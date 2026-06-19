@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -107,7 +111,12 @@ private fun PokemonDetailContent(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     TextButton(onClick = onFavoriteClick) {
-      Text(if (pokemon.isFavorite) "★ Favorite" else "☆ Favorite")
+      Icon(
+          imageVector = if (pokemon.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+          contentDescription = null,
+          modifier = Modifier.size(18.dp),
+      )
+      Text(if (pokemon.isFavorite) "Remove from favorites" else "Add to favorites")
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       pokemon.types.forEach { type -> AssistChip(onClick = {}, label = { Text(type) }) }

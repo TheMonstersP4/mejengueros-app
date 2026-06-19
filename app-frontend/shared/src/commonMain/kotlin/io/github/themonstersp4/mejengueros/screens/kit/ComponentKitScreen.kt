@@ -13,12 +13,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,7 +35,10 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosRating
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReservationSummaryBar
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReviewCommentField
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReviewContextCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPill
@@ -63,6 +72,7 @@ fun ComponentKitScreen(
     item { CourtCardSection() }
     item { ReservationStatesSection() }
     item { ReservationSummarySection() }
+    item { ReviewComponentsSection() }
   }
 }
 
@@ -165,7 +175,13 @@ private fun ListItemsSection() {
           title = "Reserva de hoy",
           supportingText = "20:00 · Complejo La Sabana",
           leading = { ComponentInitialsBadge(text = "R") },
-          trailing = { Text(text = "›", style = MaterialTheme.typography.titleLarge) },
+          trailing = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+          },
           showDivider = true,
       )
       MejenguerosListItem(
@@ -272,6 +288,71 @@ private fun ReservationSummarySection() {
           supportingText = "Complejo Deportivo La Sabana · 1 hora",
           actionText = "Confirmar reserva",
           onActionClick = {},
+      )
+    }
+  }
+}
+
+@Composable
+private fun ReviewComponentsSection() {
+  var rating by rememberSaveable { androidx.compose.runtime.mutableIntStateOf(4) }
+  var comment by rememberSaveable {
+    androidx.compose.runtime.mutableStateOf(
+        "La cancha estaba en buen estado y el partido empezó a tiempo."
+    )
+  }
+
+  ComponentKitSection(
+      title = "Reseñas",
+      description = "Rating, contexto de reserva y comentario reutilizables para crear reseñas.",
+  ) {
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+      MejenguerosReviewContextCard(
+          title = "Moravia FC · Cancha A",
+          supportingText = "Reserva de ayer · 20:00 – 21:00",
+          imageUrl = null,
+          imageContentDescription = "Cancha asociada a la reseña",
+          metadata = "Lista para calificar",
+      )
+      Column(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        Text(
+            text = "¿Cómo estuvo la mejenga?",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            textAlign = TextAlign.Center,
+        )
+        MejenguerosRating(
+            value = rating,
+            onValueChange = { selected -> rating = selected },
+        )
+      }
+      MejenguerosReviewCommentField(
+          value = comment,
+          onValueChange = { updated -> comment = updated },
+      )
+      MejenguerosRating(
+          value = 5,
+          onValueChange = {},
+          enabled = false,
+      )
+      MejenguerosStateContent(
+          title = "Reseña enviada",
+          description =
+              "Gracias por compartir tu experiencia. Tu comentario ayudará a otros jugadores.",
+          variant = MejenguerosStateVariant.Success,
+          actions = {
+            MejenguerosFullWidthPrimaryButton(
+                text = "Ver mis reseñas",
+                onClick = {},
+            )
+            MejenguerosFullWidthOutlinedButton(
+                text = "Volver a mis reservas",
+                onClick = {},
+            )
+          },
       )
     }
   }
