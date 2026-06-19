@@ -32,6 +32,7 @@ private val LightColorScheme =
         surfaceContainer = SurfaceContainer,
         surfaceContainerLow = SurfaceContainerLow,
         surfaceContainerHighest = SurfaceContainerHighest,
+        surfaceVariant = SurfaceVariant,
         onSurface = OnSurface,
         onSurfaceVariant = OnSurfaceVariant,
         outline = Outline,

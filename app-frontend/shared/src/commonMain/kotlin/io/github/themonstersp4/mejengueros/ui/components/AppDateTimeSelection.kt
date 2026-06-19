@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -113,7 +113,7 @@ fun MejenguerosDateChip(
 
   Surface(
       modifier = modifier.widthIn(min = 60.dp),
-      shape = RoundedCornerShape(18.dp),
+      shape = MaterialTheme.shapes.large,
       color = containerColor,
       contentColor = contentColor,
       border = BorderStroke(1.dp, borderColor),
@@ -163,25 +163,8 @@ fun MejenguerosSlotChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  val selected = slot.state == MejenguerosSlotState.Selected
-  val disabled =
-      slot.state == MejenguerosSlotState.Occupied || slot.state == MejenguerosSlotState.Unavailable
-  val preview = slot.state == MejenguerosSlotState.Preview
-  val containerColor =
-      when {
-        selected -> MaterialTheme.colorScheme.primary
-        disabled -> MaterialTheme.colorScheme.surfaceVariant
-        else -> MaterialTheme.colorScheme.surface
-      }
-  val contentColor =
-      when {
-        selected -> MaterialTheme.colorScheme.onPrimary
-        disabled -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> MaterialTheme.colorScheme.onSurface
-      }
-  val borderColor =
-      if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-  val shape = RoundedCornerShape(14.dp)
+  val style = slot.state.style()
+  val shape = MaterialTheme.shapes.medium
 
   Text(
       text = slot.label,
@@ -189,14 +172,14 @@ fun MejenguerosSlotChip(
           modifier
               .height(48.dp)
               .clip(shape)
-              .background(containerColor, shape)
-              .border(1.dp, borderColor, shape)
-              .clickable(enabled = !disabled && !preview, onClick = onClick)
+              .background(style.containerColor, shape)
+              .border(1.dp, style.borderColor, shape)
+              .clickable(enabled = style.enabled, onClick = onClick)
               .padding(horizontal = 8.dp, vertical = 14.dp),
-      color = contentColor,
+      color = style.contentColor,
       style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
       textAlign = TextAlign.Center,
-      textDecoration = if (disabled) TextDecoration.LineThrough else TextDecoration.None,
+      textDecoration = style.textDecoration,
   )
 }
 
@@ -230,22 +213,74 @@ fun MejenguerosTimeRangeFields(
     timeOptions: List<String>,
     onStartSelected: (String) -> Unit,
     onEndSelected: (String) -> Unit,
+    startLabel: String,
+    endLabel: String,
     modifier: Modifier = Modifier,
 ) {
   Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
     MejenguerosSelectField(
         value = startTime,
-        label = "Apertura",
+        label = startLabel,
         options = timeOptions,
         onOptionSelected = onStartSelected,
         modifier = Modifier.weight(1f),
     )
     MejenguerosSelectField(
         value = endTime,
-        label = "Cierre",
+        label = endLabel,
         options = timeOptions,
         onOptionSelected = onEndSelected,
         modifier = Modifier.weight(1f),
     )
   }
 }
+
+private data class SlotStyle(
+    val containerColor: Color,
+    val contentColor: Color,
+    val borderColor: Color,
+    val enabled: Boolean,
+    val textDecoration: TextDecoration = TextDecoration.None,
+)
+
+@Composable
+private fun MejenguerosSlotState.style(): SlotStyle =
+    when (this) {
+      MejenguerosSlotState.Available ->
+          SlotStyle(
+              containerColor = MaterialTheme.colorScheme.surface,
+              contentColor = MaterialTheme.colorScheme.onSurface,
+              borderColor = MaterialTheme.colorScheme.outlineVariant,
+              enabled = true,
+          )
+      MejenguerosSlotState.Selected ->
+          SlotStyle(
+              containerColor = MaterialTheme.colorScheme.primary,
+              contentColor = MaterialTheme.colorScheme.onPrimary,
+              borderColor = MaterialTheme.colorScheme.primary,
+              enabled = true,
+          )
+      MejenguerosSlotState.Occupied ->
+          SlotStyle(
+              containerColor = MaterialTheme.colorScheme.surfaceVariant,
+              contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+              borderColor = MaterialTheme.colorScheme.outlineVariant,
+              enabled = false,
+              textDecoration = TextDecoration.LineThrough,
+          )
+      MejenguerosSlotState.Unavailable ->
+          SlotStyle(
+              containerColor = MaterialTheme.colorScheme.errorContainer,
+              contentColor = MaterialTheme.colorScheme.onErrorContainer,
+              borderColor = MaterialTheme.colorScheme.error,
+              enabled = false,
+              textDecoration = TextDecoration.LineThrough,
+          )
+      MejenguerosSlotState.Preview ->
+          SlotStyle(
+              containerColor = MaterialTheme.colorScheme.primaryContainer,
+              contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+              borderColor = MaterialTheme.colorScheme.primaryContainer,
+              enabled = false,
+          )
+    }

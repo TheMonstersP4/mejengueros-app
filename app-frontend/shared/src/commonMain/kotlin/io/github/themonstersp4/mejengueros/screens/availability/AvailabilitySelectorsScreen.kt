@@ -105,6 +105,8 @@ fun AvailabilitySelectorsScreen(
             startTime = startTime,
             endTime = endTime,
             timeOptions = timeOptions,
+            startLabel = "Apertura",
+            endLabel = "Cierre",
             onStartSelected = { selected ->
               startTime = selected
               pendingMessage = "Hora de apertura seleccionada localmente."
