@@ -137,7 +137,7 @@ fun MejenguerosTicketSummary(
   Surface(
       modifier = modifier.fillMaxWidth(),
       shape = MaterialTheme.shapes.large,
-      color = MaterialTheme.colorScheme.surface,
+      color = MaterialTheme.colorScheme.surfaceContainerHigh,
       contentColor = MaterialTheme.colorScheme.onSurface,
       border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
   ) {
@@ -265,7 +265,7 @@ private fun mejenguerosStateColors(variant: MejenguerosStateVariant): Mejenguero
           )
       MejenguerosStateVariant.Empty ->
           MejenguerosStateColors(
-              container = MaterialTheme.colorScheme.surfaceVariant,
+              container = MaterialTheme.colorScheme.surfaceContainerHigh,
               content = MaterialTheme.colorScheme.onSurfaceVariant,
           )
       MejenguerosStateVariant.Pending ->

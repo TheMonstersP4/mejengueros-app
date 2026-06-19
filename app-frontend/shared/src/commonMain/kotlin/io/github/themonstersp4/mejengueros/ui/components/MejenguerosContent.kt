@@ -201,7 +201,7 @@ fun MejenguerosListGroup(
   Surface(
       modifier = modifier.fillMaxWidth(),
       shape = MaterialTheme.shapes.large,
-      color = MaterialTheme.colorScheme.surface,
+      color = MaterialTheme.colorScheme.surfaceContainerHigh,
       border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
   ) {
     Column(content = content)
@@ -223,9 +223,9 @@ fun MejenguerosCourtCard(
 ) {
   val cardColors =
       CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.surface,
+          containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
           contentColor = MaterialTheme.colorScheme.onSurface,
-          disabledContainerColor = MaterialTheme.colorScheme.surface,
+          disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
           disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
       )
 
@@ -324,15 +324,15 @@ private fun mejenguerosStatusPillColors(
           )
       MejenguerosStatusPillStyle.Neutral ->
           MejenguerosStatusPillColors(
-              container = MaterialTheme.colorScheme.surface,
+              container = MaterialTheme.colorScheme.surfaceContainerHigh,
               content = MaterialTheme.colorScheme.onSurface,
               border = MaterialTheme.colorScheme.outlineVariant,
           )
       MejenguerosStatusPillStyle.Subtle ->
           MejenguerosStatusPillColors(
-              container = MaterialTheme.colorScheme.surfaceVariant,
+              container = MaterialTheme.colorScheme.surfaceContainerHighest,
               content = MaterialTheme.colorScheme.onSurfaceVariant,
-              border = MaterialTheme.colorScheme.surfaceVariant,
+              border = MaterialTheme.colorScheme.outlineVariant,
           )
       MejenguerosStatusPillStyle.Error ->
           MejenguerosStatusPillColors(

@@ -2,7 +2,6 @@ package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +27,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 
 @Composable
 fun MejenguerosTextField(
@@ -62,20 +60,36 @@ fun MejenguerosTextField(
       keyboardOptions = keyboardOptions,
       visualTransformation = visualTransformation,
       trailingIcon = trailingIcon,
-      shape = RoundedCornerShape(8.dp),
-      colors =
-          OutlinedTextFieldDefaults.colors(
-              focusedBorderColor = MaterialTheme.colorScheme.primary,
-              focusedLabelColor = MaterialTheme.colorScheme.primary,
-              unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-              errorBorderColor = MaterialTheme.colorScheme.error,
-              errorLabelColor = MaterialTheme.colorScheme.error,
-              focusedContainerColor = MaterialTheme.colorScheme.surface,
-              unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-              disabledContainerColor = MaterialTheme.colorScheme.surface,
-          ),
+      shape = MaterialTheme.shapes.medium,
+      colors = mejenguerosTextFieldColors(),
   )
 }
+
+@Composable
+private fun mejenguerosTextFieldColors() =
+    OutlinedTextFieldDefaults.colors(
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        errorTextColor = MaterialTheme.colorScheme.onSurface,
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        errorBorderColor = MaterialTheme.colorScheme.error,
+        focusedLabelColor = MaterialTheme.colorScheme.primary,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        errorLabelColor = MaterialTheme.colorScheme.error,
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        errorContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        cursorColor = MaterialTheme.colorScheme.primary,
+        errorCursorColor = MaterialTheme.colorScheme.error,
+        focusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        errorSupportingTextColor = MaterialTheme.colorScheme.error,
+    )
 
 @Composable
 fun MejenguerosTextArea(
@@ -134,23 +148,13 @@ fun MejenguerosSelectField(
         label = { Text(label) },
         supportingText = supportingText?.let { message -> ({ Text(message) }) },
         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-        shape = RoundedCornerShape(8.dp),
-        colors =
-            OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                errorBorderColor = MaterialTheme.colorScheme.error,
-                errorLabelColor = MaterialTheme.colorScheme.error,
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-            ),
+        shape = MaterialTheme.shapes.medium,
+        colors = mejenguerosTextFieldColors(),
     )
     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
       options.forEach { option ->
         DropdownMenuItem(
-            text = { Text(option) },
+            text = { Text(option, color = MaterialTheme.colorScheme.onSurface) },
             onClick = {
               onOptionSelected(option)
               expanded = false
