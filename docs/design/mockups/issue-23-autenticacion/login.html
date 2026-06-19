@@ -3,14 +3,14 @@
   FLUJO: Autenticación — Iniciar sesión
   Issue: #23 (TheMonstersP4). Registro/login manual con correo y contraseña
   (delegado a Cognito). Pantalla pre-rol (no lleva nav de rol). Errores seguros.
-  Milestone Semana 10 — Flujo MVP. Estética apple-DESIGN.md. Tokens en ../_shared/md3-tokens.css
+  Milestone Semana 10 — Flujo MVP. Estética apple-DESIGN.md. Tokens en ../_shared/goalstryke-tokens.css
 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Iniciar sesión · Mejengueros</title>
-<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<link rel="stylesheet" href="../_shared/goalstryke-tokens.css">
 <style>
   .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
   .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
@@ -39,9 +39,12 @@
 
   <div class="content">
     <div class="scroll">
-      <div class="brand">
-        <div class="brand__logo ms ms--fill">sports_soccer</div>
-        <h1 class="md-headline-small">Mejengueros</h1>
+      <div class="pitch-hero" style="height:184px;display:grid;place-items:center;margin:var(--sp-3) 0 var(--sp-6)">
+        <span class="pitch-lines"></span>
+        <div class="pitch-ball ball ms ms--fill">sports_soccer</div>
+      </div>
+      <div class="brand" style="margin:0 0 var(--sp-8)">
+        <h1 class="md-display-small">Mejengueros</h1>
         <p>Encontrá cancha y armá la mejenga.</p>
       </div>
 

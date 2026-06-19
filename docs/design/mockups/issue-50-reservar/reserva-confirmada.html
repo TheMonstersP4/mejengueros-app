@@ -2,14 +2,14 @@
 <!--
   FLUJO: Mejenguero — Reserva confirmada (#50)
   El sistema crea la reserva (1 slot de 1h, asociada al usuario y cancha) y la
-  confirma. El slot queda bloqueado para otros. Tokens en ../_shared/md3-tokens.css
+  confirma. El slot queda bloqueado para otros. Tokens en ../_shared/goalstryke-tokens.css
 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reserva confirmada</title>
-<link rel="stylesheet" href="../_shared/md3-tokens.css">
+<link rel="stylesheet" href="../_shared/goalstryke-tokens.css">
 <style>
   .content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
   .statusbar-icons { display: inline-flex; align-items: center; gap: 6px; }
@@ -40,8 +40,8 @@
 
   <div class="content">
     <div class="state">
-      <div class="state__icon ms ms--fill">check_circle</div>
-      <h1 class="md-headline-small">¡Reserva confirmada!</h1>
+      <div class="state__icon gol-pop ms ms--fill" style="background:radial-gradient(circle at 50% 28%, #D4FF33 0%, #5a7300 96%);color:#161E00">sports_soccer</div>
+      <h1 class="md-headline-small">¡GOOOL! Reserva confirmada</h1>
       <p>Tu cancha quedó reservada por 1 hora. Te avisaremos para que dejes tu reseña cuando termine.</p>
 
       <div class="ticket">
