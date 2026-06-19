@@ -1,8 +1,6 @@
 package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,15 +11,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -55,31 +52,27 @@ fun MejenguerosRating(
     ) {
       (1..safeMaxRating).forEach { rating ->
         val selected = rating <= safeValue
-        Icon(
-            imageVector = if (selected) Icons.Filled.Star else Icons.Outlined.Star,
-            contentDescription = null,
+        IconButton(
+            onClick = { onValueChange(rating) },
+            enabled = enabled,
             modifier =
-                Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
-                    .size(36.dp)
-                    .semantics {
-                      contentDescription =
-                          when {
-                            !enabled && selected -> "$rating de $safeMaxRating estrellas"
-                            !enabled -> "$rating de $safeMaxRating estrellas sin seleccionar"
-                            selected -> "$rating de $safeMaxRating estrellas seleccionado"
-                            else -> "Seleccionar $rating de $safeMaxRating estrellas"
-                          }
-                    }
-                    .clickable(
-                        enabled = enabled,
-                        role = Role.Button,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                      onValueChange(rating)
-                    },
-            tint = if (selected) selectedColor else unselectedColor,
-        )
+                Modifier.size(44.dp).semantics {
+                  contentDescription =
+                      when {
+                        !enabled && selected -> "$rating de $safeMaxRating estrellas"
+                        !enabled -> "$rating de $safeMaxRating estrellas sin seleccionar"
+                        selected -> "$rating de $safeMaxRating estrellas seleccionado"
+                        else -> "Seleccionar $rating de $safeMaxRating estrellas"
+                      }
+                },
+        ) {
+          Icon(
+              imageVector = if (selected) Icons.Filled.Star else Icons.Outlined.Star,
+              contentDescription = null,
+              modifier = Modifier.size(36.dp),
+              tint = if (selected) selectedColor else unselectedColor,
+          )
+        }
       }
     }
 
