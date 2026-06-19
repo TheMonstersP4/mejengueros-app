@@ -2,7 +2,9 @@ package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.IconButton
@@ -109,17 +111,22 @@ fun MejenguerosSelectField(
     isError: Boolean = false,
     supportingText: String? = null,
 ) {
-  MejenguerosTextField(
-      value = value,
-      onValueChange = {},
-      label = label,
-      modifier = modifier.clickable(enabled = enabled, onClick = onClick),
-      enabled = enabled,
-      isError = isError,
-      supportingText = supportingText,
-      readOnly = true,
-      trailingIcon = { Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-  )
+  Box(modifier = modifier.fillMaxWidth()) {
+    MejenguerosTextField(
+        value = value,
+        onValueChange = {},
+        label = label,
+        enabled = enabled,
+        isError = isError,
+        supportingText = supportingText,
+        readOnly = true,
+        trailingIcon = { Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+    )
+    Box(
+        modifier =
+            Modifier.fillMaxWidth().height(64.dp).clickable(enabled = enabled, onClick = onClick)
+    )
+  }
 }
 
 @Composable
