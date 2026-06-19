@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -365,7 +367,14 @@ private fun SearchHeader(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = { onModeChange(PokemonListMode.All) }) {
+        TextButton(
+            onClick = { onModeChange(PokemonListMode.All) },
+            modifier =
+                Modifier.semantics {
+                  contentDescription =
+                      if (state.mode == PokemonListMode.All) "Selected All" else "All"
+                },
+        ) {
           if (state.mode == PokemonListMode.All) {
             Icon(
                 imageVector = Icons.Filled.Check,
@@ -375,7 +384,15 @@ private fun SearchHeader(
           }
           Text("All")
         }
-        TextButton(onClick = { onModeChange(PokemonListMode.Favorites) }) {
+        TextButton(
+            onClick = { onModeChange(PokemonListMode.Favorites) },
+            modifier =
+                Modifier.semantics {
+                  contentDescription =
+                      if (state.mode == PokemonListMode.Favorites) "Selected My likes"
+                      else "My likes"
+                },
+        ) {
           if (state.mode == PokemonListMode.Favorites) {
             Icon(
                 imageVector = Icons.Filled.Check,
