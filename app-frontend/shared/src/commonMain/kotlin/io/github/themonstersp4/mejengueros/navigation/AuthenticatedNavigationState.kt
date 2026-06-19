@@ -17,14 +17,16 @@ fun rememberAuthenticatedNavigationState(
     savedStateConfiguration: SavedStateConfiguration,
 ): AuthenticatedNavigationState {
   val homeBackStack = rememberNavBackStack(savedStateConfiguration, HomeRoute)
+  val kitBackStack = rememberNavBackStack(savedStateConfiguration, KitRoute)
   val pokedexBackStack = rememberNavBackStack(savedStateConfiguration, PokedexRoute)
 
   val selectedRoute = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Home) }
 
-  return remember(homeBackStack, pokedexBackStack, selectedRoute) {
+  return remember(homeBackStack, kitBackStack, pokedexBackStack, selectedRoute) {
     AuthenticatedNavigationState(
         selectedRoute = selectedRoute,
         homeBackStack = homeBackStack,
+        kitBackStack = kitBackStack,
         pokedexBackStack = pokedexBackStack,
     )
   }
@@ -33,6 +35,7 @@ fun rememberAuthenticatedNavigationState(
 class AuthenticatedNavigationState(
     selectedRoute: MutableState<AuthenticatedTopLevelRoute>,
     private val homeBackStack: NavBackStack<NavKey>,
+    private val kitBackStack: NavBackStack<NavKey>,
     private val pokedexBackStack: NavBackStack<NavKey>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
@@ -42,6 +45,7 @@ class AuthenticatedNavigationState(
     get() =
         when (selectedRoute) {
           AuthenticatedTopLevelRoute.Home -> homeBackStack
+          AuthenticatedTopLevelRoute.Kit -> kitBackStack
           AuthenticatedTopLevelRoute.Pokedex -> pokedexBackStack
         }
 
@@ -49,14 +53,18 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.Home
   }
 
+  fun selectKit() {
+    selectedRoute = AuthenticatedTopLevelRoute.Kit
+  }
+
   fun selectPokedex() {
     selectedRoute = AuthenticatedTopLevelRoute.Pokedex
   }
 
   fun openAvailabilitySelectors() {
-    selectedRoute = AuthenticatedTopLevelRoute.Home
-    if (homeBackStack.lastOrNull() != AvailabilitySelectorsRoute) {
-      homeBackStack.add(AvailabilitySelectorsRoute)
+    selectedRoute = AuthenticatedTopLevelRoute.Kit
+    if (kitBackStack.lastOrNull() != AvailabilitySelectorsRoute) {
+      kitBackStack.add(AvailabilitySelectorsRoute)
     }
   }
 
@@ -75,6 +83,8 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.Home
     homeBackStack.clear()
     homeBackStack.add(HomeRoute)
+    kitBackStack.clear()
+    kitBackStack.add(KitRoute)
     pokedexBackStack.clear()
     pokedexBackStack.add(PokedexRoute)
   }

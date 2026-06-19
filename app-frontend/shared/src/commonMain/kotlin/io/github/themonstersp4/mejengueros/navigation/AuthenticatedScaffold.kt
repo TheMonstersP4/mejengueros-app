@@ -14,6 +14,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTopAppBar
 fun AuthenticatedScaffold(
     selectedRoute: AuthenticatedTopLevelRoute,
     onHomeSelected: () -> Unit,
+    onKitSelected: () -> Unit,
     onPokedexSelected: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -43,6 +44,11 @@ fun AuthenticatedScaffold(
                         onClick = onHomeSelected,
                     ),
                     MejenguerosBottomNavigationItem(
+                        label = "Kit",
+                        selected = selectedRoute == AuthenticatedTopLevelRoute.Kit,
+                        onClick = onKitSelected,
+                    ),
+                    MejenguerosBottomNavigationItem(
                         label = "Pokédex",
                         selected = selectedRoute == AuthenticatedTopLevelRoute.Pokedex,
                         onClick = onPokedexSelected,
@@ -56,5 +62,6 @@ fun AuthenticatedScaffold(
 
 enum class AuthenticatedTopLevelRoute {
   Home,
+  Kit,
   Pokedex,
 }

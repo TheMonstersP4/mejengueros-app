@@ -38,6 +38,26 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun selectingKitShowsComponentKitRoot() {
+    val state = testNavigationState()
+
+    state.selectKit()
+
+    assertEquals(AuthenticatedTopLevelRoute.Kit, state.selectedRoute)
+    assertEquals(listOf(KitRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun openAvailabilitySelectorsSelectsKitAndAppendsDemoRoute() {
+    val state = testNavigationState()
+
+    state.openAvailabilitySelectors()
+
+    assertEquals(AuthenticatedTopLevelRoute.Kit, state.selectedRoute)
+    assertEquals(listOf(KitRoute, AvailabilitySelectorsRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun closeCurrentDetailDoesNotRemoveRootRoute() {
     val state = testNavigationState()
 
@@ -58,6 +78,9 @@ class AuthenticatedNavigationStateTest {
     assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
     assertEquals(listOf(HomeRoute), state.currentBackStack.toList())
 
+    state.selectKit()
+    assertEquals(listOf(KitRoute), state.currentBackStack.toList())
+
     state.selectPokedex()
     assertEquals(listOf(PokedexRoute), state.currentBackStack.toList())
   }
@@ -66,6 +89,7 @@ class AuthenticatedNavigationStateTest {
       AuthenticatedNavigationState(
           selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Home),
           homeBackStack = NavBackStack<NavKey>(HomeRoute),
+          kitBackStack = NavBackStack<NavKey>(KitRoute),
           pokedexBackStack = NavBackStack<NavKey>(PokedexRoute),
       )
 }

@@ -14,6 +14,7 @@ import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
+import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokemonDetailScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -44,6 +45,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         shellActions = shellActions,
     )
   }
+  entry<KitRoute> { ComponentKitEntry(shellActions = shellActions) }
   entry<AvailabilitySelectorsRoute> { AvailabilitySelectorsEntry(shellActions = shellActions) }
   entry<PokedexRoute> {
     PokedexEntry(
@@ -113,11 +115,29 @@ private fun HomeEntry(
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Home,
       onHomeSelected = shellActions.selectHome,
+      onKitSelected = shellActions.selectKit,
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
   ) { contentPadding ->
     HomeScreen(
         username = state.title,
+        contentPadding = contentPadding,
+    )
+  }
+}
+
+@Composable
+private fun ComponentKitEntry(
+    shellActions: AuthenticatedShellActions,
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Kit,
+      onHomeSelected = shellActions.selectHome,
+      onKitSelected = shellActions.selectKit,
+      onPokedexSelected = shellActions.selectPokedex,
+      onSignOut = shellActions.signOut,
+  ) { contentPadding ->
+    ComponentKitScreen(
         contentPadding = contentPadding,
         onOpenAvailabilitySelectors = shellActions.openAvailabilitySelectors,
     )
@@ -129,8 +149,9 @@ private fun AvailabilitySelectorsEntry(
     shellActions: AuthenticatedShellActions,
 ) {
   AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Home,
-      onHomeSelected = shellActions.closeCurrentDetail,
+      selectedRoute = AuthenticatedTopLevelRoute.Kit,
+      onHomeSelected = shellActions.selectHome,
+      onKitSelected = shellActions.closeCurrentDetail,
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
       onNavigateBack = shellActions.closeCurrentDetail,
@@ -152,6 +173,7 @@ private fun PokedexEntry(
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Pokedex,
       onHomeSelected = shellActions.selectHome,
+      onKitSelected = shellActions.selectKit,
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
   ) { contentPadding ->
@@ -184,6 +206,7 @@ private fun PokemonDetailEntry(
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Pokedex,
       onHomeSelected = shellActions.selectHome,
+      onKitSelected = shellActions.selectKit,
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
       onNavigateBack = pokedexActions.closeDetail,
