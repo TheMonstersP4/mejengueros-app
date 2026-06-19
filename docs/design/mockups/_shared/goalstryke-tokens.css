@@ -1,0 +1,295 @@
+/* ============================================================
+   Mejengueros — Token layer · DIRECCIÓN C — GOALSTRYKE (lime + Anton, ref. Stitch)
+
+   Misma SELECCIÓN de componentes MD3 y mismos nombres de clase
+   que md3-tokens.css, pero la ESTÉTICA sigue spotify-DESIGN.md:
+   canvas casi-negro #121212, verde Spotify #1DB954 como pulso de
+   marca (acción / "vivo" / forward motion), tipografía geométrica
+   (Circular → sustituto Poppins), radios chicos, sombras oscuras.
+
+   Extra: animaciones (entrada, equalizer "en vivo", celebración
+   tipo gol) y guiños futboleros para mejengueros.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+:root {
+  /* ---- Color: spotify-DESIGN.md ---- */
+  --md-primary: #C3F400;            /* Spotify Green — acción/activo/live */
+  --md-primary-focus: #D4FF33;      /* hover brillante */
+  --md-on-primary: #161E00;         /* siempre negro sobre verde */
+  --md-primary-container: #C3F400;  /* verde profundo para fills tintados */
+  --md-on-primary-container: #1B2400;
+
+  --md-secondary: #ffffff;
+  --md-on-secondary: #000000;
+  --md-secondary-container: #46485C;
+  --md-on-secondary-container: #C4C5DD;
+  --md-tertiary: #ffffff;
+  --md-on-tertiary: #000000;
+  --md-tertiary-container: #46485C;
+  --md-on-tertiary-container: #C4C5DD;
+
+  --md-error: #FFB4AB;
+  --md-on-error: #690005;
+  --md-error-container: #93000A;
+  --md-on-error-container: #FFDAD6;
+
+  /* Superficies: rampas casi-negras para que el contenido resalte */
+  --md-surface: #111415;                        /* canvas */
+  --md-surface-dim: #0E1112;
+  --md-surface-bright: #373A3B;
+  --md-surface-container-lowest: #0C0F10;
+  --md-surface-container-low: #191C1D;          /* barras, sidebar */
+  --md-surface-container: #1D2021;
+  --md-surface-container-high: #282A2B;         /* cards, hover */
+  --md-surface-container-highest: #323536;      /* inputs */
+  --md-on-surface: #E1E3E4;                      /* texto principal */
+  --md-on-surface-variant: #C4C9AC;             /* texto secundario */
+  --md-outline: #8E9379;
+  --md-outline-variant: #444933;                /* divisores/bordes */
+
+  --md-inverse-surface: #E1E3E4;
+  --md-inverse-on-surface: #2E3132;
+  --md-inverse-primary: #506600;
+
+  --md-state-hover: 0.06;
+  --md-state-pressed: 0.10;
+
+  /* ---- Shape scale: spotify-DESIGN.md ---- */
+  --md-shape-none: 0px;
+  --md-shape-xs: 4px;
+  --md-shape-sm: 4px;
+  --md-shape-md: 8px;
+  --md-shape-lg: 12px;
+  --md-shape-xl: 16px;
+  --md-shape-full: 9999px;
+
+  /* ---- Spacing: base 8px ---- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+  --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+  /* ---- Elevation: sombras oscuras spotify ---- */
+  --md-elev-1: 0 2px 8px rgba(0,0,0,.4);
+  --md-elev-2: 0 2px 8px rgba(0,0,0,.4);
+  --md-elev-3: 0 16px 48px rgba(0,0,0,.8);
+  --apple-product-shadow: 0 8px 32px rgba(0,0,0,.6);
+  --apple-hairline: 1px solid var(--md-outline-variant);
+
+  /* ---- Motion ---- */
+  --mot-fast: 100ms;
+  --mot-base: 200ms;
+  --mot-ease: cubic-bezier(.4,0,.2,1);
+
+  /* ---- Type: Circular → Poppins (geométrica, aperturas redondas) ---- */
+  --md-font: 'Archivo Narrow', system-ui, -apple-system, sans-serif; --md-font-display: 'Anton', 'Archivo Narrow', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  font-family: var(--md-font);
+  background: #08090A;                  /* negro alrededor del device */
+  color: var(--md-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   Type scale — spotify: geométrica, peso 700 en títulos, tight.
+   ============================================================ */
+.md-display-large   { font-size: 48px; line-height: 1.05; font-weight: 800; letter-spacing: -.03em; }
+.md-display-medium  { font-size: 38px; line-height: 1.08; font-weight: 800; letter-spacing: -.03em; }
+.md-display-small   { font-size: 30px; line-height: 1.1;  font-weight: 700; letter-spacing: -.02em; }
+.md-headline-large  { font-size: 30px; line-height: 1.12; font-weight: 700; letter-spacing: -.02em; }
+.md-headline-medium { font-size: 26px; line-height: 1.14; font-weight: 700; letter-spacing: -.02em; }
+.md-headline-small  { font-size: 23px; line-height: 1.16; font-weight: 700; letter-spacing: -.02em; }
+.md-title-large     { font-size: 20px; line-height: 1.2;  font-weight: 700; letter-spacing: -.01em; }
+.md-title-medium    { font-size: 16px; line-height: 1.25; font-weight: 700; letter-spacing: -.01em; }
+.md-title-small     { font-size: 14px; line-height: 1.3;  font-weight: 600; letter-spacing: -.01em; }
+.md-body-large      { font-size: 15px; line-height: 1.5;  font-weight: 400; letter-spacing: -.01em; }
+.md-body-medium     { font-size: 14px; line-height: 1.55; font-weight: 400; letter-spacing: -.01em; }
+.md-body-small      { font-size: 12px; line-height: 1.4;  font-weight: 400; letter-spacing: -.01em; }
+.md-label-large     { font-size: 14px; line-height: 1.3;  font-weight: 600; letter-spacing: -.01em; }
+.md-label-medium    { font-size: 12px; line-height: 1.0;  font-weight: 600; }
+.md-label-small     { font-size: 11px; line-height: 1.0;  font-weight: 600; }
+
+/* ============================================================
+   Botones — verde como acción; pill. Pulso en :active.
+   ============================================================ */
+.md-btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--sp-2); height: 48px; padding: 0 28px; border: none;
+  border-radius: var(--md-shape-full); font-family: var(--md-font);
+  font-size: 15px; font-weight: 700; letter-spacing: -.01em; cursor: pointer;
+  overflow: hidden; transition: transform var(--mot-fast) var(--mot-ease), background var(--mot-base) var(--mot-ease), filter var(--mot-base);
+}
+.md-btn::after { content:''; position:absolute; inset:0; background:#fff; opacity:0; transition:opacity var(--mot-fast); }
+.md-btn:hover::after { opacity: var(--md-state-hover); }
+.md-btn:active { transform: scale(.96); }
+.md-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.md-btn--filled   { background: var(--md-primary); color: var(--md-on-primary); }
+.md-btn--filled:hover { background: var(--md-primary-focus); filter: brightness(1.02); }
+.md-btn--tonal    { background: var(--md-surface-container-high); color: var(--md-on-surface); }
+.md-btn--outlined { background: transparent; color: var(--md-on-surface); border: 1px solid var(--md-outline); }
+.md-btn--text     { background: transparent; color: var(--md-on-surface); padding: 0 12px; }
+.md-btn--full     { width: 100%; }
+
+.md-fab { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); height: 56px; min-width: 56px; padding: 0 22px; border: none; border-radius: var(--md-shape-full); background: var(--md-primary); color: var(--md-on-primary); box-shadow: var(--md-elev-1); font-family: var(--md-font); font-weight: 700; font-size: 16px; cursor: pointer; }
+.md-fab:active { transform: scale(.95); }
+
+/* ============================================================
+   Cards — fondo surface-2, sin hairline duro; sombra oscura.
+   ============================================================ */
+.md-card { background: var(--md-surface-container-high); border-radius: var(--md-shape-md); overflow: hidden; box-shadow: var(--md-elev-1); }
+.md-card--elevated { background: var(--md-surface-container-high); border-radius: var(--md-shape-lg); box-shadow: var(--md-elev-1); }
+.md-card--outlined { background: var(--md-surface-container-high); border: var(--apple-hairline); }
+
+/* ============================================================
+   Text fields — dark: surface-3, texto blanco, foco verde.
+   ============================================================ */
+.md-field { position: relative; }
+.md-field input, .md-field textarea, .md-field select {
+  width: 100%; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-md);
+  background: var(--md-surface-container-highest); padding: 26px 16px 8px;
+  font-family: var(--md-font); font-size: 16px; letter-spacing: -.01em; color: var(--md-on-surface);
+  outline: none; transition: border-color var(--mot-fast);
+}
+.md-field textarea { resize: none; line-height: 1.5; }
+.md-field input::placeholder, .md-field textarea::placeholder { color: var(--md-on-surface-variant); }
+.md-field label { position: absolute; left: 16px; top: 8px; font-size: 12px; font-weight: 500; letter-spacing: -.01em; color: var(--md-on-surface-variant); pointer-events: none; }
+.md-field input:focus, .md-field textarea:focus, .md-field select:focus { border-color: var(--md-primary); border-width: 2px; padding-top: 25px; padding-left: 15px; }
+.md-field input:focus ~ label, .md-field textarea:focus ~ label, .md-field select:focus ~ label { color: var(--md-primary); }
+.md-field--error input, .md-field--error select { border-color: var(--md-error); }
+.md-field--error label { color: var(--md-error); }
+.md-field__support { display: block; padding: 6px 4px 0; font-size: 12px; letter-spacing: -.01em; color: var(--md-on-surface-variant); }
+.md-field--error .md-field__support { color: var(--md-error); }
+
+/* ============================================================
+   Switch — verde encendido.
+   ============================================================ */
+.md-switch { position: relative; display: inline-block; width: 52px; height: 32px; flex: none; }
+.md-switch input { opacity: 0; width: 0; height: 0; }
+.md-switch .track { position: absolute; inset: 0; background: var(--md-surface-container-highest); border: 2px solid var(--md-outline); border-radius: var(--md-shape-full); transition: var(--mot-base); }
+.md-switch .thumb { position: absolute; left: 8px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); background: var(--md-on-surface-variant); border-radius: 50%; transition: var(--mot-base); }
+.md-switch input:checked + .track { background: var(--md-primary); border-color: var(--md-primary); }
+.md-switch input:checked + .track + .thumb { left: 28px; width: 24px; height: 24px; background: var(--md-on-primary); }
+
+/* ============================================================
+   Chips — pill; seleccionado verde.
+   ============================================================ */
+.md-chip { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-full); background: var(--md-surface-container-high); color: var(--md-on-surface); font-size: 14px; font-weight: 600; letter-spacing: -.01em; cursor: pointer; white-space: nowrap; }
+.md-chip--selected { background: var(--md-primary); color: var(--md-on-primary); border-color: var(--md-primary); }
+
+.ico { font-style: normal; line-height: 1; }
+.ms { font-family: 'Material Symbols Rounded'; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.ms--fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+/* ============================================================
+   Phone frame — canvas casi-negro, sombra elevada.
+   ============================================================ */
+.phone { width: 390px; min-height: 844px; margin: 40px auto; background: var(--md-surface); position: relative; box-shadow: var(--md-elev-3); border-radius: 28px; overflow: hidden; }
+.phone__status { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 13px; font-weight: 600; color: var(--md-on-surface); }
+
+/* ============================================================
+   Navigation Drawer modal (dueño/admin) — superficie oscura.
+   ============================================================ */
+#drawerToggle { position: absolute; opacity: 0; pointer-events: none; }
+.scrim { position: absolute; inset: 0; z-index: 20; background: rgba(0,0,0,.6); opacity: 0; visibility: hidden; transition: opacity var(--mot-base), visibility var(--mot-base); }
+.drawer { position: absolute; top: 0; left: 0; bottom: 0; z-index: 21; width: 280px; max-width: 84%; background: var(--md-surface-container-low); border-right: var(--apple-hairline); transform: translateX(-100%); transition: transform .28s var(--mot-ease); display: flex; flex-direction: column; padding: var(--sp-3) var(--sp-3) var(--sp-5); }
+#drawerToggle:checked ~ .scrim { opacity: 1; visibility: visible; }
+#drawerToggle:checked ~ .drawer { transform: translateX(0); }
+.drawer__head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) var(--sp-4); }
+.drawer__avatar { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: var(--md-primary); color: var(--md-on-primary); }
+.drawer__who b { display: block; font-size: 15px; color: var(--md-on-surface); letter-spacing: -.01em; }
+.drawer__who span { font-size: 12px; color: var(--md-on-surface-variant); }
+.drawer__close { margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center; background: none; border: none; cursor: pointer; color: var(--md-on-surface); border-radius: 50%; text-decoration: none; }
+.drawer__close .ms { font-size: 24px; }
+.drawer-item { display: flex; align-items: center; gap: var(--sp-3); height: 52px; padding: 0 var(--sp-4); border-radius: var(--md-shape-md); color: var(--md-on-surface-variant); text-decoration: none; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.drawer-item .ms { font-size: 22px; }
+.drawer-item--active { background: var(--md-surface-container-high); color: var(--md-on-surface); }
+.drawer-item--active .ms { color: var(--md-primary); }
+
+/* ============================================================
+   ANIMACIONES + IDENTIDAD FUTBOLERA (sobre base Spotify)
+   Respetan prefers-reduced-motion.
+   ============================================================ */
+@keyframes app-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes gol-pop { 0% { transform: scale(0) rotate(-12deg); } 60% { transform: scale(1.15) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes ball-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }   /* rebote limpio, sin rotar */
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(29,185,84,.5);} 70% { box-shadow: 0 0 0 12px rgba(29,185,84,0);} 100% { box-shadow: 0 0 0 0 rgba(29,185,84,0);} }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(29,185,84,.55);} 70% { box-shadow: 0 0 0 7px rgba(29,185,84,0);} 100% { box-shadow: 0 0 0 0 rgba(29,185,84,0);} }
+
+/* entrada suave del contenido en cada pantalla */
+.content { animation: app-fade-in .42s var(--mot-ease) both; }
+
+/* indicador "reservable hoy / en vivo": punto verde que late (reemplaza el equalizer) */
+.live-dot { display: inline-flex; align-items: center; gap: 8px; }
+.live-dot::before { content:''; width: 8px; height: 8px; border-radius: 50%; background: var(--md-primary); animation: live-pulse 1.6s var(--mot-ease) infinite; flex: none; }
+
+/* pelota con rebote suave; celebración tipo gol; halo de selección */
+.ball { animation: ball-bounce 1.6s var(--mot-ease) infinite; }
+.gol-pop { animation: gol-pop .55s var(--mot-ease) both; }
+.pulse-ring { animation: pulse-ring 1.8s var(--mot-ease) infinite; }
+
+/* ---- CANCHA: panel hero estilo campo de fútbol ---- */
+.pitch-hero { position: relative; overflow: hidden; border-radius: var(--md-shape-lg);
+  background: radial-gradient(72% 56% at 50% -4%, rgba(195,244,0,.42), rgba(195,244,0,.08) 32%, #181c12 62%, #0d0f0e 100%); }
+.pitch-hero::before { content:''; position:absolute; inset:0; opacity:.10; pointer-events:none;
+  background: repeating-linear-gradient(180deg, rgba(195,244,0,.5) 0 26px, transparent 26px 52px); }  /* lineas de cancha lime */
+.pitch-lines { position:absolute; inset:0; pointer-events:none; }
+.pitch-lines::before { content:''; position:absolute; left:50%; top:50%; width:104px; height:104px; transform:translate(-50%,-50%); border:2px solid rgba(195,244,0,.55); border-radius:50%; }
+.pitch-lines::after { content:''; position:absolute; left:0; right:0; top:50%; height:2px; background:rgba(195,244,0,.4); }
+
+/* pelota sobre la cancha (badge blanco) */
+.pitch-ball { width:68px; height:68px; border-radius:50%; display:grid; place-items:center; background:#fff; color:#161E00; box-shadow: 0 0 28px rgba(195,244,0,.55), var(--md-elev-2); position:relative; z-index:1; }
+.pitch-ball .ms, .pitch-ball.ms { font-size:44px; }
+
+/* franja-acento de cancha (líneas de banda para headers) */
+.field-strip { height:4px; border-radius:2px; background: repeating-linear-gradient(90deg, var(--md-primary) 0 16px, #0e8f3f 16px 32px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .content, .ball, .gol-pop, .pulse-ring, .live-dot::before { animation: none !important; }
+}
+
+
+/* ============================================================
+   Dirección C · GOALSTRYKE — overrides (lime + Anton + glass)
+   ============================================================ */
+/* Titulares Anton (mayúscula, poster) */
+.md-display-large,.md-display-medium,.md-display-small,
+.md-headline-large,.md-headline-medium,.md-headline-small,
+.md-title-large,.md-title-medium { font-family: var(--md-font-display); text-transform: uppercase; letter-spacing: -.005em; font-weight: 400; }
+/* Marca (login) en itálica al estilo GOALSTRYKE */
+.brand h1 { font-style: italic; letter-spacing: -.02em; }
+
+/* Botón primario: lime, texto oscuro, Anton mayúscula, glow */
+.md-btn { font-family: var(--md-font-display); text-transform: uppercase; letter-spacing: .01em; font-weight: 400; }
+.md-btn--filled { background: var(--md-primary); color: var(--md-on-primary); box-shadow: 0 0 28px rgba(195,244,0,.38); }
+.md-btn--filled:hover { background: var(--md-primary-focus); }
+.md-btn--outlined { border-color: var(--md-primary); color: var(--md-primary); }
+.md-btn--text { color: var(--md-primary); }
+
+/* Nav inferior activa = píldora lime (firma GOALSTRYKE) */
+.navitem--active { background: var(--md-primary) !important; color: var(--md-on-primary) !important; border-radius: 9999px; padding: 4px 16px; }
+.navitem--active .ms { color: var(--md-on-primary) !important; }
+
+/* Punto "en vivo" + franja en lime con glow */
+.live-dot::before { background: var(--md-primary); box-shadow: 0 0 9px rgba(195,244,0,.7); }
+.field-strip { background: var(--md-primary) !important; box-shadow: 0 0 16px rgba(195,244,0,.35); }
+
+/* Badge de disponibilidad = píldora lime con texto oscuro */
+.card__avail { background: var(--md-primary) !important; color: var(--md-on-primary) !important; }
+.card__avail::before { background: var(--md-on-primary) !important; box-shadow: none !important; }
+
+/* GLASS-CARD: tinte navy translúcido + blur (firma GOALSTRYKE) */
+.card, .review, .res, .complejo, .group, .ticket {
+  background: rgba(45,49,77,.42) !important;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08) !important;
+}
+/* avatares de reseña en lavanda */
+.avatar { background: var(--md-secondary-container) !important; color: var(--md-on-secondary-container) !important; }
+
+::selection { background: var(--md-primary); color: var(--md-on-primary); }
