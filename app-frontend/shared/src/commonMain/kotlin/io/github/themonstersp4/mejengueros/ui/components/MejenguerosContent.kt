@@ -3,6 +3,7 @@ package io.github.themonstersp4.mejengueros.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +31,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -88,12 +93,19 @@ fun MejenguerosThumbnail(
     placeholder: @Composable BoxScope.() -> Unit = { MejenguerosThumbnailPlaceholder() },
 ) {
   val sizedModifier = if (size != null) modifier.size(size) else modifier
+  val placeholderSemanticsModifier =
+      if (imageUrl.isNullOrBlank() && contentDescription != null) {
+        Modifier.semantics { this.contentDescription = contentDescription }
+      } else {
+        Modifier
+      }
   Box(
       modifier =
           sizedModifier
               .clip(shape)
               .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-              .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
+              .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+              .then(placeholderSemanticsModifier),
       contentAlignment = Alignment.Center,
   ) {
     if (imageUrl.isNullOrBlank()) {
@@ -202,6 +214,7 @@ fun MejenguerosCourtCard(
     location: String,
     imageUrl: String?,
     modifier: Modifier = Modifier,
+    imageContentDescription: String? = null,
     metadata: List<String> = emptyList(),
     statusText: String? = null,
     statusStyle: MejenguerosStatusPillStyle = MejenguerosStatusPillStyle.Primary,
@@ -221,7 +234,7 @@ fun MejenguerosCourtCard(
       Box {
         MejenguerosThumbnail(
             imageUrl = imageUrl,
-            contentDescription = title,
+            contentDescription = imageContentDescription,
             modifier = Modifier.fillMaxWidth().height(154.dp),
             size = null,
             shape = MaterialTheme.shapes.large,
@@ -253,10 +266,11 @@ fun MejenguerosCourtCard(
         )
         if (metadata.isNotEmpty()) {
           Row(
+              modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
               horizontalArrangement = Arrangement.spacedBy(8.dp),
               verticalAlignment = Alignment.CenterVertically,
           ) {
-            metadata.take(3).forEach { label ->
+            metadata.forEach { label ->
               MejenguerosStatusPill(
                   text = label,
                   style = MejenguerosStatusPillStyle.Subtle,
@@ -332,6 +346,7 @@ private fun mejenguerosStatusPillColors(
 private fun MejenguerosThumbnailPlaceholder() {
   Text(
       text = "Imagen",
+      modifier = Modifier.clearAndSetSemantics {},
       style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
       color = MaterialTheme.colorScheme.onSurfaceVariant,
   )
