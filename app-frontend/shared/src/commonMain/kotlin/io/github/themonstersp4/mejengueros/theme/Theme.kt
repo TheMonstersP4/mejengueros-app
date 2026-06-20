@@ -11,6 +11,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.themonstersp4.mejengueros.generated.resources.Res
+import io.github.themonstersp4.mejengueros.generated.resources.anton_regular
+import io.github.themonstersp4.mejengueros.generated.resources.archivo_narrow_bold
+import io.github.themonstersp4.mejengueros.generated.resources.archivo_narrow_medium
+import io.github.themonstersp4.mejengueros.generated.resources.archivo_narrow_regular
+import io.github.themonstersp4.mejengueros.generated.resources.archivo_narrow_semi_bold
+import org.jetbrains.compose.resources.Font
 
 private val GoalstrykeColorScheme =
     darkColorScheme(
@@ -50,17 +57,14 @@ private val GoalstrykeColorScheme =
         inversePrimary = InversePrimary,
     )
 
-// GOALSTRYKE uses Anton for display/button text and Archivo Narrow for body text.
-// Font files are not in the repository yet; KMP should load approved packaged font resources
-// from commonMain/composeResources/font with org.jetbrains.compose.resources.Font.
-private val BodyFontFamily = FontFamily.Default
-private val DisplayFontFamily = FontFamily.Default
-
-private val MejenguerosTypography =
+internal fun mejenguerosTypography(
+    bodyFontFamily: FontFamily,
+    displayFontFamily: FontFamily,
+): Typography =
     Typography(
         displayLarge =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 48,
                 lineHeight = 50,
                 fontWeight = FontWeight.Normal,
@@ -68,7 +72,7 @@ private val MejenguerosTypography =
             ),
         displayMedium =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 38,
                 lineHeight = 41,
                 fontWeight = FontWeight.Normal,
@@ -76,7 +80,7 @@ private val MejenguerosTypography =
             ),
         displaySmall =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 30,
                 lineHeight = 33,
                 fontWeight = FontWeight.Normal,
@@ -84,7 +88,7 @@ private val MejenguerosTypography =
             ),
         headlineLarge =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 30,
                 lineHeight = 34,
                 fontWeight = FontWeight.Normal,
@@ -92,7 +96,7 @@ private val MejenguerosTypography =
             ),
         headlineMedium =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 26,
                 lineHeight = 30,
                 fontWeight = FontWeight.Normal,
@@ -100,7 +104,7 @@ private val MejenguerosTypography =
             ),
         headlineSmall =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 23,
                 lineHeight = 27,
                 fontWeight = FontWeight.Normal,
@@ -108,7 +112,7 @@ private val MejenguerosTypography =
             ),
         titleLarge =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 20,
                 lineHeight = 24,
                 fontWeight = FontWeight.Normal,
@@ -116,7 +120,7 @@ private val MejenguerosTypography =
             ),
         titleMedium =
             goalstrykeTextStyle(
-                fontFamily = DisplayFontFamily,
+                fontFamily = displayFontFamily,
                 fontSize = 16,
                 lineHeight = 20,
                 fontWeight = FontWeight.Normal,
@@ -124,7 +128,7 @@ private val MejenguerosTypography =
             ),
         titleSmall =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 14,
                 lineHeight = 18,
                 fontWeight = FontWeight.SemiBold,
@@ -132,7 +136,7 @@ private val MejenguerosTypography =
             ),
         bodyLarge =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 15,
                 lineHeight = 23,
                 fontWeight = FontWeight.Normal,
@@ -140,7 +144,7 @@ private val MejenguerosTypography =
             ),
         bodyMedium =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 14,
                 lineHeight = 22,
                 fontWeight = FontWeight.Normal,
@@ -148,7 +152,7 @@ private val MejenguerosTypography =
             ),
         bodySmall =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 12,
                 lineHeight = 17,
                 fontWeight = FontWeight.Normal,
@@ -156,7 +160,7 @@ private val MejenguerosTypography =
             ),
         labelLarge =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 14,
                 lineHeight = 18,
                 fontWeight = FontWeight.SemiBold,
@@ -164,14 +168,14 @@ private val MejenguerosTypography =
             ),
         labelMedium =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 12,
                 lineHeight = 12,
                 fontWeight = FontWeight.SemiBold,
             ),
         labelSmall =
             goalstrykeTextStyle(
-                fontFamily = BodyFontFamily,
+                fontFamily = bodyFontFamily,
                 fontSize = 11,
                 lineHeight = 11,
                 fontWeight = FontWeight.SemiBold,
@@ -189,13 +193,34 @@ private val MejenguerosShapes =
 
 @Composable
 fun MejenguerosTheme(content: @Composable () -> Unit) {
+  val typography =
+      mejenguerosTypography(
+          bodyFontFamily = bodyFontFamily(),
+          displayFontFamily = displayFontFamily(),
+      )
+
   MaterialTheme(
       colorScheme = GoalstrykeColorScheme,
-      typography = MejenguerosTypography,
+      typography = typography,
       shapes = MejenguerosShapes,
       content = content,
   )
 }
+
+@Composable
+private fun bodyFontFamily(): FontFamily =
+    FontFamily(
+        Font(Res.font.archivo_narrow_regular, weight = FontWeight.Normal),
+        Font(Res.font.archivo_narrow_medium, weight = FontWeight.Medium),
+        Font(Res.font.archivo_narrow_semi_bold, weight = FontWeight.SemiBold),
+        Font(Res.font.archivo_narrow_bold, weight = FontWeight.Bold),
+    )
+
+@Composable
+private fun displayFontFamily(): FontFamily =
+    FontFamily(
+        Font(Res.font.anton_regular, weight = FontWeight.Normal),
+    )
 
 private fun goalstrykeTextStyle(
     fontFamily: FontFamily,
