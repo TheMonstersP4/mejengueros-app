@@ -17,6 +17,9 @@ dependencies {
   implementation(libs.koin.android)
   implementation(libs.compose.uiToolingPreview)
   debugImplementation(libs.compose.uiTooling)
+  testImplementation(libs.androidx.test.core)
+  testImplementation(libs.kotlin.testJunit)
+  testImplementation(libs.robolectric)
 }
 
 android {
@@ -32,6 +35,7 @@ android {
   }
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
   buildTypes { getByName("release") { isMinifyEnabled = false } }
+  testOptions { unitTests.isIncludeAndroidResources = true }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11

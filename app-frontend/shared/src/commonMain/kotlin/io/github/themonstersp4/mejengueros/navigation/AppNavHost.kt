@@ -1,18 +1,33 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
+import androidx.navigationevent.NavigationEvent
 import androidx.savedstate.serialization.SavedStateConfiguration
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.koin.compose.viewmodel.koinViewModel
+
+private const val NavigationTransitionDurationMillis = 220
+private const val NavigationTransitionOffsetDivisor = 8
 
 private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
   serializersModule = SerializersModule {
@@ -28,6 +43,39 @@ private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
     }
   }
 }
+
+internal fun navigationTransitionOffset(fullWidth: Int): Int =
+    maxOf(1, fullWidth / NavigationTransitionOffsetDivisor)
+
+internal fun predictivePopDirectionMultiplier(swipeEdge: Int): Int =
+    if (swipeEdge == NavigationEvent.EDGE_RIGHT) 1 else -1
+
+private fun <T : Any> AnimatedContentTransitionScope<Scene<T>>.forwardNavigationTransition():
+    ContentTransform =
+    slideInHorizontally(
+        animationSpec = tween(NavigationTransitionDurationMillis),
+        initialOffsetX = ::navigationTransitionOffset,
+    ) togetherWith
+        slideOutHorizontally(
+            animationSpec = tween(NavigationTransitionDurationMillis),
+            targetOffsetX = { fullWidth -> -navigationTransitionOffset(fullWidth) },
+        )
+
+private fun <T : Any> AnimatedContentTransitionScope<Scene<T>>.backNavigationTransition(
+    directionMultiplier: Int,
+): ContentTransform =
+    slideInHorizontally(
+        animationSpec = tween(NavigationTransitionDurationMillis),
+        initialOffsetX = { fullWidth ->
+          navigationTransitionOffset(fullWidth) * directionMultiplier
+        },
+    ) togetherWith
+        slideOutHorizontally(
+            animationSpec = tween(NavigationTransitionDurationMillis),
+            targetOffsetX = { fullWidth ->
+              -navigationTransitionOffset(fullWidth) * directionMultiplier
+            },
+        )
 
 @Composable
 fun AppNavHost() {
@@ -84,6 +132,7 @@ fun AppNavHost() {
       backStack =
           if (authState.isAuthenticated) authenticatedNavigationState.currentBackStack
           else loginBackStack,
+      modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
       onBack = {
         if (authState.isAuthenticated) {
           authenticatedNavigationState.closeCurrentDetail()
@@ -100,5 +149,10 @@ fun AppNavHost() {
                 pokedexActions = pokedexActions,
             )
           },
+      transitionSpec = { forwardNavigationTransition() },
+      popTransitionSpec = { backNavigationTransition(directionMultiplier = -1) },
+      predictivePopTransitionSpec = { swipeEdge ->
+        backNavigationTransition(directionMultiplier = predictivePopDirectionMultiplier(swipeEdge))
+      },
   )
 }

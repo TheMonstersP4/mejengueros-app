@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Mejengueros" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/goalstryke_window_background</item>
+        <item name="android:colorBackground">@color/goalstryke_window_background</item>
+        <item name="android:statusBarColor">@color/goalstryke_window_background</item>
+        <item name="android:navigationBarColor">@color/goalstryke_window_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>
