@@ -1,0 +1,354 @@
+name: PR Validation
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  pull-requests: read
+  issues: read
+
+jobs:
+  check-issue-reference:
+    name: Check Issue Reference
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate issue reference
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const text = pr.body ?? '';
+            const closePattern = /\b(?:closes|fixes|resolves)\s+#(\d+)\b/gi;
+
+            const references = new Set();
+            for (const match of text.matchAll(closePattern)) {
+              references.add(Number(match[1]));
+            }
+
+            if (references.size === 0) {
+              core.setFailed(
+                'This pull request body must include at least one issue reference using "Closes #123", "Fixes #123", or "Resolves #123" (case-insensitive).'
+              );
+              return;
+            }
+
+            core.info(`Referenced issues: ${Array.from(references).sort((a, b) => a - b).join(', ')}`);
+
+  check-issue-has-status-approved:
+    name: Check Issue Has status:approved
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate referenced issue approval label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const text = pr.body ?? '';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const closePattern = /\b(?:closes|fixes|resolves)\s+#(\d+)\b/gi;
+
+            const referenceNumbers = new Set();
+            for (const match of text.matchAll(closePattern)) {
+              referenceNumbers.add(Number(match[1]));
+            }
+
+            if (referenceNumbers.size === 0) {
+              core.setFailed(
+                'Cannot verify issue approval because the PR body does not contain any linked issue. Add "Closes #123", "Fixes #123", or "Resolves #123" to the PR body.'
+              );
+              return;
+            }
+
+            const approvedReferences = [];
+            const failures = [];
+
+            for (const issue_number of Array.from(referenceNumbers).sort((a, b) => a - b)) {
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number,
+                });
+
+                if (issue.pull_request) {
+                  failures.push(`#${issue_number} is a pull request, not an issue.`);
+                  continue;
+                }
+
+                const labels = (issue.labels ?? []).map((label) =>
+                  typeof label === 'string' ? label : label.name
+                );
+
+                if (labels.includes('status:approved')) {
+                  approvedReferences.push(`#${issue_number}`);
+                } else {
+                  failures.push(
+                    `#${issue_number} is missing the exact label "status:approved". Current labels: ${labels.join(', ') || 'none'}.`
+                  );
+                }
+              } catch (error) {
+                const status = error.status ? ` (HTTP ${error.status})` : '';
+                failures.push(
+                  `#${issue_number} could not be loaded from this repository${status}. Verify that it exists, is an issue, and is accessible. Details: ${error.message}`
+                );
+              }
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(
+                `Every issue referenced in the PR body must be a real repository issue with the exact label "status:approved". Problems found: ${failures.join(' ')}`
+              );
+              return;
+            }
+
+            core.info(`Approved issue references: ${approvedReferences.join(', ')}`);
+
+  check-pr-body-structure:
+    name: Check PR Body Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Spanish PR template structure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body ?? '';
+            const errors = [];
+            const normalizeText = (value) =>
+              value
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+
+            const requiredSections = [
+              '## Issue relacionado',
+              '## Tipo de PR',
+              '## Resumen',
+              '## Cambios',
+              '## Plan de pruebas',
+              '## Checklist del contribuidor',
+            ];
+
+            for (const section of requiredSections) {
+              if (!body.includes(section)) {
+                errors.push(`Missing required section: "${section}".`);
+              }
+            }
+
+            const extractSection = (heading) => {
+              const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(`${escaped}\\s*([\\s\\S]*?)(?=\\n## |$)`, 'i');
+              const match = body.match(regex);
+              return match ? match[1].trim() : '';
+            };
+
+            if (/\b(?:closes|fixes|resolves)\s+#(?!\d)/i.test(body)) {
+              errors.push('The PR body contains a placeholder issue reference like "Closes #" without an issue number.');
+            }
+
+            const summarySection = extractSection('## Resumen');
+            const summaryMeaningfulLines = summarySection
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0)
+              .filter((line) => !/^[-*]\s*$/.test(line));
+            const genericTextPattern = /^(?:[-*]\s*)?(?:test|testing|prueba|pruebas|asdf|todo|tbd|n\/a|na|ninguno|sin cambios|pendiente|lorem ipsum)\.?$/i;
+
+            if (summaryMeaningfulLines.length === 0) {
+              errors.push('Section "## Resumen" must contain meaningful text. This check validates Spanish template structure, not language semantics.');
+            } else if (summaryMeaningfulLines.some((line) => genericTextPattern.test(line))) {
+              errors.push('Section "## Resumen" contains generic placeholder text. Replace it with a concrete summary. This check validates Spanish template structure, not language semantics.');
+            }
+
+            const labels = (pr.labels ?? []).map((label) =>
+              typeof label === 'string' ? label : label.name
+            );
+            const validTypeLabels = new Set([
+              'type:bug',
+              'type:feature',
+              'type:docs',
+              'type:refactor',
+              'type:chore',
+              'type:breaking-change',
+            ]);
+            const typeLabels = labels
+              .map((label) => label.toLowerCase())
+              .filter((label) => label.startsWith('type:'));
+            const validTypeMatches = typeLabels.filter((label) => validTypeLabels.has(label));
+
+            const typeSection = extractSection('## Tipo de PR');
+            const typeOptionMatchers = [
+              {
+                description: 'Corrección de bug',
+                expectedLabel: 'type:bug',
+                matcher: /^- \[([ xX])\]\s+correccion de bug\s+[—-]\s+`type:bug`$/i,
+              },
+              {
+                description: 'Nueva funcionalidad',
+                expectedLabel: 'type:feature',
+                matcher: /^- \[([ xX])\]\s+nueva funcionalidad\s+[—-]\s+`type:feature`$/i,
+              },
+              {
+                description: 'Solo documentación',
+                expectedLabel: 'type:docs',
+                matcher: /^- \[([ xX])\]\s+solo documentacion\s+[—-]\s+`type:docs`$/i,
+              },
+              {
+                description: 'Refactorización de código',
+                expectedLabel: 'type:refactor',
+                matcher: /^- \[([ xX])\]\s+refactorizacion de codigo\s+[—-]\s+`type:refactor`$/i,
+              },
+              {
+                description: 'Mantenimiento/tooling',
+                expectedLabel: 'type:chore',
+                matcher: /^- \[([ xX])\]\s+mantenimiento\/tooling\s+[—-]\s+`type:chore`$/i,
+              },
+              {
+                description: 'Cambio incompatible',
+                expectedLabel: 'type:breaking-change',
+                matcher: /^- \[([ xX])\]\s+cambio incompatible\s+[—-]\s+`type:breaking-change`$/i,
+              },
+            ];
+
+            const typeCheckboxLines = typeSection
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter((line) => /^- \[[ xX]\]/.test(line));
+
+            const matchedTypeOptions = typeCheckboxLines
+              .map((line) => {
+                const normalizedLine = normalizeText(line);
+                const option = typeOptionMatchers.find(({ matcher }) => matcher.test(normalizedLine));
+                if (!option) {
+                  return null;
+                }
+
+                return {
+                  line,
+                  expectedLabel: option.expectedLabel,
+                  description: option.description,
+                  checked: /^- \[[xX]\]/.test(line),
+                };
+              })
+              .filter(Boolean);
+
+            const checkedTypeOptions = matchedTypeOptions.filter((option) => option.checked);
+
+            if (checkedTypeOptions.length !== 1) {
+              errors.push('Section "## Tipo de PR" must have exactly one checked option from the six Spanish template rows.');
+            }
+
+            if (matchedTypeOptions.length !== typeCheckboxLines.length) {
+              errors.push('Section "## Tipo de PR" contains checkbox rows that do not match the six supported Spanish template options exactly.');
+            }
+
+            if (typeLabels.length !== 1 || validTypeMatches.length !== 1) {
+              errors.push(
+                `The PR must have exactly one valid type label (${Array.from(validTypeLabels).join(', ')}) and no additional type:* labels. Current type labels: ${typeLabels.join(', ') || 'none'}.`
+              );
+            } else if (checkedTypeOptions.length === 1 && validTypeMatches[0] !== checkedTypeOptions[0].expectedLabel) {
+              errors.push(
+                `The checked "## Tipo de PR" option "${checkedTypeOptions[0].description}" requires the PR label "${checkedTypeOptions[0].expectedLabel}", but found "${validTypeMatches[0]}".`
+              );
+            }
+
+            const changesSection = extractSection('## Cambios');
+            const changeLines = changesSection
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0);
+
+            const dataRows = changeLines.filter((line) => {
+              if (!line.startsWith('|')) return false;
+              if (/^\|[-\s|:]+\|$/.test(line)) return false;
+              const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
+              if (cells.length < 2) return false;
+              const normalized = cells.join(' ').replace(/`/g, '').trim();
+              if (normalized === '' || /^archivo\s+cambio$/i.test(normalized)) return false;
+              if (cells.some((cell) => genericTextPattern.test(cell))) return false;
+              return cells.some((cell) => cell !== '');
+            });
+
+            if (dataRows.length === 0) {
+              errors.push('Section "## Cambios" must include at least one non-placeholder table row after the header. This check validates Spanish template structure, not language semantics.');
+            }
+
+            const testPlanSection = extractSection('## Plan de pruebas');
+            if (!/- \[[xX]\]\s+.+/.test(testPlanSection)) {
+              errors.push('Section "## Plan de pruebas" must include at least one checked item (- [x]). This check validates Spanish template structure, not language semantics.');
+            }
+
+            const checklistSection = extractSection('## Checklist del contribuidor');
+            const checklistLines = checklistSection
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter((line) => /^- \[[ xX]\]/.test(line));
+            const normalizedChecklistLines = checklistLines.map((line) => ({
+              original: line,
+              normalized: normalizeText(line),
+              checked: /^- \[[xX]\]/.test(line),
+            }));
+
+            const requiredChecklistRows = [
+              /^- \[[xX]\]\s+enlace un issue aprobado usando `closes #n`, `fixes #n` o `resolves #n`$/i,
+              /^- \[[xX]\]\s+el issue enlazado tiene el label `status:approved`$/i,
+              /^- \[[xX]\]\s+agregue exactamente un label `type:\*` valido$/i,
+              /^- \[[xX]\]\s+actualice la documentacion si cambio el comportamiento$/i,
+              /^- \[[xX]\]\s+use formato conventional commit$/i,
+              /^- \[[xX]\]\s+no agregue trailers `co-authored-by`$/i,
+            ];
+
+            const missingChecklistRows = requiredChecklistRows.filter(
+              (matcher) => !normalizedChecklistLines.some((line) => matcher.test(line.normalized))
+            );
+
+            if (missingChecklistRows.length > 0) {
+              errors.push('Section "## Checklist del contribuidor" must include all six required Spanish template rows and each one must be checked.');
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(`PR body failed deterministic Spanish template structure validation. ${errors.join(' ')}`);
+              return;
+            }
+
+            core.info('PR body passed deterministic Spanish template structure validation.');
+
+  check-pr-has-type-label:
+    name: Check PR Has type:* Label
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR type label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = (context.payload.pull_request.labels ?? []).map((label) => label.name);
+            const validTypeLabels = new Set([
+              'type:bug',
+              'type:feature',
+              'type:docs',
+              'type:refactor',
+              'type:chore',
+              'type:breaking-change',
+            ]);
+            const typeLabels = labels.filter((label) => label.toLowerCase().startsWith('type:'));
+            const validMatches = typeLabels.filter((label) => validTypeLabels.has(label.toLowerCase()));
+
+            if (validMatches.length !== 1 || typeLabels.length !== 1) {
+              core.setFailed(
+                `This pull request must include exactly one valid type label: ${Array.from(validTypeLabels).join(', ')}. Current type labels: ${typeLabels.join(', ') || 'none'}.`
+              );
+              return;
+            }
+
+            core.info(`Type label found: ${validMatches[0]}`);
