@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -55,7 +57,14 @@ fun RegisterScreen(
   val formEnabled = !state.isLoading
 
   Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-    Column(modifier = Modifier.fillMaxSize().clearFocusOnTap().padding(20.dp)) {
+    Column(
+        modifier =
+            Modifier.fillMaxSize()
+                .clearFocusOnTap()
+                .safeDrawingPadding()
+                .imePadding()
+                .padding(20.dp)
+    ) {
       Column(
           modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(16.dp),

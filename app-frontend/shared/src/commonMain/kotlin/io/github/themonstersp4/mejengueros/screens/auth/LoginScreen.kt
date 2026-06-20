@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -99,7 +101,13 @@ fun LoginScreen(
       modifier = modifier.fillMaxSize().clearFocusOnTap().testTag("login_root"),
       color = MaterialTheme.colorScheme.surface,
   ) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 32.dp)) {
+    Column(
+        modifier =
+            Modifier.fillMaxSize()
+                .safeDrawingPadding()
+                .imePadding()
+                .padding(horizontal = 20.dp, vertical = 32.dp)
+    ) {
       Column(
           modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(24.dp),
