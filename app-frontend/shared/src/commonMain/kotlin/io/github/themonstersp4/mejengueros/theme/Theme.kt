@@ -19,7 +19,7 @@ import io.github.themonstersp4.mejengueros.generated.resources.archivo_narrow_re
 import io.github.themonstersp4.mejengueros.generated.resources.archivo_narrow_semi_bold
 import org.jetbrains.compose.resources.Font
 
-private val GoalstrykeColorScheme =
+private val MejenguerosColorScheme =
     darkColorScheme(
         primary = Primary,
         onPrimary = OnPrimary,
@@ -63,7 +63,7 @@ internal fun mejenguerosTypography(
 ): Typography =
     Typography(
         displayLarge =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 48,
                 lineHeight = 50,
@@ -71,7 +71,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.24f,
             ),
         displayMedium =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 38,
                 lineHeight = 41,
@@ -79,7 +79,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.19f,
             ),
         displaySmall =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 30,
                 lineHeight = 33,
@@ -87,7 +87,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.15f,
             ),
         headlineLarge =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 30,
                 lineHeight = 34,
@@ -95,7 +95,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.15f,
             ),
         headlineMedium =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 26,
                 lineHeight = 30,
@@ -103,7 +103,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.13f,
             ),
         headlineSmall =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 23,
                 lineHeight = 27,
@@ -111,7 +111,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.12f,
             ),
         titleLarge =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 20,
                 lineHeight = 24,
@@ -119,7 +119,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.10f,
             ),
         titleMedium =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = displayFontFamily,
                 fontSize = 16,
                 lineHeight = 20,
@@ -127,7 +127,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.08f,
             ),
         titleSmall =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 14,
                 lineHeight = 18,
@@ -135,7 +135,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.14f,
             ),
         bodyLarge =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 15,
                 lineHeight = 23,
@@ -143,7 +143,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.15f,
             ),
         bodyMedium =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 14,
                 lineHeight = 22,
@@ -151,7 +151,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.14f,
             ),
         bodySmall =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 12,
                 lineHeight = 17,
@@ -159,7 +159,7 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.12f,
             ),
         labelLarge =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 14,
                 lineHeight = 18,
@@ -167,14 +167,14 @@ internal fun mejenguerosTypography(
                 letterSpacing = -0.14f,
             ),
         labelMedium =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 12,
                 lineHeight = 12,
                 fontWeight = FontWeight.SemiBold,
             ),
         labelSmall =
-            goalstrykeTextStyle(
+            mejenguerosTextStyle(
                 fontFamily = bodyFontFamily,
                 fontSize = 11,
                 lineHeight = 11,
@@ -200,7 +200,7 @@ fun MejenguerosTheme(content: @Composable () -> Unit) {
       )
 
   MaterialTheme(
-      colorScheme = GoalstrykeColorScheme,
+      colorScheme = MejenguerosColorScheme,
       typography = typography,
       shapes = MejenguerosShapes,
       content = content,
@@ -222,7 +222,7 @@ private fun displayFontFamily(): FontFamily =
         Font(Res.font.anton_regular, weight = FontWeight.Normal),
     )
 
-private fun goalstrykeTextStyle(
+private fun mejenguerosTextStyle(
     fontFamily: FontFamily,
     fontSize: Int,
     lineHeight: Int,

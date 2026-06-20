@@ -2,7 +2,9 @@ package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
@@ -439,7 +442,14 @@ fun Modifier.clearFocusOnTap(focusManager: FocusManager? = null): Modifier = com
   val currentFocusManager = focusManager ?: LocalFocusManager.current
 
   pointerInput(currentFocusManager) {
-    detectTapGestures(onTap = { currentFocusManager.clearFocus() })
+    awaitEachGesture {
+      awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+      val up = waitForUpOrCancellation(pass = PointerEventPass.Final)
+
+      if (up != null && !up.isConsumed) {
+        currentFocusManager.clearFocus()
+      }
+    }
   }
 }
 

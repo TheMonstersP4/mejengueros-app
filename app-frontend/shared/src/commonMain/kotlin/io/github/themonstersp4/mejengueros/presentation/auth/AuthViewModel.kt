@@ -40,9 +40,9 @@ class AuthViewModel(
 
   fun signInWithEmail(email: String, password: String) {
     val errorMessage =
-        if (email.isBlank() || password.isBlank()) "Ingresá tu correo y contraseña."
+        if (email.isBlank() || password.isBlank()) "Ingresá tu correo y contraseña para continuar."
         else
-            "El inicio de sesión con correo y contraseña aún no está conectado. Usá Google o Microsoft por ahora."
+            "El inicio con correo y contraseña está en preparación. Usá Google o Microsoft por ahora."
 
     _uiState.value =
         _uiState.value.copy(
