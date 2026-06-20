@@ -1,5 +1,5 @@
 /* ============================================================
-   Mejengueros — Token layer · DIRECCIÓN C — GOALSTRYKE (lime + Anton, ref. Stitch)
+   Mejengueros — capa de tokens · dirección visual del producto (lime + Anton)
 
    Misma SELECCIÓN de componentes MD3 y mismos nombres de clase
    que md3-tokens.css, pero la ESTÉTICA sigue spotify-DESIGN.md:
@@ -255,13 +255,13 @@ html, body {
 
 
 /* ============================================================
-   Dirección C · GOALSTRYKE — overrides (lime + Anton + glass)
+   Dirección visual de Mejengueros — overrides (lime + Anton + glass)
    ============================================================ */
 /* Titulares Anton (mayúscula, poster) */
 .md-display-large,.md-display-medium,.md-display-small,
 .md-headline-large,.md-headline-medium,.md-headline-small,
 .md-title-large,.md-title-medium { font-family: var(--md-font-display); text-transform: uppercase; letter-spacing: -.005em; font-weight: 400; }
-/* Marca (login) en itálica al estilo GOALSTRYKE */
+/* Marca (login) en itálica, alineada con la identidad visual de Mejengueros */
 .brand h1 { font-style: italic; letter-spacing: -.02em; }
 
 /* Botón primario: lime, texto oscuro, Anton mayúscula, glow */
@@ -271,7 +271,7 @@ html, body {
 .md-btn--outlined { border-color: var(--md-primary); color: var(--md-primary); }
 .md-btn--text { color: var(--md-primary); }
 
-/* Nav inferior activa = píldora lime (firma GOALSTRYKE) */
+/* Nav inferior activa = píldora lime (firma visual del producto) */
 .navitem--active { background: var(--md-primary) !important; color: var(--md-on-primary) !important; border-radius: 9999px; padding: 4px 16px; }
 .navitem--active .ms { color: var(--md-on-primary) !important; }
 
@@ -283,7 +283,7 @@ html, body {
 .card__avail { background: var(--md-primary) !important; color: var(--md-on-primary) !important; }
 .card__avail::before { background: var(--md-on-primary) !important; box-shadow: none !important; }
 
-/* GLASS-CARD: tinte navy translúcido + blur (firma GOALSTRYKE) */
+/* GLASS-CARD: tinte navy translúcido + blur (recurso visual del producto) */
 .card, .review, .res, .complejo, .group, .ticket {
   background: rgba(45,49,77,.42) !important;
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
