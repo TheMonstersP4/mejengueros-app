@@ -31,6 +31,8 @@ kotlin {
 
   sourceSets {
     named("androidHostTest").dependencies {
+      implementation(libs.androidx.compose.uiTestJunit4)
+      implementation(libs.androidx.compose.uiTestManifest)
       implementation(libs.androidx.test.core)
       implementation(libs.robolectric)
     }
@@ -89,5 +91,7 @@ sqldelight {
   }
   linkSqlite = true
 }
+
+compose.resources { packageOfResClass = "io.github.themonstersp4.mejengueros.generated.resources" }
 
 dependencies { androidRuntimeClasspath(libs.compose.uiTooling) }
