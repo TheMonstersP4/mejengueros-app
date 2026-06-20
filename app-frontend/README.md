@@ -199,19 +199,35 @@ Current readiness intentionally covers Android, Desktop/JVM, and shared KMP logi
 
 ## Taskfile
 
-If you use [Task](https://taskfile.dev/), common commands are available:
+Run frontend commands from `app-frontend/`.
+
+If you use [Task](https://taskfile.dev/), treat it as the preferred frontend command surface for repeatable workflows. Use raw Gradle commands only as the fallback when Task is unavailable.
 
 ```bash
+task spotless:apply
+task spotless:check
 task format
 task check
 task test
+task test:auth
 task android:debug
 task android:host-test
+task android:host-test:auth
 task desktop:compile
 task verify
 ```
 
-On Windows or without Task installed, use the Gradle commands directly with `gradlew.bat`.
+Formatting shortcuts map directly to Spotless:
+
+- `task spotless:apply` formats Kotlin and Gradle Kotlin files.
+- `task spotless:check` verifies the same Spotless scope without changing files.
+
+Focused auth tasks are available for the recent login/auth flow work:
+
+- `task test:auth` runs the shared `AuthViewModelTest` suite.
+- `task android:host-test:auth` runs the Android host auth screen behavior tests.
+
+The Taskfile resolves the Gradle wrapper for Windows (`gradlew.bat`) and Unix-like shells automatically. If Task is unavailable, run the equivalent Gradle commands directly.
 
 ## Running the apps
 

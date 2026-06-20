@@ -43,6 +43,8 @@ El objetivo de esta integración inicial es dejar disponible una base revisable 
 - conectar progresivamente los flujos reales de Mejengueros;
 - reemplazar ejemplos de plantilla por casos del dominio del proyecto.
 
+Para trabajar el frontend, ejecutá los comandos desde `app-frontend/`. La superficie recomendada es el `Taskfile.yml` de ese subproyecto (`task check`, `task test`, `task verify`, `task spotless:apply`, `task spotless:check`) y los comandos crudos de Gradle quedan como fallback cuando Task no esté disponible.
+
 ## Skills locales para agentes
 
 Este repositorio tiene skills específicos por área que los agentes deben revisar antes de implementar, probar o revisar cambios. No basta con depender únicamente de `.atl/skill-registry.md`, porque el refresco del registry puede no mapear todavía los skills internos de cada subproyecto.
