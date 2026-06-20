@@ -1,37 +1,61 @@
 version: '3'
 
+vars:
+  GRADLEW: '{{if eq OS "windows"}}gradlew.bat{{else}}./gradlew{{end}}'
+  GRADLE_ARGS: --no-configuration-cache --console=plain
+
 tasks:
+  spotless:apply:
+    desc: Format Kotlin and Gradle Kotlin files
+    cmds:
+      - '{{.GRADLEW}} spotlessApply {{.GRADLE_ARGS}}'
+
   format:
     desc: Format Kotlin and Gradle Kotlin files
     cmds:
-      - ./gradlew spotlessApply --no-configuration-cache --console=plain
+      - task: spotless:apply
+
+  spotless:check:
+    desc: Run Spotless checks for Kotlin and Gradle Kotlin files
+    cmds:
+      - '{{.GRADLEW}} spotlessCheck {{.GRADLE_ARGS}}'
 
   check:
-    desc: Run formatting checks
+    desc: Run Spotless checks for Kotlin and Gradle Kotlin files
     cmds:
-      - ./gradlew spotlessCheck --no-configuration-cache --console=plain
+      - task: spotless:check
 
   test:
-    desc: Run shared JVM tests
+    desc: Run the shared JVM test suite
     cmds:
-      - ./gradlew :shared:jvmTest --no-configuration-cache --console=plain
+      - '{{.GRADLEW}} :shared:jvmTest {{.GRADLE_ARGS}}'
+
+  test:auth:
+    desc: Run the focused AuthViewModel shared JVM test suite
+    cmds:
+      - '{{.GRADLEW}} :shared:jvmTest --tests "io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModelTest" {{.GRADLE_ARGS}}'
 
   android:debug:
-    desc: Build Android debug APK
+    desc: Build the Android debug APK
     cmds:
-      - ./gradlew :androidApp:assembleDebug --no-configuration-cache --console=plain
+      - '{{.GRADLEW}} :androidApp:assembleDebug {{.GRADLE_ARGS}}'
 
   android:host-test:
-    desc: Run shared Android host tests
+    desc: Run the shared Android host test suite
     cmds:
-      - ./gradlew :shared:testAndroidHostTest --no-configuration-cache --console=plain
+      - '{{.GRADLEW}} :shared:testAndroidHostTest {{.GRADLE_ARGS}}'
+
+  android:host-test:auth:
+    desc: Run focused auth screen Android host tests
+    cmds:
+      - '{{.GRADLEW}} :shared:testAndroidHostTest --tests "io.github.themonstersp4.mejengueros.screens.auth.*" {{.GRADLE_ARGS}}'
 
   desktop:compile:
-    desc: Compile Desktop JVM app
+    desc: Compile the Desktop JVM app
     cmds:
-      - ./gradlew :desktopApp:compileKotlin --no-configuration-cache --console=plain
+      - '{{.GRADLEW}} :desktopApp:compileKotlin {{.GRADLE_ARGS}}'
 
   verify:
     desc: Run the same core checks as CI
     cmds:
-      - ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
+      - '{{.GRADLEW}} spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin {{.GRADLE_ARGS}}'
