@@ -173,6 +173,50 @@ class AuthViewModelTest {
     scope.cancel()
   }
 
+  @Test
+  fun signInWithEmailRequiresCredentials() = runTest {
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            FakeAuthRepository(),
+            FakeOAuthBrowser(),
+            MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+
+    viewModel.signInWithEmail(email = "", password = "")
+
+    assertEquals(
+        "Ingresá tu correo y contraseña para continuar.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertNull(viewModel.uiState.value.pendingProvider)
+    scope.cancel()
+  }
+
+  @Test
+  fun signInWithEmailExplainsProviderFallbackWhenManualAuthIsUnavailable() = runTest {
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            FakeAuthRepository(),
+            FakeOAuthBrowser(),
+            MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+
+    viewModel.signInWithEmail(email = "player@example.com", password = "secret123")
+
+    assertEquals(
+        "El inicio con correo y contraseña está en preparación. Usá Google o Microsoft por ahora.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertNull(viewModel.uiState.value.pendingProvider)
+    scope.cancel()
+  }
+
   private class FakeAuthRepository(private val existingSession: AuthSession? = null) :
       IAuthRepository {
     var receivedProvider: AuthProvider? = null

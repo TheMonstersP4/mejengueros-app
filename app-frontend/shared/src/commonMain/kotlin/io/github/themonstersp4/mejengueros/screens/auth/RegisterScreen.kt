@@ -28,11 +28,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFormStack
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordField
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextField
 import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
 
@@ -65,14 +69,12 @@ fun RegisterScreen(
           Text("Volver")
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text(
+          MejenguerosAuthHeadingText(
               text = "Crear cuenta",
-              style = MaterialTheme.typography.headlineSmall,
               color = MaterialTheme.colorScheme.onSurface,
           )
-          Text(
+          MejenguerosAuthTaglineText(
               text = "Este formulario prepara el flujo visual de registro de semana 10.",
-              style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -103,17 +105,15 @@ fun RegisterScreen(
           )
         }
 
-        Text(
+        MejenguerosSupportingText(
             text =
                 "Al registrarte aceptarás los términos y políticas cuando el flujo productivo esté disponible.",
-            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         pendingMessage?.let { message ->
-          Text(
+          MejenguerosErrorText(
               text = message,
-              style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.error,
               textAlign = TextAlign.Center,
               modifier = Modifier.fillMaxWidth(),

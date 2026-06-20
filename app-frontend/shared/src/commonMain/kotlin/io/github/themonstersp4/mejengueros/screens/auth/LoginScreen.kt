@@ -1,9 +1,13 @@
 package io.github.themonstersp4.mejengueros.screens.auth
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,8 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,15 +30,51 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordField
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
 import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
+import kotlin.math.min
+
+private data class LoginEmailAccessUiModel(
+    val enabled: Boolean,
+    val supportingText: String,
+)
+
+private fun resolveLoginEmailAccessUiModel(
+    email: String,
+    password: String,
+    isLoading: Boolean,
+): LoginEmailAccessUiModel {
+  val hasCredentials = email.isNotBlank() && password.isNotBlank()
+
+  return if (hasCredentials) {
+    LoginEmailAccessUiModel(
+        enabled = !isLoading,
+        supportingText =
+            "Si el acceso manual todavía no está listo, podés continuar con Google o Microsoft más abajo.",
+    )
+  } else {
+    LoginEmailAccessUiModel(
+        enabled = false,
+        supportingText = "Completá tu correo y contraseña para continuar.",
+    )
+  }
+}
 
 @Composable
 fun LoginScreen(
@@ -46,20 +88,24 @@ fun LoginScreen(
 ) {
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
-  val canSubmitEmailPassword = false
+  val emailAccessUiModel =
+      resolveLoginEmailAccessUiModel(
+          email = email,
+          password = password,
+          isLoading = state.isLoading,
+      )
 
   Surface(
-      modifier = modifier.fillMaxSize(),
+      modifier = modifier.fillMaxSize().clearFocusOnTap().testTag("login_root"),
       color = MaterialTheme.colorScheme.surface,
   ) {
-    Column(
-        modifier =
-            Modifier.fillMaxSize().clearFocusOnTap().padding(horizontal = 20.dp, vertical = 32.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 32.dp)) {
       Column(
           modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+          verticalArrangement = Arrangement.spacedBy(24.dp),
       ) {
-        LoginBrandHeader(modifier = Modifier.padding(top = 32.dp, bottom = 32.dp))
+        LoginPitchHero(modifier = Modifier.padding(top = 8.dp))
+        LoginBrandHeader()
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
           MejenguerosEmailField(
@@ -72,15 +118,14 @@ fun LoginScreen(
               onValueChange = { password = it },
               enabled = !state.isLoading,
           )
-          Text(
-              text = "Por ahora inicia sesión con Google o Microsoft.",
-              style = MaterialTheme.typography.bodySmall,
+          MejenguerosSupportingText(
+              text = emailAccessUiModel.supportingText,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           TextButton(
               onClick = onForgotPassword,
               enabled = !state.isLoading,
-              modifier = Modifier.align(Alignment.End),
+              modifier = Modifier.align(Alignment.End).testTag("login_forgot_password_button"),
           ) {
             Text(
                 text = "¿Olvidaste tu contraseña?",
@@ -89,40 +134,22 @@ fun LoginScreen(
           }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
         MejenguerosFullWidthPrimaryButton(
-            text = "Correo y contraseña no disponible aún",
+            text = "Continuar con correo",
             onClick = { onEmailSignIn(email, password) },
-            enabled = canSubmitEmailPassword,
+            enabled = emailAccessUiModel.enabled,
+            modifier = Modifier.testTag("login_email_cta_button"),
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "O continuá con",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
+        LoginProviderSection(
+            isLoading = state.isLoading,
+            onGoogleSignIn = onGoogleSignIn,
+            onMicrosoftSignIn = onMicrosoftSignIn,
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-          MejenguerosFullWidthOutlinedButton(
-              text = "Continuar con Google",
-              onClick = onGoogleSignIn,
-              enabled = !state.isLoading,
-          )
-          MejenguerosFullWidthOutlinedButton(
-              text = "Continuar con Microsoft",
-              onClick = onMicrosoftSignIn,
-              enabled = !state.isLoading,
-          )
-        }
 
         state.errorMessage?.let { message ->
-          Spacer(modifier = Modifier.height(16.dp))
-          Text(
+          MejenguerosErrorText(
               text = message,
-              style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.error,
               textAlign = TextAlign.Center,
               modifier = Modifier.fillMaxWidth(),
@@ -133,7 +160,7 @@ fun LoginScreen(
       TextButton(
           onClick = onRegister,
           enabled = !state.isLoading,
-          modifier = Modifier.align(Alignment.CenterHorizontally),
+          modifier = Modifier.align(Alignment.CenterHorizontally).testTag("login_register_button"),
       ) {
         Text(
             text = "¿No tienes cuenta? Regístrate",
@@ -150,35 +177,205 @@ private fun LoginBrandHeader(modifier: Modifier = Modifier) {
       modifier = modifier.fillMaxWidth(),
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    Box(
-        modifier =
-            Modifier.size(72.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(22.dp),
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-      Text(
-          text = "M",
-          style = MaterialTheme.typography.headlineMedium,
-          color = MaterialTheme.colorScheme.onPrimary,
-          fontWeight = FontWeight.SemiBold,
-      )
-    }
-    Spacer(modifier = Modifier.height(16.dp))
-    Text(
+    MejenguerosAuthHeadingText(
         text = "Mejengueros",
-        style = MaterialTheme.typography.headlineSmall,
         color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
     )
-    Spacer(modifier = Modifier.height(6.dp))
-    Text(
+    Spacer(modifier = Modifier.height(8.dp))
+    MejenguerosAuthTaglineText(
         text = "Encontrá cancha y armá la mejenga.",
-        style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(0.72f),
     )
+  }
+}
+
+@Composable
+private fun LoginProviderSection(
+    isLoading: Boolean,
+    onGoogleSignIn: () -> Unit,
+    onMicrosoftSignIn: () -> Unit,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      HorizontalDivider(
+          modifier = Modifier.weight(1f),
+          color = MaterialTheme.colorScheme.outlineVariant,
+      )
+      MejenguerosSupportingText(
+          text = "O seguí con un proveedor disponible hoy",
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      HorizontalDivider(
+          modifier = Modifier.weight(1f),
+          color = MaterialTheme.colorScheme.outlineVariant,
+      )
+    }
+    MejenguerosFullWidthOutlinedButton(
+        text = "Continuar con Google",
+        onClick = onGoogleSignIn,
+        enabled = !isLoading,
+        modifier = Modifier.testTag("login_google_button"),
+    )
+    MejenguerosFullWidthOutlinedButton(
+        text = "Continuar con Microsoft",
+        onClick = onMicrosoftSignIn,
+        enabled = !isLoading,
+        modifier = Modifier.testTag("login_microsoft_button"),
+    )
+  }
+}
+
+@Composable
+private fun LoginPitchHero(modifier: Modifier = Modifier) {
+  Surface(
+      modifier = modifier.fillMaxWidth(),
+      color = MaterialTheme.colorScheme.surfaceContainerLow,
+      shape = RoundedCornerShape(28.dp),
+      border =
+          BorderStroke(
+              width = 1.dp,
+              color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
+          ),
+  ) {
+    BoxWithConstraints(
+        modifier =
+            Modifier.fillMaxWidth().height(184.dp).padding(horizontal = 18.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+      val fieldHeight = maxHeight - 24.dp
+      GoalPitchField(
+          modifier = Modifier.fillMaxWidth().height(fieldHeight),
+          lineThickness = 2.dp,
+      )
+      GoalPitchBall(modifier = Modifier.size(56.dp))
+    }
+  }
+}
+
+@Composable
+private fun GoalPitchField(
+    modifier: Modifier = Modifier,
+    lineThickness: Dp,
+) {
+  val lineColor = MaterialTheme.colorScheme.primary
+  val haloColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+
+  Box(
+      modifier =
+          modifier
+              .clip(RoundedCornerShape(24.dp))
+              .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+  ) {
+    Box(
+        modifier =
+            Modifier.fillMaxSize()
+                .border(
+                    width = lineThickness,
+                    color = lineColor.copy(alpha = 0.72f),
+                    shape = RoundedCornerShape(24.dp),
+                ),
+    )
+    Box(
+        modifier =
+            Modifier.align(Alignment.Center)
+                .fillMaxWidth()
+                .height(lineThickness)
+                .background(lineColor.copy(alpha = 0.72f)),
+    )
+    Box(
+        modifier =
+            Modifier.align(Alignment.Center)
+                .size(72.dp)
+                .border(
+                    width = lineThickness,
+                    color = lineColor.copy(alpha = 0.82f),
+                    shape = CircleShape,
+                ),
+    )
+    Box(
+        modifier =
+            Modifier.align(Alignment.CenterStart)
+                .padding(start = 12.dp)
+                .fillMaxWidth(0.18f)
+                .height(54.dp)
+                .border(
+                    width = lineThickness,
+                    color = haloColor,
+                    shape = RoundedCornerShape(16.dp),
+                ),
+    )
+    Box(
+        modifier =
+            Modifier.align(Alignment.CenterEnd)
+                .padding(end = 12.dp)
+                .fillMaxWidth(0.18f)
+                .height(54.dp)
+                .border(
+                    width = lineThickness,
+                    color = haloColor,
+                    shape = RoundedCornerShape(16.dp),
+                ),
+    )
+    Box(
+        modifier =
+            Modifier.align(Alignment.CenterStart)
+                .padding(start = 28.dp)
+                .size(8.dp)
+                .background(lineColor, CircleShape),
+    )
+    Box(
+        modifier =
+            Modifier.align(Alignment.CenterEnd)
+                .padding(end = 28.dp)
+                .size(8.dp)
+                .background(lineColor, CircleShape),
+    )
+  }
+}
+
+@Composable
+private fun GoalPitchBall(modifier: Modifier = Modifier) {
+  val fillColor = MaterialTheme.colorScheme.primary
+  val seamColor = MaterialTheme.colorScheme.onPrimary
+
+  Surface(
+      modifier = modifier,
+      color = fillColor,
+      shape = CircleShape,
+      shadowElevation = 0.dp,
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize().padding(11.dp)) {
+        val center = center
+        val radius = min(size.width, size.height) / 2f
+        val seamStroke = radius * 0.16f
+
+        drawCircle(
+            color = seamColor.copy(alpha = 0.92f),
+            radius = radius * 0.36f,
+            center = center,
+            style = Stroke(width = seamStroke),
+        )
+        drawLine(
+            color = seamColor.copy(alpha = 0.92f),
+            start = Offset(center.x - radius * 0.72f, center.y),
+            end = Offset(center.x + radius * 0.72f, center.y),
+            strokeWidth = seamStroke,
+        )
+        drawLine(
+            color = seamColor.copy(alpha = 0.92f),
+            start = Offset(center.x, center.y - radius * 0.72f),
+            end = Offset(center.x, center.y + radius * 0.72f),
+            strokeWidth = seamStroke,
+        )
+      }
+    }
   }
 }

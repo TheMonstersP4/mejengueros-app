@@ -28,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineText
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFormStack
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
@@ -60,15 +63,13 @@ fun VerifyAccountScreen(
           Text("Volver")
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text(
+          MejenguerosAuthHeadingText(
               text = "Verificar cuenta",
-              style = MaterialTheme.typography.headlineSmall,
               color = MaterialTheme.colorScheme.onSurface,
           )
-          Text(
+          MejenguerosAuthTaglineText(
               text =
                   "Ingresa el código de seis dígitos enviado a tu correo cuando el flujo esté disponible.",
-              style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -88,9 +89,8 @@ fun VerifyAccountScreen(
         }
 
         pendingMessage?.let { message ->
-          Text(
+          MejenguerosErrorText(
               text = message,
-              style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.error,
               textAlign = TextAlign.Center,
               modifier = Modifier.fillMaxWidth(),
