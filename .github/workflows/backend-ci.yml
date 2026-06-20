@@ -37,8 +37,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test with coverage
-        run: npm run test:cov -- --runInBand
+      - name: Unit tests
+        run: npm test -- --runInBand
 
       - name: Build
         run: npm run build
