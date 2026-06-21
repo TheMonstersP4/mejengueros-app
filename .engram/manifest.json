@@ -64,6 +64,14 @@
       "sessions": 44,
       "memories": 130,
       "prompts": 86
+    },
+    {
+      "id": "33681042",
+      "created_by": "screi",
+      "created_at": "2026-06-20T22:35:09Z",
+      "sessions": 55,
+      "memories": 129,
+      "prompts": 114
     }
   ]
 }
