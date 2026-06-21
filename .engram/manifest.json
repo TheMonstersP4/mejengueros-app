@@ -2,92 +2,20 @@
   "version": 1,
   "chunks": [
     {
-      "id": "42aa9206",
+      "id": "e06a6f97",
       "created_by": "screi",
-      "created_at": "2026-06-16T04:23:31Z",
-      "sessions": 8,
-      "memories": 16,
-      "prompts": 19
+      "created_at": "2026-06-21T05:45:10Z",
+      "sessions": 197,
+      "memories": 515,
+      "prompts": 421
     },
     {
-      "id": "8ae15568",
+      "id": "3a3fe827",
       "created_by": "screi",
-      "created_at": "2026-06-18T04:44:52Z",
-      "sessions": 42,
-      "memories": 95,
-      "prompts": 79
-    },
-    {
-      "id": "e9489f6f",
-      "created_by": "screi",
-      "created_at": "2026-06-18T04:47:29Z",
+      "created_at": "2026-06-21T05:47:27Z",
       "sessions": 0,
-      "memories": 2,
+      "memories": 0,
       "prompts": 1
-    },
-    {
-      "id": "6202577c",
-      "created_by": "screi",
-      "created_at": "2026-06-18T04:50:56Z",
-      "sessions": 0,
-      "memories": 0,
-      "prompts": 2
-    },
-    {
-      "id": "fe507c0f",
-      "created_by": "screi",
-      "created_at": "2026-06-18T04:53:04Z",
-      "sessions": 0,
-      "memories": 0,
-      "prompts": 2
-    },
-    {
-      "id": "2be3e409",
-      "created_by": "screi",
-      "created_at": "2026-06-18T19:26:50Z",
-      "sessions": 10,
-      "memories": 28,
-      "prompts": 42
-    },
-    {
-      "id": "7ac46331",
-      "created_by": "screi",
-      "created_at": "2026-06-18T20:39:50Z",
-      "sessions": 2,
-      "memories": 5,
-      "prompts": 3
-    },
-    {
-      "id": "d13d6b27",
-      "created_by": "screi",
-      "created_at": "2026-06-20T05:07:47Z",
-      "sessions": 44,
-      "memories": 130,
-      "prompts": 86
-    },
-    {
-      "id": "33681042",
-      "created_by": "screi",
-      "created_at": "2026-06-20T22:35:09Z",
-      "sessions": 55,
-      "memories": 129,
-      "prompts": 114
-    },
-    {
-      "id": "ca68e76f",
-      "created_by": "screi",
-      "created_at": "2026-06-21T05:32:05Z",
-      "sessions": 35,
-      "memories": 110,
-      "prompts": 66
-    },
-    {
-      "id": "69ab5ad9",
-      "created_by": "screi",
-      "created_at": "2026-06-21T05:39:46Z",
-      "sessions": 1,
-      "memories": 1,
-      "prompts": 6
     }
   ]
 }
