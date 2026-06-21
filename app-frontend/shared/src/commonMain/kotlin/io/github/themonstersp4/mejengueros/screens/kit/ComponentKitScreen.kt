@@ -35,6 +35,12 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationField
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerMapScope
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerScreen
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOpenFreeMapLocationPickerMap
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosRating
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReceivedReviewCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReservationSummaryBar
@@ -48,11 +54,17 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPillSt
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosThumbnail
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTicketSummary
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTicketSummaryRow
+import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
+
+internal val ComponentKitDemoLocationPickerCenter =
+    SelectedLocation(latitude = 9.93510, longitude = -84.09110)
 
 @Composable
 fun ComponentKitScreen(
     contentPadding: PaddingValues,
     onOpenAvailabilitySelectors: () -> Unit,
+    selectedLocation: SelectedLocation?,
+    onOpenLocationPicker: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   LazyColumn(
@@ -68,6 +80,12 @@ fun ComponentKitScreen(
   ) {
     item { ComponentKitHeader() }
     item { SelectorDemoSection(onOpenAvailabilitySelectors = onOpenAvailabilitySelectors) }
+    item {
+      LocationPickerDemoSection(
+          selectedLocation = selectedLocation,
+          onOpenLocationPicker = onOpenLocationPicker,
+      )
+    }
     item { StatusPillsSection() }
     item { ThumbnailSection() }
     item { ListItemsSection() }
@@ -76,6 +94,42 @@ fun ComponentKitScreen(
     item { ReservationSummarySection() }
     item { ReviewComponentsSection() }
     item { ReceivedReviewsSection() }
+  }
+}
+
+@Composable
+internal fun ComponentKitLocationPickerMap(scope: MejenguerosLocationPickerMapScope) {
+  MejenguerosOpenFreeMapLocationPickerMap(scope = scope)
+}
+
+@Composable
+internal fun ComponentKitLocationPickerOverlay(
+    state: MejenguerosLocationPickerState,
+    actions: MejenguerosLocationPickerActions,
+    modifier: Modifier = Modifier,
+) {
+  MejenguerosLocationPickerScreen(
+      state = state,
+      actions = actions,
+      modifier = modifier,
+      mapContent = { scope -> ComponentKitLocationPickerMap(scope = scope) },
+  )
+}
+
+@Composable
+private fun LocationPickerDemoSection(
+    selectedLocation: SelectedLocation?,
+    onOpenLocationPicker: () -> Unit,
+) {
+  ComponentKitSection(
+      title = "Ubicación",
+      description =
+          "Componente compacto reutilizable para crear o cambiar la ubicación de un complejo y probar el flujo completo del picker.",
+  ) {
+    MejenguerosLocationField(
+        selectedLocation = selectedLocation,
+        onOpenPicker = onOpenLocationPicker,
+    )
   }
 }
 
