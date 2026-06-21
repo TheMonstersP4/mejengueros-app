@@ -38,8 +38,8 @@ kotlin {
     }
     androidMain.dependencies {
       implementation(libs.compose.uiToolingPreview)
-      implementation(libs.androidx.security.crypto)
       implementation(libs.koin.android)
+      implementation(libs.maplibre.android.opengl)
       implementation(libs.ktor.client.okhttp)
       implementation(libs.sqldelight.driver.android)
     }
@@ -68,6 +68,12 @@ kotlin {
       implementation(libs.koin.core)
       implementation(libs.koin.compose)
       implementation(libs.koin.compose.viewmodel)
+      // Version catalog aliases can be passed directly to implementation(), but exclude() requires
+      // a String/GAV notation here. Converting the provider output keeps the Android OpenGL
+      // workaround applied without pulling the excluded android-sdk artifact into commonMain.
+      implementation(libs.maplibre.compose.get().toString()) {
+        exclude(group = "org.maplibre.gl", module = "android-sdk")
+      }
     }
     commonTest.dependencies {
       implementation(libs.kotlin.test)
@@ -79,6 +85,7 @@ kotlin {
       implementation(libs.sqldelight.driver.native)
     }
     jvmMain.dependencies {
+      implementation(libs.maplibre.compose)
       implementation(libs.ktor.client.okhttp)
       implementation(libs.sqldelight.driver.sqlite)
     }

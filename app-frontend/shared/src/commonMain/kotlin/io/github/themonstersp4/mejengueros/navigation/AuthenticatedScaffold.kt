@@ -1,6 +1,8 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -9,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationItem
@@ -24,52 +27,62 @@ fun AuthenticatedScaffold(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateBack: (() -> Unit)? = null,
+    overlayVisible: Boolean = false,
+    overlayContent: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-  MejenguerosMobileScaffold(
-      modifier = modifier,
-      topBar = {
-        MejenguerosTopAppBar(
-            title = "Mejengueros",
-            navigationIcon = {
-              onNavigateBack?.let { navigateBack ->
-                TextButton(onClick = navigateBack) {
-                  Icon(
-                      imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                      contentDescription = null,
-                      modifier = Modifier.size(18.dp),
-                  )
-                  Text("Back")
+  Box(modifier = modifier.fillMaxSize()) {
+    MejenguerosMobileScaffold(
+        modifier =
+            Modifier.fillMaxSize()
+                .then(if (overlayVisible) Modifier.clearAndSetSemantics {} else Modifier),
+        topBar = {
+          MejenguerosTopAppBar(
+              title = "Mejengueros",
+              navigationIcon = {
+                onNavigateBack?.let { navigateBack ->
+                  TextButton(onClick = navigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text("Back")
+                  }
                 }
-              }
-            },
-            actions = { TextButton(onClick = onSignOut) { Text("Sign out") } },
-        )
-      },
-      bottomBar = {
-        MejenguerosBottomNavigationBar(
-            items =
-                listOf(
-                    MejenguerosBottomNavigationItem(
-                        label = "Home",
-                        selected = selectedRoute == AuthenticatedTopLevelRoute.Home,
-                        onClick = onHomeSelected,
-                    ),
-                    MejenguerosBottomNavigationItem(
-                        label = "Kit",
-                        selected = selectedRoute == AuthenticatedTopLevelRoute.Kit,
-                        onClick = onKitSelected,
-                    ),
-                    MejenguerosBottomNavigationItem(
-                        label = "Pokédex",
-                        selected = selectedRoute == AuthenticatedTopLevelRoute.Pokedex,
-                        onClick = onPokedexSelected,
-                    ),
-                )
-        )
-      },
-      content = content,
-  )
+              },
+              actions = { TextButton(onClick = onSignOut) { Text("Sign out") } },
+          )
+        },
+        bottomBar = {
+          MejenguerosBottomNavigationBar(
+              items =
+                  listOf(
+                      MejenguerosBottomNavigationItem(
+                          label = "Home",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.Home,
+                          onClick = onHomeSelected,
+                      ),
+                      MejenguerosBottomNavigationItem(
+                          label = "Kit",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.Kit,
+                          onClick = onKitSelected,
+                      ),
+                      MejenguerosBottomNavigationItem(
+                          label = "Pokédex",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.Pokedex,
+                          onClick = onPokedexSelected,
+                      ),
+                  )
+          )
+        },
+        content = content,
+    )
+
+    if (overlayVisible) {
+      overlayContent()
+    }
+  }
 }
 
 enum class AuthenticatedTopLevelRoute {
