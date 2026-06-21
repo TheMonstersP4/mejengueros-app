@@ -151,10 +151,10 @@ LoginScreen
   -> AuthViewModel
       -> IAuthRepository
       -> IAuthRemoteDataSource -> Ktor -> Cognito token endpoint
-      -> IAuthSecureStorage    -> Android encrypted preferences / iOS Keychain / Desktop memory
+      -> IAuthSecureStorage    -> Android Keystore-backed AES/GCM values in SharedPreferences / iOS Keychain / Desktop memory
 ```
 
-The app opens the system browser for Google or Microsoft login through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores auth material in platform secure storage.
+The app opens the system browser for Google or Microsoft login through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores auth material in platform secure storage. On Android, the current storage schema uses Keystore-backed AES/GCM ciphertext in `SharedPreferences` and performs a one-time auth reset on first launch after the legacy encrypted-preferences migration during development.
 
 SQLDelight remains available for non-sensitive local cache data. It must not store `idToken`, `accessToken`, `refreshToken`, OAuth `state`, or PKCE `codeVerifier`.
 
