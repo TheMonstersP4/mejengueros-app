@@ -80,6 +80,14 @@
       "sessions": 35,
       "memories": 110,
       "prompts": 66
+    },
+    {
+      "id": "69ab5ad9",
+      "created_by": "screi",
+      "created_at": "2026-06-21T05:39:46Z",
+      "sessions": 1,
+      "memories": 1,
+      "prompts": 6
     }
   ]
 }
