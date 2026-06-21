@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
@@ -14,9 +17,14 @@ import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
+import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitDemoLocationPickerCenter
+import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokemonDetailScreen
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
+import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -130,16 +138,67 @@ private fun HomeEntry(
 private fun ComponentKitEntry(
     shellActions: AuthenticatedShellActions,
 ) {
+  var selectedLatitude by rememberSaveable { mutableStateOf<Double?>(null) }
+  var selectedLongitude by rememberSaveable { mutableStateOf<Double?>(null) }
+  val selectedLocation =
+      if (selectedLatitude == null || selectedLongitude == null) {
+        null
+      } else {
+        SelectedLocation(latitude = selectedLatitude!!, longitude = selectedLongitude!!)
+      }
+  var draftLatitude by rememberSaveable {
+    mutableStateOf(ComponentKitDemoLocationPickerCenter.latitude)
+  }
+  var draftLongitude by rememberSaveable {
+    mutableStateOf(ComponentKitDemoLocationPickerCenter.longitude)
+  }
+  val draftLocation = SelectedLocation(latitude = draftLatitude, longitude = draftLongitude)
+  var isLocationPickerOpen by rememberSaveable { mutableStateOf(false) }
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Kit,
       onHomeSelected = shellActions.selectHome,
       onKitSelected = shellActions.selectKit,
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
+      overlayVisible = isLocationPickerOpen,
+      overlayContent = {
+        if (isLocationPickerOpen) {
+          ComponentKitLocationPickerOverlay(
+              state =
+                  MejenguerosLocationPickerState(
+                      draftLocation = draftLocation,
+                      selectedLocation = selectedLocation,
+                  ),
+              actions =
+                  MejenguerosLocationPickerActions(
+                      onDraftLocationChange = { updatedLocation ->
+                        draftLatitude = updatedLocation.latitude
+                        draftLongitude = updatedLocation.longitude
+                      },
+                      onConfirm = { confirmedLocation ->
+                        selectedLatitude = confirmedLocation.latitude
+                        selectedLongitude = confirmedLocation.longitude
+                        draftLatitude = confirmedLocation.latitude
+                        draftLongitude = confirmedLocation.longitude
+                        isLocationPickerOpen = false
+                      },
+                      onDismiss = { isLocationPickerOpen = false },
+                  ),
+          )
+        }
+      },
   ) { contentPadding ->
     ComponentKitScreen(
         contentPadding = contentPadding,
         onOpenAvailabilitySelectors = shellActions.openAvailabilitySelectors,
+        selectedLocation = selectedLocation,
+        onOpenLocationPicker = {
+          val initialLocation = selectedLocation ?: ComponentKitDemoLocationPickerCenter
+          draftLatitude = initialLocation.latitude
+          draftLongitude = initialLocation.longitude
+          isLocationPickerOpen = true
+        },
     )
   }
 }
