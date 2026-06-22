@@ -12,8 +12,10 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitDemoLocationPickerCenter
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationMapState
@@ -30,6 +32,61 @@ import org.robolectric.RobolectricTestRunner
 class AuthenticatedScaffoldBehaviorTest {
 
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+  @Test
+  fun backNavigationUsesIconOnlyAndHidesLegacyLabel() {
+    var backClicks = 0
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Kit,
+            onHomeSelected = {},
+            onKitSelected = {},
+            onPokedexSelected = {},
+            onSignOut = {},
+            onNavigateBack = { backClicks += 1 },
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body"))
+        }
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Volver").assertExists().performClick()
+    composeRule.onNodeWithText("Back").assertDoesNotExist()
+    composeRule.onNodeWithText("Volver").assertDoesNotExist()
+    composeRule.runOnIdle { assertEquals(1, backClicks) }
+  }
+
+  @Test
+  fun signOutRequiresConfirmationBeforeInvokingCallback() {
+    var signOutClicks = 0
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Home,
+            onHomeSelected = {},
+            onKitSelected = {},
+            onPokedexSelected = {},
+            onSignOut = { signOutClicks += 1 },
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body"))
+        }
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Cerrar sesión").assertExists().performClick()
+    composeRule.runOnIdle { assertEquals(0, signOutClicks) }
+    composeRule.onNodeWithText("¿Cerrar sesión?").assertExists()
+    composeRule.onNodeWithText("Cancelar").performClick()
+    composeRule.onNodeWithText("¿Cerrar sesión?").assertDoesNotExist()
+    composeRule.runOnIdle { assertEquals(0, signOutClicks) }
+
+    composeRule.onNodeWithContentDescription("Cerrar sesión").performClick()
+    composeRule.onNodeWithText("Cerrar sesión").performClick()
+    composeRule.runOnIdle { assertEquals(1, signOutClicks) }
+  }
 
   @Test
   fun fullScreenOverlayHidesBackgroundScaffoldSemanticsWhileKeepingPickerReachable() {
