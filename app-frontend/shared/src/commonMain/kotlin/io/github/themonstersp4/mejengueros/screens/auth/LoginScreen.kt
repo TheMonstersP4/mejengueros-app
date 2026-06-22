@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
+import io.github.themonstersp4.mejengueros.ui.components.GoogleProviderIcon
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
@@ -49,6 +50,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
+import io.github.themonstersp4.mejengueros.ui.components.MicrosoftProviderIcon
 import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
 import kotlin.math.min
 
@@ -230,12 +232,14 @@ private fun LoginProviderSection(
         onClick = onGoogleSignIn,
         enabled = !isLoading,
         modifier = Modifier.testTag("login_google_button"),
+        leadingContent = { GoogleProviderIcon(modifier = Modifier.size(18.dp)) },
     )
     MejenguerosFullWidthOutlinedButton(
         text = "Continuar con Microsoft",
         onClick = onMicrosoftSignIn,
         enabled = !isLoading,
         modifier = Modifier.testTag("login_microsoft_button"),
+        leadingContent = { MicrosoftProviderIcon(modifier = Modifier.size(18.dp)) },
     )
   }
 }
