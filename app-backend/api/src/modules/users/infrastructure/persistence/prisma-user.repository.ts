@@ -6,6 +6,10 @@ import type {
   IUserRepository
 } from '../../domain/repositories/user.repository';
 import { UserMapper } from '../mappers/user.mapper';
+import {
+  reconcileDemoOwnerRole,
+  upsertAuthenticatedUserIdentity
+} from '../provisioning/demo-owner-role-provisioning';
 
 /**
  * Prisma-backed implementation of the user repository port.
@@ -28,22 +32,8 @@ export class PrismaUserRepository implements IUserRepository {
    * @returns Synchronized user entity.
    */
   async syncAuthenticatedUser(identity: IExternalUserIdentity): Promise<UserEntity> {
-    const user = await this.prisma.user.upsert({
-      where: { cognitoSub: identity.cognitoSub },
-      create: {
-        cognitoSub: identity.cognitoSub,
-        email: identity.email ?? `${identity.cognitoSub}@unknown.local`,
-        name: identity.name,
-        pictureUrl: identity.pictureUrl,
-        provider: identity.provider
-      },
-      update: {
-        email: identity.email,
-        name: identity.name,
-        pictureUrl: identity.pictureUrl,
-        provider: identity.provider
-      }
-    });
+    const user = await upsertAuthenticatedUserIdentity(this.prisma, identity);
+    await reconcileDemoOwnerRole(this.prisma, user.id, identity);
 
     return UserMapper.toDomain(user);
   }

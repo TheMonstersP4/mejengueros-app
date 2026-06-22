@@ -3,7 +3,7 @@ module.exports = {
   rootDir: '.',
   testMatch: [
     '<rootDir>/test/unit/**/*.spec.ts',
-    '<rootDir>/test/integration/prisma-relational-schema.contract.spec.ts'
+    '<rootDir>/test/integration/**/*.contract.spec.ts'
   ],
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }]

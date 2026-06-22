@@ -42,6 +42,8 @@ Variables validated when the API starts:
 | `COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID. |
 | `COGNITO_CLIENT_ID` | Yes | Cognito App Client ID. |
 | `COGNITO_TOKEN_USE` | No | Token type accepted by the API: `id` or `access`. Default: `id`. |
+| `DEMO_OWNER_EMAILS` | No | Comma-separated email allowlist that receives the local `OWNER` role during authenticated user reconciliation in demo/MVP environments, including `POST /v1/complexes` and `GET /v1/users/me`. |
+| `DEMO_OWNER_SUBS` | No | Comma-separated Cognito subject allowlist that receives the local `OWNER` role during the same authenticated reconciliation flow. |
 | `WEBSOCKET_CONNECTIONS_TABLE_NAME` | Yes | DynamoDB table for WebSocket connections. |
 | `WEBSOCKET_CONNECTION_TTL_SECONDS` | No | TTL for stale WebSocket connections. Default: `86400`. |
 
@@ -70,6 +72,8 @@ APP_S3_ALLOWED_IMAGE_MIME_TYPES=image/jpeg,image/png,image/webp
 COGNITO_USER_POOL_ID=us-east-2_example
 COGNITO_CLIENT_ID=example-client-id
 COGNITO_TOKEN_USE=id
+DEMO_OWNER_EMAILS=owner@example.com
+DEMO_OWNER_SUBS=
 
 WEBSOCKET_CONNECTIONS_TABLE_NAME=mejengueros-dev-ws-connections
 WEBSOCKET_CONNECTION_TTL_SECONDS=86400
@@ -123,6 +127,7 @@ Protected routes:
 ```powershell
 curl http://localhost:3000/v1/auth/me -H "Authorization: Bearer <id_token>"
 curl http://localhost:3000/v1/users/me -H "Authorization: Bearer <id_token>"
+curl -X POST http://localhost:3000/v1/complexes -H "Authorization: Bearer <id_token>" -H "Content-Type: application/json" -d '{"complex":{"name":"North Sports Center","address":"123 Main Street"},"firstCourt":{"name":"Court A"}}'
 ```
 
 The `<id_token>` must come from Cognito Hosted UI. Do not send raw Google or Microsoft tokens directly to this API.
@@ -136,6 +141,9 @@ The `<id_token>` must come from Cognito Hosted UI. Do not send raw Google or Mic
 | `POST` | `/v1/files/uploads` | Yes | Creates a presigned S3 POST form for profile images. |
 | `POST` | `/v1/files/uploads/confirm` | Yes | Confirms a direct S3 image upload and validates ownership, metadata, and byte signature. |
 | `GET` | `/v1/users/me` | Yes | Syncs and returns the local profile for the authenticated user. Loaded once PostgreSQL is enabled. |
+| `POST` | `/v1/complexes` | Yes | Creates a complex and its first court for authenticated users whose OWNER access is reconciled inside the request itself. |
+
+> Limitation: the current `UserRole` schema does not store a role source. Demo OWNER reconciliation therefore treats existing local `OWNER` rows as demo-managed when the authenticated identity no longer matches the allowlist. That keeps the flow revocable for issue #48, but out-of-band/manual OWNER assignments need source metadata before they can be protected independently.
 
 ## WebSocket Lambdas
 
