@@ -6,10 +6,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -31,6 +37,8 @@ fun AuthenticatedScaffold(
     overlayContent: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
+  var showSignOutConfirmation by rememberSaveable { mutableStateOf(false) }
+
   Box(modifier = modifier.fillMaxSize()) {
     MejenguerosMobileScaffold(
         modifier =
@@ -41,17 +49,24 @@ fun AuthenticatedScaffold(
               title = "Mejengueros",
               navigationIcon = {
                 onNavigateBack?.let { navigateBack ->
-                  TextButton(onClick = navigateBack) {
+                  IconButton(onClick = navigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        contentDescription = "Volver",
+                        modifier = Modifier.size(20.dp),
                     )
-                    Text("Back")
                   }
                 }
               },
-              actions = { TextButton(onClick = onSignOut) { Text("Sign out") } },
+              actions = {
+                IconButton(onClick = { showSignOutConfirmation = true }) {
+                  Icon(
+                      imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                      contentDescription = "Cerrar sesión",
+                      modifier = Modifier.size(20.dp),
+                  )
+                }
+              },
           )
         },
         bottomBar = {
@@ -81,6 +96,29 @@ fun AuthenticatedScaffold(
 
     if (overlayVisible) {
       overlayContent()
+    }
+
+    if (showSignOutConfirmation) {
+      AlertDialog(
+          onDismissRequest = { showSignOutConfirmation = false },
+          title = { Text("¿Cerrar sesión?") },
+          text = { Text("Tendrás que iniciar sesión de nuevo para continuar.") },
+          confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = {
+                  showSignOutConfirmation = false
+                  onSignOut()
+                }
+            ) {
+              Text("Cerrar sesión")
+            }
+          },
+          dismissButton = {
+            androidx.compose.material3.TextButton(onClick = { showSignOutConfirmation = false }) {
+              Text("Cancelar")
+            }
+          },
+      )
     }
   }
 }

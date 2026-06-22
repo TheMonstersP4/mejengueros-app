@@ -2,8 +2,10 @@ package io.github.themonstersp4.mejengueros.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -20,6 +22,7 @@ fun MejenguerosPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
   Button(
       onClick = onClick,
@@ -33,6 +36,7 @@ fun MejenguerosPrimaryButton(
               contentColor = MaterialTheme.colorScheme.onPrimary,
           ),
   ) {
+    ButtonLeadingContent(leadingContent = leadingContent)
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
@@ -46,12 +50,14 @@ fun MejenguerosFullWidthPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
   MejenguerosPrimaryButton(
       text = text,
       onClick = onClick,
       enabled = enabled,
       modifier = modifier.fillMaxWidth(),
+      leadingContent = leadingContent,
   )
 }
 
@@ -61,6 +67,7 @@ fun MejenguerosOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
   OutlinedButton(
       onClick = onClick,
@@ -74,6 +81,7 @@ fun MejenguerosOutlinedButton(
               contentColor = MaterialTheme.colorScheme.primary,
           ),
   ) {
+    ButtonLeadingContent(leadingContent = leadingContent)
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
@@ -87,11 +95,25 @@ fun MejenguerosFullWidthOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
   MejenguerosOutlinedButton(
       text = text,
       onClick = onClick,
       enabled = enabled,
       modifier = modifier.fillMaxWidth(),
+      leadingContent = leadingContent,
   )
 }
+
+@Composable
+private fun ButtonLeadingContent(leadingContent: (@Composable () -> Unit)?) {
+  if (leadingContent == null) {
+    return
+  }
+
+  leadingContent()
+  Spacer(modifier = Modifier.width(ButtonLeadingContentSpacing))
+}
+
+private val ButtonLeadingContentSpacing = 12.dp
