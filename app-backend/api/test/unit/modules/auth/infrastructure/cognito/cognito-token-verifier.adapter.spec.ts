@@ -54,6 +54,7 @@ describe('CognitoTokenVerifierAdapter', () => {
     mockVerify.mockResolvedValue({
       sub: 42,
       email: 'user@example.test',
+      email_verified: true,
       name: 'User Name',
       picture: 'https://example.test/avatar.png',
       identities: [{ providerName: 'Google' }],
@@ -64,6 +65,7 @@ describe('CognitoTokenVerifierAdapter', () => {
     await expect(adapter.verify('token')).resolves.toEqual({
       sub: '42',
       email: 'user@example.test',
+      emailVerified: true,
       name: 'User Name',
       pictureUrl: 'https://example.test/avatar.png',
       provider: 'Google',
@@ -75,6 +77,7 @@ describe('CognitoTokenVerifierAdapter', () => {
     mockVerify.mockResolvedValue({
       sub: 'user',
       email: false,
+      email_verified: 'maybe',
       name: 123,
       picture: null,
       identities: [{ providerName: false }],
@@ -85,6 +88,7 @@ describe('CognitoTokenVerifierAdapter', () => {
     await expect(adapter.verify('token')).resolves.toEqual({
       sub: 'user',
       email: undefined,
+      emailVerified: undefined,
       name: undefined,
       pictureUrl: undefined,
       provider: undefined,
@@ -98,7 +102,23 @@ describe('CognitoTokenVerifierAdapter', () => {
 
     await expect(adapter.verify('token')).resolves.toEqual(
       expect.objectContaining({
+        emailVerified: undefined,
         provider: undefined
+      })
+    );
+  });
+
+  it('maps string email_verified claims safely', async () => {
+    mockVerify.mockResolvedValue({
+      sub: 'user',
+      email_verified: 'false'
+    });
+    const { adapter } = createAdapter();
+
+    await expect(adapter.verify('token')).resolves.toEqual(
+      expect.objectContaining({
+        sub: 'user',
+        emailVerified: false
       })
     );
   });

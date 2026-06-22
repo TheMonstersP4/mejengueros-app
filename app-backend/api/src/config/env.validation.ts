@@ -32,6 +32,8 @@ const envSchema = z.object({
   COGNITO_USER_POOL_ID: z.string().min(1),
   COGNITO_CLIENT_ID: z.string().min(1),
   COGNITO_TOKEN_USE: z.enum(['access', 'id']).default('id'),
+  DEMO_OWNER_EMAILS: z.string().default(''),
+  DEMO_OWNER_SUBS: z.string().default(''),
   APP_S3_BUCKET_NAME: z.string().min(1),
   APP_S3_REGION: z.string().min(1).optional(),
   APP_S3_KEY_PREFIX: z.string().min(1).default('uploads'),
