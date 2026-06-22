@@ -6,6 +6,9 @@ on:
       - .github/workflows/frontend-ci.yml
       - app-frontend/**
   pull_request:
+    paths:
+      - .github/workflows/frontend-ci.yml
+      - app-frontend/**
 
 permissions:
   contents: read

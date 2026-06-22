@@ -8,6 +8,9 @@ on:
       - .github/workflows/backend-ci.yml
       - app-backend/api/**
   pull_request:
+    paths:
+      - .github/workflows/backend-ci.yml
+      - app-backend/api/**
 
 permissions:
   contents: read
@@ -16,6 +19,7 @@ jobs:
   backend-quality-gate:
     name: Backend API quality gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: app-backend/api
@@ -38,7 +42,7 @@ jobs:
         run: npm run lint
 
       - name: Unit tests
-        run: npm test -- --runInBand
+        run: npm test -- --runInBand --forceExit
 
       - name: Build
         run: npm run build
