@@ -32,4 +32,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Verify
-        run: ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
+        run: ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
