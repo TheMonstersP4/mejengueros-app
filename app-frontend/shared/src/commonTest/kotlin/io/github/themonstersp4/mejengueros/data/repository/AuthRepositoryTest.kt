@@ -1,8 +1,10 @@
 package io.github.themonstersp4.mejengueros.data.repository
 
+import io.github.themonstersp4.mejengueros.data.auth.AuthSecureStorageWriteException
 import io.github.themonstersp4.mejengueros.data.auth.Base64Url
 import io.github.themonstersp4.mejengueros.data.auth.CognitoAuthConfig
 import io.github.themonstersp4.mejengueros.data.auth.CognitoOAuthRequestFactory
+import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.IRandomStringGenerator
 import io.github.themonstersp4.mejengueros.data.auth.InMemoryAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.JwtIdTokenDecoder
@@ -38,6 +40,24 @@ class AuthRepositoryTest {
   }
 
   @Test
+  fun createSignInRequestPropagatesOAuthStatePersistenceFailure() = runTest {
+    val secureStorage =
+        FailingSaveAuthSecureStorage(
+            oauthStateFailure =
+                AuthSecureStorageWriteException("Failed to securely persist OAuth state.")
+        )
+    val repository = createRepository(secureStorage = secureStorage)
+
+    val error =
+        assertFailsWith<AuthSecureStorageWriteException> {
+          repository.createSignInRequest(AuthProvider.Google)
+        }
+
+    assertEquals("Failed to securely persist OAuth state.", error.message)
+    assertNull(secureStorage.getOAuthState())
+  }
+
+  @Test
   fun handleCallbackExchangesCodeAndSavesAuthenticatedSession() = runTest {
     val secureStorage = InMemoryAuthSecureStorage()
     secureStorage.saveOAuthState(
@@ -59,6 +79,32 @@ class AuthRepositoryTest {
     assertEquals("Google", session.provider)
     assertEquals(session, secureStorage.getSession())
     assertNull(secureStorage.getOAuthState())
+  }
+
+  @Test
+  fun handleCallbackPropagatesSessionPersistenceFailureWithoutClearingPendingState() = runTest {
+    val secureStorage =
+        FailingSaveAuthSecureStorage(
+            initialOAuthState =
+                PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier),
+            sessionFailure =
+                AuthSecureStorageWriteException("Failed to securely persist auth session."),
+        )
+    val remoteDataSource = FakeAuthRemoteDataSource()
+    val repository =
+        createRepository(secureStorage = secureStorage, remoteDataSource = remoteDataSource)
+
+    val error =
+        assertFailsWith<AuthSecureStorageWriteException> {
+          repository.handleCallback(
+              "com.themonsters.mejengueros://auth/callback?code=auth-code&state=state-value"
+          )
+        }
+
+    assertEquals("Failed to securely persist auth session.", error.message)
+    assertEquals(CodeVerifier, remoteDataSource.receivedCodeVerifier)
+    assertEquals("state-value", secureStorage.getOAuthState()?.state)
+    assertNull(secureStorage.getSession())
   }
 
   @Test
@@ -163,7 +209,7 @@ class AuthRepositoryTest {
   }
 
   private fun createRepository(
-      secureStorage: InMemoryAuthSecureStorage = InMemoryAuthSecureStorage(),
+      secureStorage: IAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
   ): AuthRepository =
       AuthRepository(
@@ -199,6 +245,38 @@ class AuthRepositoryTest {
 
   private class FakeRandomStringGenerator : IRandomStringGenerator {
     override fun generate(length: Int): String = if (length == 32) "state-value" else CodeVerifier
+  }
+
+  private class FailingSaveAuthSecureStorage(
+      initialSession: AuthSession? = null,
+      initialOAuthState: PendingOAuthState? = null,
+      private val sessionFailure: Throwable? = null,
+      private val oauthStateFailure: Throwable? = null,
+  ) : IAuthSecureStorage {
+    private var session: AuthSession? = initialSession
+    private var oauthState: PendingOAuthState? = initialOAuthState
+
+    override suspend fun getSession(): AuthSession? = session
+
+    override suspend fun saveSession(session: AuthSession) {
+      sessionFailure?.let { throw it }
+      this.session = session
+    }
+
+    override suspend fun clearSession() {
+      session = null
+    }
+
+    override suspend fun getOAuthState(): PendingOAuthState? = oauthState
+
+    override suspend fun saveOAuthState(state: PendingOAuthState) {
+      oauthStateFailure?.let { throw it }
+      oauthState = state
+    }
+
+    override suspend fun clearOAuthState() {
+      oauthState = null
+    }
   }
 
   private companion object {

@@ -1,6 +1,5 @@
 package io.github.themonstersp4.mejengueros.ui.components
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
@@ -9,17 +8,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-
-private val ProviderIconStrokeWidth = 2.dp
-private const val GoogleProviderArcStartAngle = 42f
-private const val GoogleProviderArcSweepAngle = 276f
-private const val GoogleProviderLineStartFraction = 0.55f
-private const val MicrosoftProviderGapFraction = 0.12f
+import com.woowla.compose.icon.collections.fontawesome.FontAwesome
+import com.woowla.compose.icon.collections.fontawesome.fontawesome.Brands
+import com.woowla.compose.icon.collections.fontawesome.fontawesome.brands.Google
+import com.woowla.compose.icon.collections.fontawesome.fontawesome.brands.Microsoft
 
 private val VisibilityImageVector: ImageVector =
     ImageVector.Builder(
@@ -98,59 +93,19 @@ fun VisibilityIcon(
 
 @Composable
 fun GoogleProviderIcon(modifier: Modifier = Modifier, tint: Color = LocalContentColor.current) {
-  val strokeWidth = with(LocalDensity.current) { ProviderIconStrokeWidth.toPx() }
-
-  Canvas(modifier = modifier) {
-    val inset = strokeWidth
-    val diameter = size.minDimension - (inset * 2)
-    drawArc(
-        color = tint,
-        startAngle = GoogleProviderArcStartAngle,
-        sweepAngle = GoogleProviderArcSweepAngle,
-        useCenter = false,
-        topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
-        size = androidx.compose.ui.geometry.Size(diameter, diameter),
-        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-    )
-    val centerY = size.height / 2f
-    drawLine(
-        color = tint,
-        start =
-            androidx.compose.ui.geometry.Offset(
-                size.width * GoogleProviderLineStartFraction,
-                centerY,
-            ),
-        end = androidx.compose.ui.geometry.Offset(size.width - inset, centerY),
-        strokeWidth = strokeWidth,
-        cap = StrokeCap.Round,
-    )
-  }
+  ProviderIcon(imageVector = FontAwesome.Brands.Google, modifier = modifier, tint = tint)
 }
 
 @Composable
 fun MicrosoftProviderIcon(modifier: Modifier = Modifier, tint: Color = LocalContentColor.current) {
-  Canvas(modifier = modifier) {
-    val gap = size.minDimension * MicrosoftProviderGapFraction
-    val cell = (size.minDimension - gap) / 2f
-    drawRect(
-        color = tint,
-        topLeft = androidx.compose.ui.geometry.Offset.Zero,
-        size = androidx.compose.ui.geometry.Size(cell, cell),
-    )
-    drawRect(
-        color = tint,
-        topLeft = androidx.compose.ui.geometry.Offset(cell + gap, 0f),
-        size = androidx.compose.ui.geometry.Size(cell, cell),
-    )
-    drawRect(
-        color = tint,
-        topLeft = androidx.compose.ui.geometry.Offset(0f, cell + gap),
-        size = androidx.compose.ui.geometry.Size(cell, cell),
-    )
-    drawRect(
-        color = tint,
-        topLeft = androidx.compose.ui.geometry.Offset(cell + gap, cell + gap),
-        size = androidx.compose.ui.geometry.Size(cell, cell),
-    )
-  }
+  ProviderIcon(imageVector = FontAwesome.Brands.Microsoft, modifier = modifier, tint = tint)
+}
+
+@Composable
+private fun ProviderIcon(
+    imageVector: ImageVector,
+    modifier: Modifier = Modifier,
+    tint: Color = LocalContentColor.current,
+) {
+  Icon(imageVector = imageVector, contentDescription = null, modifier = modifier, tint = tint)
 }
