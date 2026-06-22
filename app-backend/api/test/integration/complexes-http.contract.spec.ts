@@ -27,12 +27,6 @@ describe('POST /complexes HTTP contract', () => {
     $transaction: jest.Mock;
     onModuleInit: jest.Mock;
     onModuleDestroy: jest.Mock;
-    user: {
-      upsert: jest.Mock;
-    };
-    userRole: {
-      deleteMany: jest.Mock;
-    };
   };
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
 
@@ -54,18 +48,13 @@ describe('POST /complexes HTTP contract', () => {
     prismaService = {
       $transaction: jest.fn(),
       onModuleInit: jest.fn(),
-      onModuleDestroy: jest.fn(),
-      user: {
-        upsert: jest.fn()
-      },
-      userRole: {
-        deleteMany: jest.fn()
-      }
+      onModuleDestroy: jest.fn()
     };
     tokenVerifier = {
       verify: jest.fn().mockResolvedValue({
         sub: 'owner-sub',
         email: 'owner@example.test',
+        emailVerified: true,
         name: 'Owner User',
         pictureUrl: 'https://example.test/owner.png',
         provider: 'Google',
@@ -95,6 +84,16 @@ describe('POST /complexes HTTP contract', () => {
     jest.clearAllMocks();
     delete process.env.DEMO_OWNER_EMAILS;
     delete process.env.DEMO_OWNER_SUBS;
+
+    tokenVerifier.verify.mockResolvedValue({
+      sub: 'owner-sub',
+      email: 'owner@example.test',
+      emailVerified: true,
+      name: 'Owner User',
+      pictureUrl: 'https://example.test/owner.png',
+      provider: 'Google',
+      groups: ['players']
+    });
   });
 
   afterAll(async () => {
@@ -110,14 +109,14 @@ describe('POST /complexes HTTP contract', () => {
     }
   });
 
-  it('returns 201 with the standard success envelope when the owner creates a complex', async () => {
-    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
+  function mockSuccessfulTransaction(): void {
     prismaService.$transaction.mockImplementation(async (callback) =>
       callback({
         user: {
           upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
         },
         userRole: {
+          findUnique: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
           upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
           deleteMany: jest.fn().mockResolvedValue({ count: 0 })
         },
@@ -143,6 +142,31 @@ describe('POST /complexes HTTP contract', () => {
         }
       })
     );
+  }
+
+  function mockForbiddenTransaction(): void {
+    prismaService.$transaction.mockImplementation(async (callback) =>
+      callback({
+        user: {
+          upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+        },
+        userRole: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          upsert: jest.fn(),
+          deleteMany: jest.fn()
+        },
+        complex: {
+          create: jest.fn()
+        },
+        court: {
+          create: jest.fn()
+        }
+      })
+    );
+  }
+
+  it('returns 201 with the standard success envelope when the owner already has a persisted OWNER role', async () => {
+    mockSuccessfulTransaction();
 
     const response = await app.inject({
       method: 'POST',
@@ -262,8 +286,7 @@ describe('POST /complexes HTTP contract', () => {
   });
 
   it('returns 403 when the authenticated user is not an OWNER', async () => {
-    prismaService.user.upsert.mockResolvedValue({ id: 'owner-id' });
-    prismaService.userRole.deleteMany.mockResolvedValue({ count: 1 });
+    mockForbiddenTransaction();
 
     const response = await app.inject({
       method: 'POST',
@@ -283,13 +306,6 @@ describe('POST /complexes HTTP contract', () => {
     });
 
     expect(response.statusCode).toBe(403);
-    expect(prismaService.userRole.deleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: 'owner-id',
-        role: 'OWNER'
-      }
-    });
-    expect(prismaService.$transaction).not.toHaveBeenCalled();
     expect(response.json()).toEqual({
       success: false,
       data: null,
@@ -309,40 +325,9 @@ describe('POST /complexes HTTP contract', () => {
     });
   });
 
-  it('returns 201 for an allowlisted demo owner without requiring a prior users me sync', async () => {
-    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
-
-    prismaService.$transaction.mockImplementation(async (callback) =>
-      callback({
-        user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
-        },
-        userRole: {
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-          deleteMany: jest.fn().mockResolvedValue({ count: 0 })
-        },
-        complex: {
-          create: jest.fn().mockResolvedValue({
-            id: 'complex-id',
-            name: 'North Sports Center',
-            address: '123 Main Street',
-            status: 'ACTIVE',
-            createdAt: new Date('2026-06-20T00:00:00.000Z'),
-            updatedAt: new Date('2026-06-20T00:00:00.000Z')
-          })
-        },
-        court: {
-          create: jest.fn().mockResolvedValue({
-            id: 'court-id',
-            complexId: 'complex-id',
-            name: 'Court A',
-            status: 'ACTIVE',
-            createdAt: new Date('2026-06-20T00:00:00.000Z'),
-            updatedAt: new Date('2026-06-20T00:00:00.000Z')
-          })
-        }
-      })
-    );
+  it('returns 201 for an allowlisted demo owner matched by Cognito sub', async () => {
+    process.env.DEMO_OWNER_SUBS = 'owner-sub';
+    mockSuccessfulTransaction();
 
     const response = await app.inject({
       method: 'POST',
@@ -362,6 +347,94 @@ describe('POST /complexes HTTP contract', () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(tokenVerifier.verify).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 201 for an allowlisted demo owner matched by verified email', async () => {
+    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
+    mockSuccessfulTransaction();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        complex: {
+          name: 'North Sports Center',
+          address: '123 Main Street'
+        },
+        firstCourt: {
+          name: 'Court A'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+  });
+
+  it('returns 403 when the demo email allowlist matches but email is not verified', async () => {
+    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
+    tokenVerifier.verify.mockResolvedValue({
+      sub: 'owner-sub',
+      email: 'owner@example.test',
+      emailVerified: false,
+      name: 'Owner User',
+      pictureUrl: 'https://example.test/owner.png',
+      provider: 'Google',
+      groups: ['players']
+    });
+    mockForbiddenTransaction();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        complex: {
+          name: 'North Sports Center',
+          address: '123 Main Street'
+        },
+        firstCourt: {
+          name: 'Court A'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('returns 403 when the demo email allowlist matches but email verification is missing', async () => {
+    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
+    tokenVerifier.verify.mockResolvedValue({
+      sub: 'owner-sub',
+      email: 'owner@example.test',
+      name: 'Owner User',
+      pictureUrl: 'https://example.test/owner.png',
+      provider: 'Google',
+      groups: ['players']
+    });
+    mockForbiddenTransaction();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        complex: {
+          name: 'North Sports Center',
+          address: '123 Main Street'
+        },
+        firstCourt: {
+          name: 'Court A'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
   });
 });

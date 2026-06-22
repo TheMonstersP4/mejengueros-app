@@ -13,6 +13,11 @@ export interface IAuthenticatedUserOutput {
   email?: string;
 
   /**
+   * Whether Cognito marked the email claim as verified.
+   */
+  emailVerified?: boolean;
+
+  /**
    * Display name claim when available.
    */
   name?: string;

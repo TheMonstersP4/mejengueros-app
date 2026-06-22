@@ -24,6 +24,15 @@ interface IUserIdentityPersistenceClient<TResult extends { id: string }> {
 
 interface IUserRoleProvisioningClient {
   userRole: {
+    findUnique(args: {
+      where: {
+        userId_role: {
+          userId: string;
+          role: 'OWNER';
+        };
+      };
+      select: { id: true };
+    }): Promise<{ id: string } | null>;
     upsert(args: {
       where: {
         userId_role: {
@@ -36,12 +45,6 @@ interface IUserRoleProvisioningClient {
         role: 'OWNER';
       };
       update: Record<string, never>;
-    }): Promise<unknown>;
-    deleteMany(args: {
-      where: {
-        userId: string;
-        role: 'OWNER';
-      };
     }): Promise<unknown>;
   };
 }
@@ -76,8 +79,10 @@ export function shouldProvisionDemoOwnerRole(identity: IExternalUserIdentity): b
   const normalizedEmail = identity.email?.trim().toLowerCase();
 
   return (
-    (normalizedEmail !== undefined && config.emails.has(normalizedEmail)) ||
-    config.cognitoSubs.has(identity.cognitoSub)
+    config.cognitoSubs.has(identity.cognitoSub) ||
+    (identity.emailVerified === true &&
+      normalizedEmail !== undefined &&
+      config.emails.has(normalizedEmail))
   );
 }
 
@@ -105,35 +110,45 @@ export async function upsertAuthenticatedUserIdentity<TResult extends { id: stri
   });
 }
 
-export async function reconcileDemoOwnerRole(
+export async function grantDemoOwnerRoleIfEligible(
   client: IUserRoleProvisioningClient,
   userId: string,
   identity: IExternalUserIdentity
 ): Promise<boolean> {
-  if (shouldProvisionDemoOwnerRole(identity)) {
-    await client.userRole.upsert({
-      where: {
-        userId_role: {
-          userId,
-          role: 'OWNER'
-        }
-      },
-      create: {
-        userId,
-        role: 'OWNER'
-      },
-      update: {}
-    });
-
-    return true;
+  if (!shouldProvisionDemoOwnerRole(identity)) {
+    return false;
   }
 
-  await client.userRole.deleteMany({
+  await client.userRole.upsert({
     where: {
+      userId_role: {
+        userId,
+        role: 'OWNER'
+      }
+    },
+    create: {
       userId,
       role: 'OWNER'
-    }
+    },
+    update: {}
   });
 
-  return false;
+  return true;
+}
+
+export async function hasPersistedOwnerRole(
+  client: IUserRoleProvisioningClient,
+  userId: string
+): Promise<boolean> {
+  const ownerRole = await client.userRole.findUnique({
+    where: {
+      userId_role: {
+        userId,
+        role: 'OWNER'
+      }
+    },
+    select: { id: true }
+  });
+
+  return ownerRole !== null;
 }

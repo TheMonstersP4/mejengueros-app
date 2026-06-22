@@ -4,6 +4,7 @@
 export interface IComplexOwnerIdentity {
   sub: string;
   email?: string;
+  emailVerified?: boolean;
   name?: string;
   pictureUrl?: string;
   provider?: string;

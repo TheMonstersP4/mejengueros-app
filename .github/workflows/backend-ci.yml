@@ -8,9 +8,6 @@ on:
       - .github/workflows/backend-ci.yml
       - app-backend/api/**
   pull_request:
-    paths:
-      - .github/workflows/backend-ci.yml
-      - app-backend/api/**
 
 permissions:
   contents: read

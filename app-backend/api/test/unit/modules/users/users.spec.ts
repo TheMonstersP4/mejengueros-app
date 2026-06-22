@@ -53,6 +53,7 @@ describe('users module behavior', () => {
       useCase.execute({
         sub: 'cognito-sub',
         email: 'user@example.test',
+        emailVerified: true,
         name: 'User Name',
         pictureUrl: 'https://example.test/avatar.png',
         provider: 'Google',
@@ -62,6 +63,7 @@ describe('users module behavior', () => {
     expect(repository.syncAuthenticatedUser).toHaveBeenCalledWith({
       cognitoSub: 'cognito-sub',
       email: 'user@example.test',
+      emailVerified: true,
       name: 'User Name',
       pictureUrl: 'https://example.test/avatar.png',
       provider: 'Google'
@@ -80,8 +82,8 @@ describe('users module behavior', () => {
         findMany: jest.fn()
       },
       userRole: {
-        upsert: jest.fn(),
-        deleteMany: jest.fn().mockResolvedValue({ count: 0 })
+        findUnique: jest.fn(),
+        upsert: jest.fn()
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -109,18 +111,13 @@ describe('users module behavior', () => {
         provider: undefined
       }
     });
+    expect(prisma.userRole.findUnique).not.toHaveBeenCalled();
     expect(prisma.userRole.upsert).not.toHaveBeenCalled();
-    expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: 'user-id',
-        role: 'OWNER'
-      }
-    });
     process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
     process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
   });
 
-  it('provisions the OWNER role during sync when the demo email allowlist matches', async () => {
+  it('provisions the OWNER role during sync when the demo email allowlist matches and email is verified', async () => {
     const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
     const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
     process.env.DEMO_OWNER_EMAILS = 'owner@example.test,another@example.test';
@@ -132,6 +129,7 @@ describe('users module behavior', () => {
         findMany: jest.fn()
       },
       userRole: {
+        findUnique: jest.fn(),
         upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
         deleteMany: jest.fn()
       }
@@ -141,6 +139,7 @@ describe('users module behavior', () => {
     await repository.syncAuthenticatedUser({
       cognitoSub: 'cognito-sub',
       email: 'OWNER@example.test',
+      emailVerified: true,
       name: 'User Name'
     });
 
@@ -162,10 +161,10 @@ describe('users module behavior', () => {
     process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
   });
 
-  it('revokes the demo OWNER role during sync when the allowlist no longer matches', async () => {
+  it('does not provision OWNER by email when the email is not verified', async () => {
     const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
     const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
-    delete process.env.DEMO_OWNER_EMAILS;
+    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
     delete process.env.DEMO_OWNER_SUBS;
     const prisma = {
       user: {
@@ -174,8 +173,40 @@ describe('users module behavior', () => {
         findMany: jest.fn()
       },
       userRole: {
+        findUnique: jest.fn(),
         upsert: jest.fn(),
-        deleteMany: jest.fn().mockResolvedValue({ count: 1 })
+        deleteMany: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await repository.syncAuthenticatedUser({
+      cognitoSub: 'cognito-sub',
+      email: 'owner@example.test',
+      emailVerified: false,
+      name: 'User Name'
+    });
+
+    expect(prisma.userRole.upsert).not.toHaveBeenCalled();
+    process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
+    process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
+  it('does not provision OWNER by email when the email verification claim is missing', async () => {
+    const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
+    const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
+    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
+    delete process.env.DEMO_OWNER_SUBS;
+    const prisma = {
+      user: {
+        upsert: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn(),
+        findMany: jest.fn()
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+        deleteMany: jest.fn()
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -187,12 +218,36 @@ describe('users module behavior', () => {
     });
 
     expect(prisma.userRole.upsert).not.toHaveBeenCalled();
-    expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: 'user-id',
-        role: 'OWNER'
+    process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
+    process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
+  it('provisions the OWNER role during sync when the demo sub allowlist matches', async () => {
+    const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
+    const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
+    delete process.env.DEMO_OWNER_EMAILS;
+    process.env.DEMO_OWNER_SUBS = 'cognito-sub,another-sub';
+    const prisma = {
+      user: {
+        upsert: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn(),
+        findMany: jest.fn()
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
+        deleteMany: jest.fn()
       }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await repository.syncAuthenticatedUser({
+      cognitoSub: 'cognito-sub',
+      email: 'owner@example.test',
+      name: 'User Name'
     });
+
+    expect(prisma.userRole.upsert).toHaveBeenCalledTimes(1);
     process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
     process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
   });

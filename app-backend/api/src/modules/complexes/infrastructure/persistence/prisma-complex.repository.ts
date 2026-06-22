@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  reconcileDemoOwnerRole,
-  shouldProvisionDemoOwnerRole,
+  grantDemoOwnerRoleIfEligible,
+  hasPersistedOwnerRole,
   upsertAuthenticatedUserIdentity
 } from '../../../users/infrastructure/provisioning/demo-owner-role-provisioning';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
@@ -28,27 +28,19 @@ export class PrismaComplexRepository implements IComplexRepository {
     const ownerIdentity = {
       cognitoSub: command.ownerIdentity.sub,
       email: command.ownerIdentity.email,
+      emailVerified: command.ownerIdentity.emailVerified,
       name: command.ownerIdentity.name,
       pictureUrl: command.ownerIdentity.pictureUrl,
       provider: command.ownerIdentity.provider
     };
-
-    if (!shouldProvisionDemoOwnerRole(ownerIdentity)) {
-      const owner = await upsertAuthenticatedUserIdentity(this.prisma, ownerIdentity, {
-        selectIdOnly: true
-      });
-
-      await reconcileDemoOwnerRole(this.prisma, owner.id, ownerIdentity);
-
-      throw new OwnerRoleRequiredError(command.ownerIdentity.sub);
-    }
 
     return this.prisma.$transaction(async (transaction) => {
       const owner = await upsertAuthenticatedUserIdentity(transaction, ownerIdentity, {
         selectIdOnly: true
       });
 
-      const ownerRole = await reconcileDemoOwnerRole(transaction, owner.id, ownerIdentity);
+      await grantDemoOwnerRoleIfEligible(transaction, owner.id, ownerIdentity);
+      const ownerRole = await hasPersistedOwnerRole(transaction, owner.id);
 
       if (!ownerRole) {
         throw new OwnerRoleRequiredError(command.ownerIdentity.sub);

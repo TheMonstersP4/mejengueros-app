@@ -34,6 +34,7 @@ export class CreateComplexWithFirstCourtUseCase {
       ownerIdentity: {
         sub: user.sub,
         email: user.email,
+        emailVerified: user.emailVerified,
         name: user.name,
         pictureUrl: user.pictureUrl,
         provider: user.provider

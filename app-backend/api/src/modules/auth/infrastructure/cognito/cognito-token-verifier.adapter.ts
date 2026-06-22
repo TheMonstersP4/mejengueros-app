@@ -43,6 +43,7 @@ export class CognitoTokenVerifierAdapter implements ITokenVerifierPort {
       return {
         sub: String(payload.sub),
         email: typeof payload.email === 'string' ? payload.email : undefined,
+        emailVerified: this.resolveEmailVerified(payload.email_verified),
         name: typeof payload.name === 'string' ? payload.name : undefined,
         pictureUrl: typeof payload.picture === 'string' ? payload.picture : undefined,
         provider: this.resolveProvider(payload.identities),
@@ -62,5 +63,23 @@ export class CognitoTokenVerifierAdapter implements ITokenVerifierPort {
     return typeof firstIdentity.providerName === 'string'
       ? firstIdentity.providerName
       : undefined;
+  }
+
+  private resolveEmailVerified(emailVerified: unknown): boolean | undefined {
+    if (typeof emailVerified === 'boolean') {
+      return emailVerified;
+    }
+
+    if (typeof emailVerified === 'string') {
+      if (emailVerified === 'true') {
+        return true;
+      }
+
+      if (emailVerified === 'false') {
+        return false;
+      }
+    }
+
+    return undefined;
   }
 }

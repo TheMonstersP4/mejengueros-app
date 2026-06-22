@@ -42,8 +42,8 @@ Variables validated when the API starts:
 | `COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID. |
 | `COGNITO_CLIENT_ID` | Yes | Cognito App Client ID. |
 | `COGNITO_TOKEN_USE` | No | Token type accepted by the API: `id` or `access`. Default: `id`. |
-| `DEMO_OWNER_EMAILS` | No | Comma-separated email allowlist that receives the local `OWNER` role during authenticated user reconciliation in demo/MVP environments, including `POST /v1/complexes` and `GET /v1/users/me`. |
-| `DEMO_OWNER_SUBS` | No | Comma-separated Cognito subject allowlist that receives the local `OWNER` role during the same authenticated reconciliation flow. |
+| `DEMO_OWNER_SUBS` | No | Preferred comma-separated Cognito subject allowlist that grants the local `OWNER` role during authenticated user reconciliation in demo/MVP environments, including `POST /v1/complexes` and `GET /v1/users/me`. |
+| `DEMO_OWNER_EMAILS` | No | Optional fallback comma-separated email allowlist that grants the local `OWNER` role only when Cognito also reports `email_verified=true`. |
 | `WEBSOCKET_CONNECTIONS_TABLE_NAME` | Yes | DynamoDB table for WebSocket connections. |
 | `WEBSOCKET_CONNECTION_TTL_SECONDS` | No | TTL for stale WebSocket connections. Default: `86400`. |
 
@@ -72,8 +72,8 @@ APP_S3_ALLOWED_IMAGE_MIME_TYPES=image/jpeg,image/png,image/webp
 COGNITO_USER_POOL_ID=us-east-2_example
 COGNITO_CLIENT_ID=example-client-id
 COGNITO_TOKEN_USE=id
-DEMO_OWNER_EMAILS=owner@example.com
-DEMO_OWNER_SUBS=
+DEMO_OWNER_SUBS=owner-sub-from-cognito
+DEMO_OWNER_EMAILS=
 
 WEBSOCKET_CONNECTIONS_TABLE_NAME=mejengueros-dev-ws-connections
 WEBSOCKET_CONNECTION_TTL_SECONDS=86400
@@ -143,7 +143,7 @@ The `<id_token>` must come from Cognito Hosted UI. Do not send raw Google or Mic
 | `GET` | `/v1/users/me` | Yes | Syncs and returns the local profile for the authenticated user. Loaded once PostgreSQL is enabled. |
 | `POST` | `/v1/complexes` | Yes | Creates a complex and its first court for authenticated users whose OWNER access is reconciled inside the request itself. |
 
-> Limitation: the current `UserRole` schema does not store a role source. Demo OWNER reconciliation therefore treats existing local `OWNER` rows as demo-managed when the authenticated identity no longer matches the allowlist. That keeps the flow revocable for issue #48, but out-of-band/manual OWNER assignments need source metadata before they can be protected independently.
+> Limitation: the current `UserRole` schema does not store a role source. Demo OWNER reconciliation is therefore grant-only: it can add `OWNER` for allowlisted identities, but it does not revoke existing `OWNER` rows. Source metadata is required before demo-managed roles can be safely revoked independently from manual or future admin-managed assignments.
 
 ## WebSocket Lambdas
 

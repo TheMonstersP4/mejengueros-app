@@ -19,6 +19,11 @@ export interface IExternalUserIdentity {
   email?: string;
 
   /**
+   * Whether the upstream provider verified the email claim.
+   */
+  emailVerified?: boolean;
+
+  /**
    * Display name claim when available.
    */
   name?: string;
