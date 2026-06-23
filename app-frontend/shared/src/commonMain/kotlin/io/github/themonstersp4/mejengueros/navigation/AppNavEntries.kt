@@ -12,7 +12,9 @@ import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
+import io.github.themonstersp4.mejengueros.screens.auth.ForgotPasswordScreen
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
+import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
 import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
@@ -46,7 +48,24 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
-  entry<VerifyAccountRoute> { VerifyAccountEntry(loginActions = loginActions) }
+  entry<VerifyAccountRoute> {
+    VerifyAccountEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<ForgotPasswordRoute> {
+    ForgotPasswordEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<ResetPasswordRoute> {
+    PasswordResetEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
   entry<HomeRoute> {
     HomeEntry(
         authViewModel = authViewModel,
@@ -84,7 +103,7 @@ private fun LoginEntry(
       onEmailSignIn = authViewModel::signInWithEmail,
       onGoogleSignIn = authViewModel::signInWithGoogle,
       onMicrosoftSignIn = authViewModel::signInWithMicrosoft,
-      onForgotPassword = authViewModel::requestPasswordReset,
+      onForgotPassword = loginActions.openForgotPassword,
       onRegister = loginActions.openRegister,
   )
 }
@@ -99,17 +118,79 @@ private fun RegisterEntry(
   RegisterScreen(
       state = state,
       onBackToLogin = loginActions.backToLogin,
-      onOpenVerification = loginActions.openVerification,
+      onRegister = { email, password ->
+        authViewModel.registerWithEmail(
+            email = email,
+            password = password,
+            onCodeSent = loginActions.openVerification,
+        )
+      },
   )
 }
 
 @Composable
 private fun VerifyAccountEntry(
+    authViewModel: AuthViewModel,
     loginActions: LoginNavigationActions,
 ) {
+  val state by authViewModel.uiState.collectAsState()
+
   VerifyAccountScreen(
+      state = state,
       onBackToRegister = loginActions.closeAuthStep,
       onBackToLogin = loginActions.backToLogin,
+      onConfirmRegistration = { code ->
+        authViewModel.confirmRegistration(
+            code = code,
+            onConfirmed = loginActions.backToLogin,
+        )
+      },
+      onResendRegistrationCode = authViewModel::resendRegistrationCode,
+  )
+}
+
+@Composable
+private fun ForgotPasswordEntry(
+    authViewModel: AuthViewModel,
+    loginActions: LoginNavigationActions,
+) {
+  val state by authViewModel.uiState.collectAsState()
+
+  LaunchedEffect(Unit) { authViewModel.clearFeedback() }
+
+  ForgotPasswordScreen(
+      state = state,
+      onBackToLogin = loginActions.backToLogin,
+      onSendCode = { email ->
+        authViewModel.requestPasswordReset(
+            email = email,
+            onCodeSent = loginActions.openPasswordReset,
+        )
+      },
+  )
+}
+
+@Composable
+private fun PasswordResetEntry(
+    authViewModel: AuthViewModel,
+    loginActions: LoginNavigationActions,
+) {
+  val state by authViewModel.uiState.collectAsState()
+  val backToLogin = {
+    authViewModel.clearFeedback()
+    loginActions.backToLogin()
+  }
+
+  PasswordResetScreen(
+      state = state,
+      onBackToLogin = backToLogin,
+      onConfirmPasswordReset = { code, newPassword ->
+        authViewModel.confirmPasswordReset(
+            code = code,
+            newPassword = newPassword,
+            onConfirmed = {},
+        )
+      },
   )
 }
 

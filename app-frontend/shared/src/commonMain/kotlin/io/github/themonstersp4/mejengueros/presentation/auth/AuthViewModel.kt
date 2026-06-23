@@ -38,36 +38,170 @@ class AuthViewModel(
     startSignIn(AuthProvider.Microsoft)
   }
 
+  fun clearFeedback() {
+    _uiState.value =
+        _uiState.value.copy(
+            errorMessage = null,
+            successMessage = null,
+            pendingProvider = null,
+        )
+  }
+
   fun signInWithEmail(email: String, password: String) {
-    val errorMessage =
-        if (email.isBlank() || password.isBlank()) "Ingresá tu correo y contraseña para continuar."
-        else
-            "El inicio con correo y contraseña está en preparación. Usá Google o Microsoft por ahora."
+    if (email.isBlank() || password.isBlank()) {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              pendingProvider = null,
+              errorMessage = "Ingresa tu correo y contraseña para continuar.",
+          )
+      return
+    }
 
-    _uiState.value =
-        _uiState.value.copy(
-            isLoading = false,
-            pendingProvider = null,
-            errorMessage = errorMessage,
-        )
+    runAuthAction {
+      val session = authRepository.signInWithEmail(email = email, password = password)
+      applyAuthenticatedSession(session)
+    }
   }
 
-  fun requestPasswordReset() {
-    _uiState.value =
-        _uiState.value.copy(
-            isLoading = false,
-            pendingProvider = null,
-            errorMessage = "La recuperación de contraseña aún no está conectada.",
-        )
+  fun registerWithEmail(
+      email: String,
+      password: String,
+      onCodeSent: () -> Unit,
+  ) {
+    if (email.isBlank() || password.isBlank()) {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              pendingProvider = null,
+              errorMessage = "Ingresa correo y contraseña para crear la cuenta.",
+          )
+      return
+    }
+
+    runAuthAction {
+      authRepository.registerWithEmail(email, password)
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              emailInput = email.trim(),
+              successMessage = "Revisa tu correo para confirmar la cuenta.",
+              errorMessage = null,
+          )
+      onCodeSent()
+    }
   }
 
-  fun openRegistration() {
-    _uiState.value =
-        _uiState.value.copy(
-            isLoading = false,
-            pendingProvider = null,
-            errorMessage = "El registro manual aún no está conectado.",
-        )
+  fun confirmRegistration(
+      code: String,
+      onConfirmed: () -> Unit,
+  ) {
+    val email = _uiState.value.emailInput
+    if (email.isBlank() || code.isBlank()) {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              pendingProvider = null,
+              errorMessage = "Ingresa el código enviado a tu correo.",
+          )
+      return
+    }
+
+    runAuthAction {
+      authRepository.confirmRegistration(email = email, code = code)
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              codeInput = "",
+              successMessage = "Cuenta confirmada. Ya puedes iniciar sesión.",
+              errorMessage = null,
+          )
+      onConfirmed()
+    }
+  }
+
+  fun resendRegistrationCode() {
+    val email = _uiState.value.emailInput
+    if (email.isBlank()) {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              pendingProvider = null,
+              errorMessage = "Ingresa tu correo para reenviar el código.",
+          )
+      return
+    }
+
+    runAuthAction {
+      authRepository.resendRegistrationCode(email)
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              successMessage = "Enviamos un nuevo código de verificación.",
+              errorMessage = null,
+          )
+    }
+  }
+
+  fun requestPasswordReset(
+      email: String,
+      onCodeSent: () -> Unit,
+  ) {
+    if (email.isBlank()) {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              pendingProvider = null,
+              errorMessage = "Ingresa tu correo para recuperar el acceso.",
+          )
+      return
+    }
+
+    runAuthAction {
+      authRepository.requestPasswordReset(email)
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              emailInput = email.trim(),
+              successMessage = "Si la cuenta existe, enviamos un código de recuperación.",
+              errorMessage = null,
+          )
+      onCodeSent()
+    }
+  }
+
+  fun confirmPasswordReset(
+      code: String,
+      newPassword: String,
+      onConfirmed: () -> Unit,
+  ) {
+    val email = _uiState.value.emailInput
+    if (email.isBlank() || code.isBlank() || newPassword.isBlank()) {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              pendingProvider = null,
+              errorMessage = "Ingresa el código y la nueva contraseña.",
+          )
+      return
+    }
+
+    runAuthAction {
+      authRepository.confirmPasswordReset(
+          email = email,
+          code = code,
+          newPassword = newPassword,
+      )
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = false,
+              codeInput = "",
+              newPasswordInput = "",
+              successMessage = "Contraseña actualizada. Ya puedes iniciar sesión.",
+              errorMessage = null,
+          )
+      onConfirmed()
+    }
   }
 
   fun signOut() {
@@ -89,6 +223,7 @@ class AuthViewModel(
               isLoading = true,
               pendingProvider = provider,
               errorMessage = null,
+              successMessage = null,
           )
       runCatching {
             val request = authRepository.createSignInRequest(provider)
@@ -99,7 +234,29 @@ class AuthViewModel(
                 _uiState.value.copy(
                     isLoading = false,
                     pendingProvider = null,
-                    errorMessage = error.message ?: "Unable to start sign in.",
+                    errorMessage = resolveAuthErrorMessage(error, "No se pudo iniciar sesión."),
+                )
+          }
+    }
+  }
+
+  private fun runAuthAction(action: suspend () -> Unit) {
+    coroutineScope.launch {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoading = true,
+              pendingProvider = null,
+              errorMessage = null,
+              successMessage = null,
+          )
+      runCatching { action() }
+          .onFailure { error ->
+            _uiState.value =
+                _uiState.value.copy(
+                    isLoading = false,
+                    pendingProvider = null,
+                    errorMessage =
+                        resolveAuthErrorMessage(error, "No se pudo completar la solicitud."),
                 )
           }
     }
@@ -116,7 +273,11 @@ class AuthViewModel(
                   _uiState.value.copy(
                       isLoading = false,
                       pendingProvider = null,
-                      errorMessage = error.message ?: "Unable to finish sign in.",
+                      errorMessage =
+                          resolveAuthErrorMessage(
+                              error,
+                              "No se pudo finalizar el inicio de sesión.",
+                          ),
                   )
             }
             .also { markCallbackConsumed(callbackUrl) }
@@ -134,6 +295,21 @@ class AuthViewModel(
             isLoading = false,
             pendingProvider = null,
             errorMessage = null,
+            successMessage = null,
         )
+  }
+
+  private fun resolveAuthErrorMessage(error: Throwable, fallback: String): String {
+    val message = error.message.orEmpty()
+
+    return when {
+      message.contains("Failed to connect", ignoreCase = true) ||
+          message.contains("timeout", ignoreCase = true) ||
+          message.contains("timed out", ignoreCase = true) ||
+          message.contains("Unable to resolve host", ignoreCase = true) ->
+          "No pudimos conectar con el servicio. Revisá tu conexión e intentá de nuevo."
+      message.isBlank() -> fallback
+      else -> message
+    }
   }
 }

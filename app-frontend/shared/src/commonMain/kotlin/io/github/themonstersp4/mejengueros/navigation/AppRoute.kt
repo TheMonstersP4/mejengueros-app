@@ -11,6 +11,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object VerifyAccountRoute : AppRoute
 
+@Serializable data object ForgotPasswordRoute : AppRoute
+
+@Serializable data object ResetPasswordRoute : AppRoute
+
 @Serializable data object HomeRoute : AppRoute
 
 @Serializable data object KitRoute : AppRoute
