@@ -8,6 +8,7 @@ import type {
 import { UserMapper } from '../mappers/user.mapper';
 import {
   grantDemoOwnerRoleIfEligible,
+  type IUserPersistenceRecord,
   upsertAuthenticatedUserIdentity
 } from '../provisioning/demo-owner-role-provisioning';
 
@@ -34,7 +35,10 @@ export class PrismaUserRepository implements IUserRepository {
    * @returns Synchronized user entity.
    */
   async syncAuthenticatedUser(identity: IExternalUserIdentity): Promise<UserEntity> {
-    const user = await upsertAuthenticatedUserIdentity(this.prisma, identity);
+    const user = await upsertAuthenticatedUserIdentity<IUserPersistenceRecord>(
+      this.prisma,
+      identity
+    );
     await grantDemoOwnerRoleIfEligible(this.prisma, user.id, identity);
 
     return UserMapper.toDomain(user, {

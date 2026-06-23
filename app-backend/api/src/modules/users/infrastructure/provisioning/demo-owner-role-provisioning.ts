@@ -3,7 +3,7 @@ import { UserEmailAlreadyExistsError } from '../../domain/errors/user-email-alre
 
 const COGNITO_NATIVE_PROVIDER = 'Cognito';
 
-interface IUserPersistenceRecord {
+export interface IUserPersistenceRecord {
   id: string;
   email: string;
   name?: string | null;
