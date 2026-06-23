@@ -19,10 +19,22 @@ La fuente operativa de seguimiento es el GitHub Project del equipo:
 | `app-backend/` | Backend, infraestructura y despliegue. |
 | `app-frontend/` | Primera base de aplicación móvil/frontend del proyecto. |
 | `docs/design/` | Artefactos visuales y técnicos de diseño, como mockups y diagramas de base de datos. |
-| `docs/specs/` | Specs funcionales, roadmap y notas de planificación sincronizadas con issues y GitHub Projects. |
+| `openspec/` | Cambios formales SDD/OpenSpec cuando el equipo use ese flujo. |
 | `.github/` | Workflows y configuración de automatización del repositorio. |
 
-## Backend
+## Guías internas por subproyecto
+
+Antes de trabajar dentro de cada área, revisa su README interno:
+
+| Área | Cuándo leerlo | Referencia |
+|------|---------------|------------|
+| Backend | Si vas a tocar API, infraestructura, despliegue o el POC web. | [`app-backend/README.md`](app-backend/README.md) |
+| Frontend | Si vas a ejecutar la app KMP, revisar arquitectura o usar los comandos de desarrollo. | [`app-frontend/README.md`](app-frontend/README.md) |
+| Diseño | Si necesitas contexto funcional, mockups o diagramas de soporte. | [`docs/design/README.md`](docs/design/README.md) |
+
+## Cómo trabajar por área
+
+### Backend
 
 El backend vive en `app-backend/`.
 
@@ -30,7 +42,9 @@ El backend vive en `app-backend/`.
 - `app-backend/infra`: Terraform de AWS, Cognito, API Gateway, S3, ECR y Lambdas.
 - `.github`: workflows y scripts de despliegue ajustados para ejecutar el backend desde `app-backend`.
 
-## Aplicación móvil/frontend
+Para más detalles técnicos, revisa [`app-backend/README.md`](app-backend/README.md).
+
+### Aplicación móvil/frontend
 
 La primera plantilla de aplicación móvil vive en `app-frontend/`.
 
@@ -43,36 +57,34 @@ El objetivo de esta integración inicial es dejar disponible una base revisable 
 - conectar progresivamente los flujos reales de Mejengueros;
 - reemplazar ejemplos de plantilla por casos del dominio del proyecto.
 
-Para trabajar el frontend, ejecutá los comandos desde `app-frontend/`. La superficie recomendada es el `Taskfile.yml` de ese subproyecto (`task check`, `task test`, `task verify`, `task spotless:apply`, `task spotless:check`) y los comandos crudos de Gradle quedan como fallback cuando Task no esté disponible.
+Para trabajar el frontend, ejecuta los comandos desde `app-frontend/`. La superficie recomendada es el `Taskfile.yml` de ese subproyecto (`task check`, `task test`, `task verify`, `task spotless:apply`, `task spotless:check`) y los comandos crudos de Gradle quedan como fallback cuando Task no esté disponible.
 
-## Skills locales para agentes
+Para más detalles técnicos, revisa [`app-frontend/README.md`](app-frontend/README.md).
 
-Este repositorio tiene skills específicos por área que los agentes deben revisar antes de implementar, probar o revisar cambios. No basta con depender únicamente de `.atl/skill-registry.md`, porque el refresco del registry puede no mapear todavía los skills internos de cada subproyecto.
+### Diseño y documentación funcional
 
-Rutas importantes:
+Los artefactos visuales y técnicos de diseño viven en `docs/design/`. Esa carpeta concentra referencias como mockups, diagramas y decisiones visuales o estructurales que ayudan a entender el producto antes de tocar código.
 
-- `app-backend/skills/`: skills del backend, infraestructura, testing, seguridad, documentación y convenciones.
-- `app-frontend/.agents/skills/`: skills del frontend KMP/Compose, Navigation 3, Koin, Ktor, testing, theming y contratos de pantallas.
+La guía de entrada de esa carpeta está en [`docs/design/README.md`](docs/design/README.md).
 
-Regla operativa: antes de delegar o ejecutar trabajo en backend/frontend, revisar estas carpetas directamente y pasar a los subagentes los `SKILL.md` relevantes por ruta exacta.
+## Seguimiento del trabajo
 
-## Specs, backlog, OpenSpec y Engram
+El seguimiento operativo del proyecto se realiza en GitHub Projects e issues. Ahí deben vivir las tareas, prioridades, decisiones de alcance y vínculos entre trabajo pendiente y Pull Requests.
 
-La carpeta `docs/specs/` contiene documentación funcional y de planificación usada para mantener trazabilidad entre decisiones del curso, issues y GitHub Projects.
+La documentación versionada del repositorio debe complementar ese seguimiento, no reemplazarlo. En general:
 
-Estas specs sí deben versionarse en este repositorio porque explican el porqué del backlog y permiten revisar cambios funcionales junto con el código. Lo importante es no confundir responsabilidades: `docs/specs/` es documentación funcional del curso y del Project, no una instalación OpenSpec estándar.
+| Espacio | Responsabilidad |
+|---------|-----------------|
+| GitHub Projects e issues | Seguimiento operativo del trabajo, prioridades y estado de avance. |
+| `docs/design/` | Mockups, diagramas y artefactos de diseño. |
+| `openspec/` | Especificaciones formales de cambios cuando se use SDD/OpenSpec. |
+| Pull requests | Cambios implementables vinculados a un issue o decisión aceptada por el equipo. |
 
-Si el equipo activa un flujo SDD/OpenSpec formal, debe vivir en `openspec/` con su propia estructura de cambios, specs delta, diseño y tareas. Engram puede usarse como memoria persistente complementaria para conservar decisiones, contexto entre sesiones y aprendizajes que no necesariamente pertenecen al repo.
+## Lecturas recomendadas
 
-La convención recomendada es:
-
-| Herramienta | Responsabilidad |
-|-------------|-----------------|
-| GitHub Projects e issues | Seguimiento operativo del trabajo. |
-| `docs/specs/` | Contexto funcional, specs por issue, criterios, jerarquía, roadmap y decisiones de alcance del curso. |
-| `openspec/` | Especificaciones formales de cambios cuando se use SDD/OpenSpec real. |
-| Engram | Memoria persistente de decisiones, contexto entre sesiones y aprendizajes del equipo. |
-| Pull requests | Cambios implementables vinculados a un issue aprobado o aceptado por el equipo. |
+- `app-backend/README.md`: guía técnica del backend, API, infraestructura y despliegue.
+- `app-frontend/README.md`: guía técnica del frontend y comandos de trabajo.
+- `docs/design/README.md`: referencias visuales y técnicas de diseño.
 
 ## Convención editorial
 
