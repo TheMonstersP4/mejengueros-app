@@ -1,7 +1,7 @@
 package io.github.themonstersp4.mejengueros.data.remote
 
 interface ICognitoNativeAuthDataSource {
-  suspend fun signUp(email: String, password: String)
+  suspend fun signUp(fullName: String, email: String, password: String)
 
   suspend fun confirmSignUp(email: String, code: String)
 

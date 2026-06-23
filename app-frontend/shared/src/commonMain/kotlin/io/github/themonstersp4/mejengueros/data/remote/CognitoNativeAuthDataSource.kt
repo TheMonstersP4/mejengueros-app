@@ -21,7 +21,7 @@ class CognitoNativeAuthDataSource(
 ) : ICognitoNativeAuthDataSource {
   private val endpoint = "https://cognito-idp.${config.region}.amazonaws.com"
 
-  override suspend fun signUp(email: String, password: String) {
+  override suspend fun signUp(fullName: String, email: String, password: String) {
     validatePasswordPolicy(password)
     callWithoutBody(
         target = "AWSCognitoIdentityProviderService.SignUp",
@@ -30,7 +30,11 @@ class CognitoNativeAuthDataSource(
                 clientId = config.clientId,
                 username = email,
                 password = password,
-                userAttributes = listOf(CognitoUserAttribute(name = "email", value = email)),
+                userAttributes =
+                    listOf(
+                        CognitoUserAttribute(name = "email", value = email),
+                        CognitoUserAttribute(name = "name", value = fullName),
+                    ),
             ),
     )
   }

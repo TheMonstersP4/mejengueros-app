@@ -65,22 +65,23 @@ class AuthViewModel(
   }
 
   fun registerWithEmail(
+      fullName: String,
       email: String,
       password: String,
       onCodeSent: () -> Unit,
   ) {
-    if (email.isBlank() || password.isBlank()) {
+    if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
       _uiState.value =
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
-              errorMessage = "Ingresa correo y contraseña para crear la cuenta.",
+              errorMessage = "Ingresa nombre, correo y contraseña para crear la cuenta.",
           )
       return
     }
 
     runAuthAction {
-      authRepository.registerWithEmail(email, password)
+      authRepository.registerWithEmail(fullName = fullName, email = email, password = password)
       _uiState.value =
           _uiState.value.copy(
               isLoading = false,

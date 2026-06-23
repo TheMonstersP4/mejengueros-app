@@ -118,8 +118,9 @@ private fun RegisterEntry(
   RegisterScreen(
       state = state,
       onBackToLogin = loginActions.backToLogin,
-      onRegister = { email, password ->
+      onRegister = { fullName, email, password ->
         authViewModel.registerWithEmail(
+            fullName = fullName,
             email = email,
             password = password,
             onCodeSent = loginActions.openVerification,

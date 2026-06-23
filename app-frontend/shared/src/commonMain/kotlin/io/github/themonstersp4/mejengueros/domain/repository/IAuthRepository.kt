@@ -10,7 +10,7 @@ interface IAuthRepository {
 
   suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest
 
-  suspend fun registerWithEmail(email: String, password: String)
+  suspend fun registerWithEmail(fullName: String, email: String, password: String)
 
   suspend fun confirmRegistration(email: String, code: String)
 

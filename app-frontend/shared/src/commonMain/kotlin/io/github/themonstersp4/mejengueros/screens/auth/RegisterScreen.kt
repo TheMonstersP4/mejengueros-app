@@ -46,7 +46,7 @@ fun RegisterScreen(
     state: AuthUiState,
     modifier: Modifier = Modifier,
     onBackToLogin: () -> Unit,
-    onRegister: (email: String, password: String) -> Unit,
+    onRegister: (fullName: String, email: String, password: String) -> Unit,
 ) {
   var fullName by rememberSaveable { mutableStateOf("") }
   var email by rememberSaveable { mutableStateOf("") }
@@ -133,13 +133,14 @@ fun RegisterScreen(
             onClick = {
               localErrorMessage =
                   when {
+                    fullName.isBlank() -> "Ingresa tu nombre completo para crear la cuenta."
                     email.isBlank() || password.isBlank() ->
                         "Ingresa correo y contraseña para crear la cuenta."
                     password != confirmPassword -> "Las contraseñas no coinciden."
                     else -> null
                   }
               if (localErrorMessage == null) {
-                onRegister(email, password)
+                onRegister(fullName, email, password)
               }
             },
             enabled = formEnabled,

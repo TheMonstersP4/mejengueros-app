@@ -42,8 +42,8 @@ class AuthRepository(
     )
   }
 
-  override suspend fun registerWithEmail(email: String, password: String) {
-    nativeAuthDataSource.signUp(email.trim(), password)
+  override suspend fun registerWithEmail(fullName: String, email: String, password: String) {
+    nativeAuthDataSource.signUp(fullName.trim(), email.trim(), password)
   }
 
   override suspend fun confirmRegistration(email: String, code: String) {
