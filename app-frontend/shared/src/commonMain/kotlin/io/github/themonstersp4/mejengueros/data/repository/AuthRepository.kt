@@ -36,7 +36,7 @@ class AuthRepository(
         secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
             ?: return null
 
-    syncCurrentUserOrClearSession()
+    syncCurrentUser()
     return session
   }
 
@@ -112,6 +112,16 @@ class AuthRepository(
     secureStorage.saveSession(session)
     syncCurrentUserOrClearSession()
     return session
+  }
+
+  private suspend fun syncCurrentUser() {
+    try {
+      authenticatedUserRemoteDataSource.syncCurrentUser()
+    } catch (error: CancellationException) {
+      throw error
+    } catch (_: Throwable) {
+      // Restored sessions survive temporary API or network failures during app startup.
+    }
   }
 
   private suspend fun syncCurrentUserOrClearSession() {

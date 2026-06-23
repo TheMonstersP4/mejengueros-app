@@ -151,9 +151,10 @@ class AuthRepositoryTest {
   }
 
   @Test
-  fun getSessionClearsSessionWhenUserSyncFails() = runTest {
+  fun getSessionKeepsSessionWhenUserSyncFails() = runTest {
     val secureStorage = InMemoryAuthSecureStorage()
-    secureStorage.saveSession(sampleSession())
+    val session = sampleSession()
+    secureStorage.saveSession(session)
     val repository =
         createRepository(
             secureStorage = secureStorage,
@@ -163,9 +164,10 @@ class AuthRepositoryTest {
                 ),
         )
 
-    assertFailsWith<IllegalStateException> { repository.getSession() }
+    val restoredSession = repository.getSession()
 
-    assertNull(secureStorage.getSession())
+    assertEquals(session, restoredSession)
+    assertEquals(session, secureStorage.getSession())
   }
 
   @Test
