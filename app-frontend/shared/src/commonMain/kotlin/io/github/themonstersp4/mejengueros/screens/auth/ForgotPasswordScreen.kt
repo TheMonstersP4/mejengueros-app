@@ -26,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
@@ -36,24 +35,25 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFormStack
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextField
 import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
 
 @Composable
-fun RegisterScreen(
+fun ForgotPasswordScreen(
     state: AuthUiState,
     modifier: Modifier = Modifier,
     onBackToLogin: () -> Unit,
-    onRegister: (email: String, password: String) -> Unit,
+    onSendCode: (email: String) -> Unit,
 ) {
-  var fullName by rememberSaveable { mutableStateOf("") }
-  var email by rememberSaveable { mutableStateOf("") }
-  var password by rememberSaveable { mutableStateOf("") }
-  var confirmPassword by rememberSaveable { mutableStateOf("") }
-  var localErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+  var email by rememberSaveable(state.emailInput) { mutableStateOf(state.emailInput) }
   val formEnabled = !state.isLoading
+  val hasEmail = email.isNotBlank()
+  val primaryLabel =
+      when {
+        state.isLoading -> "Enviando..."
+        state.errorMessage != null -> "Reintentar"
+        else -> "Enviar código"
+      }
 
   Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
     Column(
@@ -78,48 +78,28 @@ fun RegisterScreen(
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
           MejenguerosAuthHeadingText(
-              text = "Crear cuenta",
+              text = "Recuperar acceso",
               color = MaterialTheme.colorScheme.onSurface,
           )
           MejenguerosAuthTaglineText(
-              text = "Crea tu cuenta con correo y confirma el código que enviaremos.",
+              text = "Ingresa tu correo para enviarte un código de recuperación.",
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
 
-        MejenguerosFormStack {
-          MejenguerosTextField(
-              value = fullName,
-              onValueChange = { fullName = it },
-              label = "Nombre completo",
-              enabled = formEnabled,
-          )
+        MejenguerosFormStack(verticalSpacing = 16.dp) {
           MejenguerosEmailField(
               value = email,
               onValueChange = { email = it },
               enabled = formEnabled,
           )
-          MejenguerosPasswordField(
-              value = password,
-              onValueChange = { password = it },
-              enabled = formEnabled,
-              supportingText = PasswordPolicySupportingText,
-          )
-          MejenguerosPasswordField(
-              value = confirmPassword,
-              onValueChange = { confirmPassword = it },
-              label = "Confirmar contraseña",
-              enabled = formEnabled,
+          MejenguerosSupportingText(
+              text = "Si la cuenta existe, enviaremos un código para cambiar la contraseña.",
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
 
-        MejenguerosSupportingText(
-            text =
-                "Al registrarte aceptarás los términos y políticas cuando el flujo productivo esté disponible.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        (localErrorMessage ?: state.errorMessage)?.let { message ->
+        state.errorMessage?.let { message ->
           MejenguerosErrorText(
               text = message,
               color = MaterialTheme.colorScheme.error,
@@ -129,20 +109,9 @@ fun RegisterScreen(
         }
 
         MejenguerosFullWidthPrimaryButton(
-            text = if (state.isLoading) "Creando cuenta..." else "Crear cuenta",
-            onClick = {
-              localErrorMessage =
-                  when {
-                    email.isBlank() || password.isBlank() ->
-                        "Ingresa correo y contraseña para crear la cuenta."
-                    password != confirmPassword -> "Las contraseñas no coinciden."
-                    else -> null
-                  }
-              if (localErrorMessage == null) {
-                onRegister(email, password)
-              }
-            },
-            enabled = formEnabled,
+            text = primaryLabel,
+            onClick = { onSendCode(email) },
+            enabled = formEnabled && hasEmail,
         )
       }
 
@@ -152,10 +121,7 @@ fun RegisterScreen(
           enabled = formEnabled,
           modifier = Modifier.align(Alignment.CenterHorizontally),
       ) {
-        Text(
-            text = "¿Ya tienes cuenta? Inicia sesión",
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-        )
+        Text("Volver al inicio de sesión")
       }
     }
   }
