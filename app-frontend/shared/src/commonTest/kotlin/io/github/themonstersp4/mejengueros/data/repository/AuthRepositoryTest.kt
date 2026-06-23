@@ -23,6 +23,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 
@@ -135,12 +136,53 @@ class AuthRepositoryTest {
   fun getSessionReturnsStoredSession() = runTest {
     val secureStorage = InMemoryAuthSecureStorage()
     secureStorage.saveSession(sampleSession())
-    val repository = createRepository(secureStorage = secureStorage)
+    val authenticatedUserRemoteDataSource = FakeAuthenticatedUserRemoteDataSource()
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource = authenticatedUserRemoteDataSource,
+        )
 
     val session = repository.getSession()
 
     assertNotNull(session)
     assertEquals("player@example.com", session.email)
+    assertEquals(1, authenticatedUserRemoteDataSource.syncCount)
+  }
+
+  @Test
+  fun getSessionClearsSessionWhenUserSyncFails() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveSession(sampleSession())
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(
+                    syncFailure = IllegalStateException("User sync failed.")
+                ),
+        )
+
+    assertFailsWith<IllegalStateException> { repository.getSession() }
+
+    assertNull(secureStorage.getSession())
+  }
+
+  @Test
+  fun getSessionPropagatesCancellationWithoutClearingSession() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val session = sampleSession()
+    secureStorage.saveSession(session)
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(syncFailure = CancellationException()),
+        )
+
+    assertFailsWith<CancellationException> { repository.getSession() }
+
+    assertEquals(session, secureStorage.getSession())
   }
 
   @Test
@@ -243,7 +285,9 @@ class AuthRepositoryTest {
         createRepository(
             secureStorage = secureStorage,
             authenticatedUserRemoteDataSource =
-                FakeAuthenticatedUserRemoteDataSource(syncFailure = true),
+                FakeAuthenticatedUserRemoteDataSource(
+                    syncFailure = IllegalStateException("User sync failed.")
+                ),
         )
 
     assertFailsWith<IllegalStateException> {
@@ -251,6 +295,23 @@ class AuthRepositoryTest {
     }
 
     assertNull(secureStorage.getSession())
+  }
+
+  @Test
+  fun signInWithEmailPropagatesCancellationWithoutClearingSession() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(syncFailure = CancellationException()),
+        )
+
+    assertFailsWith<CancellationException> {
+      repository.signInWithEmail(" player@example.com ", "password")
+    }
+
+    assertNotNull(secureStorage.getSession())
   }
 
   @Test
@@ -326,15 +387,13 @@ class AuthRepositoryTest {
     override fun generate(length: Int): String = if (length == 32) "state-value" else CodeVerifier
   }
 
-  private class FakeAuthenticatedUserRemoteDataSource(private val syncFailure: Boolean = false) :
+  private class FakeAuthenticatedUserRemoteDataSource(private val syncFailure: Throwable? = null) :
       IAuthenticatedUserRemoteDataSource {
     var syncCount = 0
 
     override suspend fun syncCurrentUser() {
       syncCount++
-      if (syncFailure) {
-        error("User sync failed.")
-      }
+      syncFailure?.let { throw it }
     }
   }
 

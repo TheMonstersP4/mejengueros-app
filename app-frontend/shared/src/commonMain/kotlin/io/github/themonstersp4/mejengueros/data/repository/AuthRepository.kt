@@ -18,6 +18,7 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CancellationException
 
 class AuthRepository(
     private val secureStorage: IAuthSecureStorage,
@@ -30,8 +31,14 @@ class AuthRepository(
     private val callbackParser: OAuthCallbackParser,
     private val idTokenDecoder: JwtIdTokenDecoder,
 ) : IAuthRepository {
-  override suspend fun getSession(): AuthSession? =
-      secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
+  override suspend fun getSession(): AuthSession? {
+    val session =
+        secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
+            ?: return null
+
+    syncCurrentUserOrClearSession()
+    return session
+  }
 
   override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest {
     val state = randomStringGenerator.generate(StateLength)
@@ -103,13 +110,19 @@ class AuthRepository(
             expiresAtEpochSeconds = claims.expiresAtEpochSeconds,
         )
     secureStorage.saveSession(session)
+    syncCurrentUserOrClearSession()
+    return session
+  }
+
+  private suspend fun syncCurrentUserOrClearSession() {
     try {
       authenticatedUserRemoteDataSource.syncCurrentUser()
+    } catch (error: CancellationException) {
+      throw error
     } catch (error: Throwable) {
       secureStorage.clearSession()
       throw error
     }
-    return session
   }
 
   private companion object {
