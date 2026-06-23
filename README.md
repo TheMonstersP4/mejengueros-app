@@ -11,6 +11,7 @@ La fuente operativa de seguimiento es el GitHub Project del equipo:
 - Organización: [`TheMonstersP4`](https://github.com/orgs/TheMonstersP4)
 - Project: [`Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1)
 - Repositorio vinculado a issues: [`TheMonstersP4/mejengueros-app`](https://github.com/TheMonstersP4/mejengueros-app)
+- Milestone vigente: [`Semana 10 — Flujo MVP`](https://github.com/TheMonstersP4/mejengueros-app/milestone/1)
 
 ## Estructura principal
 
@@ -69,16 +70,42 @@ La guía de entrada de esa carpeta está en [`docs/design/README.md`](docs/desig
 
 ## Seguimiento del trabajo
 
-El seguimiento operativo del proyecto se realiza en GitHub Projects e issues. Ahí deben vivir las tareas, prioridades, decisiones de alcance y vínculos entre trabajo pendiente y Pull Requests.
+El seguimiento operativo del proyecto se realiza en [GitHub Projects](https://github.com/orgs/TheMonstersP4/projects/1) e [issues](https://github.com/TheMonstersP4/mejengueros-app/issues). Ahí deben vivir las tareas, prioridades, decisiones de alcance y vínculos entre trabajo pendiente y Pull Requests.
 
 La documentación versionada del repositorio debe complementar ese seguimiento, no reemplazarlo. En general:
 
 | Espacio | Responsabilidad |
 |---------|-----------------|
-| GitHub Projects e issues | Seguimiento operativo del trabajo, prioridades y estado de avance. |
-| `docs/design/` | Mockups, diagramas y artefactos de diseño. |
-| `openspec/` | Especificaciones formales de cambios cuando se use SDD/OpenSpec. |
+| [GitHub Project `Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1) | Backlog operativo, prioridad, estado, estimación y trazabilidad del MVP. |
+| [Issues del repositorio](https://github.com/TheMonstersP4/mejengueros-app/issues) | Descripción del trabajo, criterios de aceptación y discusión antes del Pull Request. |
+| [`docs/design/`](docs/design/) | Mockups, diagramas y artefactos de diseño. |
+| [`openspec/`](openspec/) | Especificaciones formales de cambios cuando se use SDD/OpenSpec. |
 | Pull requests | Cambios implementables vinculados a un issue o decisión aceptada por el equipo. |
+
+## Flujo de ramas y trabajo paralelo
+
+Cada cambio debe partir de `main` en una rama propia y enfocada. Si necesitas trabajar en más de una feature a la vez, no reutilices el mismo directorio ni mezcles cambios sin relación: usa `git worktree` para mantener cada feature aislada.
+
+Ruta recomendada para trabajo paralelo:
+
+```powershell
+git switch main
+git pull
+git worktree add ..\mejengueros-app-<feature> -b <tipo>/<descripcion> main
+```
+
+Ejemplo:
+
+```powershell
+git worktree add ..\mejengueros-app-reservas -b feat/reservas main
+```
+
+Reglas prácticas:
+
+- una rama por issue, fix o feature;
+- cada worktree debe apuntar a una rama distinta;
+- antes de abrir un Pull Request, verifica que el cambio esté vinculado a un issue aprobado;
+- no mezcles documentación, infraestructura, backend y frontend en una misma rama salvo que formen parte del mismo cambio revisable.
 
 ## Lecturas recomendadas
 
@@ -96,7 +123,7 @@ También se permiten términos técnicos ampliamente aceptados cuando sean más 
 
 ## Alcance vigente del MVP
 
-El backlog activo se concentra en:
+El backlog activo del MVP se consulta en el [GitHub Project `Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1) y en el milestone [`Semana 10 — Flujo MVP`](https://github.com/TheMonstersP4/mejengueros-app/milestone/1). A nivel de producto, el camino crítico se concentra en:
 
 - configuración técnica del proyecto;
 - complejo, cancha, servicios y disponibilidad reservable;
@@ -105,4 +132,4 @@ El backlog activo se concentra en:
 - notificación post-reserva;
 - reseña básica, rating visible y lectura simple de reseñas por el dueño.
 
-Quedan fuera del camino crítico inicial funcionalidades como social login, landing pages, perfil/favoritos/foto, admin global, QR/código, imágenes de reseña, cuestionarios y métricas avanzadas, salvo que el equipo las reprograme explícitamente en el Project.
+Quedan fuera del camino crítico inicial funcionalidades como social login, landing pages, perfil/favoritos/foto, admin global, QR/código, imágenes de reseña, cuestionarios y métricas avanzadas, salvo que el equipo las reprograme explícitamente en el [Project](https://github.com/orgs/TheMonstersP4/projects/1).
