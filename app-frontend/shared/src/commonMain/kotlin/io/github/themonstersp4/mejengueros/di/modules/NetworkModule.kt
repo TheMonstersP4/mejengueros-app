@@ -3,6 +3,7 @@ package io.github.themonstersp4.mejengueros.di.modules
 import io.github.themonstersp4.mejengueros.data.auth.IAuthTokenProvider
 import io.github.themonstersp4.mejengueros.data.remote.AppApiConfig
 import io.github.themonstersp4.mejengueros.data.remote.AppApiHttpClientQualifier
+import io.github.themonstersp4.mejengueros.data.remote.CognitoJsonContentType
 import io.github.themonstersp4.mejengueros.data.remote.HttpClientFactory
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.HttpTimeout
@@ -47,7 +48,10 @@ val networkModule = module {
 }
 
 private fun HttpClientConfig<*>.installSharedClientPlugins(appJson: Json) {
-  install(ContentNegotiation) { json(appJson) }
+  install(ContentNegotiation) {
+    json(appJson)
+    json(appJson, contentType = CognitoJsonContentType)
+  }
   install(HttpTimeout) {
     connectTimeoutMillis = ConnectTimeoutMillis
     requestTimeoutMillis = RequestTimeoutMillis

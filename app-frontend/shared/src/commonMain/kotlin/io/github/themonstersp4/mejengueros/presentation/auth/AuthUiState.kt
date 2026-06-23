@@ -10,6 +10,12 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val pendingProvider: AuthProvider? = null,
     val errorMessage: String? = null,
+    val emailAuthMode: EmailAuthMode = EmailAuthMode.SignIn,
+    val emailInput: String = "",
+    val passwordInput: String = "",
+    val codeInput: String = "",
+    val newPasswordInput: String = "",
+    val successMessage: String? = null,
 ) {
   val title: String
     get() = displayName ?: email

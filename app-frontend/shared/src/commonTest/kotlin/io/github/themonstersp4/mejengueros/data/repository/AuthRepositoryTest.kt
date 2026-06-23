@@ -13,6 +13,7 @@ import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import kotlin.test.Test
@@ -208,13 +209,58 @@ class AuthRepositoryTest {
     }
   }
 
+  @Test
+  fun signInWithEmailStoresCognitoSession() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val nativeAuthDataSource = FakeCognitoNativeAuthDataSource()
+    val repository =
+        createRepository(secureStorage = secureStorage, nativeAuthDataSource = nativeAuthDataSource)
+
+    val session = repository.signInWithEmail(" player@example.com ", "password")
+
+    assertEquals("player@example.com", nativeAuthDataSource.receivedSignInEmail)
+    assertEquals("user-sub", session.sub)
+    assertEquals(session, secureStorage.getSession())
+  }
+
+  @Test
+  fun registerWithEmailUsesCognitoNativeAuth() = runTest {
+    val nativeAuthDataSource = FakeCognitoNativeAuthDataSource()
+    val repository = createRepository(nativeAuthDataSource = nativeAuthDataSource)
+
+    repository.registerWithEmail(" Player One ", " player@example.com ", "password")
+    repository.confirmRegistration(" player@example.com ", " 123456 ")
+    repository.resendRegistrationCode(" player@example.com ")
+
+    assertEquals("Player One", nativeAuthDataSource.receivedSignUpFullName)
+    assertEquals("player@example.com", nativeAuthDataSource.receivedSignUpEmail)
+    assertEquals("player@example.com", nativeAuthDataSource.receivedConfirmEmail)
+    assertEquals("123456", nativeAuthDataSource.receivedConfirmCode)
+    assertEquals("player@example.com", nativeAuthDataSource.receivedResendEmail)
+  }
+
+  @Test
+  fun passwordResetUsesCognitoNativeAuth() = runTest {
+    val nativeAuthDataSource = FakeCognitoNativeAuthDataSource()
+    val repository = createRepository(nativeAuthDataSource = nativeAuthDataSource)
+
+    repository.requestPasswordReset(" player@example.com ")
+    repository.confirmPasswordReset(" player@example.com ", " 123456 ", "new-password")
+
+    assertEquals("player@example.com", nativeAuthDataSource.receivedForgotEmail)
+    assertEquals("player@example.com", nativeAuthDataSource.receivedResetEmail)
+    assertEquals("123456", nativeAuthDataSource.receivedResetCode)
+  }
+
   private fun createRepository(
       secureStorage: IAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
+      nativeAuthDataSource: FakeCognitoNativeAuthDataSource = FakeCognitoNativeAuthDataSource(),
   ): AuthRepository =
       AuthRepository(
           secureStorage = secureStorage,
           remoteDataSource = remoteDataSource,
+          nativeAuthDataSource = nativeAuthDataSource,
           requestFactory = CognitoOAuthRequestFactory(testConfig),
           pkceGenerator = PkceGenerator(FakeRandomStringGenerator()),
           randomStringGenerator = FakeRandomStringGenerator(),
@@ -279,12 +325,59 @@ class AuthRepositoryTest {
     }
   }
 
+  private class FakeCognitoNativeAuthDataSource : ICognitoNativeAuthDataSource {
+    var receivedSignUpEmail: String? = null
+    var receivedSignUpFullName: String? = null
+    var receivedConfirmEmail: String? = null
+    var receivedConfirmCode: String? = null
+    var receivedResendEmail: String? = null
+    var receivedSignInEmail: String? = null
+    var receivedForgotEmail: String? = null
+    var receivedResetEmail: String? = null
+    var receivedResetCode: String? = null
+
+    override suspend fun signUp(fullName: String, email: String, password: String) {
+      receivedSignUpFullName = fullName
+      receivedSignUpEmail = email
+    }
+
+    override suspend fun confirmSignUp(email: String, code: String) {
+      receivedConfirmEmail = email
+      receivedConfirmCode = code
+    }
+
+    override suspend fun resendConfirmationCode(email: String) {
+      receivedResendEmail = email
+    }
+
+    override suspend fun signIn(email: String, password: String): CognitoTokenResponseDto {
+      receivedSignInEmail = email
+      return CognitoTokenResponseDto(
+          idToken = sampleIdToken(),
+          accessToken = "access-token",
+          refreshToken = "refresh-token",
+          expiresIn = 3600,
+          tokenType = "Bearer",
+      )
+    }
+
+    override suspend fun forgotPassword(email: String) {
+      receivedForgotEmail = email
+    }
+
+    override suspend fun confirmForgotPassword(email: String, code: String, newPassword: String) {
+      receivedResetEmail = email
+      receivedResetCode = code
+    }
+  }
+
   private companion object {
     const val CodeVerifier = "verifier-value-verifier-value-verifier-value-verifier-value"
 
     val testConfig =
         CognitoAuthConfig(
             clientId = "client-id",
+            region = "us-east-2",
             domain = "https://example.auth.us-east-2.amazoncognito.com",
             redirectUri = "com.themonsters.mejengueros://auth/callback",
             logoutUri = "com.themonsters.mejengueros://auth/logout",

@@ -7,7 +7,9 @@ import io.github.themonstersp4.mejengueros.data.auth.JwtIdTokenDecoder
 import io.github.themonstersp4.mejengueros.data.auth.OAuthCallbackParser
 import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
+import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignInRequest
@@ -19,6 +21,7 @@ import kotlin.time.ExperimentalTime
 class AuthRepository(
     private val secureStorage: IAuthSecureStorage,
     private val remoteDataSource: IAuthRemoteDataSource,
+    private val nativeAuthDataSource: ICognitoNativeAuthDataSource,
     private val requestFactory: CognitoOAuthRequestFactory,
     private val pkceGenerator: PkceGenerator,
     private val randomStringGenerator: IRandomStringGenerator,
@@ -39,12 +42,52 @@ class AuthRepository(
     )
   }
 
+  override suspend fun registerWithEmail(fullName: String, email: String, password: String) {
+    nativeAuthDataSource.signUp(fullName.trim(), email.trim(), password)
+  }
+
+  override suspend fun confirmRegistration(email: String, code: String) {
+    nativeAuthDataSource.confirmSignUp(email.trim(), code.trim())
+  }
+
+  override suspend fun resendRegistrationCode(email: String) {
+    nativeAuthDataSource.resendConfirmationCode(email.trim())
+  }
+
+  override suspend fun signInWithEmail(email: String, password: String): AuthSession {
+    val tokens = nativeAuthDataSource.signIn(email.trim(), password)
+    return saveSession(tokens)
+  }
+
+  override suspend fun requestPasswordReset(email: String) {
+    nativeAuthDataSource.forgotPassword(email.trim())
+  }
+
+  override suspend fun confirmPasswordReset(email: String, code: String, newPassword: String) {
+    nativeAuthDataSource.confirmForgotPassword(email.trim(), code.trim(), newPassword)
+  }
+
   override suspend fun handleCallback(callbackUrl: String): AuthSession {
     val callback = callbackParser.parse(callbackUrl)
     val pendingState = secureStorage.getOAuthState() ?: error("No pending sign in request.")
     check(callback.state == pendingState.state) { "OAuth state does not match." }
 
     val tokens = remoteDataSource.exchangeCode(callback.code, pendingState.codeVerifier)
+    val session = saveSession(tokens)
+    secureStorage.clearOAuthState()
+    return session
+  }
+
+  override suspend fun signOut(): AuthSignOutRequest {
+    secureStorage.clearSession()
+    secureStorage.clearOAuthState()
+    return requestFactory.createSignOutRequest()
+  }
+
+  @OptIn(ExperimentalTime::class)
+  private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
+
+  private suspend fun saveSession(tokens: CognitoTokenResponseDto): AuthSession {
     val claims = idTokenDecoder.decode(tokens.idToken)
     val session =
         AuthSession(
@@ -58,18 +101,8 @@ class AuthRepository(
             expiresAtEpochSeconds = claims.expiresAtEpochSeconds,
         )
     secureStorage.saveSession(session)
-    secureStorage.clearOAuthState()
     return session
   }
-
-  override suspend fun signOut(): AuthSignOutRequest {
-    secureStorage.clearSession()
-    secureStorage.clearOAuthState()
-    return requestFactory.createSignOutRequest()
-  }
-
-  @OptIn(ExperimentalTime::class)
-  private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
 
   private companion object {
     const val StateLength = 32

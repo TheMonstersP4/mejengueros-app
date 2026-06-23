@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -27,9 +26,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
@@ -37,18 +36,20 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFormStack
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOtpCodeField
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextField
 import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
 
 @Composable
 fun VerifyAccountScreen(
+    state: AuthUiState,
     modifier: Modifier = Modifier,
     onBackToRegister: () -> Unit,
     onBackToLogin: () -> Unit,
+    onConfirmRegistration: (code: String) -> Unit,
+    onResendRegistrationCode: () -> Unit,
 ) {
   var code by rememberSaveable { mutableStateOf("") }
-  var pendingMessage by rememberSaveable { mutableStateOf<String?>(null) }
   val sanitizedCode = code.filter { it.isDigit() }.take(6)
+  val formEnabled = !state.isLoading
 
   Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
     Column(
@@ -63,7 +64,7 @@ fun VerifyAccountScreen(
           modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
-        TextButton(onClick = onBackToRegister) {
+        TextButton(onClick = onBackToRegister, enabled = formEnabled) {
           Icon(
               imageVector = Icons.AutoMirrored.Filled.ArrowBack,
               contentDescription = null,
@@ -77,8 +78,7 @@ fun VerifyAccountScreen(
               color = MaterialTheme.colorScheme.onSurface,
           )
           MejenguerosAuthTaglineText(
-              text =
-                  "Ingresa el código de seis dígitos enviado a tu correo cuando el flujo esté disponible.",
+              text = "Ingresa el código de seis dígitos enviado a tu correo.",
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -86,18 +86,13 @@ fun VerifyAccountScreen(
         MejenguerosFormStack(verticalSpacing = 16.dp) {
           MejenguerosOtpCodeField(
               code = sanitizedCode,
-              supportingText = "Componente visual preparado para el código de verificación.",
-          )
-          MejenguerosTextField(
-              value = sanitizedCode,
-              onValueChange = { code = it.filter(Char::isDigit).take(6) },
-              label = "Código de verificación",
-              supportingText = "La verificación real se conectará con el backend más adelante.",
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+              onCodeChange = { code = it },
+              enabled = formEnabled,
+              supportingText = "Código enviado a ${state.emailInput.ifBlank { "tu correo" }}.",
           )
         }
 
-        pendingMessage?.let { message ->
+        state.errorMessage?.let { message ->
           MejenguerosErrorText(
               text = message,
               color = MaterialTheme.colorScheme.error,
@@ -107,18 +102,21 @@ fun VerifyAccountScreen(
         }
 
         MejenguerosFullWidthPrimaryButton(
-            text = "Verificación pendiente",
-            onClick = { pendingMessage = "La verificación de cuenta aún no está conectada." },
+            text = if (state.isLoading) "Verificando..." else "Verificar cuenta",
+            onClick = { onConfirmRegistration(sanitizedCode) },
+            enabled = formEnabled && sanitizedCode.length == 6,
         )
         MejenguerosFullWidthOutlinedButton(
-            text = "Reenviar código no disponible aún",
-            onClick = { pendingMessage = "El reenvío de código todavía no está disponible." },
+            text = "Reenviar código",
+            onClick = onResendRegistrationCode,
+            enabled = formEnabled,
         )
       }
 
       Spacer(modifier = Modifier.height(12.dp))
       TextButton(
           onClick = onBackToLogin,
+          enabled = formEnabled,
           modifier = Modifier.align(Alignment.CenterHorizontally),
       ) {
         Text("Volver al inicio de sesión")

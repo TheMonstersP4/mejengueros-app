@@ -224,21 +224,24 @@ resource "aws_iam_role_policy" "websocket_runtime" {
 module "cognito" {
   source = "../modules/aws/cognito_user_pool"
 
-  name_prefix             = local.name_prefix
-  domain_prefix           = local.cognito_domain_prefix
-  mfa_configuration       = var.cognito_mfa_configuration
-  password_minimum_length = var.cognito_password_minimum_length
-  callback_urls           = var.cognito_callback_urls
-  logout_urls             = var.cognito_logout_urls
-  admin_users             = var.cognito_admin_users
-  google_enabled          = var.google_enabled
-  google_client_id        = var.google_client_id
-  google_client_secret    = var.google_client_secret
-  microsoft_enabled       = var.azuread_enabled
-  microsoft_tenant_id     = var.microsoft_tenant_id
-  microsoft_client_id     = var.azuread_enabled ? module.microsoft_oauth[0].client_id : ""
-  microsoft_client_secret = var.azuread_enabled ? module.microsoft_oauth[0].client_secret : ""
-  microsoft_provider_name = var.microsoft_provider_name
+  name_prefix                = local.name_prefix
+  domain_prefix              = local.cognito_domain_prefix
+  mfa_configuration          = var.cognito_mfa_configuration
+  password_minimum_length    = var.cognito_password_minimum_length
+  self_signup_enabled        = var.cognito_self_signup_enabled
+  email_verification_subject = var.cognito_email_verification_subject
+  email_verification_message = var.cognito_email_verification_message
+  callback_urls              = var.cognito_callback_urls
+  logout_urls                = var.cognito_logout_urls
+  admin_users                = var.cognito_admin_users
+  google_enabled             = var.google_enabled
+  google_client_id           = var.google_client_id
+  google_client_secret       = var.google_client_secret
+  microsoft_enabled          = var.azuread_enabled
+  microsoft_tenant_id        = var.microsoft_tenant_id
+  microsoft_client_id        = var.azuread_enabled ? module.microsoft_oauth[0].client_id : ""
+  microsoft_client_secret    = var.azuread_enabled ? module.microsoft_oauth[0].client_secret : ""
+  microsoft_provider_name    = var.microsoft_provider_name
 }
 
 module "network" {
