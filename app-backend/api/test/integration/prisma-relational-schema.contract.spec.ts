@@ -6,6 +6,66 @@ import {
 } from '@/shared/infrastructure/database/prisma-relational-schema.contract';
 
 describe('Prisma relational MVP schema contract', () => {
+  it('adds Province and Canton catalogs for controlled Costa Rica location data', () => {
+    const contract = loadPrismaRelationalSchemaContract();
+    const provinceModel = extractPrismaBlock(contract.schema, 'model', 'Province');
+    const cantonModel = extractPrismaBlock(contract.schema, 'model', 'Canton');
+
+    expect(provinceModel).toMatch(prismaFieldPattern('code', 'String'));
+    expect(provinceModel).toMatch(prismaFieldPattern('name', 'String'));
+    expect(provinceModel).toMatch(prismaFieldPattern('cantons', 'Canton[]'));
+    expect(cantonModel).toMatch(prismaFieldPattern('provinceId', 'String'));
+    expect(cantonModel).toMatch(prismaFieldPattern('code', 'String'));
+    expect(cantonModel).toContain('@@unique([id, provinceId])');
+    expect(cantonModel).toContain('@@unique([provinceId, name])');
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'CREATE TABLE "mejengueros_dev"."Province" ('
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'CREATE TABLE "mejengueros_dev"."Canton" ('
+      )
+    );
+  });
+
+  it('keeps complex address while adding optional province, canton, and map coordinates', () => {
+    const contract = loadPrismaRelationalSchemaContract();
+    const complexModel = extractPrismaBlock(contract.schema, 'model', 'Complex');
+
+    expect(complexModel).toMatch(prismaFieldPattern('provinceId', 'String?'));
+    expect(complexModel).toMatch(prismaFieldPattern('cantonId', 'String?'));
+    expect(complexModel).toMatch(prismaFieldPattern('address', 'String'));
+    expect(complexModel).toMatch(prismaFieldPattern('latitude', 'Float?'));
+    expect(complexModel).toMatch(prismaFieldPattern('longitude', 'Float?'));
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ALTER TABLE "mejengueros_dev"."Complex" ADD COLUMN "provinceId" TEXT, ADD COLUMN "cantonId" TEXT, ADD COLUMN "latitude" DOUBLE PRECISION, ADD COLUMN "longitude" DOUBLE PRECISION;'
+      )
+    );
+  });
+
+  it('enforces that a complex canton belongs to the same persisted province', () => {
+    const contract = loadPrismaRelationalSchemaContract();
+
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'CREATE UNIQUE INDEX "Canton_id_provinceId_key" ON "mejengueros_dev"."Canton"("id", "provinceId")'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ADD CONSTRAINT "Complex_canton_requires_province_check" CHECK ("cantonId" IS NULL OR "provinceId" IS NOT NULL)'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ADD CONSTRAINT "Complex_canton_matches_province_fkey" FOREIGN KEY ("cantonId", "provinceId") REFERENCES "mejengueros_dev"."Canton"("id", "provinceId")'
+      )
+    );
+  });
+
   it('supports non-exclusive multi-role users through a join model unique on user and role', () => {
     const contract = loadPrismaRelationalSchemaContract();
     const userRoleModel = extractPrismaBlock(contract.schema, 'model', 'UserRole');
