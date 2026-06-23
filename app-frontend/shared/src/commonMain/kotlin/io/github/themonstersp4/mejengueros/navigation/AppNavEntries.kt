@@ -10,12 +10,14 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
+import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitDemoLocationPickerCenter
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitLocationPickerOverlay
@@ -53,6 +55,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         shellActions = shellActions,
     )
   }
+  entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
   entry<KitRoute> { ComponentKitEntry(shellActions = shellActions) }
   entry<AvailabilitySelectorsRoute> { AvailabilitySelectorsEntry(shellActions = shellActions) }
   entry<PokedexRoute> {
@@ -130,6 +133,33 @@ private fun HomeEntry(
     HomeScreen(
         username = state.title,
         contentPadding = contentPadding,
+        onCreateComplex = shellActions.openCreateComplex,
+    )
+  }
+}
+
+@Composable
+private fun CreateComplexEntry(
+    shellActions: AuthenticatedShellActions,
+) {
+  val createComplexViewModel = koinViewModel<CreateComplexViewModel>()
+  val state by createComplexViewModel.uiState.collectAsState()
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Home,
+      onHomeSelected = shellActions.closeCurrentDetail,
+      onKitSelected = shellActions.selectKit,
+      onPokedexSelected = shellActions.selectPokedex,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+  ) { contentPadding ->
+    CreateComplexScreen(
+        state = state,
+        contentPadding = contentPadding,
+        onComplexNameChange = createComplexViewModel::updateComplexName,
+        onComplexAddressChange = createComplexViewModel::updateComplexAddress,
+        onFirstCourtNameChange = createComplexViewModel::updateFirstCourtName,
+        onSubmit = createComplexViewModel::submit,
     )
   }
 }

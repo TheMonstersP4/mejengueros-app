@@ -53,6 +53,13 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.Home
   }
 
+  fun openCreateComplex() {
+    selectedRoute = AuthenticatedTopLevelRoute.Home
+    if (homeBackStack.lastOrNull() != CreateComplexRoute) {
+      homeBackStack.add(CreateComplexRoute)
+    }
+  }
+
   fun selectKit() {
     selectedRoute = AuthenticatedTopLevelRoute.Kit
   }

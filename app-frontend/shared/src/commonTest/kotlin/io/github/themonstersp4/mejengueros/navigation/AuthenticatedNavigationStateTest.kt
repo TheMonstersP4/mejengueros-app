@@ -27,6 +27,16 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun openCreateComplexKeepsHomeSelectedAndAppendsHomeDetailRoute() {
+    val state = testNavigationState()
+
+    state.openCreateComplex()
+
+    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
+    assertEquals(listOf(HomeRoute, CreateComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun switchingTabsPreservesPokedexDetailStack() {
     val state = testNavigationState()
 
