@@ -7,11 +7,13 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 
@@ -64,20 +66,30 @@ class CognitoNativeAuthDataSourceTest {
   @Test
   fun signUpUsesCognitoSignUpTarget() = runTest {
     var requestedTarget: String? = null
+    var requestedBody: String? = null
     val dataSource =
         CognitoNativeAuthDataSource(
             httpClient =
                 mockClient(
                     responseBody = "{}",
                     captureTarget = { requestedTarget = it },
+                    captureBody = { requestedBody = it },
                 ),
             config = config,
             json = serializer,
         )
 
-    dataSource.signUp(email = "david@example.com", password = "Password123!")
+    dataSource.signUp(
+        fullName = "David Gutierrez",
+        email = "david@example.com",
+        password = "Password123!",
+    )
 
     assertEquals("AWSCognitoIdentityProviderService.SignUp", requestedTarget)
+    assertTrue(requestedBody.orEmpty().contains("\"Name\":\"email\""))
+    assertTrue(requestedBody.orEmpty().contains("\"Value\":\"david@example.com\""))
+    assertTrue(requestedBody.orEmpty().contains("\"Name\":\"name\""))
+    assertTrue(requestedBody.orEmpty().contains("\"Value\":\"David Gutierrez\""))
   }
 
   @Test
@@ -102,7 +114,11 @@ class CognitoNativeAuthDataSourceTest {
 
     val error =
         assertFailsWith<CognitoNativeAuthException> {
-          dataSource.signUp(email = "david@example.com", password = "Password123!")
+          dataSource.signUp(
+              fullName = "David Gutierrez",
+              email = "david@example.com",
+              password = "Password123!",
+          )
         }
 
     assertEquals("Ese correo ya está registrado.", error.message)
@@ -119,7 +135,11 @@ class CognitoNativeAuthDataSourceTest {
 
     val error =
         assertFailsWith<CognitoNativeAuthException> {
-          dataSource.signUp(email = "david@example.com", password = "ADcc2023")
+          dataSource.signUp(
+              fullName = "David Gutierrez",
+              email = "david@example.com",
+              password = "ADcc2023",
+          )
         }
 
     assertEquals("La contraseña debe tener al menos 12 caracteres y un símbolo.", error.message)
@@ -129,12 +149,14 @@ class CognitoNativeAuthDataSourceTest {
       responseBody: String,
       status: HttpStatusCode = HttpStatusCode.OK,
       captureTarget: (String?) -> Unit = {},
+      captureBody: (String?) -> Unit = {},
   ): HttpClient =
       HttpClient(MockEngine) {
         expectSuccess = true
         engine {
           addHandler { request ->
             captureTarget(request.headers["X-Amz-Target"])
+            captureBody((request.body as? TextContent)?.text)
             respond(
                 content = responseBody,
                 status = status,

@@ -45,6 +45,7 @@ class RegisterScreenBehaviorTest {
   fun mismatchedPasswordsShowsLocalError() {
     composeRule.setRegisterScreenContent(state = AuthUiState())
 
+    composeRule.inputField("Nombre completo").performTextInput("David Gutierrez")
     composeRule.inputField("Correo electrónico").performTextInput("player@example.com")
     composeRule.inputField("Contraseña").performTextInput("secret123")
     composeRule.inputField("Confirmar contraseña").performTextInput("different123")
@@ -54,24 +55,28 @@ class RegisterScreenBehaviorTest {
   }
 
   @Test
-  fun validRegistrationSubmitsEmailAndPassword() {
+  fun validRegistrationSubmitsFullNameEmailAndPassword() {
+    var submittedFullName: String? = null
     var submittedEmail: String? = null
     var submittedPassword: String? = null
 
     composeRule.setRegisterScreenContent(
         state = AuthUiState(),
-        onRegister = { email, password ->
+        onRegister = { fullName, email, password ->
+          submittedFullName = fullName
           submittedEmail = email
           submittedPassword = password
         },
     )
 
+    composeRule.inputField("Nombre completo").performTextInput("David Gutierrez")
     composeRule.inputField("Correo electrónico").performTextInput("player@example.com")
     composeRule.inputField("Contraseña").performTextInput("secret123")
     composeRule.inputField("Confirmar contraseña").performTextInput("secret123")
     composeRule.actionButton("Crear cuenta").performScrollTo().performClick()
 
     composeRule.runOnIdle {
+      assertEquals("David Gutierrez", submittedFullName)
       assertEquals("player@example.com", submittedEmail)
       assertEquals("secret123", submittedPassword)
     }
@@ -79,7 +84,7 @@ class RegisterScreenBehaviorTest {
 
   private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.setRegisterScreenContent(
       state: AuthUiState,
-      onRegister: (String, String) -> Unit = { _, _ -> },
+      onRegister: (String, String, String) -> Unit = { _, _, _ -> },
   ) {
     setContent {
       MejenguerosTheme {

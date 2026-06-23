@@ -220,12 +220,14 @@ class AuthViewModelTest {
     var navigationCallbackCount = 0
 
     viewModel.registerWithEmail(
+        fullName = "Player One",
         email = "player@example.com",
         password = "secret123",
         onCodeSent = { navigationCallbackCount++ },
     )
     advanceUntilIdle()
 
+    assertEquals("Player One", repository.receivedRegisterFullName)
     assertEquals("player@example.com", repository.receivedRegisterEmail)
     assertEquals("player@example.com", viewModel.uiState.value.emailInput)
     assertEquals(1, navigationCallbackCount)
@@ -241,6 +243,7 @@ class AuthViewModelTest {
     var navigationCallbackCount = 0
 
     viewModel.registerWithEmail(
+        fullName = "Player One",
         email = "player@example.com",
         password = "secret123",
         onCodeSent = {},
@@ -316,6 +319,7 @@ class AuthViewModelTest {
     var receivedCallback: String? = null
     var callbackCount = 0
     var signOutCount = 0
+    var receivedRegisterFullName: String? = null
     var receivedRegisterEmail: String? = null
     var receivedConfirmEmail: String? = null
     var receivedConfirmCode: String? = null
@@ -331,7 +335,8 @@ class AuthViewModelTest {
       return AuthSignInRequest("https://cognito.example/authorize")
     }
 
-    override suspend fun registerWithEmail(email: String, password: String) {
+    override suspend fun registerWithEmail(fullName: String, email: String, password: String) {
+      receivedRegisterFullName = fullName
       receivedRegisterEmail = email
     }
 

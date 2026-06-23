@@ -228,10 +228,11 @@ class AuthRepositoryTest {
     val nativeAuthDataSource = FakeCognitoNativeAuthDataSource()
     val repository = createRepository(nativeAuthDataSource = nativeAuthDataSource)
 
-    repository.registerWithEmail(" player@example.com ", "password")
+    repository.registerWithEmail(" Player One ", " player@example.com ", "password")
     repository.confirmRegistration(" player@example.com ", " 123456 ")
     repository.resendRegistrationCode(" player@example.com ")
 
+    assertEquals("Player One", nativeAuthDataSource.receivedSignUpFullName)
     assertEquals("player@example.com", nativeAuthDataSource.receivedSignUpEmail)
     assertEquals("player@example.com", nativeAuthDataSource.receivedConfirmEmail)
     assertEquals("123456", nativeAuthDataSource.receivedConfirmCode)
@@ -326,6 +327,7 @@ class AuthRepositoryTest {
 
   private class FakeCognitoNativeAuthDataSource : ICognitoNativeAuthDataSource {
     var receivedSignUpEmail: String? = null
+    var receivedSignUpFullName: String? = null
     var receivedConfirmEmail: String? = null
     var receivedConfirmCode: String? = null
     var receivedResendEmail: String? = null
@@ -334,7 +336,8 @@ class AuthRepositoryTest {
     var receivedResetEmail: String? = null
     var receivedResetCode: String? = null
 
-    override suspend fun signUp(email: String, password: String) {
+    override suspend fun signUp(fullName: String, email: String, password: String) {
+      receivedSignUpFullName = fullName
       receivedSignUpEmail = email
     }
 
