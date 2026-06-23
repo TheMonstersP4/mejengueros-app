@@ -153,7 +153,8 @@ jobs:
               return match ? match[1].trim() : '';
             };
 
-            if (/\b(?:closes|fixes|resolves)\s+#(?!\d)/i.test(body)) {
+            const issueSection = extractSection('## Issue relacionado');
+            if (/\b(?:closes|fixes|resolves)\s+#(?!\d)/i.test(issueSection)) {
               errors.push('The PR body contains a placeholder issue reference like "Closes #" without an issue number.');
             }
 

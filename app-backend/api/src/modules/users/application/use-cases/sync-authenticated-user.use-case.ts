@@ -28,6 +28,7 @@ export class SyncAuthenticatedUserUseCase {
     const user = await this.userRepository.syncAuthenticatedUser({
       cognitoSub: identity.sub,
       email: identity.email,
+      emailVerified: identity.emailVerified,
       name: identity.name,
       pictureUrl: identity.pictureUrl,
       provider: identity.provider

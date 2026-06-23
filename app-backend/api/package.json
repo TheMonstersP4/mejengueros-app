@@ -19,6 +19,8 @@
     "prisma:validate": "prisma validate",
     "pretest": "npm run guard:focused-tests && npm run prisma:generate",
     "test": "jest --passWithNoTests",
+    "test:ci": "npm test -- --runInBand --forceExit",
+    "test:ci:diagnose": "npm test -- --runInBand --detectOpenHandles --openHandlesTimeout=10000",
     "pretest:integration": "npm run guard:focused-tests && npm run prisma:generate",
     "test:integration": "jest --config ./jest.integration.config.cjs --passWithNoTests --detectOpenHandles",
     "pretest:cov": "npm run guard:focused-tests && npm run prisma:generate",
