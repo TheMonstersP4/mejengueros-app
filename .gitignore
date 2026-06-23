@@ -2,6 +2,8 @@
 **/.terraform/
 **/*.tfstate
 **/*.tfstate.*
+**/*.tfplan
+**/tfplan
 **/crash.log
 **/crash.*.log
 **/override.tf
@@ -32,6 +34,7 @@ dist/
 **/dist/
 coverage/
 **/coverage/
+**/bin/
 *.tsbuildinfo
 app-backend/api/src/generated/prisma/
 app-backend/api/.lambda/

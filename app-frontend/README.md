@@ -142,7 +142,7 @@ PokeAPI does not expose a documented partial-search query parameter for `/api/v2
 
 ## Authentication
 
-Firebase is intentionally not part of this project. Authentication uses Amazon Cognito Hosted UI with Authorization Code Flow and PKCE. The mobile app does not store OAuth client secrets.
+Firebase is intentionally not part of this project. Authentication uses Amazon Cognito. Email/password screens run inside the app and call Cognito User Pool APIs directly. Google and Microsoft still use Cognito Hosted UI with Authorization Code Flow and PKCE. The mobile app does not store OAuth client secrets or passwords.
 
 The current implementation follows the same architectural seams used by other features:
 
@@ -150,11 +150,14 @@ The current implementation follows the same architectural seams used by other fe
 LoginScreen
   -> AuthViewModel
       -> IAuthRepository
+      -> ICognitoNativeAuthDataSource -> Ktor -> Cognito User Pool API
       -> IAuthRemoteDataSource -> Ktor -> Cognito token endpoint
       -> IAuthSecureStorage    -> Android Keystore-backed AES/GCM values in SharedPreferences / iOS Keychain / Desktop memory
 ```
 
-The app opens the system browser for Google or Microsoft login through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores auth material in platform secure storage. On Android, the current storage schema uses Keystore-backed AES/GCM ciphertext in `SharedPreferences` and performs a one-time auth reset on first launch after the legacy encrypted-preferences migration during development.
+For email/password, the user enters credentials in the app and the app sends them directly to Cognito. The backend never receives passwords. Registration uses Cognito `SignUp` and `ConfirmSignUp`; password recovery uses `ForgotPassword` and `ConfirmForgotPassword`.
+
+For Google or Microsoft, the app opens the system browser through Cognito, receives the callback with the custom scheme, exchanges the authorization code with PKCE, decodes the Cognito `id_token`, and stores auth material in platform secure storage. On Android, the current storage schema uses Keystore-backed AES/GCM ciphertext in `SharedPreferences` and performs a one-time auth reset on first launch after the legacy encrypted-preferences migration during development.
 
 SQLDelight remains available for non-sensitive local cache data. It must not store `idToken`, `accessToken`, `refreshToken`, OAuth `state`, or PKCE `codeVerifier`.
 
@@ -162,6 +165,7 @@ Development values:
 
 ```text
 COGNITO_CLIENT_ID=392mi2ii9l7usot25ksqj58gu6
+COGNITO_REGION=us-east-2
 COGNITO_DOMAIN=https://mejengueros-dev-auth.auth.us-east-2.amazoncognito.com
 COGNITO_REDIRECT_URI=com.themonsters.mejengueros://auth/callback
 COGNITO_LOGOUT_URI=com.themonsters.mejengueros://auth/logout
