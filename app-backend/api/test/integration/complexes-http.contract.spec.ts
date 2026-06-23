@@ -113,7 +113,12 @@ describe('POST /complexes HTTP contract', () => {
     prismaService.$transaction.mockImplementation(async (callback) =>
       callback({
         user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+          create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+          findUnique: jest.fn().mockResolvedValue(null),
+          update: jest.fn()
+        },
+        userIdentity: {
+          findUnique: jest.fn().mockResolvedValue(null)
         },
         userRole: {
           findUnique: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
@@ -148,7 +153,12 @@ describe('POST /complexes HTTP contract', () => {
     prismaService.$transaction.mockImplementation(async (callback) =>
       callback({
         user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+          create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+          findUnique: jest.fn().mockResolvedValue(null),
+          update: jest.fn()
+        },
+        userIdentity: {
+          findUnique: jest.fn().mockResolvedValue(null)
         },
         userRole: {
           findUnique: jest.fn().mockResolvedValue(null),
