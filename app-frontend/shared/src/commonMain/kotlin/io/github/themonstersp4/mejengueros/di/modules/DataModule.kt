@@ -13,7 +13,9 @@ import io.github.themonstersp4.mejengueros.data.local.DriverFactory
 import io.github.themonstersp4.mejengueros.data.local.IPokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.PokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.CognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.defaultAppApiConfig
@@ -35,7 +37,8 @@ val dataModule = module {
   single { JwtIdTokenDecoder(get()) }
   single<IAuthTokenProvider> { CognitoAuthTokenProvider(get<IAuthSecureStorage>()) }
   single<IAuthRemoteDataSource> { CognitoAuthRemoteDataSource(get(), get()) }
-  single<IAuthRepository> { AuthRepository(get(), get(), get(), get(), get(), get(), get()) }
+  single<ICognitoNativeAuthDataSource> { CognitoNativeAuthDataSource(get(), get(), get()) }
+  single<IAuthRepository> { AuthRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }
