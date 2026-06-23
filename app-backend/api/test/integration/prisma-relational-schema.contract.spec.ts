@@ -1,9 +1,21 @@
+import { randomUUID } from 'node:crypto';
+
+import { Client } from 'pg';
+
 import {
   extractPrismaBlock,
   loadPrismaRelationalSchemaContract,
   prismaFieldPattern,
   sqlFragmentPattern
 } from '@/shared/infrastructure/database/prisma-relational-schema.contract';
+
+const DEFAULT_TEST_DATABASE_URL = 'postgresql://user:password@localhost:5432/appdb';
+const liveDatabaseUrl =
+  process.env.PRISMA_MIGRATION_CONTRACT_DATABASE_URL ?? process.env.DATABASE_URL;
+const runLiveDatabaseContract =
+  typeof liveDatabaseUrl === 'string' &&
+  liveDatabaseUrl.length > 0 &&
+  liveDatabaseUrl !== DEFAULT_TEST_DATABASE_URL;
 
 describe('Prisma relational MVP schema contract', () => {
   it('adds Province and Canton catalogs for controlled Costa Rica location data', () => {
@@ -39,6 +51,9 @@ describe('Prisma relational MVP schema contract', () => {
     expect(complexModel).toMatch(prismaFieldPattern('address', 'String'));
     expect(complexModel).toMatch(prismaFieldPattern('latitude', 'Float?'));
     expect(complexModel).toMatch(prismaFieldPattern('longitude', 'Float?'));
+    expect(complexModel).toMatch(
+      /canton\s+Canton\?\s+@relation\(fields:\s*\[cantonId,\s*provinceId\],\s*references:\s*\[id,\s*provinceId\],\s*onDelete:\s*Restrict\)/
+    );
     expect(contract.migration).toMatch(
       sqlFragmentPattern(
         'ALTER TABLE "mejengueros_dev"."Complex" ADD COLUMN "provinceId" TEXT, ADD COLUMN "cantonId" TEXT, ADD COLUMN "latitude" DOUBLE PRECISION, ADD COLUMN "longitude" DOUBLE PRECISION;'
@@ -49,6 +64,11 @@ describe('Prisma relational MVP schema contract', () => {
   it('enforces that a complex canton belongs to the same persisted province', () => {
     const contract = loadPrismaRelationalSchemaContract();
 
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ALTER TABLE "mejengueros_dev"."Complex" DROP CONSTRAINT IF EXISTS "Complex_cantonId_fkey"'
+      )
+    );
     expect(contract.migration).toMatch(
       sqlFragmentPattern(
         'CREATE UNIQUE INDEX "Canton_id_provinceId_key" ON "mejengueros_dev"."Canton"("id", "provinceId")'
@@ -186,4 +206,85 @@ describe('Prisma relational MVP schema contract', () => {
       )
     );
   });
+
+  (runLiveDatabaseContract ? describe : describe.skip)(
+    'live migration invariant',
+    () => {
+      let client: Client;
+
+      beforeAll(async () => {
+        client = new Client({ connectionString: liveDatabaseUrl });
+        await client.connect();
+      });
+
+      afterAll(async () => {
+        await client.end();
+      });
+
+      beforeEach(async () => {
+        await client.query('BEGIN');
+      });
+
+      afterEach(async () => {
+        await client.query('ROLLBACK');
+      });
+
+      it('rejects a complex whose canton belongs to a different province', async () => {
+        const ownerId = randomUUID();
+        const selectedProvinceId = randomUUID();
+        const differentProvinceId = randomUUID();
+        const cantonId = randomUUID();
+        const complexId = randomUUID();
+
+        await client.query(
+          `INSERT INTO "mejengueros_dev"."User" ("id", "cognitoSub", "email", "status", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, 'ACTIVE', NOW(), NOW())`,
+          [ownerId, `judgment-day-owner-${ownerId}`, `judgment-day-owner-${ownerId}@example.test`]
+        );
+
+        await client.query(
+          `INSERT INTO "mejengueros_dev"."Province" ("id", "code", "name", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, NOW(), NOW()), ($4, $5, $6, NOW(), NOW())`,
+          [
+            selectedProvinceId,
+            `P-${selectedProvinceId.slice(0, 8)}`,
+            `Province ${selectedProvinceId.slice(0, 8)}`,
+            differentProvinceId,
+            `P-${differentProvinceId.slice(0, 8)}`,
+            `Province ${differentProvinceId.slice(0, 8)}`
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO "mejengueros_dev"."Canton" ("id", "provinceId", "code", "name", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+          [
+            cantonId,
+            selectedProvinceId,
+            `C-${cantonId.slice(0, 8)}`,
+            `Canton ${cantonId.slice(0, 8)}`
+          ]
+        );
+
+        await expect(
+          client.query(
+            `INSERT INTO "mejengueros_dev"."Complex" (
+               "id", "ownerId", "provinceId", "cantonId", "name", "address", "status", "createdAt", "updatedAt"
+             ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', NOW(), NOW())`,
+            [
+              complexId,
+              ownerId,
+              differentProvinceId,
+              cantonId,
+              'Judgment Day Complex',
+              'Invariant Avenue 161'
+            ]
+          )
+        ).rejects.toMatchObject({
+          code: '23503',
+          constraint: 'Complex_canton_matches_province_fkey'
+        });
+      });
+    }
+  );
 });

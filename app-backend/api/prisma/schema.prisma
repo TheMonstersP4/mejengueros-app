@@ -142,7 +142,7 @@ model Complex {
   deletedAt   DateTime?
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   province    Province?      @relation(fields: [provinceId], references: [id], onDelete: Restrict)
-  canton      Canton?        @relation(fields: [cantonId], references: [id], onDelete: Restrict)
+  canton      Canton?        @relation(fields: [cantonId, provinceId], references: [id, provinceId], onDelete: Restrict)
   courts      Court[]
   services    ComplexService[]
   createdAt   DateTime       @default(now())
