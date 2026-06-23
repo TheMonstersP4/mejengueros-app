@@ -9,6 +9,7 @@ import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
@@ -22,6 +23,7 @@ class AuthRepository(
     private val secureStorage: IAuthSecureStorage,
     private val remoteDataSource: IAuthRemoteDataSource,
     private val nativeAuthDataSource: ICognitoNativeAuthDataSource,
+    private val authenticatedUserRemoteDataSource: IAuthenticatedUserRemoteDataSource,
     private val requestFactory: CognitoOAuthRequestFactory,
     private val pkceGenerator: PkceGenerator,
     private val randomStringGenerator: IRandomStringGenerator,
@@ -101,6 +103,12 @@ class AuthRepository(
             expiresAtEpochSeconds = claims.expiresAtEpochSeconds,
         )
     secureStorage.saveSession(session)
+    try {
+      authenticatedUserRemoteDataSource.syncCurrentUser()
+    } catch (error: Throwable) {
+      secureStorage.clearSession()
+      throw error
+    }
     return session
   }
 

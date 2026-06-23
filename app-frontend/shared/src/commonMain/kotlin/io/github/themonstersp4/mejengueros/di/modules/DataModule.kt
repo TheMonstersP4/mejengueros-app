@@ -12,9 +12,12 @@ import io.github.themonstersp4.mejengueros.data.local.AppDatabase
 import io.github.themonstersp4.mejengueros.data.local.DriverFactory
 import io.github.themonstersp4.mejengueros.data.local.IPokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.PokemonLocalDataSource
+import io.github.themonstersp4.mejengueros.data.remote.AppApiHttpClientQualifier
+import io.github.themonstersp4.mejengueros.data.remote.AuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoAuthRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
@@ -23,6 +26,7 @@ import io.github.themonstersp4.mejengueros.data.repository.AuthRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IPokemonRepository
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 val dataModule = module {
@@ -38,7 +42,12 @@ val dataModule = module {
   single<IAuthTokenProvider> { CognitoAuthTokenProvider(get<IAuthSecureStorage>()) }
   single<IAuthRemoteDataSource> { CognitoAuthRemoteDataSource(get(), get()) }
   single<ICognitoNativeAuthDataSource> { CognitoNativeAuthDataSource(get(), get(), get()) }
-  single<IAuthRepository> { AuthRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+  single<IAuthenticatedUserRemoteDataSource> {
+    AuthenticatedUserRemoteDataSource(get(named(AppApiHttpClientQualifier)))
+  }
+  single<IAuthRepository> {
+    AuthRepository(get(), get(), get(), get(), get(), get(), get(), get(), get())
+  }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }
