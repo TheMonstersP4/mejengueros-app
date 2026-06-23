@@ -187,7 +187,7 @@ describe('configuration', () => {
     ).toThrow();
   });
 
-  it('uses pino-pretty outside production and disables transport in production', () => {
+  it('uses pino-pretty only in development and disables transport in test and production', () => {
     process.env.LOG_LEVEL = AppLogLevel.Trace;
     process.env.NODE_ENV = AppEnvironment.Development;
 
@@ -202,6 +202,15 @@ describe('configuration', () => {
             colorize: true
           }
         }
+      })
+    });
+
+    process.env.NODE_ENV = AppEnvironment.Test;
+
+    expect(loggerConfig()).toEqual({
+      pinoHttp: expect.objectContaining({
+        level: AppLogLevel.Trace,
+        transport: undefined
       })
     });
 

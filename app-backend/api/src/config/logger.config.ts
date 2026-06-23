@@ -1,7 +1,7 @@
 import type { Params } from 'nestjs-pino';
 import {
+  AppEnvironment,
   type AppLogLevel,
-  isProductionEnvironment,
   readAppEnvironment,
   readAppLogLevel
 } from './runtime.constants';
@@ -39,7 +39,7 @@ export function loggerAppConfig(): ILoggerAppConfig {
 export function loggerConfig(): Params {
   const level = readAppLogLevel(process.env.LOG_LEVEL);
   const environment = readAppEnvironment(process.env.NODE_ENV);
-  const usePrettyLogs = !isProductionEnvironment(environment);
+  const usePrettyLogs = environment === AppEnvironment.Development;
 
   return {
     pinoHttp: {
