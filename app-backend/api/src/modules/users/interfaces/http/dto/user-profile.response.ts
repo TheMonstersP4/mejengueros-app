@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserIdentityResponse } from '../../../../../shared/interfaces/http/dto/user-identity.response';
 
 /**
@@ -12,9 +12,9 @@ export class UserProfileResponse extends UserIdentityResponse {
   id!: string;
 
   /**
-   * Stable Cognito subject linked to this user.
+   * Stable subject from the current identity when available.
    */
-  @ApiProperty({ example: '21dbf550-b071-7037-4dc2-169c7a4b4c28' })
-  cognitoSub!: string;
+  @ApiPropertyOptional({ example: '21dbf550-b071-7037-4dc2-169c7a4b4c28' })
+  cognitoSub?: string;
 
 }

@@ -11,6 +11,8 @@ import {
   upsertAuthenticatedUserIdentity
 } from '../provisioning/demo-owner-role-provisioning';
 
+const COGNITO_NATIVE_PROVIDER = 'Cognito';
+
 /**
  * Prisma-backed implementation of the user repository port.
  *
@@ -35,7 +37,10 @@ export class PrismaUserRepository implements IUserRepository {
     const user = await upsertAuthenticatedUserIdentity(this.prisma, identity);
     await grantDemoOwnerRoleIfEligible(this.prisma, user.id, identity);
 
-    return UserMapper.toDomain(user);
+    return UserMapper.toDomain(user, {
+      provider: identity.provider ?? COGNITO_NATIVE_PROVIDER,
+      providerSubject: identity.cognitoSub
+    });
   }
 
   /**
@@ -45,11 +50,18 @@ export class PrismaUserRepository implements IUserRepository {
    * @returns User entity or `null` when no local user exists.
    */
   async findByCognitoSub(cognitoSub: string): Promise<UserEntity | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { cognitoSub }
+    const identity = await this.prisma.userIdentity.findFirst({
+      where: { providerSubject: cognitoSub },
+      include: {
+        user: {
+          include: {
+            identities: true
+          }
+        }
+      }
     });
 
-    return user ? UserMapper.toDomain(user) : null;
+    return identity ? UserMapper.toDomain(identity.user, identity) : null;
   }
 
   /**
@@ -59,6 +71,9 @@ export class PrismaUserRepository implements IUserRepository {
    */
   async list(): Promise<UserEntity[]> {
     const users = await this.prisma.user.findMany({
+      include: {
+        identities: true
+      },
       orderBy: { updatedAt: 'desc' }
     });
 
