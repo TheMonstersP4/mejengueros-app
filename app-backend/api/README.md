@@ -197,6 +197,20 @@ npx prisma migrate deploy
 
 The generated client lives in `src/generated/prisma` and must not be imported from domain or application code.
 
+### Location and service catalogs for the complex wizard
+
+- `Province` and `Canton` are controlled catalogs for Costa Rica.
+- `Canton` belongs to exactly one `Province`.
+- `Complex.address` remains the user-visible address/reference string.
+- `Complex.latitude` and `Complex.longitude` store the optional map pin coordinates.
+- `ServiceCatalog` stays the single source of truth for both complex services and court services, including MVP grass types.
+- The migration enforces that a persisted `Complex.cantonId` must belong to the same `Complex.provinceId`.
+
+Current transition rule:
+
+- `provinceId`, `cantonId`, `latitude`, and `longitude` are nullable in the schema for now so the existing `POST /v1/complexes` contract can remain unchanged until the follow-up API issue expands the request body.
+- PR #158 is responsible for seeding catalog and demo data after this schema contract lands.
+
 ## Quality
 
 Main commands:
