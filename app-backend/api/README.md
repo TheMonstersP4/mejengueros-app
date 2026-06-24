@@ -1,56 +1,54 @@
 # Mejengueros API
 
-Main backend API for Mejengueros. It is a NestJS API with Fastify, Pino, Cognito, Prisma, and Lambda handlers for API Gateway WebSocket.
+API backend principal de Mejengueros. Es una API NestJS con Fastify, Pino, Cognito, Prisma y handlers Lambda para API Gateway WebSocket.
 
-The HTTP API exposes versioned endpoints under `/v1`. Cognito owns social login with Google and Microsoft; this API validates tokens issued by Cognito. WebSocket handlers live in the same package, but they are deployed as small Lambdas so each WebSocket event does not need to bootstrap the full HTTP app.
+La API HTTP expone endpoints versionados bajo `/v1`. Cognito gestiona el login social con Google y Microsoft; esta API valida los tokens emitidos por Cognito. Los handlers WebSocket viven en el mismo paquete pero se despliegan como Lambdas pequenas para que cada evento WebSocket no necesite inicializar la app HTTP completa.
 
-All JSON responses use the standard `success`, `data`, `errors`, and `meta`
-envelope documented in `docs/api-response-contract.md`.
+Todas las respuestas JSON usan el envelope estandar `success`, `data`, `errors` y `meta` documentado en `docs/api-response-contract.md`.
 
-## Requirements
+## Requisitos
 
 - Node.js 22
 - npm
-- Real Cognito values when testing protected routes
+- Valores reales de Cognito para probar rutas protegidas
 
-## Local Environment
+## Entorno local
 
-Copy the example and adjust values:
+Copiá el ejemplo y ajustá los valores:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Variables validated when the API starts:
+Variables validadas al iniciar la API:
 
-| Variable | Required | Usage |
+| Variable | Requerida | Uso |
 | --- | --- | --- |
-| `NODE_ENV` | No | Runtime environment: `development`, `test`, or `production`. |
-| `PORT` | No | Local HTTP port. Default: `3000`. |
-| `LOG_LEVEL` | No | Pino level: `trace`, `debug`, `info`, `warn`, `error`, or `fatal`. |
-| `ERROR_DOCUMENTATION_BASE_URL` | No | Base URL for error documentation links. Can stay empty locally. |
-| `APP_CORS_ALLOWED_ORIGINS` | No | Comma-separated browser origins allowed to call the API. |
-| `DATABASE_URL` | No | PostgreSQL URL used by Prisma. Include `schema=mejengueros_dev` when using the shared Azure database. |
-| `DATABASE_SECRET_ARN` | No | AWS Secrets Manager ARN used by Lambda to load `DATABASE_URL` at startup. |
-| `AWS_REGION` | Yes | AWS region where Cognito is deployed. |
-| `APP_S3_BUCKET_NAME` | Yes | Private application S3 bucket used for image uploads. |
-| `APP_S3_REGION` | No | S3 bucket region. Defaults to `AWS_REGION`. |
-| `APP_S3_KEY_PREFIX` | No | Prefix used for generated S3 object keys. Default: `uploads`. |
-| `APP_S3_UPLOAD_URL_TTL_SECONDS` | No | Time-to-live for presigned upload forms. Default: `300`. |
-| `APP_S3_PROFILE_IMAGE_MAX_BYTES` | No | Maximum profile image size. Default: `5242880`. |
-| `APP_S3_ALLOWED_IMAGE_MIME_TYPES` | No | Comma-separated allowed image MIME types. |
-| `COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID. |
-| `COGNITO_CLIENT_ID` | Yes | Cognito App Client ID. |
-| `COGNITO_TOKEN_USE` | No | Token type accepted by the API: `id` or `access`. Default: `id`. |
-| `DEMO_OWNER_SUBS` | No | Preferred comma-separated Cognito subject allowlist that grants the local `OWNER` role during authenticated user reconciliation in demo/MVP environments, including `POST /v1/complexes` and `GET /v1/users/me`. |
-| `DEMO_OWNER_EMAILS` | No | Optional fallback comma-separated email allowlist that grants the local `OWNER` role only when Cognito also reports `email_verified=true`. |
-| `WEBSOCKET_CONNECTIONS_TABLE_NAME` | Yes | DynamoDB table for WebSocket connections. |
-| `WEBSOCKET_CONNECTION_TTL_SECONDS` | No | TTL for stale WebSocket connections. Default: `86400`. |
+| `NODE_ENV` | No | Entorno de ejecucion: `development`, `test` o `production`. |
+| `PORT` | No | Puerto HTTP local. Default: `3000`. |
+| `LOG_LEVEL` | No | Nivel de Pino: `trace`, `debug`, `info`, `warn`, `error` o `fatal`. |
+| `ERROR_DOCUMENTATION_BASE_URL` | No | URL base para links de documentacion de errores. Puede quedar vacia en local. |
+| `APP_CORS_ALLOWED_ORIGINS` | No | Origenes de browser permitidos para llamar a la API, separados por coma. |
+| `DATABASE_URL` | No | URL de PostgreSQL usada por Prisma. Incluir `schema=mejengueros_dev` al usar la base de datos compartida de Azure. |
+| `DATABASE_SECRET_ARN` | No | ARN de AWS Secrets Manager usado por Lambda para cargar `DATABASE_URL` al iniciar. |
+| `AWS_REGION` | Si | Region de AWS donde esta desplegado Cognito. |
+| `APP_S3_BUCKET_NAME` | Si | Bucket S3 privado de la aplicacion para subida de imagenes. |
+| `APP_S3_REGION` | No | Region del bucket S3. Default: `AWS_REGION`. |
+| `APP_S3_KEY_PREFIX` | No | Prefijo para las object keys generadas en S3. Default: `uploads`. |
+| `APP_S3_UPLOAD_URL_TTL_SECONDS` | No | TTL para formularios de subida prefirmados. Default: `300`. |
+| `APP_S3_PROFILE_IMAGE_MAX_BYTES` | No | Tamano maximo de imagen de perfil. Default: `5242880`. |
+| `APP_S3_ALLOWED_IMAGE_MIME_TYPES` | No | Tipos MIME de imagen permitidos, separados por coma. |
+| `COGNITO_USER_POOL_ID` | Si | ID del User Pool de Cognito. |
+| `COGNITO_CLIENT_ID` | Si | ID del App Client de Cognito. |
+| `COGNITO_TOKEN_USE` | No | Tipo de token aceptado por la API: `id` o `access`. Default: `id`. |
+| `DEMO_OWNER_SUBS` | No | Lista de Cognito subjects separados por coma que reciben el rol `OWNER` durante la reconciliacion del usuario autenticado en entornos demo/MVP, incluyendo `POST /v1/complexes` y `GET /v1/users/me`. |
+| `DEMO_OWNER_EMAILS` | No | Lista de emails separados por coma como fallback para otorgar el rol `OWNER` solo cuando Cognito reporta `email_verified=true`. |
+| `WEBSOCKET_CONNECTIONS_TABLE_NAME` | Si | Tabla DynamoDB para conexiones WebSocket. |
+| `WEBSOCKET_CONNECTION_TTL_SECONDS` | No | TTL para conexiones WebSocket inactivas. Default: `86400`. |
 
-Prisma-backed endpoints are disabled until `DATABASE_URL` is available directly
-or through `DATABASE_SECRET_ARN`.
+Los endpoints respaldados por Prisma quedan deshabilitados hasta que `DATABASE_URL` este disponible directamente o a traves de `DATABASE_SECRET_ARN`.
 
-Minimal local example:
+Ejemplo local minimo:
 
 ```env
 NODE_ENV=development
@@ -79,33 +77,33 @@ WEBSOCKET_CONNECTIONS_TABLE_NAME=mejengueros-dev-ws-connections
 WEBSOCKET_CONNECTION_TTL_SECONDS=86400
 ```
 
-## Run Locally
+## Correr localmente
 
-Install dependencies:
+Instalar dependencias:
 
 ```powershell
 npm install
 ```
 
-Generate Prisma:
+Generar Prisma:
 
 ```powershell
 npm run prisma:generate
 ```
 
-Start the API:
+Iniciar la API:
 
 ```powershell
 npm run start:dev
 ```
 
-The API is available at:
+La API queda disponible en:
 
 ```text
 http://localhost:3000/v1
 ```
 
-## Test The API Locally
+## Probar la API localmente
 
 Health check:
 
@@ -113,7 +111,7 @@ Health check:
 curl http://localhost:3000/v1/health
 ```
 
-Expected response:
+Respuesta esperada:
 
 ```json
 {
@@ -122,7 +120,7 @@ Expected response:
 }
 ```
 
-Protected routes:
+Rutas protegidas:
 
 ```powershell
 curl http://localhost:3000/v1/auth/me -H "Authorization: Bearer <id_token>"
@@ -130,30 +128,30 @@ curl http://localhost:3000/v1/users/me -H "Authorization: Bearer <id_token>"
 curl -X POST http://localhost:3000/v1/complexes -H "Authorization: Bearer <id_token>" -H "Content-Type: application/json" -d '{"complex":{"name":"North Sports Center","address":"123 Main Street"},"firstCourt":{"name":"Court A"}}'
 ```
 
-The `<id_token>` must come from Cognito Hosted UI. Do not send raw Google or Microsoft tokens directly to this API.
+El `<id_token>` debe venir de Cognito Hosted UI. No enviar tokens de Google o Microsoft directamente a esta API.
 
-## Current Endpoints
+## Endpoints actuales
 
-| Method | Route | Auth | Description |
+| Metodo | Ruta | Auth | Descripcion |
 | --- | --- | --- | --- |
-| `GET` | `/v1/health` | No | Basic process health. |
-| `GET` | `/v1/auth/me` | Yes | Returns the authenticated user from the Cognito token. |
-| `POST` | `/v1/files/uploads` | Yes | Creates a presigned S3 POST form for profile images. |
-| `POST` | `/v1/files/uploads/confirm` | Yes | Confirms a direct S3 image upload and validates ownership, metadata, and byte signature. |
-| `GET` | `/v1/users/me` | Yes | Syncs and returns the local profile for the authenticated user. Loaded once PostgreSQL is enabled. |
-| `POST` | `/v1/complexes` | Yes | Creates a complex and its first court for authenticated users whose OWNER access is reconciled inside the request itself. |
+| `GET` | `/v1/health` | No | Estado basico del proceso. |
+| `GET` | `/v1/auth/me` | Si | Devuelve el usuario autenticado del token de Cognito. |
+| `POST` | `/v1/files/uploads` | Si | Crea un formulario S3 POST prefirmado para imagenes de perfil. |
+| `POST` | `/v1/files/uploads/confirm` | Si | Confirma una subida directa a S3 y valida propiedad, metadata y firma de bytes. |
+| `GET` | `/v1/users/me` | Si | Sincroniza y devuelve el perfil local del usuario autenticado. Disponible una vez habilitado PostgreSQL. |
+| `POST` | `/v1/complexes` | Si | Crea un complejo y su primera cancha para usuarios autenticados cuyo acceso `OWNER` se reconcilia dentro del mismo request. |
 
-> Limitation: the current `UserRole` schema does not store a role source. Demo OWNER reconciliation is therefore grant-only: it can add `OWNER` for allowlisted identities, but it does not revoke existing `OWNER` rows. Source metadata is required before demo-managed roles can be safely revoked independently from manual or future admin-managed assignments.
+> Limitacion: el schema actual de `UserRole` no almacena el origen del rol. La reconciliacion del rol `OWNER` de demo es por lo tanto solo de alta: puede agregar `OWNER` para identidades en la lista de permitidos, pero no revoca filas `OWNER` existentes. Se requieren metadatos de origen antes de poder revocar roles gestionados por demo de forma independiente de asignaciones manuales o futuras de admin.
 
-## WebSocket Lambdas
+## Lambdas WebSocket
 
-Handlers live in:
+Los handlers viven en:
 
 ```text
 src/functions/websocket
 ```
 
-Routes:
+Rutas:
 
 ```text
 $connect    -> functions/websocket/connect.handler
@@ -161,14 +159,14 @@ $disconnect -> functions/websocket/disconnect.handler
 $default    -> functions/websocket/default.handler
 ```
 
-Generate the zip consumed by Terraform and GitHub Actions:
+Generar el zip usado por Terraform y GitHub Actions:
 
 ```powershell
 npm run build
 npm run lambda:package:websocket
 ```
 
-The package is written to:
+El paquete se genera en:
 
 ```text
 api/.lambda/websocket.zip
@@ -176,7 +174,7 @@ api/.lambda/websocket.zip
 
 ## Prisma
 
-The project uses Prisma 7:
+El proyecto usa Prisma 7:
 
 ```text
 prisma/schema.prisma
@@ -184,10 +182,9 @@ prisma.config.ts
 src/generated/prisma
 ```
 
-Application tables live in the PostgreSQL schema `mejengueros_dev`. Do not use
-the shared database `public` schema for this project.
+Las tablas de la aplicacion viven en el schema de PostgreSQL `mejengueros_dev`. No usar el schema `public` de la base de datos compartida para este proyecto.
 
-Useful commands:
+Comandos utiles:
 
 ```powershell
 npm run prisma:generate
@@ -195,20 +192,21 @@ npm run prisma:validate
 npx prisma migrate deploy
 ```
 
-The generated client lives in `src/generated/prisma` and must not be imported from domain or application code.
+El cliente generado vive en `src/generated/prisma` y no debe ser importado desde codigo de dominio o aplicacion.
 
-### Location and service catalogs for the complex wizard
+### Catalogos de ubicacion y servicios para el wizard de complejo
 
-- `Province` and `Canton` are controlled catalogs for Costa Rica.
-- `Canton` belongs to exactly one `Province`.
-- `Complex.address` remains the user-visible address/reference string.
-- `Complex.latitude` and `Complex.longitude` store the optional map pin coordinates.
-- `ServiceCatalog` stays the single source of truth for both complex services and court services, including MVP grass types.
-- The migration enforces that a persisted `Complex.cantonId` must belong to the same `Complex.provinceId`.
+- `Province` y `Canton` son catalogos controlados para Costa Rica.
+- `Canton` pertenece exactamente a una `Province`.
+- `Complex.address` sigue siendo el texto de direccion visible para el usuario.
+- `Complex.latitude` y `Complex.longitude` almacenan las coordenadas opcionales del pin en el mapa.
+- `ServiceCatalog` es la unica fuente de verdad para servicios de complejo y cancha, incluyendo los tipos de cesped del MVP.
+- La migracion garantiza que un `Complex.cantonId` persistido debe pertenecer al mismo `Complex.provinceId`.
 
-Current transition rule:
+Regla de transicion actual:
 
-- `provinceId`, `cantonId`, `latitude`, and `longitude` are nullable in the schema for now so the existing `POST /v1/complexes` contract can remain unchanged until the follow-up API issue expands the request body.
+- `provinceId`, `cantonId`, `latitude` y `longitude` son nulos en el schema por ahora para que el contrato existente de `POST /v1/complexes` no cambie hasta que el issue de API siguiente expanda el cuerpo del request.
+
 ## Seed de demo
 
 Un seed minimo que puebla la base de datos con datos de demo para el flujo MVP: catalogo, detalle, disponibilidad y reserva.
@@ -235,7 +233,7 @@ El seed es idempotente: borra los datos de demo existentes e inserta un conjunto
 | Complejo | "Complejo Demo Los Nogales" - Av. Central 1234, San Jose, Costa Rica |
 | Servicios del complejo | Parqueo |
 | Cancha | "Cancha 1 -- Demo" |
-| Servicios de la cancha | Iluminacion, Sintetico |
+| Servicios de la cancha | Iluminacion, Sintetico, Natural, Hibrido |
 | Disponibilidad | Lunes a sabado, 08:00 a 22:00 UTC |
 | Reserva confirmada | Proximo sabado a las 10:00-11:00 UTC - en poder del Jugador 1 |
 | Reserva completada | Hace 7 dias a las 10:00-11:00 UTC - en poder del Jugador 2, incluye resena de 5 estrellas |
@@ -264,9 +262,9 @@ npm run docker:migration-db:reset
 
 Ambas ejecuciones deben completarse sin errores y dejar el conjunto demo esperado.
 
-## Quality
+## Calidad
 
-Main commands:
+Comandos principales:
 
 ```powershell
 npm run lint
@@ -276,11 +274,11 @@ npm run test:cov -- --runInBand
 npm run build
 ```
 
-Unit tests live in `test/unit`. Do not place `*.spec.ts` files inside `src`.
+Los tests unitarios viven en `test/unit`. No colocar archivos `*.spec.ts` dentro de `src`.
 
-## Architecture
+## Arquitectura
 
-The API follows modular DDD:
+La API sigue DDD modular:
 
 ```text
 src/modules/<feature>/
@@ -290,11 +288,11 @@ src/modules/<feature>/
   interfaces/
 ```
 
-Quick rules:
+Reglas rapidas:
 
-- Keep controllers thin.
-- Put use cases in `application`.
-- Keep entities, value objects, and business errors in `domain`.
-- Keep Prisma, Cognito, AWS SDK, and external adapters in `infrastructure`.
-- Keep HTTP controllers, guards, filters, and DTOs in `interfaces`.
-- Use `shared` only for stable technical primitives.
+- Controllers delgados.
+- Casos de uso en `application`.
+- Entidades, value objects y errores de negocio en `domain`.
+- Prisma, Cognito, AWS SDK y adaptadores externos en `infrastructure`.
+- Controllers HTTP, guards, filters y DTOs en `interfaces`.
+- Usar `shared` solo para primitivos tecnicas estables.

@@ -178,7 +178,9 @@ async function seed(prisma: PrismaClient): Promise<void> {
       services: {
         create: [
           { serviceCatalogId: svcIluminacion.id },
-          { serviceCatalogId: svcSintetico.id }
+          { serviceCatalogId: svcSintetico.id },
+          { serviceCatalogId: svcNatural.id },
+          { serviceCatalogId: svcHibrido.id }
         ]
       },
       availability: {
