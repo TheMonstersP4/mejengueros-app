@@ -7,6 +7,12 @@ import { PrismaComplexRepository } from '@/modules/complexes/infrastructure/pers
 import { ComplexesController } from '@/modules/complexes/interfaces/http/controllers/complexes.controller';
 
 describe('complexes module behavior', () => {
+  function createUniqueConstraintError(): Error & { code: 'P2002' } {
+    return Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002' as const
+    });
+  }
+
   interface ITransactionalState {
     userIds: string[];
     ownerRoles: Array<{ userId: string; role: 'OWNER' }>;
@@ -103,7 +109,7 @@ describe('complexes module behavior', () => {
 
     const prisma = {
       user: {
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
         findUnique: jest.fn(),
         update: jest.fn()
       },
@@ -120,30 +126,12 @@ describe('complexes module behavior', () => {
         create: jest.fn()
       },
       $transaction: jest.fn(async (callback: (client: {
-        user: {
-          create: jest.Mock;
-          findUnique: jest.Mock;
-          update: jest.Mock;
-        };
-        userIdentity: { findUnique: jest.Mock };
         userRole: { upsert: jest.Mock; deleteMany: jest.Mock };
         complex: { create: jest.Mock };
         court: { create: jest.Mock };
       }) => Promise<unknown>) => {
         const transactionState = cloneState(state);
         const transactionClient = {
-          user: {
-            create: jest.fn().mockImplementation(async () => {
-              transactionState.userIds.push('owner-id');
-
-              return { id: 'owner-id' };
-            }),
-            findUnique: jest.fn().mockResolvedValue(null),
-            update: jest.fn()
-          },
-          userIdentity: {
-            findUnique: jest.fn().mockResolvedValue(null)
-          },
           userRole: {
             upsert: jest.fn().mockImplementation(async () => {
               transactionState.ownerRoles.push({ userId: 'owner-id', role: 'OWNER' });
@@ -246,14 +234,6 @@ describe('complexes module behavior', () => {
 
   it('creates the complex, first court, and OWNER role inside one transaction for an authenticated user without OWNER', async () => {
     const transactionClient = {
-      user: {
-        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
-        findUnique: jest.fn().mockResolvedValue(null),
-        update: jest.fn()
-      },
-      userIdentity: {
-        findUnique: jest.fn().mockResolvedValue(null)
-      },
       userRole: {
         upsert: jest.fn().mockResolvedValue({ id: 'role-id' }),
         deleteMany: jest.fn()
@@ -280,6 +260,14 @@ describe('complexes module behavior', () => {
       }
     };
     const prisma = {
+      user: {
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
       $transaction: jest.fn().mockImplementation(async (callback) => callback(transactionClient))
     };
     const repository = new PrismaComplexRepository(prisma as never);
@@ -300,7 +288,7 @@ describe('complexes module behavior', () => {
     ).resolves.toEqual(created);
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(transactionClient.user.create).toHaveBeenCalledWith({
+    expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
         email: 'owner@example.test',
         name: 'Owner User',
@@ -344,16 +332,132 @@ describe('complexes module behavior', () => {
     });
   });
 
-  it('preserves an existing PLAYER role while adding OWNER for the first complex', async () => {
+  it('retries owner identity sync before entering the OWNER and complex transaction', async () => {
+    const events: string[] = [];
     const transactionClient = {
+      userRole: {
+        upsert: jest.fn().mockImplementation(async () => {
+          events.push('transaction.userRole.upsert');
+          return { id: 'role-id' };
+        }),
+        deleteMany: jest.fn()
+      },
+      complex: {
+        create: jest.fn().mockImplementation(async () => {
+          events.push('transaction.complex.create');
+          return {
+            id: 'complex-id',
+            name: 'North Sports Center',
+            address: '123 Main Street',
+            status: 'ACTIVE',
+            createdAt: new Date('2026-06-20T00:00:00.000Z'),
+            updatedAt: new Date('2026-06-20T00:00:00.000Z')
+          };
+        })
+      },
+      court: {
+        create: jest.fn().mockImplementation(async () => {
+          events.push('transaction.court.create');
+          return {
+            id: 'court-id',
+            complexId: 'complex-id',
+            name: 'Court A',
+            status: 'ACTIVE',
+            createdAt: new Date('2026-06-20T00:00:00.000Z'),
+            updatedAt: new Date('2026-06-20T00:00:00.000Z')
+          };
+        })
+      }
+    };
+    const prisma = {
       user: {
-        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
-        findUnique: jest.fn().mockResolvedValue(null),
-        update: jest.fn()
+        create: jest.fn().mockImplementation(async () => {
+          events.push('root.user.create');
+          throw createUniqueConstraintError();
+        }),
+        findUnique: jest.fn().mockImplementation(async () => {
+          events.push('root.user.findUnique');
+          return null;
+        }),
+        update: jest.fn().mockImplementation(async () => {
+          events.push('root.user.update');
+          return { id: 'owner-id' };
+        })
       },
       userIdentity: {
-        findUnique: jest.fn().mockResolvedValue(null)
+        findUnique: jest
+          .fn()
+          .mockImplementationOnce(async () => {
+            events.push('root.userIdentity.findUnique');
+            return null;
+          })
+          .mockImplementationOnce(async () => {
+            events.push('root.userIdentity.findUnique');
+            return {
+              userId: 'owner-id',
+              user: {
+                id: 'owner-id',
+                email: 'owner@example.test',
+                identities: [
+                  {
+                    provider: 'Google',
+                    providerSubject: 'owner-sub'
+                  }
+                ]
+              }
+            };
+          })
       },
+      $transaction: jest.fn().mockImplementation(async (callback) => {
+        events.push('root.$transaction');
+        return callback(transactionClient);
+      })
+    };
+    const repository = new PrismaComplexRepository(prisma as never);
+
+    await expect(
+      repository.createComplexWithFirstCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          email: 'owner@example.test',
+          emailVerified: true,
+          name: 'Owner User',
+          pictureUrl: 'https://example.test/owner.png',
+          provider: 'Google'
+        },
+        complex: request.complex,
+        firstCourt: request.firstCourt
+      })
+    ).resolves.toEqual(created);
+
+    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'owner-id' },
+      data: {
+        email: 'owner@example.test',
+        name: 'Owner User',
+        pictureUrl: 'https://example.test/owner.png'
+      },
+      select: { id: true }
+    });
+    expect(transactionClient.userRole.upsert).toHaveBeenCalledTimes(1);
+    expect(transactionClient.complex.create).toHaveBeenCalledTimes(1);
+    expect(transactionClient.court.create).toHaveBeenCalledTimes(1);
+    expect(events).toEqual([
+      'root.userIdentity.findUnique',
+      'root.user.findUnique',
+      'root.user.create',
+      'root.userIdentity.findUnique',
+      'root.user.update',
+      'root.$transaction',
+      'transaction.userRole.upsert',
+      'transaction.complex.create',
+      'transaction.court.create'
+    ]);
+  });
+
+  it('preserves an existing PLAYER role while adding OWNER for the first complex', async () => {
+    const transactionClient = {
       userRole: {
         upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
         deleteMany: jest.fn()
@@ -380,6 +484,14 @@ describe('complexes module behavior', () => {
       }
     };
     const prisma = {
+      user: {
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
       $transaction: jest.fn().mockImplementation(async (callback) => callback(transactionClient))
     };
     const repository = new PrismaComplexRepository(prisma as never);
@@ -396,7 +508,7 @@ describe('complexes module behavior', () => {
       })
     ).resolves.toEqual(created);
 
-    expect(transactionClient.user.create).toHaveBeenCalledWith({
+    expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
         email: 'owner@example.test',
         identities: {
@@ -429,14 +541,6 @@ describe('complexes module behavior', () => {
 
   it('allows a persisted OWNER to create without duplicating the OWNER assignment', async () => {
     const transactionClient = {
-      user: {
-        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
-        findUnique: jest.fn().mockResolvedValue(null),
-        update: jest.fn()
-      },
-      userIdentity: {
-        findUnique: jest.fn().mockResolvedValue(null)
-      },
       userRole: {
         upsert: jest.fn().mockResolvedValue({ id: 'existing-role-id' }),
         deleteMany: jest.fn()
@@ -463,6 +567,14 @@ describe('complexes module behavior', () => {
       }
     };
     const prisma = {
+      user: {
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
       $transaction: jest.fn().mockImplementation(async (callback) => callback(transactionClient))
     };
     const repository = new PrismaComplexRepository(prisma as never);
@@ -499,14 +611,6 @@ describe('complexes module behavior', () => {
     delete process.env.DEMO_OWNER_EMAILS;
     process.env.DEMO_OWNER_SUBS = 'owner-sub';
     const transactionClient = {
-      user: {
-        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
-        findUnique: jest.fn().mockResolvedValue(null),
-        update: jest.fn()
-      },
-      userIdentity: {
-        findUnique: jest.fn().mockResolvedValue(null)
-      },
       userRole: {
         findUnique: jest.fn().mockResolvedValue({ id: 'role-id' }),
         upsert: jest.fn().mockResolvedValue({ id: 'role-id' }),
@@ -534,6 +638,14 @@ describe('complexes module behavior', () => {
       }
     };
     const prisma = {
+      user: {
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
       $transaction: jest.fn().mockImplementation(async (callback) => callback(transactionClient))
     };
     const repository = new PrismaComplexRepository(prisma as never);

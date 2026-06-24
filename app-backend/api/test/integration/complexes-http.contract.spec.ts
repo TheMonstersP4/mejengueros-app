@@ -32,6 +32,12 @@ describe('POST /complexes HTTP contract', () => {
   let app: NestFastifyApplication;
   let prismaService: {
     $transaction: jest.Mock;
+    user: {
+      create: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+    };
+    userIdentity: { findUnique: jest.Mock };
     onModuleInit: jest.Mock;
     onModuleDestroy: jest.Mock;
   };
@@ -54,6 +60,14 @@ describe('POST /complexes HTTP contract', () => {
 
     prismaService = {
       $transaction: jest.fn(),
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn()
+      },
       onModuleInit: jest.fn(),
       onModuleDestroy: jest.fn()
     };
@@ -91,6 +105,11 @@ describe('POST /complexes HTTP contract', () => {
     jest.clearAllMocks();
     delete process.env.DEMO_OWNER_EMAILS;
     delete process.env.DEMO_OWNER_SUBS;
+
+    prismaService.user.create.mockResolvedValue({ id: 'owner-id' });
+    prismaService.user.findUnique.mockResolvedValue(null);
+    prismaService.user.update.mockResolvedValue({ id: 'owner-id' });
+    prismaService.userIdentity.findUnique.mockResolvedValue(null);
 
     tokenVerifier.verify.mockResolvedValue({
       sub: 'owner-sub',
@@ -146,12 +165,12 @@ describe('POST /complexes HTTP contract', () => {
 
     const rootClient = {
       user: {
-        create: jest.fn(),
-        findUnique: jest.fn(),
-        update: jest.fn()
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ id: 'owner-id' })
       },
       userIdentity: {
-        findUnique: jest.fn()
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         upsert: jest.fn()
@@ -537,6 +556,8 @@ describe('POST /complexes HTTP contract', () => {
 
   it('returns 500 when the transaction fails after OWNER upsert so no OWNER role, complex, or court is persisted', async () => {
     const harness = createTransactionalPersistenceHarness({ failComplexCreate: true });
+    prismaService.user = harness.rootClient.user;
+    prismaService.userIdentity = harness.rootClient.userIdentity;
     prismaService.$transaction.mockImplementation(harness.transaction);
 
     const response = await app.inject({

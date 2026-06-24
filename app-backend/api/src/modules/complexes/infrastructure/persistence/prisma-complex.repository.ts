@@ -11,14 +11,6 @@ import type {
 } from '../../domain/repositories/complex.repository';
 
 interface IComplexPersistenceTransactionClient {
-  user: {
-    findUnique: PrismaService['user']['findUnique'];
-    update: PrismaService['user']['update'];
-    create: PrismaService['user']['create'];
-  };
-  userIdentity: {
-    findUnique: PrismaService['userIdentity']['findUnique'];
-  };
   userRole: {
     upsert: PrismaService['userRole']['upsert'];
   };
@@ -31,6 +23,14 @@ interface IComplexPersistenceTransactionClient {
 }
 
 interface IComplexPersistenceClient {
+  user: {
+    findUnique: PrismaService['user']['findUnique'];
+    update: PrismaService['user']['update'];
+    create: PrismaService['user']['create'];
+  };
+  userIdentity: {
+    findUnique: PrismaService['userIdentity']['findUnique'];
+  };
   $transaction<TResult>(
     callback: (transaction: IComplexPersistenceTransactionClient) => Promise<TResult>
   ): Promise<TResult>;
@@ -58,11 +58,11 @@ export class PrismaComplexRepository implements IComplexRepository {
       provider: command.ownerIdentity.provider
     };
 
-    return this.prisma.$transaction(async (transaction) => {
-      const owner = await upsertAuthenticatedUserIdentity(transaction, ownerIdentity, {
-        selectIdOnly: true
-      });
+    const owner = await upsertAuthenticatedUserIdentity(this.prisma, ownerIdentity, {
+      selectIdOnly: true
+    });
 
+    return this.prisma.$transaction(async (transaction) => {
       await upsertOwnerRole(transaction, owner.id);
 
       const complex = await transaction.complex.create({
