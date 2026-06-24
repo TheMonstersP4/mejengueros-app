@@ -2,6 +2,7 @@ import type { IExternalUserIdentity } from '../../domain/repositories/user.repos
 import { UserEmailAlreadyExistsError } from '../../domain/errors/user-email-already-exists.error';
 
 const COGNITO_NATIVE_PROVIDER = 'Cognito';
+const MAX_USER_IDENTITY_UPSERT_ATTEMPTS = 2;
 
 export interface IUserPersistenceRecord {
   id: string;
@@ -36,17 +37,8 @@ interface IUserIdentityPersistenceClient<TResult extends { id: string }> {
   };
 }
 
-interface IUserRoleProvisioningClient {
+interface IUserRoleUpsertClient {
   userRole: {
-    findUnique(args: {
-      where: {
-        userId_role: {
-          userId: string;
-          role: 'OWNER';
-        };
-      };
-      select: { id: true };
-    }): Promise<{ id: string } | null>;
     upsert(args: {
       where: {
         userId_role: {
@@ -60,6 +52,20 @@ interface IUserRoleProvisioningClient {
       };
       update: Record<string, never>;
     }): Promise<unknown>;
+  };
+}
+
+interface IUserRoleProvisioningClient extends IUserRoleUpsertClient {
+  userRole: IUserRoleUpsertClient['userRole'] & {
+    findUnique(args: {
+      where: {
+        userId_role: {
+          userId: string;
+          role: 'OWNER';
+        };
+      };
+      select: { id: true };
+    }): Promise<{ id: string } | null>;
   };
 }
 
@@ -107,7 +113,100 @@ export async function upsertAuthenticatedUserIdentity<TResult extends { id: stri
 ): Promise<TResult> {
   const readArgs = buildUserReadArgs(options);
   const identityLookup = buildIdentityLookup(identity);
-  const existingIdentity = await client.userIdentity.findUnique({
+  let lastUniqueConstraintError: unknown;
+
+  for (let attempt = 0; attempt < MAX_USER_IDENTITY_UPSERT_ATTEMPTS; attempt += 1) {
+    const existingIdentity = await findUserIdentity(client, identityLookup);
+
+    if (existingIdentity) {
+      return client.user.update({
+        where: { id: existingIdentity.userId },
+        data: buildUserProfileUpdatePayload(identity),
+        ...readArgs
+      });
+    }
+
+    if (identity.email) {
+      const existingByEmail = await client.user.findUnique({
+        where: { email: identity.email },
+        include: {
+          identities: true
+        }
+      });
+
+      if (existingByEmail) {
+        if (identity.emailVerified !== true) {
+          throw new UserEmailAlreadyExistsError(
+            identity.email,
+            providersFromUser(existingByEmail)
+          );
+        }
+
+        try {
+          return await client.user.update({
+            where: { id: existingByEmail.id },
+            data: {
+              ...buildUserProfileUpdatePayload(identity),
+              identities: {
+                create: buildUserIdentityCreatePayload(identity)
+              }
+            },
+            ...readArgs
+          });
+        } catch (error) {
+          if (!isPrismaUniqueConstraintError(error)) {
+            throw error;
+          }
+
+          lastUniqueConstraintError = error;
+          continue;
+        }
+      }
+    }
+
+    try {
+      return await client.user.create({
+        data: {
+          ...buildUserCreatePayload(identity),
+          identities: {
+            create: buildUserIdentityCreatePayload(identity)
+          }
+        },
+        ...readArgs
+      });
+    } catch (error) {
+      if (!isPrismaUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      lastUniqueConstraintError = error;
+    }
+  }
+
+  const existingIdentity = await findUserIdentity(client, identityLookup);
+
+  if (existingIdentity) {
+    return client.user.update({
+      where: { id: existingIdentity.userId },
+      data: buildUserProfileUpdatePayload(identity),
+      ...readArgs
+    });
+  }
+
+  throw lastUniqueConstraintError;
+}
+
+async function findUserIdentity<TResult extends { id: string }>(
+  client: IUserIdentityPersistenceClient<TResult>,
+  identityLookup: { provider: string; providerSubject: string }
+): Promise<
+  | {
+      userId: string;
+      user?: IUserPersistenceRecord;
+    }
+  | null
+> {
+  return client.userIdentity.findUnique({
     where: {
       provider_providerSubject: identityLookup
     },
@@ -118,53 +217,6 @@ export async function upsertAuthenticatedUserIdentity<TResult extends { id: stri
         }
       }
     }
-  });
-
-  if (existingIdentity) {
-    return client.user.update({
-      where: { id: existingIdentity.userId },
-      data: buildUserProfileUpdatePayload(identity),
-      ...readArgs
-    });
-  }
-
-  if (identity.email) {
-    const existingByEmail = await client.user.findUnique({
-      where: { email: identity.email },
-      include: {
-        identities: true
-      }
-    });
-
-    if (existingByEmail) {
-      if (identity.emailVerified !== true) {
-        throw new UserEmailAlreadyExistsError(
-          identity.email,
-          providersFromUser(existingByEmail)
-        );
-      }
-
-      return client.user.update({
-        where: { id: existingByEmail.id },
-        data: {
-          ...buildUserProfileUpdatePayload(identity),
-          identities: {
-            create: buildUserIdentityCreatePayload(identity)
-          }
-        },
-        ...readArgs
-      });
-    }
-  }
-
-  return client.user.create({
-    data: {
-      ...buildUserCreatePayload(identity),
-      identities: {
-        create: buildUserIdentityCreatePayload(identity)
-      }
-    },
-    ...readArgs
   });
 }
 
@@ -235,6 +287,15 @@ function providersFromUser(user: IUserPersistenceRecord): string[] {
   );
 }
 
+function isPrismaUniqueConstraintError(error: unknown): error is { code: 'P2002' } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'P2002'
+  );
+}
+
 function removeUndefinedValues<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
     Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
@@ -242,7 +303,7 @@ function removeUndefinedValues<T extends Record<string, unknown>>(value: T): T {
 }
 
 export async function grantDemoOwnerRoleIfEligible(
-  client: IUserRoleProvisioningClient,
+  client: IUserRoleUpsertClient,
   userId: string,
   identity: IExternalUserIdentity
 ): Promise<boolean> {
@@ -250,6 +311,15 @@ export async function grantDemoOwnerRoleIfEligible(
     return false;
   }
 
+  await upsertOwnerRole(client, userId);
+
+  return true;
+}
+
+export async function upsertOwnerRole(
+  client: IUserRoleUpsertClient,
+  userId: string
+): Promise<void> {
   await client.userRole.upsert({
     where: {
       userId_role: {
@@ -263,8 +333,6 @@ export async function grantDemoOwnerRoleIfEligible(
     },
     update: {}
   });
-
-  return true;
 }
 
 export async function hasPersistedOwnerRole(
