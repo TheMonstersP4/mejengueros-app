@@ -20,6 +20,7 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 - Valid types are `feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert`.
 - Every PR title must keep the Conventional Commit format, and the summary after `:` must be written in English.
 - Every PR body must be written in clear English.
+- Every PR must use exactly one primary `type:*` label chosen by evaluating the dominant impact of the full change; do not copy a template option mechanically.
 - Every PR must request `@kevinah95` as reviewer.
 - `CODEOWNERS` covers all files and will enforce this review when branch protection requires code owner reviews.
 - Every non-epic issue must be assigned to the `Mejengueros` GitHub Project, have a sprint, estimate, assignee, and milestone.
@@ -36,6 +37,7 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 | New branch | Use `type/<github-username>/<description>` |
 | PR title | Use the `type(scope): summary in English` format |
 | PR body | Write it in clear English |
+| PR type | Choose exactly one primary `type:*` based on the dominant impact of the full change |
 | Required reviewer | Request `@kevinah95` |
 | Ownership automation | Rely on `CODEOWNERS` once branch protection requires code owner reviews |
 | New non-epic issue | Add it to the `Mejengueros` Project with sprint, estimate, assignee, and milestone |
@@ -49,10 +51,12 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 1. Run the global `branch-pr` skill workflow first.
 2. Create or validate the branch with the `type/<github-username>/<description>` pattern.
 3. Verify that `type` belongs to the allowed set.
-4. Write the PR title as `type(scope): English summary`, for example `chore(repo): standardize PR governance`.
-5. Write the PR body in clear English.
-6. When opening or editing the PR, request `@kevinah95` as reviewer.
-7. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
+4. Evaluate the full PR diff and choose the single primary `type:*` label that best represents the dominant impact.
+5. Do not use `type:epic` for PRs; it is only for container issues.
+6. Write the PR title as `type(scope): English summary`, for example `chore(repo): standardize PR governance`.
+7. Write the PR body in clear English.
+8. When opening or editing the PR, request `@kevinah95` as reviewer.
+9. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
 
 ## Issue Tracking Steps
 
