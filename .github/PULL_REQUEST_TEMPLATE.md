@@ -1,39 +1,39 @@
-## Issue relacionado
+## Linked Issue
 
 Closes #
 
-## Tipo de PR
+## PR Type
 
-Selecciona exactamente una opción y agrega al PR el label `type:*` correspondiente.
+Select exactly one option and add the matching `type:*` label to the PR.
 
-- [ ] Corrección de bug — `type:bug`
-- [ ] Nueva funcionalidad — `type:feature`
-- [ ] Solo documentación — `type:docs`
-- [ ] Refactorización de código — `type:refactor`
-- [ ] Mantenimiento/tooling — `type:chore`
-- [ ] Cambio incompatible — `type:breaking-change`
+- [ ] Bug fix — `type:bug`
+- [ ] New feature — `type:feature`
+- [ ] Documentation only — `type:docs`
+- [ ] Code refactoring — `type:refactor`
+- [ ] Maintenance/tooling — `type:chore`
+- [ ] Breaking change — `type:breaking-change`
 
-## Resumen
+## Summary
 
 - 
 
-## Cambios
+## Changes
 
-| Archivo | Cambio |
+| File | Change |
 |---------|--------|
 |      |        |
 
-## Plan de pruebas
+## Test Plan
 
-- [ ] El quality gate del backend pasa cuando hay cambios en backend
-- [ ] El quality gate del frontend KMP pasa cuando hay cambios en frontend
-- [ ] Se completó la verificación manual cuando fue necesaria
+- [ ] The backend quality gate passes when backend files change
+- [ ] The frontend KMP quality gate passes when frontend files change
+- [ ] Manual verification was completed when needed
 
-## Checklist del contribuidor
+## Contributor Checklist
 
-- [ ] Enlacé un issue aprobado usando `Closes #N`, `Fixes #N` o `Resolves #N`
-- [ ] El issue enlazado tiene el label `status:approved`
-- [ ] Agregué exactamente un label `type:*` válido
-- [ ] Actualicé la documentación si cambió el comportamiento
-- [ ] Usé formato Conventional Commit
-- [ ] No agregué trailers `Co-Authored-By`
+- [ ] I linked an approved issue using `Closes #N`, `Fixes #N`, or `Resolves #N`
+- [ ] The linked issue has the `status:approved` label
+- [ ] I added exactly one valid `type:*` label
+- [ ] I updated the documentation if behavior changed
+- [ ] I used Conventional Commit format
+- [ ] I did not add `Co-Authored-By` trailers

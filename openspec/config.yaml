@@ -5,7 +5,7 @@ context: |
   Architecture: Backend uses modular DDD; frontend uses shared KMP layers with repositories, datasources, and Koin.
   Persistence: Hybrid SDD persistence via openspec files and Engram memory.
   Existing specs: Course/backlog docs live in docs/specs and are not OpenSpec artifacts.
-  Documentation language: Project functional docs are Spanish; SDD technical artifacts stay in English.
+  Documentation language: README documentation and PR titles/bodies are English; SDD technical artifacts stay in English.
 
 strict_tdd: true
 
