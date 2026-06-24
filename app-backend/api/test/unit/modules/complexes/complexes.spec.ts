@@ -100,7 +100,12 @@ describe('complexes module behavior', () => {
     delete process.env.DEMO_OWNER_SUBS;
     const transactionClient = {
       user: {
-        upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn().mockResolvedValue({ id: 'role-id' }),
@@ -149,20 +154,18 @@ describe('complexes module behavior', () => {
     ).resolves.toEqual(created);
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(transactionClient.user.upsert).toHaveBeenCalledWith({
-      where: { cognitoSub: 'owner-sub' },
-      create: {
-        cognitoSub: 'owner-sub',
+    expect(transactionClient.user.create).toHaveBeenCalledWith({
+      data: {
         email: 'owner@example.test',
         name: 'Owner User',
         pictureUrl: 'https://example.test/owner.png',
-        provider: 'Google'
-      },
-      update: {
-        email: 'owner@example.test',
-        name: 'Owner User',
-        pictureUrl: 'https://example.test/owner.png',
-        provider: 'Google'
+        identities: {
+          create: {
+            provider: 'Google',
+            providerSubject: 'owner-sub',
+            emailAtLogin: 'owner@example.test'
+          }
+        }
       },
       select: { id: true }
     });
@@ -207,7 +210,12 @@ describe('complexes module behavior', () => {
   it('rejects creation when the authenticated user has no OWNER role', async () => {
     const transactionClient = {
       user: {
-        upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -237,20 +245,16 @@ describe('complexes module behavior', () => {
       })
     ).rejects.toBeInstanceOf(OwnerRoleRequiredError);
 
-    expect(transactionClient.user.upsert).toHaveBeenCalledWith({
-      where: { cognitoSub: 'owner-sub' },
-      create: {
-        cognitoSub: 'owner-sub',
+    expect(transactionClient.user.create).toHaveBeenCalledWith({
+      data: {
         email: 'owner@example.test',
-        name: undefined,
-        pictureUrl: undefined,
-        provider: undefined
-      },
-      update: {
-        email: 'owner@example.test',
-        name: undefined,
-        pictureUrl: undefined,
-        provider: undefined
+        identities: {
+          create: {
+            provider: 'Cognito',
+            providerSubject: 'owner-sub',
+            emailAtLogin: 'owner@example.test'
+          }
+        }
       },
       select: { id: true }
     });
@@ -270,7 +274,12 @@ describe('complexes module behavior', () => {
   it('allows a persisted OWNER to create even when not allowlisted', async () => {
     const transactionClient = {
       user: {
-        upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn().mockResolvedValue({ id: 'existing-role-id' }),
@@ -323,7 +332,12 @@ describe('complexes module behavior', () => {
     process.env.DEMO_OWNER_SUBS = 'owner-sub';
     const transactionClient = {
       user: {
-        upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn().mockResolvedValue({ id: 'role-id' }),

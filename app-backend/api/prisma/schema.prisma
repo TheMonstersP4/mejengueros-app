@@ -82,12 +82,11 @@ enum NotificationStatus {
 
 model User {
   id            String         @id @default(uuid())
-  cognitoSub    String         @unique
   email         String         @unique
   name          String?
   pictureUrl    String?
-  provider      String?
   status        UserStatus     @default(ACTIVE)
+  identities    UserIdentity[]
   roles         UserRole[]
   ownedComplexes Complex[]
   reservations  Reservation[]
@@ -95,6 +94,22 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
+  @@schema("mejengueros_dev")
+}
+
+model UserIdentity {
+  id              String   @id @default(uuid())
+  userId          String
+  provider        String
+  providerSubject String
+  emailAtLogin    String?
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+  @@index([provider])
   @@schema("mejengueros_dev")
 }
 

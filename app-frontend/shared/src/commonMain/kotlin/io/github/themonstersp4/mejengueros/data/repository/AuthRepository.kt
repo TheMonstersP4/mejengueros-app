@@ -9,6 +9,7 @@ import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
@@ -17,19 +18,27 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CancellationException
 
 class AuthRepository(
     private val secureStorage: IAuthSecureStorage,
     private val remoteDataSource: IAuthRemoteDataSource,
     private val nativeAuthDataSource: ICognitoNativeAuthDataSource,
+    private val authenticatedUserRemoteDataSource: IAuthenticatedUserRemoteDataSource,
     private val requestFactory: CognitoOAuthRequestFactory,
     private val pkceGenerator: PkceGenerator,
     private val randomStringGenerator: IRandomStringGenerator,
     private val callbackParser: OAuthCallbackParser,
     private val idTokenDecoder: JwtIdTokenDecoder,
 ) : IAuthRepository {
-  override suspend fun getSession(): AuthSession? =
-      secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
+  override suspend fun getSession(): AuthSession? {
+    val session =
+        secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
+            ?: return null
+
+    syncCurrentUser()
+    return session
+  }
 
   override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest {
     val state = randomStringGenerator.generate(StateLength)
@@ -101,7 +110,29 @@ class AuthRepository(
             expiresAtEpochSeconds = claims.expiresAtEpochSeconds,
         )
     secureStorage.saveSession(session)
+    syncCurrentUserOrClearSession()
     return session
+  }
+
+  private suspend fun syncCurrentUser() {
+    try {
+      authenticatedUserRemoteDataSource.syncCurrentUser()
+    } catch (error: CancellationException) {
+      throw error
+    } catch (_: Throwable) {
+      // Restored sessions survive temporary API or network failures during app startup.
+    }
+  }
+
+  private suspend fun syncCurrentUserOrClearSession() {
+    try {
+      authenticatedUserRemoteDataSource.syncCurrentUser()
+    } catch (error: CancellationException) {
+      throw error
+    } catch (error: Throwable) {
+      secureStorage.clearSession()
+      throw error
+    }
   }
 
   private companion object {

@@ -8,9 +8,9 @@ export interface IUserProfileOutput {
   id: string;
 
   /**
-   * Stable Cognito subject linked to this user.
+   * Stable subject from the current identity when available.
    */
-  cognitoSub: string;
+  cognitoSub?: string;
 
   /**
    * Primary user email.

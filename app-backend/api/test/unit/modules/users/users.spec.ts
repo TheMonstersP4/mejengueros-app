@@ -1,13 +1,25 @@
 import { ListUsersUseCase } from '@/modules/users/application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
 import { UserEntity } from '@/modules/users/domain/entities/user.entity';
+import { UserEmailAlreadyExistsError } from '@/modules/users/domain/errors/user-email-already-exists.error';
 import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
 import { UserMapper } from '@/modules/users/infrastructure/mappers/user.mapper';
 import { PrismaUserRepository } from '@/modules/users/infrastructure/persistence/prisma-user.repository';
 import { UsersController } from '@/modules/users/interfaces/http/controllers/users.controller';
 
 describe('users module behavior', () => {
+  const googleIdentity = {
+    provider: 'Google',
+    providerSubject: 'cognito-sub'
+  };
   const persistenceUser = {
+    id: 'user-id',
+    email: 'user@example.test',
+    name: 'User Name',
+    pictureUrl: 'https://example.test/avatar.png',
+    identities: [googleIdentity]
+  };
+  const userProfile = {
     id: 'user-id',
     cognitoSub: 'cognito-sub',
     email: 'user@example.test',
@@ -21,12 +33,12 @@ describe('users module behavior', () => {
       ...persistenceUser,
       name: null,
       pictureUrl: null,
-      provider: null
+      currentIdentity: null
     });
 
     expect(entity.toProfile()).toEqual({
       id: 'user-id',
-      cognitoSub: 'cognito-sub',
+      cognitoSub: undefined,
       email: 'user@example.test',
       name: undefined,
       pictureUrl: undefined,
@@ -35,13 +47,14 @@ describe('users module behavior', () => {
   });
 
   it('maps Prisma users to domain entities', () => {
-    expect(UserMapper.toDomain(persistenceUser as never).toProfile()).toEqual(
-      persistenceUser
-    );
+    expect(UserMapper.toDomain(persistenceUser).toProfile()).toEqual(userProfile);
   });
 
   it('syncs authenticated users through the repository port', async () => {
-    const entity = UserEntity.fromPersistence(persistenceUser);
+    const entity = UserEntity.fromPersistence({
+      ...persistenceUser,
+      currentIdentity: googleIdentity
+    });
     const repository = {
       syncAuthenticatedUser: jest.fn().mockResolvedValue(entity),
       findByCognitoSub: jest.fn(),
@@ -59,7 +72,7 @@ describe('users module behavior', () => {
         provider: 'Google',
         groups: ['admin']
       })
-    ).resolves.toEqual(persistenceUser);
+    ).resolves.toEqual(userProfile);
     expect(repository.syncAuthenticatedUser).toHaveBeenCalledWith({
       cognitoSub: 'cognito-sub',
       email: 'user@example.test',
@@ -70,16 +83,20 @@ describe('users module behavior', () => {
     });
   });
 
-  it('upserts authenticated users and maps the result', async () => {
+  it('creates authenticated users with a linked identity', async () => {
     const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
     const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
     delete process.env.DEMO_OWNER_EMAILS;
     delete process.env.DEMO_OWNER_SUBS;
     const prisma = {
       user: {
-        upsert: jest.fn().mockResolvedValue(persistenceUser),
-        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn(),
@@ -95,26 +112,140 @@ describe('users module behavior', () => {
       })
     ).resolves.toEqual(expect.any(UserEntity));
 
-    expect(prisma.user.upsert).toHaveBeenCalledWith({
-      where: { cognitoSub: 'cognito-sub' },
-      create: {
-        cognitoSub: 'cognito-sub',
+    expect(prisma.userIdentity.findUnique).toHaveBeenCalledWith({
+      where: {
+        provider_providerSubject: {
+          provider: 'Cognito',
+          providerSubject: 'cognito-sub'
+        }
+      },
+      include: {
+        user: {
+          include: {
+            identities: true
+          }
+        }
+      }
+    });
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
         email: 'cognito-sub@unknown.local',
         name: 'User Name',
-        pictureUrl: undefined,
-        provider: undefined
+        identities: {
+          create: {
+            provider: 'Cognito',
+            providerSubject: 'cognito-sub'
+          }
+        }
       },
-      update: {
-        email: undefined,
-        name: 'User Name',
-        pictureUrl: undefined,
-        provider: undefined
+      include: {
+        identities: true
       }
     });
     expect(prisma.userRole.findUnique).not.toHaveBeenCalled();
     expect(prisma.userRole.upsert).not.toHaveBeenCalled();
     process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
     process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
+  it('links verified email users when a new provider signs in', async () => {
+    const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
+    const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
+    delete process.env.DEMO_OWNER_EMAILS;
+    delete process.env.DEMO_OWNER_SUBS;
+    const linkedUser = {
+      ...persistenceUser,
+      identities: [
+        googleIdentity,
+        {
+          provider: 'Cognito',
+          providerSubject: 'new-cognito-sub'
+        }
+      ]
+    };
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(persistenceUser),
+        update: jest.fn().mockResolvedValue(linkedUser),
+        findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(
+      repository.syncAuthenticatedUser({
+        cognitoSub: 'new-cognito-sub',
+        email: 'user@example.test',
+        emailVerified: true,
+        name: 'User Name',
+        provider: 'Cognito'
+      })
+    ).resolves.toEqual(expect.any(UserEntity));
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { email: 'user@example.test' },
+      include: {
+        identities: true
+      }
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      data: {
+        email: 'user@example.test',
+        name: 'User Name',
+        identities: {
+          create: {
+            provider: 'Cognito',
+            providerSubject: 'new-cognito-sub',
+            emailAtLogin: 'user@example.test'
+          }
+        }
+      },
+      include: {
+        identities: true
+      }
+    });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
+    process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
+  it('rejects unverified email collisions without linking identities', async () => {
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(persistenceUser),
+        update: jest.fn(),
+        findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(
+      repository.syncAuthenticatedUser({
+        cognitoSub: 'new-cognito-sub',
+        email: 'user@example.test',
+        emailVerified: false,
+        provider: 'Cognito'
+      })
+    ).rejects.toBeInstanceOf(UserEmailAlreadyExistsError);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it('provisions the OWNER role during sync when the demo email allowlist matches and email is verified', async () => {
@@ -124,9 +255,13 @@ describe('users module behavior', () => {
     delete process.env.DEMO_OWNER_SUBS;
     const prisma = {
       user: {
-        upsert: jest.fn().mockResolvedValue(persistenceUser),
-        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn(),
@@ -168,9 +303,13 @@ describe('users module behavior', () => {
     delete process.env.DEMO_OWNER_SUBS;
     const prisma = {
       user: {
-        upsert: jest.fn().mockResolvedValue(persistenceUser),
-        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn(),
@@ -199,9 +338,13 @@ describe('users module behavior', () => {
     delete process.env.DEMO_OWNER_SUBS;
     const prisma = {
       user: {
-        upsert: jest.fn().mockResolvedValue(persistenceUser),
-        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn(),
@@ -229,9 +372,13 @@ describe('users module behavior', () => {
     process.env.DEMO_OWNER_SUBS = 'cognito-sub,another-sub';
     const prisma = {
       user: {
-        upsert: jest.fn().mockResolvedValue(persistenceUser),
-        findUnique: jest.fn(),
+        create: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
       },
       userRole: {
         findUnique: jest.fn(),
@@ -252,30 +399,47 @@ describe('users module behavior', () => {
     process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
   });
 
-  it('finds users by Cognito subject', async () => {
+  it('finds users by Cognito subject through identities', async () => {
+    const identity = {
+      ...googleIdentity,
+      user: persistenceUser
+    };
     const prisma = {
       user: {
-        upsert: jest.fn(),
-        findUnique: jest.fn().mockResolvedValueOnce(persistenceUser),
+        create: jest.fn(),
+        findUnique: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findFirst: jest.fn().mockResolvedValueOnce(identity)
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
 
     const user = await repository.findByCognitoSub('cognito-sub');
 
-    expect(user?.toProfile()).toEqual(persistenceUser);
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { cognitoSub: 'cognito-sub' }
+    expect(user?.toProfile()).toEqual(userProfile);
+    expect(prisma.userIdentity.findFirst).toHaveBeenCalledWith({
+      where: { providerSubject: 'cognito-sub' },
+      include: {
+        user: {
+          include: {
+            identities: true
+          }
+        }
+      }
     });
   });
 
   it('returns null when a Cognito subject is unknown', async () => {
     const prisma = {
       user: {
-        upsert: jest.fn(),
-        findUnique: jest.fn().mockResolvedValueOnce(null),
+        create: jest.fn(),
+        findUnique: jest.fn(),
         findMany: jest.fn()
+      },
+      userIdentity: {
+        findFirst: jest.fn().mockResolvedValueOnce(null)
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -284,7 +448,10 @@ describe('users module behavior', () => {
   });
 
   it('lists synchronized users through the repository port', async () => {
-    const entity = UserEntity.fromPersistence(persistenceUser);
+    const entity = UserEntity.fromPersistence({
+      ...persistenceUser,
+      currentIdentity: googleIdentity
+    });
     const repository = {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn(),
@@ -292,14 +459,14 @@ describe('users module behavior', () => {
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository);
 
-    await expect(useCase.execute()).resolves.toEqual([persistenceUser]);
+    await expect(useCase.execute()).resolves.toEqual([userProfile]);
     expect(repository.list).toHaveBeenCalledTimes(1);
   });
 
   it('lists users from Prisma by recent updates', async () => {
     const prisma = {
       user: {
-        upsert: jest.fn(),
+        create: jest.fn(),
         findUnique: jest.fn(),
         findMany: jest.fn().mockResolvedValueOnce([persistenceUser])
       }
@@ -308,6 +475,9 @@ describe('users module behavior', () => {
 
     await expect(repository.list()).resolves.toHaveLength(1);
     expect(prisma.user.findMany).toHaveBeenCalledWith({
+      include: {
+        identities: true
+      },
       orderBy: { updatedAt: 'desc' }
     });
   });
@@ -317,7 +487,7 @@ describe('users module behavior', () => {
       execute: jest.fn()
     } as unknown as ListUsersUseCase;
     const syncAuthenticatedUser = {
-      execute: jest.fn().mockResolvedValue(persistenceUser)
+      execute: jest.fn().mockResolvedValue(userProfile)
     } as unknown as SyncAuthenticatedUserUseCase;
     const controller = new UsersController(listUsers, syncAuthenticatedUser);
     const currentUser = {
@@ -325,20 +495,20 @@ describe('users module behavior', () => {
       groups: []
     };
 
-    await expect(controller.me(currentUser)).resolves.toEqual(persistenceUser);
+    await expect(controller.me(currentUser)).resolves.toEqual(userProfile);
     expect(syncAuthenticatedUser.execute).toHaveBeenCalledWith(currentUser);
   });
 
   it('delegates the users list endpoint to the list use case', async () => {
     const listUsers = {
-      execute: jest.fn().mockResolvedValue([persistenceUser])
+      execute: jest.fn().mockResolvedValue([userProfile])
     } as unknown as ListUsersUseCase;
     const syncAuthenticatedUser = {
       execute: jest.fn()
     } as unknown as SyncAuthenticatedUserUseCase;
     const controller = new UsersController(listUsers, syncAuthenticatedUser);
 
-    await expect(controller.list()).resolves.toEqual([persistenceUser]);
+    await expect(controller.list()).resolves.toEqual([userProfile]);
     expect(listUsers.execute).toHaveBeenCalledTimes(1);
   });
 });

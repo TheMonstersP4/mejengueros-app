@@ -91,19 +91,19 @@ describe('CognitoTokenVerifierAdapter', () => {
       emailVerified: undefined,
       name: undefined,
       pictureUrl: undefined,
-      provider: undefined,
+      provider: 'Cognito',
       groups: []
     });
   });
 
-  it('returns no provider when identities are missing', async () => {
+  it('returns Cognito as provider when identities are missing', async () => {
     mockVerify.mockResolvedValue({ sub: 'user', identities: [] });
     const { adapter } = createAdapter();
 
     await expect(adapter.verify('token')).resolves.toEqual(
       expect.objectContaining({
         emailVerified: undefined,
-        provider: undefined
+        provider: 'Cognito'
       })
     );
   });

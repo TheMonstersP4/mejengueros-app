@@ -13,6 +13,7 @@ import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
@@ -22,6 +23,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 
@@ -65,8 +67,13 @@ class AuthRepositoryTest {
         PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
     )
     val remoteDataSource = FakeAuthRemoteDataSource()
+    val authenticatedUserRemoteDataSource = FakeAuthenticatedUserRemoteDataSource()
     val repository =
-        createRepository(secureStorage = secureStorage, remoteDataSource = remoteDataSource)
+        createRepository(
+            secureStorage = secureStorage,
+            remoteDataSource = remoteDataSource,
+            authenticatedUserRemoteDataSource = authenticatedUserRemoteDataSource,
+        )
 
     val session =
         repository.handleCallback(
@@ -79,6 +86,7 @@ class AuthRepositoryTest {
     assertEquals("player@example.com", session.email)
     assertEquals("Google", session.provider)
     assertEquals(session, secureStorage.getSession())
+    assertEquals(1, authenticatedUserRemoteDataSource.syncCount)
     assertNull(secureStorage.getOAuthState())
   }
 
@@ -128,12 +136,55 @@ class AuthRepositoryTest {
   fun getSessionReturnsStoredSession() = runTest {
     val secureStorage = InMemoryAuthSecureStorage()
     secureStorage.saveSession(sampleSession())
-    val repository = createRepository(secureStorage = secureStorage)
+    val authenticatedUserRemoteDataSource = FakeAuthenticatedUserRemoteDataSource()
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource = authenticatedUserRemoteDataSource,
+        )
 
     val session = repository.getSession()
 
     assertNotNull(session)
     assertEquals("player@example.com", session.email)
+    assertEquals(1, authenticatedUserRemoteDataSource.syncCount)
+  }
+
+  @Test
+  fun getSessionKeepsSessionWhenUserSyncFails() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val session = sampleSession()
+    secureStorage.saveSession(session)
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(
+                    syncFailure = IllegalStateException("User sync failed.")
+                ),
+        )
+
+    val restoredSession = repository.getSession()
+
+    assertEquals(session, restoredSession)
+    assertEquals(session, secureStorage.getSession())
+  }
+
+  @Test
+  fun getSessionPropagatesCancellationWithoutClearingSession() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val session = sampleSession()
+    secureStorage.saveSession(session)
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(syncFailure = CancellationException()),
+        )
+
+    assertFailsWith<CancellationException> { repository.getSession() }
+
+    assertEquals(session, secureStorage.getSession())
   }
 
   @Test
@@ -213,14 +264,56 @@ class AuthRepositoryTest {
   fun signInWithEmailStoresCognitoSession() = runTest {
     val secureStorage = InMemoryAuthSecureStorage()
     val nativeAuthDataSource = FakeCognitoNativeAuthDataSource()
+    val authenticatedUserRemoteDataSource = FakeAuthenticatedUserRemoteDataSource()
     val repository =
-        createRepository(secureStorage = secureStorage, nativeAuthDataSource = nativeAuthDataSource)
+        createRepository(
+            secureStorage = secureStorage,
+            nativeAuthDataSource = nativeAuthDataSource,
+            authenticatedUserRemoteDataSource = authenticatedUserRemoteDataSource,
+        )
 
     val session = repository.signInWithEmail(" player@example.com ", "password")
 
     assertEquals("player@example.com", nativeAuthDataSource.receivedSignInEmail)
     assertEquals("user-sub", session.sub)
     assertEquals(session, secureStorage.getSession())
+    assertEquals(1, authenticatedUserRemoteDataSource.syncCount)
+  }
+
+  @Test
+  fun signInWithEmailClearsSessionWhenUserSyncFails() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(
+                    syncFailure = IllegalStateException("User sync failed.")
+                ),
+        )
+
+    assertFailsWith<IllegalStateException> {
+      repository.signInWithEmail(" player@example.com ", "password")
+    }
+
+    assertNull(secureStorage.getSession())
+  }
+
+  @Test
+  fun signInWithEmailPropagatesCancellationWithoutClearingSession() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(syncFailure = CancellationException()),
+        )
+
+    assertFailsWith<CancellationException> {
+      repository.signInWithEmail(" player@example.com ", "password")
+    }
+
+    assertNotNull(secureStorage.getSession())
   }
 
   @Test
@@ -256,11 +349,14 @@ class AuthRepositoryTest {
       secureStorage: IAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
       nativeAuthDataSource: FakeCognitoNativeAuthDataSource = FakeCognitoNativeAuthDataSource(),
+      authenticatedUserRemoteDataSource: FakeAuthenticatedUserRemoteDataSource =
+          FakeAuthenticatedUserRemoteDataSource(),
   ): AuthRepository =
       AuthRepository(
           secureStorage = secureStorage,
           remoteDataSource = remoteDataSource,
           nativeAuthDataSource = nativeAuthDataSource,
+          authenticatedUserRemoteDataSource = authenticatedUserRemoteDataSource,
           requestFactory = CognitoOAuthRequestFactory(testConfig),
           pkceGenerator = PkceGenerator(FakeRandomStringGenerator()),
           randomStringGenerator = FakeRandomStringGenerator(),
@@ -291,6 +387,16 @@ class AuthRepositoryTest {
 
   private class FakeRandomStringGenerator : IRandomStringGenerator {
     override fun generate(length: Int): String = if (length == 32) "state-value" else CodeVerifier
+  }
+
+  private class FakeAuthenticatedUserRemoteDataSource(private val syncFailure: Throwable? = null) :
+      IAuthenticatedUserRemoteDataSource {
+    var syncCount = 0
+
+    override suspend fun syncCurrentUser() {
+      syncCount++
+      syncFailure?.let { throw it }
+    }
   }
 
   private class FailingSaveAuthSecureStorage(

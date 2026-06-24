@@ -5,6 +5,8 @@ import type { IAuthenticatedUserOutput } from '../../application/dto/authenticat
 import type { ITokenVerifierPort } from '../../application/ports/token-verifier.port';
 import { InvalidTokenError } from '../../domain/errors/invalid-token.error';
 
+const COGNITO_NATIVE_PROVIDER = 'Cognito';
+
 /**
  * Cognito implementation of the token verifier port.
  *
@@ -56,13 +58,13 @@ export class CognitoTokenVerifierAdapter implements ITokenVerifierPort {
 
   private resolveProvider(identities: unknown): string | undefined {
     if (!Array.isArray(identities) || identities.length === 0) {
-      return undefined;
+      return COGNITO_NATIVE_PROVIDER;
     }
 
     const firstIdentity = identities[0] as { providerName?: unknown };
     return typeof firstIdentity.providerName === 'string'
       ? firstIdentity.providerName
-      : undefined;
+      : COGNITO_NATIVE_PROVIDER;
   }
 
   private resolveEmailVerified(emailVerified: unknown): boolean | undefined {
