@@ -18,6 +18,8 @@ metadata:
 - No crees ni sobrescribas un skill local llamado `branch-pr`.
 - Todas las ramas deben usar el formato `type/<github-username>/<description>`.
 - Los tipos válidos son `feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert`.
+- Todo PR debe mantener el formato Conventional Commit en el título, pero el resumen después de `:` debe escribirse en español.
+- Todo cuerpo de PR debe escribirse en español claro, salvo nombres técnicos, comandos, rutas, símbolos, etiquetas y referencias externas.
 - Todo PR debe solicitar a `@kevinah95` como reviewer.
 - `CODEOWNERS` cubre todos los archivos y reforzará esta revisión cuando la protección de rama exija code owner reviews.
 
@@ -27,6 +29,8 @@ metadata:
 | --- | --- |
 | Flujo base del PR | Sigue primero `branch-pr` |
 | Rama nueva | Usa `type/<github-username>/<description>` |
+| Título del PR | Usa formato `type(scope): resumen en español` |
+| Cuerpo del PR | Escríbelo en español claro, respetando términos técnicos necesarios |
 | Reviewer obligatorio | Solicita `@kevinah95` |
 | Automatización de ownership | Confía en `CODEOWNERS` una vez exista branch protection con code owner reviews |
 
@@ -35,12 +39,14 @@ metadata:
 1. Ejecuta primero el workflow del skill global `branch-pr`.
 2. Crea o valida la rama con el patrón `type/<github-username>/<description>`.
 3. Verifica que `type` pertenezca al conjunto permitido.
-4. Al abrir o editar el PR, solicita a `@kevinah95` como reviewer.
-5. Si documentas ejemplos, usa convenciones reales del repo como `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding` y `chore/ddgutierrezc/readme-contribucion`.
+4. Redacta el título del PR como `type(scope): resumen en español`, por ejemplo `chore(repo): estandarizar gobernanza de PRs`.
+5. Redacta el cuerpo del PR en español claro y conserva en inglés solo nombres técnicos, comandos, rutas, símbolos, labels y referencias externas.
+6. Al abrir o editar el PR, solicita a `@kevinah95` como reviewer.
+7. Si documentas ejemplos, usa convenciones reales del repo como `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding` y `chore/ddgutierrezc/readme-contribucion`.
 
 ## Output Contract
 
-Reporta si el PR cumple el flujo global `branch-pr`, si la rama cumple el patrón local y si `@kevinah95` quedó solicitado como reviewer.
+Reporta si el PR cumple el flujo global `branch-pr`, si la rama cumple el patrón local, si el título y cuerpo están en español y si `@kevinah95` quedó solicitado como reviewer.
 
 ## References
 
