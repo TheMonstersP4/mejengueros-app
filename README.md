@@ -86,25 +86,29 @@ La documentación versionada del repositorio debe complementar ese seguimiento, 
 
 Cada cambio debe partir de `main` en una rama propia y enfocada. Si necesitas trabajar en más de una feature a la vez, no reutilices el mismo directorio ni mezcles cambios sin relación: usa `git worktree` para mantener cada feature aislada.
 
+La convención de ramas es `type/<github-username>/<descripcion>`, por ejemplo `feat/ddgutierrezc/reservas`. Todo Pull Request debe solicitar revisión de `@kevinah95`; además, `CODEOWNERS` cubre todo el repositorio para reforzar esta regla cuando la protección de rama exija revisiones de code owners.
+
 Ruta recomendada para trabajo paralelo:
 
 ```powershell
 git switch main
 git pull
-git worktree add ..\mejengueros-app-<feature> -b <tipo>/<descripcion> main
+git worktree add ..\mejengueros-app-<feature> -b <tipo>/<github-username>/<descripcion> main
 ```
 
 Ejemplo:
 
 ```powershell
-git worktree add ..\mejengueros-app-reservas -b feat/reservas main
+git worktree add ..\mejengueros-app-reservas -b feat/ddgutierrezc/reservas main
 ```
 
 Reglas prácticas:
 
 - una rama por issue, fix o feature;
 - cada worktree debe apuntar a una rama distinta;
+- usa siempre el patrón `type/<github-username>/<descripcion>` con `type` válido (`feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `revert`);
 - antes de abrir un Pull Request, verifica que el cambio esté vinculado a un issue aprobado;
+- solicita a `@kevinah95` como reviewer en cada Pull Request;
 - no mezcles documentación, infraestructura, backend y frontend en una misma rama salvo que formen parte del mismo cambio revisable.
 
 ## Lecturas recomendadas
