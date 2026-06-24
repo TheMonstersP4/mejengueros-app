@@ -4,7 +4,7 @@ Closes #
 
 ## PR Type
 
-Select exactly one option and add the matching `type:*` label to the PR.
+Evaluate the full change, select exactly one primary PR type that best represents the dominant impact, and add the matching `type:*` label to the PR.
 
 - [ ] Bug fix — `type:bug`
 - [ ] New feature — `type:feature`
