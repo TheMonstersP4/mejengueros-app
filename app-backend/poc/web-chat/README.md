@@ -1,19 +1,19 @@
 # Web Chat
 
-Cliente estatico para probar Cognito, WebSocket, usuarios, imagenes privadas y Swagger.
+Static client for testing Cognito, WebSocket, users, private images, and Swagger.
 
-## Flujo
+## Flow
 
-- Login con Google o Microsoft mediante Cognito Hosted UI.
-- Callback OAuth en `/auth/callback`.
-- Pantalla protegida en `/chat/`.
-- Navegacion interna: `Chat`, `Usuarios`, `Imagenes` y `Swagger`.
-- `Usuarios` consume `/v1/users/me` y `/v1/users`.
-- `Imagenes` consume `/v1/files/uploads` y `/v1/files/uploads/confirm`.
+- Login with Google or Microsoft through Cognito Hosted UI.
+- OAuth callback at `/auth/callback`.
+- Protected screen at `/chat/`.
+- Internal navigation: `Chat`, `Usuarios`, `Imagenes`, and `Swagger`.
+- `Usuarios` calls `/v1/users/me` and `/v1/users`.
+- `Imagenes` calls `/v1/files/uploads` and `/v1/files/uploads/confirm`.
 
-## Configuracion runtime
+## Runtime configuration
 
-El despliegue genera `runtime-config.js` desde el secret `DEPLOY_DEV_CONFIG`.
+Deployment generates `runtime-config.js` from the `DEPLOY_DEV_CONFIG` secret.
 
 ```js
 window.MEJENGUEROS_CONFIG = {
@@ -24,12 +24,12 @@ window.MEJENGUEROS_CONFIG = {
 };
 ```
 
-Si `apiBaseUrl` queda vacio, la pantalla permite guardar la API manualmente en `localStorage`.
+If `apiBaseUrl` is empty, the screen lets you store the API manually in `localStorage`.
 
-## Correr local
+## Run locally
 
 ```powershell
 python -m http.server 3000
 ```
 
-Abrir `http://localhost:3000`.
+Open `http://localhost:3000`.

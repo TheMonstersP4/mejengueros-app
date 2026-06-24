@@ -1,6 +1,6 @@
 ---
 name: mejengueros-pr-standards
-description: "Trigger: Mejengueros PRs, branch naming, reviewers, GitHub PR creation. Extiende el flujo global branch-pr con reglas locales del repositorio."
+description: "Trigger: Mejengueros PRs, branch naming, reviewers, GitHub PR creation. Extends the global branch-pr workflow with repository-local rules."
 license: Apache-2.0
 metadata:
   author: mejengueros-team
@@ -9,44 +9,44 @@ metadata:
 
 ## Activation Contract
 
-Úsalo cuando el trabajo incluya Pull Requests de Mejengueros, nombrado de ramas, selección de reviewers o creación de PRs en GitHub para este repositorio.
+Use this skill when work includes Mejengueros pull requests, branch naming, reviewer selection, or GitHub PR creation for this repository.
 
 ## Hard Rules
 
-- Este skill COMPLEMENTA al skill global `branch-pr`; no lo reemplaza.
-- Primero sigue el flujo completo de `branch-pr` para issue aprobado, labels `type:*`, cuerpo del PR, conventional commits y validaciones base.
-- No crees ni sobrescribas un skill local llamado `branch-pr`.
-- Todas las ramas deben usar el formato `type/<github-username>/<description>`.
-- Los tipos válidos son `feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert`.
-- Todo PR debe mantener el formato Conventional Commit en el título, pero el resumen después de `:` debe escribirse en español.
-- Todo cuerpo de PR debe escribirse en español claro, salvo nombres técnicos, comandos, rutas, símbolos, etiquetas y referencias externas.
-- Todo PR debe solicitar a `@kevinah95` como reviewer.
-- `CODEOWNERS` cubre todos los archivos y reforzará esta revisión cuando la protección de rama exija code owner reviews.
+- This skill COMPLEMENTS the global `branch-pr` skill; it does not replace it.
+- First follow the complete `branch-pr` flow for approved issues, `type:*` labels, PR body, Conventional Commit titles, and base validations.
+- Do not create or overwrite a local skill named `branch-pr`.
+- All branches must use the `type/<github-username>/<description>` format.
+- Valid types are `feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert`.
+- Every PR title must keep the Conventional Commit format, and the summary after `:` must be written in English.
+- Every PR body must be written in clear English.
+- Every PR must request `@kevinah95` as reviewer.
+- `CODEOWNERS` covers all files and will enforce this review when branch protection requires code owner reviews.
 
 ## Decision Gates
 
-| Caso | Regla |
+| Case | Rule |
 | --- | --- |
-| Flujo base del PR | Sigue primero `branch-pr` |
-| Rama nueva | Usa `type/<github-username>/<description>` |
-| Título del PR | Usa formato `type(scope): resumen en español` |
-| Cuerpo del PR | Escríbelo en español claro, respetando términos técnicos necesarios |
-| Reviewer obligatorio | Solicita `@kevinah95` |
-| Automatización de ownership | Confía en `CODEOWNERS` una vez exista branch protection con code owner reviews |
+| Base PR flow | Follow `branch-pr` first |
+| New branch | Use `type/<github-username>/<description>` |
+| PR title | Use the `type(scope): summary in English` format |
+| PR body | Write it in clear English |
+| Required reviewer | Request `@kevinah95` |
+| Ownership automation | Rely on `CODEOWNERS` once branch protection requires code owner reviews |
 
 ## Execution Steps
 
-1. Ejecuta primero el workflow del skill global `branch-pr`.
-2. Crea o valida la rama con el patrón `type/<github-username>/<description>`.
-3. Verifica que `type` pertenezca al conjunto permitido.
-4. Redacta el título del PR como `type(scope): resumen en español`, por ejemplo `chore(repo): estandarizar gobernanza de PRs`.
-5. Redacta el cuerpo del PR en español claro y conserva en inglés solo nombres técnicos, comandos, rutas, símbolos, labels y referencias externas.
-6. Al abrir o editar el PR, solicita a `@kevinah95` como reviewer.
-7. Si documentas ejemplos, usa convenciones reales del repo como `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding` y `chore/ddgutierrezc/readme-contribucion`.
+1. Run the global `branch-pr` skill workflow first.
+2. Create or validate the branch with the `type/<github-username>/<description>` pattern.
+3. Verify that `type` belongs to the allowed set.
+4. Write the PR title as `type(scope): English summary`, for example `chore(repo): standardize PR governance`.
+5. Write the PR body in clear English.
+6. When opening or editing the PR, request `@kevinah95` as reviewer.
+7. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
 
 ## Output Contract
 
-Reporta si el PR cumple el flujo global `branch-pr`, si la rama cumple el patrón local, si el título y cuerpo están en español y si `@kevinah95` quedó solicitado como reviewer.
+Report whether the PR follows the global `branch-pr` flow, whether the branch matches the local pattern, whether the title and body are in English, and whether `@kevinah95` was requested as reviewer.
 
 ## References
 

@@ -1,22 +1,22 @@
 # Mejengueros Frontend
 
-Aplicación Kotlin Multiplatform de Mejengueros con objetivos actuales para Android, iOS y Desktop (JVM).
+Mejengueros Kotlin Multiplatform application with current targets for Android, iOS, and Desktop (JVM).
 
-## Propósito
+## Purpose
 
-Este subproyecto provee la base técnica del frontend del MVP: interfaz compartida con Compose Multiplatform, navegación tipada, autenticación con Cognito y primeros flujos funcionales que sirven como referencia para nuevas features.
+This subproject provides the MVP frontend technical foundation: shared UI with Compose Multiplatform, typed navigation, Cognito authentication, and early functional flows that serve as references for new features.
 
-## Estructura principal
+## Main structure
 
 ```text
-androidApp/   Punto de entrada Android
-desktopApp/   Punto de entrada Desktop/JVM
-iosApp/       Wrapper SwiftUI/Xcode para iOS
-shared/       UI compartida, navegación y lógica común
-Taskfile.yml  Superficie recomendada de comandos
+androidApp/   Android entry point
+desktopApp/   Desktop/JVM entry point
+iosApp/       SwiftUI/Xcode wrapper for iOS
+shared/       Shared UI, navigation, and common logic
+Taskfile.yml  Recommended command surface
 ```
 
-La lógica compartida vive en `shared/`, con una organización principal como esta:
+The shared logic lives in `shared/`, with a main organization like this:
 
 ```text
 shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/
@@ -30,14 +30,14 @@ shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/
   theme/
 ```
 
-## Decisiones técnicas base
+## Core technical decisions
 
-- La UI compartida y la lógica de app viven en `shared/`; no existe un módulo `composeApp`.
-- La app usa Navigation 3, Koin, Ktor, SQLDelight y Material 3.
-- La autenticación usa Amazon Cognito; Firebase no forma parte de esta base.
-- Las pantallas renderizan estado inmutable y delegan acciones; los `ViewModel` dependen de repositorios, no de Ktor o SQLDelight directamente.
+- Shared UI and app logic live in `shared/`; there is no `composeApp` module.
+- The app uses Navigation 3, Koin, Ktor, SQLDelight, and Material 3.
+- Authentication uses Amazon Cognito; Firebase is not part of this foundation.
+- Screens render immutable state and delegate actions; `ViewModel`s depend on repositories, not directly on Ktor or SQLDelight.
 
-## Flujo arquitectónico esperado
+## Expected architectural flow
 
 ```text
 Screen
@@ -49,26 +49,26 @@ Screen
           -> LocalDataSource  -> SQLDelight
 ```
 
-## Funcionalidades de referencia actuales
+## Current reference features
 
-- Shell autenticado con navegación principal.
-- Flujo de autenticación con Cognito (email/password y Hosted UI).
-- Feature `Pokedex` como ejemplo de arquitectura, navegación, caché local y consumo remoto.
+- Authenticated shell with main navigation.
+- Cognito authentication flow (email/password and Hosted UI).
+- `Pokedex` feature as an example of architecture, navigation, local cache, and remote consumption.
 
-## Prerrequisitos y preparación básica
+## Prerequisites and basic setup
 
-- JDK compatible con Gradle/Kotlin Multiplatform del proyecto.
-- Android SDK para compilación Android.
-- Xcode si vas a ejecutar `iosApp/`.
-- [Task](https://taskfile.dev/) es opcional, pero es la interfaz recomendada para comandos repetibles.
+- JDK compatible with the project's Gradle/Kotlin Multiplatform setup.
+- Android SDK for Android builds.
+- Xcode if you are going to run `iosApp/`.
+- [Task](https://taskfile.dev/) is optional, but it is the recommended interface for repeatable commands.
 
-Si necesitas valores de integración, revisa `.env.example` como referencia de configuración de desarrollo. Ese archivo no se carga automáticamente en runtime.
+If you need integration values, review `.env.example` as a development configuration reference. That file is not automatically loaded at runtime.
 
-## Comandos principales
+## Main commands
 
-Ejecuta estos comandos desde `app-frontend/`.
+Run these commands from `app-frontend/`.
 
-### Vía Taskfile (recomendado)
+### Via Taskfile (recommended)
 
 ```bash
 task spotless:apply
@@ -84,9 +84,9 @@ task desktop:compile
 task verify
 ```
 
-### Gradle directo (fallback)
+### Direct Gradle (fallback)
 
-Usa `./gradlew` en Unix/macOS y `./gradlew.bat` en PowerShell/Windows.
+Use `./gradlew` on Unix/macOS and `./gradlew.bat` on PowerShell/Windows.
 
 ```bash
 ./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
@@ -104,13 +104,13 @@ Usa `./gradlew` en Unix/macOS y `./gradlew.bat` en PowerShell/Windows.
 ./gradlew.bat :desktopApp:compileKotlin
 ```
 
-## Alcance actual de verificación
+## Current verification scope
 
-La validación activa cubre Android, Desktop/JVM y lógica KMP compartida. El wrapper iOS sigue en el repositorio, pero hoy no forma parte del alcance principal de CI.
+Active validation covers Android, Desktop/JVM, and shared KMP logic. The iOS wrapper remains in the repository, but it is not currently part of the main CI scope.
 
-## Dónde profundizar
+## Where to go deeper
 
-- [`shared/`](shared/): arquitectura compartida, pantallas, navegación y datos.
-- [`Taskfile.yml`](Taskfile.yml): comandos repetibles para formato, compilación y pruebas.
-- [`../docs/design/README.md`](../docs/design/README.md): contexto visual y funcional del producto.
-- [`../README.md`](../README.md): contexto general del repositorio y alcance del MVP.
+- [`shared/`](shared/): shared architecture, screens, navigation, and data.
+- [`Taskfile.yml`](Taskfile.yml): repeatable commands for formatting, builds, and tests.
+- [`../docs/design/README.md`](../docs/design/README.md): product visual and functional context.
+- [`../README.md`](../README.md): overall repository context and MVP scope.

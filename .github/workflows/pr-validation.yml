@@ -136,7 +136,7 @@ jobs:
     name: Check PR Body Structure
     runs-on: ubuntu-latest
     steps:
-      - name: Validate Spanish PR template structure
+      - name: Validate English PR template structure
         uses: actions/github-script@v7
         with:
           script: |
@@ -152,12 +152,12 @@ jobs:
                 .toLowerCase();
 
             const requiredSections = [
-              '## Issue relacionado',
-              '## Tipo de PR',
-              '## Resumen',
-              '## Cambios',
-              '## Plan de pruebas',
-              '## Checklist del contribuidor',
+              '## Linked Issue',
+              '## PR Type',
+              '## Summary',
+              '## Changes',
+              '## Test Plan',
+              '## Contributor Checklist',
             ];
 
             for (const section of requiredSections) {
@@ -173,12 +173,12 @@ jobs:
               return match ? match[1].trim() : '';
             };
 
-            const issueSection = extractSection('## Issue relacionado');
+            const issueSection = extractSection('## Linked Issue');
             if (/\b(?:closes|fixes|resolves)\s+#(?!\d)/i.test(issueSection)) {
               errors.push('The PR body contains a placeholder issue reference like "Closes #" without an issue number.');
             }
 
-            const summarySection = extractSection('## Resumen');
+            const summarySection = extractSection('## Summary');
             const summaryMeaningfulLines = summarySection
               .split(/\r?\n/)
               .map((line) => line.trim())
@@ -187,9 +187,9 @@ jobs:
             const genericTextPattern = /^(?:[-*]\s*)?(?:test|testing|prueba|pruebas|asdf|todo|tbd|n\/a|na|ninguno|sin cambios|pendiente|lorem ipsum)\.?$/i;
 
             if (summaryMeaningfulLines.length === 0) {
-              errors.push('Section "## Resumen" must contain meaningful text. This check validates Spanish template structure, not language semantics.');
+              errors.push('Section "## Summary" must contain meaningful text. This check validates English template structure, not language semantics.');
             } else if (summaryMeaningfulLines.some((line) => genericTextPattern.test(line))) {
-              errors.push('Section "## Resumen" contains generic placeholder text. Replace it with a concrete summary. This check validates Spanish template structure, not language semantics.');
+              errors.push('Section "## Summary" contains generic placeholder text. Replace it with a concrete summary. This check validates English template structure, not language semantics.');
             }
 
             const labels = (pr.labels ?? []).map((label) =>
@@ -208,37 +208,37 @@ jobs:
               .filter((label) => label.startsWith('type:'));
             const validTypeMatches = typeLabels.filter((label) => validTypeLabels.has(label));
 
-            const typeSection = extractSection('## Tipo de PR');
+            const typeSection = extractSection('## PR Type');
             const typeOptionMatchers = [
               {
-                description: 'Corrección de bug',
+                description: 'Bug fix',
                 expectedLabel: 'type:bug',
-                matcher: /^- \[([ xX])\]\s+correccion de bug\s+[—-]\s+`type:bug`$/i,
+                matcher: /^- \[([ xX])\]\s+bug fix\s+[—-]\s+`type:bug`$/i,
               },
               {
-                description: 'Nueva funcionalidad',
+                description: 'New feature',
                 expectedLabel: 'type:feature',
-                matcher: /^- \[([ xX])\]\s+nueva funcionalidad\s+[—-]\s+`type:feature`$/i,
+                matcher: /^- \[([ xX])\]\s+new feature\s+[—-]\s+`type:feature`$/i,
               },
               {
-                description: 'Solo documentación',
+                description: 'Documentation only',
                 expectedLabel: 'type:docs',
-                matcher: /^- \[([ xX])\]\s+solo documentacion\s+[—-]\s+`type:docs`$/i,
+                matcher: /^- \[([ xX])\]\s+documentation only\s+[—-]\s+`type:docs`$/i,
               },
               {
-                description: 'Refactorización de código',
+                description: 'Code refactoring',
                 expectedLabel: 'type:refactor',
-                matcher: /^- \[([ xX])\]\s+refactorizacion de codigo\s+[—-]\s+`type:refactor`$/i,
+                matcher: /^- \[([ xX])\]\s+code refactoring\s+[—-]\s+`type:refactor`$/i,
               },
               {
-                description: 'Mantenimiento/tooling',
+                description: 'Maintenance/tooling',
                 expectedLabel: 'type:chore',
-                matcher: /^- \[([ xX])\]\s+mantenimiento\/tooling\s+[—-]\s+`type:chore`$/i,
+                matcher: /^- \[([ xX])\]\s+maintenance\/tooling\s+[—-]\s+`type:chore`$/i,
               },
               {
-                description: 'Cambio incompatible',
+                description: 'Breaking change',
                 expectedLabel: 'type:breaking-change',
-                matcher: /^- \[([ xX])\]\s+cambio incompatible\s+[—-]\s+`type:breaking-change`$/i,
+                matcher: /^- \[([ xX])\]\s+breaking change\s+[—-]\s+`type:breaking-change`$/i,
               },
             ];
 
@@ -267,11 +267,11 @@ jobs:
             const checkedTypeOptions = matchedTypeOptions.filter((option) => option.checked);
 
             if (checkedTypeOptions.length !== 1) {
-              errors.push('Section "## Tipo de PR" must have exactly one checked option from the six Spanish template rows.');
+              errors.push('Section "## PR Type" must have exactly one checked option from the six English template rows.');
             }
 
             if (matchedTypeOptions.length !== typeCheckboxLines.length) {
-              errors.push('Section "## Tipo de PR" contains checkbox rows that do not match the six supported Spanish template options exactly.');
+              errors.push('Section "## PR Type" contains checkbox rows that do not match the six supported English template options exactly.');
             }
 
             if (typeLabels.length !== 1 || validTypeMatches.length !== 1) {
@@ -280,11 +280,11 @@ jobs:
               );
             } else if (checkedTypeOptions.length === 1 && validTypeMatches[0] !== checkedTypeOptions[0].expectedLabel) {
               errors.push(
-                `The checked "## Tipo de PR" option "${checkedTypeOptions[0].description}" requires the PR label "${checkedTypeOptions[0].expectedLabel}", but found "${validTypeMatches[0]}".`
+                `The checked "## PR Type" option "${checkedTypeOptions[0].description}" requires the PR label "${checkedTypeOptions[0].expectedLabel}", but found "${validTypeMatches[0]}".`
               );
             }
 
-            const changesSection = extractSection('## Cambios');
+            const changesSection = extractSection('## Changes');
             const changeLines = changesSection
               .split(/\r?\n/)
               .map((line) => line.trim())
@@ -296,21 +296,21 @@ jobs:
               const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
               if (cells.length < 2) return false;
               const normalized = cells.join(' ').replace(/`/g, '').trim();
-              if (normalized === '' || /^archivo\s+cambio$/i.test(normalized)) return false;
+              if (normalized === '' || /^file\s+change$/i.test(normalized)) return false;
               if (cells.some((cell) => genericTextPattern.test(cell))) return false;
               return cells.some((cell) => cell !== '');
             });
 
             if (dataRows.length === 0) {
-              errors.push('Section "## Cambios" must include at least one non-placeholder table row after the header. This check validates Spanish template structure, not language semantics.');
+              errors.push('Section "## Changes" must include at least one non-placeholder table row after the header. This check validates English template structure, not language semantics.');
             }
 
-            const testPlanSection = extractSection('## Plan de pruebas');
+            const testPlanSection = extractSection('## Test Plan');
             if (!/- \[[xX]\]\s+.+/.test(testPlanSection)) {
-              errors.push('Section "## Plan de pruebas" must include at least one checked item (- [x]). This check validates Spanish template structure, not language semantics.');
+              errors.push('Section "## Test Plan" must include at least one checked item (- [x]). This check validates English template structure, not language semantics.');
             }
 
-            const checklistSection = extractSection('## Checklist del contribuidor');
+            const checklistSection = extractSection('## Contributor Checklist');
             const checklistLines = checklistSection
               .split(/\r?\n/)
               .map((line) => line.trim())
@@ -322,12 +322,12 @@ jobs:
             }));
 
             const requiredChecklistRows = [
-              /^- \[[xX]\]\s+enlace un issue aprobado usando `closes #n`, `fixes #n` o `resolves #n`$/i,
-              /^- \[[xX]\]\s+el issue enlazado tiene el label `status:approved`$/i,
-              /^- \[[xX]\]\s+agregue exactamente un label `type:\*` valido$/i,
-              /^- \[[xX]\]\s+actualice la documentacion si cambio el comportamiento$/i,
-              /^- \[[xX]\]\s+use formato conventional commit$/i,
-              /^- \[[xX]\]\s+no agregue trailers `co-authored-by`$/i,
+              /^- \[[xX]\]\s+i linked an approved issue using `closes #n`, `fixes #n`, or `resolves #n`$/i,
+              /^- \[[xX]\]\s+the linked issue has the `status:approved` label$/i,
+              /^- \[[xX]\]\s+i added exactly one valid `type:\*` label$/i,
+              /^- \[[xX]\]\s+i updated the documentation if behavior changed$/i,
+              /^- \[[xX]\]\s+i used conventional commit format$/i,
+              /^- \[[xX]\]\s+i did not add `co-authored-by` trailers$/i,
             ];
 
             const missingChecklistRows = requiredChecklistRows.filter(
@@ -335,15 +335,15 @@ jobs:
             );
 
             if (missingChecklistRows.length > 0) {
-              errors.push('Section "## Checklist del contribuidor" must include all six required Spanish template rows and each one must be checked.');
+              errors.push('Section "## Contributor Checklist" must include all six required English template rows and each one must be checked.');
             }
 
             if (errors.length > 0) {
-              core.setFailed(`PR body failed deterministic Spanish template structure validation. ${errors.join(' ')}`);
+              core.setFailed(`PR body failed deterministic English template structure validation. ${errors.join(' ')}`);
               return;
             }
 
-            core.info('PR body passed deterministic Spanish template structure validation.');
+            core.info('PR body passed deterministic English template structure validation.');
 
   check-pr-has-type-label:
     name: Check PR Has type:* Label
