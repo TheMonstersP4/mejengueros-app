@@ -16,6 +16,26 @@ permissions:
   issues: read
 
 jobs:
+  check-branch-naming:
+    name: Check Branch Naming
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source branch name
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchName = context.payload.pull_request.head.ref;
+            const branchPattern = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)\/[a-z0-9-]+\/[a-z0-9._-]+$/;
+
+            if (!branchPattern.test(branchName)) {
+              core.setFailed(
+                `Invalid source branch name "${branchName}". Expected format: type/<github-username>/<description> using one of feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert. Examples: feat/ddgutierrezc/issue-48-complex-frontend, fix/ddgutierrezc/owner-onboarding, chore/ddgutierrezc/readme-contribucion.`
+              );
+              return;
+            }
+
+            core.info(`Branch name is valid: ${branchName}`);
+
   check-issue-reference:
     name: Check Issue Reference
     runs-on: ubuntu-latest
