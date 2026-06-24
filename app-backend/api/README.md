@@ -209,7 +209,60 @@ The generated client lives in `src/generated/prisma` and must not be imported fr
 Current transition rule:
 
 - `provinceId`, `cantonId`, `latitude`, and `longitude` are nullable in the schema for now so the existing `POST /v1/complexes` contract can remain unchanged until the follow-up API issue expands the request body.
-- PR #158 is responsible for seeding catalog and demo data after this schema contract lands.
+## Seed de demo
+
+Un seed minimo que puebla la base de datos con datos de demo para el flujo MVP: catalogo, detalle, disponibilidad y reserva.
+
+### Cargar o resetear
+
+Requiere `ALLOW_DEMO_SEED=true`. No corre contra `NODE_ENV=production`.
+
+```powershell
+$env:ALLOW_DEMO_SEED="true"; npm run db:seed
+```
+
+El seed es idempotente: borra los datos de demo existentes e inserta un conjunto nuevo en cada ejecucion.
+
+### Que crea
+
+| Entidad | Valor |
+| --- | --- |
+| Usuario dueno | `demo-owner@mejengueros.demo` - provider `demo`, subject `demo-owner-sub-00000001`, rol `OWNER` |
+| Jugador 1 | `demo-player1@mejengueros.demo` - provider `demo`, subject `demo-player-sub-00000001`, rol `PLAYER` |
+| Jugador 2 | `demo-player2@mejengueros.demo` - provider `demo`, subject `demo-player-sub-00000002`, rol `PLAYER` |
+| Provincia | San Jose (codigo `SJ`) |
+| Canton | San Jose (codigo `SJ-01`) |
+| Complejo | "Complejo Demo Los Nogales" - Av. Central 1234, San Jose, Costa Rica |
+| Servicios del complejo | Parqueo |
+| Cancha | "Cancha 1 -- Demo" |
+| Servicios de la cancha | Iluminacion, Sintetico |
+| Disponibilidad | Lunes a sabado, 08:00 a 22:00 UTC |
+| Reserva confirmada | Proximo sabado a las 10:00-11:00 UTC - en poder del Jugador 1 |
+| Reserva completada | Hace 7 dias a las 10:00-11:00 UTC - en poder del Jugador 2, incluye resena de 5 estrellas |
+
+### Escenarios de demo
+
+- **Catalogo y detalle**: cualquier usuario puede ver el complejo y la cancha provenientes de la base de datos.
+- **Slot disponible**: cualquier slot dentro del horario Lun-Sab 08:00-22:00 que no sea el sabado 10:00 UTC esta libre para reservar.
+- **Error de doble reserva**: intentar reservar el slot del sabado 10:00 UTC activa el indice parcial unico en reservas confirmadas y devuelve el error de negocio.
+
+### Teardown
+
+Identifica datos demo por `UserIdentity.provider = 'demo'` y borra en orden seguro de FK: resenas, notificaciones, reservas (todas las de canchas demo), canchas, complejos y usuarios. Los catalogos (`Province`, `Canton`, `ServiceCatalog`) son datos compartidos y no se eliminan.
+
+### Validacion local de idempotencia
+
+Usar la base de datos descartable en `app-backend/api/docker/`:
+
+```powershell
+npm run docker:migration-db:up
+# Configurar DATABASE_URL con la URL local (ver docker/migration-validation.env.example)
+$env:ALLOW_DEMO_SEED="true"; npm run db:seed
+$env:ALLOW_DEMO_SEED="true"; npm run db:seed
+npm run docker:migration-db:reset
+```
+
+Ambas ejecuciones deben completarse sin errores y dejar el conjunto demo esperado.
 
 ## Quality
 
