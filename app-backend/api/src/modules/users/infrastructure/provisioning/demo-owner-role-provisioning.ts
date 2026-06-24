@@ -36,17 +36,8 @@ interface IUserIdentityPersistenceClient<TResult extends { id: string }> {
   };
 }
 
-interface IUserRoleProvisioningClient {
+interface IUserRoleUpsertClient {
   userRole: {
-    findUnique(args: {
-      where: {
-        userId_role: {
-          userId: string;
-          role: 'OWNER';
-        };
-      };
-      select: { id: true };
-    }): Promise<{ id: string } | null>;
     upsert(args: {
       where: {
         userId_role: {
@@ -60,6 +51,20 @@ interface IUserRoleProvisioningClient {
       };
       update: Record<string, never>;
     }): Promise<unknown>;
+  };
+}
+
+interface IUserRoleProvisioningClient extends IUserRoleUpsertClient {
+  userRole: IUserRoleUpsertClient['userRole'] & {
+    findUnique(args: {
+      where: {
+        userId_role: {
+          userId: string;
+          role: 'OWNER';
+        };
+      };
+      select: { id: true };
+    }): Promise<{ id: string } | null>;
   };
 }
 
@@ -242,7 +247,7 @@ function removeUndefinedValues<T extends Record<string, unknown>>(value: T): T {
 }
 
 export async function grantDemoOwnerRoleIfEligible(
-  client: IUserRoleProvisioningClient,
+  client: IUserRoleUpsertClient,
   userId: string,
   identity: IExternalUserIdentity
 ): Promise<boolean> {
@@ -250,6 +255,15 @@ export async function grantDemoOwnerRoleIfEligible(
     return false;
   }
 
+  await upsertOwnerRole(client, userId);
+
+  return true;
+}
+
+export async function upsertOwnerRole(
+  client: IUserRoleUpsertClient,
+  userId: string
+): Promise<void> {
   await client.userRole.upsert({
     where: {
       userId_role: {
@@ -263,8 +277,6 @@ export async function grantDemoOwnerRoleIfEligible(
     },
     update: {}
   });
-
-  return true;
 }
 
 export async function hasPersistedOwnerRole(

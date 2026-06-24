@@ -1,16 +1,40 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  grantDemoOwnerRoleIfEligible,
-  hasPersistedOwnerRole,
+  upsertOwnerRole,
   upsertAuthenticatedUserIdentity
 } from '../../../users/infrastructure/provisioning/demo-owner-role-provisioning';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
-import { OwnerRoleRequiredError } from '../../domain/errors/owner-role-required.error';
 import type {
   IComplexRepository,
   ICreateComplexWithFirstCourtCommand,
   ICreateComplexWithFirstCourtResult
 } from '../../domain/repositories/complex.repository';
+
+interface IComplexPersistenceTransactionClient {
+  user: {
+    findUnique: PrismaService['user']['findUnique'];
+    update: PrismaService['user']['update'];
+    create: PrismaService['user']['create'];
+  };
+  userIdentity: {
+    findUnique: PrismaService['userIdentity']['findUnique'];
+  };
+  userRole: {
+    upsert: PrismaService['userRole']['upsert'];
+  };
+  complex: {
+    create: PrismaService['complex']['create'];
+  };
+  court: {
+    create: PrismaService['court']['create'];
+  };
+}
+
+interface IComplexPersistenceClient {
+  $transaction<TResult>(
+    callback: (transaction: IComplexPersistenceTransactionClient) => Promise<TResult>
+  ): Promise<TResult>;
+}
 
 /**
  * Prisma-backed repository for atomic complex creation.
@@ -19,7 +43,7 @@ import type {
 export class PrismaComplexRepository implements IComplexRepository {
   constructor(
     @Inject(PrismaService)
-    private readonly prisma: PrismaService
+    private readonly prisma: IComplexPersistenceClient
   ) {}
 
   async createComplexWithFirstCourt(
@@ -39,12 +63,7 @@ export class PrismaComplexRepository implements IComplexRepository {
         selectIdOnly: true
       });
 
-      await grantDemoOwnerRoleIfEligible(transaction, owner.id, ownerIdentity);
-      const ownerRole = await hasPersistedOwnerRole(transaction, owner.id);
-
-      if (!ownerRole) {
-        throw new OwnerRoleRequiredError(command.ownerIdentity.sub);
-      }
+      await upsertOwnerRole(transaction, owner.id);
 
       const complex = await transaction.complex.create({
         data: {
