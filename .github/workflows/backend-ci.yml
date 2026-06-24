@@ -17,6 +17,20 @@ jobs:
     name: Backend API quality gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mejengueros_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: app-backend/api
@@ -40,6 +54,16 @@ jobs:
 
       - name: Unit tests
         run: npm run test:ci
+
+      - name: Apply Prisma migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mejengueros_ci
+        run: npx prisma migrate deploy
+
+      - name: Migration contract tests
+        env:
+          PRISMA_MIGRATION_CONTRACT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mejengueros_ci
+        run: npx jest --config ./jest.integration.config.cjs test/integration/prisma-relational-schema.contract.spec.ts --runInBand
 
       - name: Build
         run: npm run build
