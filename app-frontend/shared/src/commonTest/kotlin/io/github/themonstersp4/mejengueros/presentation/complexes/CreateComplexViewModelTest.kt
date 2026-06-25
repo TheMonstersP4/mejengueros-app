@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.presentation.complexes
 
+import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
@@ -14,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -216,7 +218,10 @@ class CreateComplexViewModelTest {
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.hasCantonLoadFailure)
-    assertEquals("Cantons unavailable", viewModel.uiState.value.errorMessage)
+    assertEquals(
+        "No pudimos cargar los cantones de la provincia elegida. Intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
     assertEquals(listOf("province-1"), repository.cantonRequests)
 
     viewModel.retrySelectedProvinceCantons()
@@ -244,13 +249,22 @@ class CreateComplexViewModelTest {
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.hasCantonLoadFailure)
-    assertEquals("Cantons unavailable", viewModel.uiState.value.errorMessage)
+    assertEquals(
+        "No pudimos cargar los cantones de la provincia elegida. Intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
 
     viewModel.updateComplexName("North Sports Center")
 
     assertTrue(viewModel.uiState.value.hasCantonLoadFailure)
-    assertEquals("Cantons unavailable", viewModel.uiState.value.errorMessage)
-    assertEquals("Cantons unavailable", viewModel.uiState.value.loadErrorMessage)
+    assertEquals(
+        "No pudimos cargar los cantones de la provincia elegida. Intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertEquals(
+        "No pudimos cargar los cantones de la provincia elegida. Intentá de nuevo.",
+        viewModel.uiState.value.loadErrorMessage,
+    )
     scope.cancel()
   }
 
@@ -295,7 +309,10 @@ class CreateComplexViewModelTest {
     val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
     advanceUntilIdle()
 
-    assertEquals("Catalogs unavailable", viewModel.uiState.value.errorMessage)
+    assertEquals(
+        "No pudimos cargar los catálogos del complejo. Intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
     assertTrue(viewModel.uiState.value.hasCatalogLoadFailure)
 
     viewModel.refreshCatalogs()
@@ -314,10 +331,162 @@ class CreateComplexViewModelTest {
     scope.cancel()
   }
 
+  @Test
+  fun refreshCatalogsClearsSelectionsThatNoLongerExist() = runTest {
+    val repository = FakeComplexRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.toggleComplexService("complex-service-id")
+    viewModel.goToFirstCourtStep()
+    viewModel.updateFirstCourtName("Court A")
+    viewModel.toggleCourtService("court-service-id")
+
+    repository.provinces = listOf(Province(id = "province-2", code = "AL", name = "Alajuela"))
+    repository.complexServices = emptyList()
+    repository.courtServices = emptyList()
+
+    viewModel.refreshCatalogs()
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.value.selectedProvinceId)
+    assertNull(viewModel.uiState.value.selectedCantonId)
+    assertTrue(viewModel.uiState.value.cantons.isEmpty())
+    assertTrue(viewModel.uiState.value.selectedComplexServiceIds.isEmpty())
+    assertTrue(viewModel.uiState.value.selectedCourtServiceIds.isEmpty())
+    assertFalse(viewModel.uiState.value.canSubmit)
+    scope.cancel()
+  }
+
+  @Test
+  fun refreshCatalogsClearsSelectedCantonWhenItNoLongerExistsInLoadedCantons() = runTest {
+    val repository = FakeComplexRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+
+    repository.cantonsByProvince =
+        mapOf(
+            "province-1" to
+                listOf(
+                    Canton(
+                        id = "canton-2",
+                        provinceId = "province-1",
+                        code = "SJ-DES",
+                        name = "Desamparados",
+                    )
+                )
+        )
+    viewModel.refreshCatalogs()
+    advanceUntilIdle()
+
+    assertEquals("province-1", viewModel.uiState.value.selectedProvinceId)
+    assertNull(viewModel.uiState.value.selectedCantonId)
+    scope.cancel()
+  }
+
+  @Test
+  fun refreshCatalogsClearsSelectedCantonAndBlocksProgressWhenReloadFails() = runTest {
+    val repository = FakeComplexRepository()
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.updateComplexAddress("123 Main Street")
+
+    repository.cantonFailuresByProvince["province-1"] = 1
+
+    viewModel.refreshCatalogs()
+    advanceUntilIdle()
+
+    assertEquals("province-1", viewModel.uiState.value.selectedProvinceId)
+    assertNull(viewModel.uiState.value.selectedCantonId)
+    assertTrue(viewModel.uiState.value.cantons.isEmpty())
+    assertTrue(viewModel.uiState.value.hasCantonLoadFailure)
+    assertFalse(viewModel.uiState.value.canGoToCourtStep)
+    assertFalse(viewModel.uiState.value.canSubmit)
+
+    viewModel.goToFirstCourtStep()
+
+    assertEquals(CreateComplexStep.Complex, viewModel.uiState.value.currentStep)
+    assertEquals(
+        "No pudimos cargar los cantones de la provincia elegida. Intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertEquals(listOf("province-1", "province-1"), repository.cantonRequests)
+    scope.cancel()
+  }
+
+  @Test
+  fun submitFailureMapsBackendMessageToControlledCopy() = runTest {
+    val repository =
+        FakeComplexRepository(
+            createFailure = AppApiException(statusCode = 500, message = "Backend exploded"),
+        )
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.goToFirstCourtStep()
+    viewModel.updateFirstCourtName("Court A")
+    viewModel.toggleCourtService("court-service-id")
+
+    viewModel.submit()
+    advanceUntilIdle()
+
+    assertEquals(
+        "No pudimos crear el complejo en este momento. Intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertFalse(viewModel.uiState.value.isSubmitting)
+    scope.cancel()
+  }
+
+  @Test
+  fun submitCancellationDoesNotExposeErrorMessage() = runTest {
+    val repository = FakeComplexRepository(createFailure = CancellationException("cancelled"))
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.goToFirstCourtStep()
+    viewModel.updateFirstCourtName("Court A")
+    viewModel.toggleCourtService("court-service-id")
+
+    viewModel.submit()
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.value.errorMessage)
+    assertFalse(viewModel.uiState.value.isSubmitting)
+    scope.cancel()
+  }
+
   private class FakeComplexRepository(
-      private val provinces: List<Province> =
+      var provinces: List<Province> =
           listOf(Province(id = "province-1", code = "SJ", name = "San José")),
-      private val cantonsByProvince: Map<String, List<Canton>> =
+      var cantonsByProvince: Map<String, List<Canton>> =
           mapOf(
               "province-1" to
                   listOf(
@@ -329,7 +498,7 @@ class CreateComplexViewModelTest {
                       )
                   )
           ),
-      private val complexServices: List<ServiceCatalogItem> =
+      var complexServices: List<ServiceCatalogItem> =
           listOf(
               ServiceCatalogItem(
                   id = "complex-service-id",
@@ -337,7 +506,7 @@ class CreateComplexViewModelTest {
                   scope = ServiceScope.COMPLEX,
               )
           ),
-      private val courtServices: List<ServiceCatalogItem> =
+      var courtServices: List<ServiceCatalogItem> =
           listOf(
               ServiceCatalogItem(
                   id = "court-service-id",
@@ -346,7 +515,8 @@ class CreateComplexViewModelTest {
               )
           ),
       private val provincesFailureCount: Int = 0,
-      private val cantonFailuresByProvince: MutableMap<String, Int> = mutableMapOf(),
+      val cantonFailuresByProvince: MutableMap<String, Int> = mutableMapOf(),
+      private val createFailure: Throwable? = null,
   ) : IComplexRepository {
     var receivedRequest: CreateComplexRequest? = null
     val cantonRequests = mutableListOf<String>()
@@ -390,6 +560,7 @@ class CreateComplexViewModelTest {
 
     override suspend fun createComplex(request: CreateComplexRequest): CreatedComplex {
       receivedRequest = request
+      createFailure?.let { throw it }
       return CreatedComplex(
           complexId = "complex-id",
           complexName = request.complex.name,

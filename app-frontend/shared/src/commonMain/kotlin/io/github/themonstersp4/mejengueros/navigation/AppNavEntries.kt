@@ -21,12 +21,12 @@ import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
-import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitDemoLocationPickerCenter
-import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokemonDetailScreen
+import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import org.koin.compose.viewmodel.koinViewModel
@@ -227,10 +227,10 @@ private fun CreateComplexEntry(
   val createComplexViewModel = koinViewModel<CreateComplexViewModel>()
   val state by createComplexViewModel.uiState.collectAsState()
   var draftLatitude by rememberSaveable {
-    mutableStateOf(ComponentKitDemoLocationPickerCenter.latitude)
+    mutableStateOf(DefaultMejenguerosLocationPickerCenter.latitude)
   }
   var draftLongitude by rememberSaveable {
-    mutableStateOf(ComponentKitDemoLocationPickerCenter.longitude)
+    mutableStateOf(DefaultMejenguerosLocationPickerCenter.longitude)
   }
   var isLocationPickerOpen by rememberSaveable { mutableStateOf(false) }
   val selectedLatitude = state.latitude
@@ -253,7 +253,7 @@ private fun CreateComplexEntry(
       overlayVisible = isLocationPickerOpen,
       overlayContent = {
         if (isLocationPickerOpen) {
-          ComponentKitLocationPickerOverlay(
+          MejenguerosLocationPickerOverlay(
               state =
                   MejenguerosLocationPickerState(
                       draftLocation = draftLocation,
@@ -290,7 +290,7 @@ private fun CreateComplexEntry(
         onCantonSelected = createComplexViewModel::selectCanton,
         onComplexAddressChange = createComplexViewModel::updateComplexAddress,
         onOpenLocationPicker = {
-          val initialLocation = selectedLocation ?: ComponentKitDemoLocationPickerCenter
+          val initialLocation = selectedLocation ?: DefaultMejenguerosLocationPickerCenter
           draftLatitude = initialLocation.latitude
           draftLongitude = initialLocation.longitude
           isLocationPickerOpen = true
@@ -319,10 +319,10 @@ private fun ComponentKitEntry(
         SelectedLocation(latitude = selectedLatitude!!, longitude = selectedLongitude!!)
       }
   var draftLatitude by rememberSaveable {
-    mutableStateOf(ComponentKitDemoLocationPickerCenter.latitude)
+    mutableStateOf(DefaultMejenguerosLocationPickerCenter.latitude)
   }
   var draftLongitude by rememberSaveable {
-    mutableStateOf(ComponentKitDemoLocationPickerCenter.longitude)
+    mutableStateOf(DefaultMejenguerosLocationPickerCenter.longitude)
   }
   val draftLocation = SelectedLocation(latitude = draftLatitude, longitude = draftLongitude)
   var isLocationPickerOpen by rememberSaveable { mutableStateOf(false) }
@@ -336,7 +336,7 @@ private fun ComponentKitEntry(
       overlayVisible = isLocationPickerOpen,
       overlayContent = {
         if (isLocationPickerOpen) {
-          ComponentKitLocationPickerOverlay(
+          MejenguerosLocationPickerOverlay(
               state =
                   MejenguerosLocationPickerState(
                       draftLocation = draftLocation,
@@ -366,7 +366,7 @@ private fun ComponentKitEntry(
         onOpenAvailabilitySelectors = shellActions.openAvailabilitySelectors,
         selectedLocation = selectedLocation,
         onOpenLocationPicker = {
-          val initialLocation = selectedLocation ?: ComponentKitDemoLocationPickerCenter
+          val initialLocation = selectedLocation ?: DefaultMejenguerosLocationPickerCenter
           draftLatitude = initialLocation.latitude
           draftLongitude = initialLocation.longitude
           isLocationPickerOpen = true

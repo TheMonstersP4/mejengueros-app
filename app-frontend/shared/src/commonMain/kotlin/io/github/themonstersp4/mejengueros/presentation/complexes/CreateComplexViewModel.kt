@@ -170,10 +170,15 @@ class CreateComplexViewModel(
                 )
           }
           .onFailure { error ->
+            if (error is CancellationException) {
+              _uiState.value = currentState.copy(isSubmitting = false)
+              return@onFailure
+            }
+
             _uiState.value =
                 currentState.copy(
                     isSubmitting = false,
-                    formErrorMessage = error.toUserMessage(),
+                    formErrorMessage = error.toSubmitUserMessage(),
                     successMessage = null,
                     createdComplex = null,
                 )
@@ -202,16 +207,14 @@ class CreateComplexViewModel(
                 )
               }
               .onSuccess { (provinces, complexServices, courtServices) ->
-                _uiState.value =
-                    _uiState.value.copy(
+                val refreshedState =
+                    _uiState.value.revalidatedAfterCatalogRefresh(
                         provinces = provinces,
                         complexServices = complexServices,
                         courtServices = courtServices,
-                        isLoadingCatalogs = false,
-                        hasCantonLoadFailure = false,
-                        loadErrorMessage = null,
-                        formErrorMessage = null,
                     )
+                _uiState.value = refreshedState
+                refreshedState.selectedProvinceId?.let(::loadCantons)
               }
               .onFailure { error ->
                 if (error is CancellationException) {
@@ -222,7 +225,7 @@ class CreateComplexViewModel(
                     _uiState.value.copy(
                         isLoadingCatalogs = false,
                         hasCantonLoadFailure = false,
-                        loadErrorMessage = error.toUserMessage(),
+                        loadErrorMessage = error.toCatalogLoadUserMessage(),
                     )
               }
         }
@@ -239,12 +242,18 @@ class CreateComplexViewModel(
                 }
 
                 _uiState.value =
-                    _uiState.value.copy(
-                        cantons = cantons,
-                        isLoadingCantons = false,
-                        hasCantonLoadFailure = false,
-                        loadErrorMessage = null,
-                    )
+                    _uiState.value.let { state ->
+                      val selectedCantonStillExists =
+                          cantons.any { it.id == state.selectedCantonId }
+                      state.copy(
+                          cantons = cantons,
+                          selectedCantonId =
+                              state.selectedCantonId?.takeIf { selectedCantonStillExists },
+                          isLoadingCantons = false,
+                          hasCantonLoadFailure = false,
+                          loadErrorMessage = null,
+                      )
+                    }
               }
               .onFailure { error ->
                 if (error is CancellationException) {
@@ -258,9 +267,10 @@ class CreateComplexViewModel(
                 _uiState.value =
                     _uiState.value.copy(
                         cantons = emptyList(),
+                        selectedCantonId = null,
                         isLoadingCantons = false,
                         hasCantonLoadFailure = true,
-                        loadErrorMessage = error.toUserMessage(),
+                        loadErrorMessage = error.toCantonLoadUserMessage(),
                     )
               }
         }
@@ -291,6 +301,37 @@ private fun CreateComplexUiState.resetAfterSuccess(
         createdComplex = createdComplex,
     )
 
+private fun CreateComplexUiState.revalidatedAfterCatalogRefresh(
+    provinces: List<io.github.themonstersp4.mejengueros.domain.model.Province>,
+    complexServices: List<io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem>,
+    courtServices: List<io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem>,
+): CreateComplexUiState {
+  val selectedProvinceStillExists = provinces.any { it.id == selectedProvinceId }
+  val nextProvinceId = selectedProvinceId?.takeIf { selectedProvinceStillExists }
+  val nextCantons = if (selectedProvinceStillExists) cantons else emptyList()
+  val selectedCantonStillExists = nextCantons.any { it.id == selectedCantonId }
+  val nextCantonId = selectedCantonId?.takeIf { selectedCantonStillExists }
+  val availableComplexServiceIds = complexServices.mapTo(mutableSetOf()) { it.id }
+  val availableCourtServiceIds = courtServices.mapTo(mutableSetOf()) { it.id }
+
+  return copy(
+      provinces = provinces,
+      selectedProvinceId = nextProvinceId,
+      selectedCantonId = if (nextProvinceId == null) null else nextCantonId,
+      cantons = if (nextProvinceId == null) emptyList() else nextCantons,
+      complexServices = complexServices,
+      selectedComplexServiceIds =
+          selectedComplexServiceIds.filter { it in availableComplexServiceIds },
+      courtServices = courtServices,
+      selectedCourtServiceIds = selectedCourtServiceIds.filter { it in availableCourtServiceIds },
+      isLoadingCatalogs = false,
+      isLoadingCantons = nextProvinceId != null,
+      hasCantonLoadFailure = false,
+      loadErrorMessage = null,
+      formErrorMessage = null,
+  )
+}
+
 private fun List<String>.toggle(serviceId: String): List<String> =
     if (contains(serviceId)) {
       filterNot { it == serviceId }
@@ -298,8 +339,21 @@ private fun List<String>.toggle(serviceId: String): List<String> =
       this + serviceId
     }
 
-private fun Throwable.toUserMessage(): String =
+private fun Throwable.toCatalogLoadUserMessage(): String =
+    "No pudimos cargar los catálogos del complejo. Intentá de nuevo."
+
+private fun Throwable.toCantonLoadUserMessage(): String =
+    "No pudimos cargar los cantones de la provincia elegida. Intentá de nuevo."
+
+private fun Throwable.toSubmitUserMessage(): String =
     when (this) {
-      is AppApiException -> message
-      else -> message ?: "No se pudo completar el flujo del complejo en este momento."
+      is AppApiException ->
+          when {
+            statusCode == 401 || statusCode == 403 ->
+                "No tenés permisos para crear complejos en este momento."
+            statusCode in 400..499 ->
+                "No pudimos crear el complejo con la información enviada. Revisá los datos e intentá de nuevo."
+            else -> "No pudimos crear el complejo en este momento. Intentá de nuevo."
+          }
+      else -> "No pudimos crear el complejo en este momento. Intentá de nuevo."
     }
