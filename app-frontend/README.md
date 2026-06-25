@@ -107,7 +107,7 @@ Bottom bar:  Home | Pokedex
 
 `Home` is the authenticated landing tab. `Pokedex` preserves its own stack, so switching to Home and back can return to the same Pokemon detail.
 
-The Home stack can also push the complex onboarding flow used by issue #48. That screen submits `POST /v1/complexes` directly so the backend can synchronize the authenticated user, reconcile the demo OWNER role, and create the complex plus its first court in one step.
+The Home stack can also push the complex onboarding flow used by issue #48. That flow now uses a 2-step wizard backed by the authenticated catalog contract (`provinces`, `cantons`, and `services`) and submits the full `POST /v1/complexes` payload with province/canton, optional coordinates, complex services, and required first-court services. The backend can create the authenticated user's first complex plus first court without any pre-provisioned local OWNER/demo setup.
 
 Navigation callbacks are split by context:
 

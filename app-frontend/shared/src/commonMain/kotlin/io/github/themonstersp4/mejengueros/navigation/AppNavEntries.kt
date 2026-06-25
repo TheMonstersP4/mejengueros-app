@@ -226,6 +226,22 @@ private fun CreateComplexEntry(
 ) {
   val createComplexViewModel = koinViewModel<CreateComplexViewModel>()
   val state by createComplexViewModel.uiState.collectAsState()
+  var draftLatitude by rememberSaveable {
+    mutableStateOf(ComponentKitDemoLocationPickerCenter.latitude)
+  }
+  var draftLongitude by rememberSaveable {
+    mutableStateOf(ComponentKitDemoLocationPickerCenter.longitude)
+  }
+  var isLocationPickerOpen by rememberSaveable { mutableStateOf(false) }
+  val selectedLatitude = state.latitude
+  val selectedLongitude = state.longitude
+  val selectedLocation =
+      if (selectedLatitude == null || selectedLongitude == null) {
+        null
+      } else {
+        SelectedLocation(latitude = selectedLatitude, longitude = selectedLongitude)
+      }
+  val draftLocation = SelectedLocation(latitude = draftLatitude, longitude = draftLongitude)
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Home,
@@ -234,13 +250,57 @@ private fun CreateComplexEntry(
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
       onNavigateBack = shellActions.closeCurrentDetail,
+      overlayVisible = isLocationPickerOpen,
+      overlayContent = {
+        if (isLocationPickerOpen) {
+          ComponentKitLocationPickerOverlay(
+              state =
+                  MejenguerosLocationPickerState(
+                      draftLocation = draftLocation,
+                      selectedLocation = selectedLocation,
+                  ),
+              actions =
+                  MejenguerosLocationPickerActions(
+                      onDraftLocationChange = { updatedLocation ->
+                        draftLatitude = updatedLocation.latitude
+                        draftLongitude = updatedLocation.longitude
+                      },
+                      onConfirm = { confirmedLocation ->
+                        createComplexViewModel.updateSelectedLocation(
+                            latitude = confirmedLocation.latitude,
+                            longitude = confirmedLocation.longitude,
+                        )
+                        draftLatitude = confirmedLocation.latitude
+                        draftLongitude = confirmedLocation.longitude
+                        isLocationPickerOpen = false
+                      },
+                      onDismiss = { isLocationPickerOpen = false },
+                  ),
+          )
+        }
+      },
   ) { contentPadding ->
     CreateComplexScreen(
         state = state,
         contentPadding = contentPadding,
+        onRetryCatalogs = createComplexViewModel::refreshCatalogs,
+        onRetryCantons = createComplexViewModel::retrySelectedProvinceCantons,
         onComplexNameChange = createComplexViewModel::updateComplexName,
+        onProvinceSelected = createComplexViewModel::selectProvince,
+        onCantonSelected = createComplexViewModel::selectCanton,
         onComplexAddressChange = createComplexViewModel::updateComplexAddress,
+        onOpenLocationPicker = {
+          val initialLocation = selectedLocation ?: ComponentKitDemoLocationPickerCenter
+          draftLatitude = initialLocation.latitude
+          draftLongitude = initialLocation.longitude
+          isLocationPickerOpen = true
+        },
+        onClearLocation = createComplexViewModel::clearSelectedLocation,
+        onToggleComplexService = createComplexViewModel::toggleComplexService,
         onFirstCourtNameChange = createComplexViewModel::updateFirstCourtName,
+        onToggleCourtService = createComplexViewModel::toggleCourtService,
+        onNext = createComplexViewModel::goToFirstCourtStep,
+        onBack = createComplexViewModel::goToComplexStep,
         onSubmit = createComplexViewModel::submit,
     )
   }
