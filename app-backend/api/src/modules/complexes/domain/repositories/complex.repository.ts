@@ -15,7 +15,12 @@ export interface IComplexOwnerIdentity {
  */
 export interface ICreateComplexInput {
   name: string;
+  provinceId: string;
+  cantonId: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
+  serviceIds: string[];
 }
 
 /**
@@ -23,6 +28,7 @@ export interface ICreateComplexInput {
  */
 export interface ICreateFirstCourtInput {
   name: string;
+  serviceIds: string[];
 }
 
 /**
@@ -40,7 +46,12 @@ export interface ICreateComplexWithFirstCourtCommand {
 export interface ICreatedComplexSnapshot {
   id: string;
   name: string;
+  provinceId: string;
+  cantonId: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
+  serviceIds: string[];
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +64,7 @@ export interface ICreatedCourtSnapshot {
   id: string;
   complexId: string;
   name: string;
+  serviceIds: string[];
   status: string;
   createdAt: string;
   updatedAt: string;
