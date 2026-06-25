@@ -182,26 +182,35 @@ class CreateComplexScreenBehaviorTest {
         CreateComplexScreen(
             state = localState,
             contentPadding = androidx.compose.foundation.layout.PaddingValues(),
-            onRetryCatalogs = onRetryCatalogs,
-            onRetryCantons = onRetryCantons,
-            onComplexNameChange = { localState = localState.copy(complexName = it) },
-            onProvinceSelected = host.selectProvince,
-            onCantonSelected = host.selectCanton,
-            onComplexAddressChange = { localState = localState.copy(complexAddress = it) },
-            onOpenLocationPicker = {},
-            onClearLocation = { localState = localState.copy(latitude = null, longitude = null) },
-            onToggleComplexService = { serviceId ->
-              localState =
-                  localState.copy(
-                      selectedComplexServiceIds =
-                          toggle(localState.selectedComplexServiceIds, serviceId)
-                  )
-            },
-            onFirstCourtNameChange = { localState = localState.copy(firstCourtName = it) },
-            onToggleCourtService = host.toggleCourtService,
-            onNext = { localState = localState.copy(currentStep = CreateComplexStep.FirstCourt) },
-            onBack = { localState = localState.copy(currentStep = CreateComplexStep.Complex) },
-            onSubmit = onSubmit,
+            actions =
+                CreateComplexScreenActions(
+                    onRetryCatalogs = onRetryCatalogs,
+                    onRetryCantons = onRetryCantons,
+                    onComplexNameChange = { localState = localState.copy(complexName = it) },
+                    onProvinceSelected = host.selectProvince,
+                    onCantonSelected = host.selectCanton,
+                    onComplexAddressChange = { localState = localState.copy(complexAddress = it) },
+                    onOpenLocationPicker = {},
+                    onClearLocation = {
+                      localState = localState.copy(latitude = null, longitude = null)
+                    },
+                    onToggleComplexService = { serviceId ->
+                      localState =
+                          localState.copy(
+                              selectedComplexServiceIds =
+                                  toggle(localState.selectedComplexServiceIds, serviceId)
+                          )
+                    },
+                    onFirstCourtNameChange = { localState = localState.copy(firstCourtName = it) },
+                    onToggleCourtService = host.toggleCourtService,
+                    onNext = {
+                      localState = localState.copy(currentStep = CreateComplexStep.FirstCourt)
+                    },
+                    onBack = {
+                      localState = localState.copy(currentStep = CreateComplexStep.Complex)
+                    },
+                    onSubmit = onSubmit,
+                ),
         )
       }
     }

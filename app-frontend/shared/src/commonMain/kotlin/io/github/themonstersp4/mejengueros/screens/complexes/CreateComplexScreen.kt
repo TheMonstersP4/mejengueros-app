@@ -36,25 +36,29 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextArea
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextField
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 
+data class CreateComplexScreenActions(
+    val onRetryCatalogs: () -> Unit,
+    val onRetryCantons: () -> Unit,
+    val onComplexNameChange: (String) -> Unit,
+    val onProvinceSelected: (String) -> Unit,
+    val onCantonSelected: (String) -> Unit,
+    val onComplexAddressChange: (String) -> Unit,
+    val onOpenLocationPicker: () -> Unit,
+    val onClearLocation: () -> Unit,
+    val onToggleComplexService: (String) -> Unit,
+    val onFirstCourtNameChange: (String) -> Unit,
+    val onToggleCourtService: (String) -> Unit,
+    val onNext: () -> Unit,
+    val onBack: () -> Unit,
+    val onSubmit: () -> Unit,
+)
+
 @Composable
 fun CreateComplexScreen(
     state: CreateComplexUiState,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    onRetryCatalogs: () -> Unit,
-    onRetryCantons: () -> Unit,
-    onComplexNameChange: (String) -> Unit,
-    onProvinceSelected: (String) -> Unit,
-    onCantonSelected: (String) -> Unit,
-    onComplexAddressChange: (String) -> Unit,
-    onOpenLocationPicker: () -> Unit,
-    onClearLocation: () -> Unit,
-    onToggleComplexService: (String) -> Unit,
-    onFirstCourtNameChange: (String) -> Unit,
-    onToggleCourtService: (String) -> Unit,
-    onNext: () -> Unit,
-    onBack: () -> Unit,
-    onSubmit: () -> Unit,
+    actions: CreateComplexScreenActions,
 ) {
   val selectedLocation =
       if (state.latitude != null && state.longitude != null) {
@@ -91,19 +95,19 @@ fun CreateComplexScreen(
       ComplexStepContent(
           state = state,
           selectedLocation = selectedLocation,
-          onComplexNameChange = onComplexNameChange,
-          onProvinceSelected = onProvinceSelected,
-          onCantonSelected = onCantonSelected,
-          onComplexAddressChange = onComplexAddressChange,
-          onOpenLocationPicker = onOpenLocationPicker,
-          onClearLocation = onClearLocation,
-          onToggleComplexService = onToggleComplexService,
+          onComplexNameChange = actions.onComplexNameChange,
+          onProvinceSelected = actions.onProvinceSelected,
+          onCantonSelected = actions.onCantonSelected,
+          onComplexAddressChange = actions.onComplexAddressChange,
+          onOpenLocationPicker = actions.onOpenLocationPicker,
+          onClearLocation = actions.onClearLocation,
+          onToggleComplexService = actions.onToggleComplexService,
       )
     } else {
       FirstCourtStepContent(
           state = state,
-          onFirstCourtNameChange = onFirstCourtNameChange,
-          onToggleCourtService = onToggleCourtService,
+          onFirstCourtNameChange = actions.onFirstCourtNameChange,
+          onToggleCourtService = actions.onToggleCourtService,
       )
     }
 
@@ -117,7 +121,7 @@ fun CreateComplexScreen(
       if (state.hasCatalogLoadFailure) {
         MejenguerosFullWidthOutlinedButton(
             text = if (state.isLoadingCatalogs) "Reintentando..." else "Reintentar",
-            onClick = onRetryCatalogs,
+            onClick = actions.onRetryCatalogs,
             enabled = !state.isLoadingCatalogs,
             modifier = Modifier.testTag("create_complex_retry_catalogs_button"),
         )
@@ -125,7 +129,7 @@ fun CreateComplexScreen(
         MejenguerosFullWidthOutlinedButton(
             text =
                 if (state.isLoadingCantons) "Reintentando cantones..." else "Reintentar cantones",
-            onClick = onRetryCantons,
+            onClick = actions.onRetryCantons,
             enabled = !state.isLoadingCantons,
             modifier = Modifier.testTag("create_complex_retry_cantons_button"),
         )
@@ -157,7 +161,7 @@ fun CreateComplexScreen(
     if (state.currentStep == CreateComplexStep.Complex) {
       MejenguerosFullWidthPrimaryButton(
           text = "Continuar con la primera cancha",
-          onClick = onNext,
+          onClick = actions.onNext,
           enabled = state.canGoToCourtStep,
           modifier = Modifier.testTag("create_complex_next_button"),
       )
@@ -165,13 +169,13 @@ fun CreateComplexScreen(
       Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         MejenguerosFullWidthOutlinedButton(
             text = "Volver",
-            onClick = onBack,
+            onClick = actions.onBack,
             enabled = !state.isSubmitting,
             modifier = Modifier.weight(1f).testTag("create_complex_back_button"),
         )
         MejenguerosFullWidthPrimaryButton(
             text = if (state.isSubmitting) "Creando..." else "Crear complejo",
-            onClick = onSubmit,
+            onClick = actions.onSubmit,
             enabled = state.canSubmit,
             modifier = Modifier.weight(1f).testTag("create_complex_submit_button"),
         )
