@@ -1,0 +1,37 @@
+name: Seed demo data
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seed-demo:
+    name: Seed demo data
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-backend/api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: app-backend/api
+        run: npm ci
+
+      - name: Seed demo data
+        working-directory: app-backend/api
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALLOW_DEMO_SEED: 'true'
+          # Manual-only shared dev override; prisma/seed.ts rejects any schema other than
+          # `mejengueros_dev` even if this workflow is dispatched with a different secret.
+          ALLOW_SHARED_DEV_DEMO_SEED: 'true'
+        run: npm run db:seed

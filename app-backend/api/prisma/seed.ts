@@ -28,17 +28,36 @@ function assertLocalDatabase(rawUrl: string): void {
 
   const host = parsed.hostname;
   const dbName = parsed.pathname.replace(/^\//, '');
+  const schema = parsed.searchParams.get('schema');
 
   const isLocalHost = host === 'localhost' || host === '127.0.0.1';
   const isLocalDbName = /local|test|demo|migration.?validation/i.test(dbName);
+  const isGithubActionsSharedDevOverride =
+    process.env.GITHUB_ACTIONS === 'true' && process.env.ALLOW_SHARED_DEV_DEMO_SEED === 'true';
+  const isGithubActionsSharedDevSchema = schema === 'mejengueros_dev';
 
-  if (!isLocalHost && !isLocalDbName) {
+  if (!isLocalHost && !isLocalDbName && !isGithubActionsSharedDevOverride) {
     console.error(
       `ERROR: DATABASE_URL points to "${host}/${dbName}" which does not look like a local or demo database.\n` +
       `  Allowed: host is localhost/127.0.0.1, OR database name matches local|test|demo|migration_validation.\n` +
-      `  To run the seed, use the disposable Docker database documented in app-backend/api/docker/.`
+      `  Manual GitHub Actions dev seed override requires GITHUB_ACTIONS=true and ALLOW_SHARED_DEV_DEMO_SEED=true.\n` +
+      `  To run the seed locally, use the disposable Docker database documented in app-backend/api/docker/.`
     );
     process.exit(1);
+  }
+
+  if (isGithubActionsSharedDevOverride) {
+    if (!isGithubActionsSharedDevSchema) {
+      console.error(
+        'ERROR: Manual GitHub Actions dev seed override requires DATABASE_URL to use schema=mejengueros_dev.'
+      );
+      process.exit(1);
+    }
+
+    // Manual GitHub Actions dev seed override is constrained to the shared dev schema
+    // `mejengueros_dev`; this workflow resets demo-owned data and all data attached to
+    // demo courts, without wiping the whole database.
+    console.log('GitHub Actions dev demo seed override enabled for shared dev database.');
   }
 }
 
