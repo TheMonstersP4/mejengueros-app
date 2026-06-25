@@ -1,135 +1,139 @@
 # mejengueros-app
 
-Repositorio oficial de desarrollo de **Mejengueros**, el proyecto del equipo TheMonstersP4. Este repositorio concentra la implementación del backend, la primera base de aplicación móvil/frontend y la documentación operativa que conecta el backlog del curso con GitHub Projects.
+Official development repository for **Mejengueros**, the TheMonstersP4 team project. This repository brings together the backend implementation, the initial mobile/frontend application foundation, and the operational documentation that connects the course backlog with GitHub Projects.
 
-## Estado actual
+## Current status
 
-El proyecto está en etapa de integración inicial para el MVP. La prioridad actual es consolidar la base técnica que permita avanzar sobre reservas, canchas, disponibilidad, catálogo y flujo de demo.
+The project is in the initial MVP integration stage. The current priority is to consolidate the technical foundation so the team can move forward on bookings, courts, availability, catalog flows, and the demo path.
 
-La fuente operativa de seguimiento es el GitHub Project del equipo:
+The operational tracking source is the team GitHub Project:
 
-- Organización: [`TheMonstersP4`](https://github.com/orgs/TheMonstersP4)
+- Organization: [`TheMonstersP4`](https://github.com/orgs/TheMonstersP4)
 - Project: [`Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1)
-- Repositorio vinculado a issues: [`TheMonstersP4/mejengueros-app`](https://github.com/TheMonstersP4/mejengueros-app)
-- Milestone vigente: [`Semana 10 — Flujo MVP`](https://github.com/TheMonstersP4/mejengueros-app/milestone/1)
+- Repository linked to issues: [`TheMonstersP4/mejengueros-app`](https://github.com/TheMonstersP4/mejengueros-app)
+- Current milestone: [`Semana 10 — Flujo MVP`](https://github.com/TheMonstersP4/mejengueros-app/milestone/1)
 
-## Estructura principal
+## Main structure
 
-| Ruta | Propósito |
+| Path | Purpose |
 |------|-----------|
-| `app-backend/` | Backend, infraestructura y despliegue. |
-| `app-frontend/` | Primera base de aplicación móvil/frontend del proyecto. |
-| `docs/design/` | Artefactos visuales y técnicos de diseño, como mockups y diagramas de base de datos. |
-| `openspec/` | Cambios formales SDD/OpenSpec cuando el equipo use ese flujo. |
-| `.github/` | Workflows y configuración de automatización del repositorio. |
+| `app-backend/` | Backend, infrastructure, and deployment. |
+| `app-frontend/` | Initial mobile/frontend application foundation for the project. |
+| `docs/design/` | Visual and technical design artifacts, such as mockups and database diagrams. |
+| `openspec/` | Formal SDD/OpenSpec changes when the team uses that workflow. |
+| `.github/` | Repository workflows and automation configuration. |
 
-## Guías internas por subproyecto
+## Internal guides by subproject
 
-Antes de trabajar dentro de cada área, revisa su README interno:
+Before working in any area, review its internal README:
 
-| Área | Cuándo leerlo | Referencia |
+| Area | When to read it | Reference |
 |------|---------------|------------|
-| Backend | Si vas a tocar API, infraestructura, despliegue o el POC web. | [`app-backend/README.md`](app-backend/README.md) |
-| Frontend | Si vas a ejecutar la app KMP, revisar arquitectura o usar los comandos de desarrollo. | [`app-frontend/README.md`](app-frontend/README.md) |
-| Diseño | Si necesitas contexto funcional, mockups o diagramas de soporte. | [`docs/design/README.md`](docs/design/README.md) |
+| Backend | If you will touch the API, infrastructure, deployment, or the web POC. | [`app-backend/README.md`](app-backend/README.md) |
+| Frontend | If you will run the KMP app, review the architecture, or use development commands. | [`app-frontend/README.md`](app-frontend/README.md) |
+| Design | If you need functional context, mockups, or support diagrams. | [`docs/design/README.md`](docs/design/README.md) |
 
-## Cómo trabajar por área
+## How to work by area
 
 ### Backend
 
-El backend vive en `app-backend/`.
+The backend lives in `app-backend/`.
 
-- `app-backend/api`: API NestJS con Fastify, Prisma y lambdas WebSocket.
-- `app-backend/infra`: Terraform de AWS, Cognito, API Gateway, S3, ECR y Lambdas.
-- `.github`: workflows y scripts de despliegue ajustados para ejecutar el backend desde `app-backend`.
+- `app-backend/api`: NestJS API with Fastify, Prisma, and WebSocket lambdas.
+- `app-backend/infra`: AWS, Cognito, API Gateway, S3, ECR, and Lambda Terraform.
+- `.github`: deployment workflows and scripts adjusted to run the backend from `app-backend`.
 
-Para más detalles técnicos, revisa [`app-backend/README.md`](app-backend/README.md).
+For more technical details, review [`app-backend/README.md`](app-backend/README.md).
 
-### Aplicación móvil/frontend
+### Mobile/frontend application
 
-La primera plantilla de aplicación móvil vive en `app-frontend/`.
+The initial mobile application foundation lives in `app-frontend/`.
 
-Esta base funciona como punto de partida técnico para el frontend del MVP. Puede incluir código de ejemplo, pantallas de muestra o flujos temporales propios de una plantilla. Ese contenido debe entenderse como scaffolding inicial, no como alcance funcional final del producto.
+This foundation works as the technical starting point for the MVP frontend. It may include sample code, example screens, or temporary flows that come from a template. That content should be treated as initial scaffolding, not as the product's final functional scope.
 
-El objetivo de esta integración inicial es dejar disponible una base revisable para que el equipo pueda:
+The goal of this initial integration is to leave a reviewable foundation so the team can:
 
-- ejecutar y validar el proyecto frontend;
-- revisar la estructura técnica inicial;
-- conectar progresivamente los flujos reales de Mejengueros;
-- reemplazar ejemplos de plantilla por casos del dominio del proyecto.
+- run and validate the frontend project;
+- review the initial technical structure;
+- progressively connect real Mejengueros flows;
+- replace template examples with project domain cases.
 
-Para trabajar el frontend, ejecuta los comandos desde `app-frontend/`. La superficie recomendada es el `Taskfile.yml` de ese subproyecto (`task check`, `task test`, `task verify`, `task spotless:apply`, `task spotless:check`) y los comandos crudos de Gradle quedan como fallback cuando Task no esté disponible.
+To work on the frontend, run commands from `app-frontend/`. The recommended interface is that subproject's `Taskfile.yml` (`task check`, `task test`, `task verify`, `task spotless:apply`, `task spotless:check`), while raw Gradle commands remain the fallback when Task is not available.
 
-Para más detalles técnicos, revisa [`app-frontend/README.md`](app-frontend/README.md).
+For more technical details, review [`app-frontend/README.md`](app-frontend/README.md).
 
-### Diseño y documentación funcional
+### Design and functional documentation
 
-Los artefactos visuales y técnicos de diseño viven en `docs/design/`. Esa carpeta concentra referencias como mockups, diagramas y decisiones visuales o estructurales que ayudan a entender el producto antes de tocar código.
+Visual and technical design artifacts live in `docs/design/`. That folder centralizes references such as mockups, diagrams, and visual or structural decisions that help explain the product before touching code.
 
-La guía de entrada de esa carpeta está en [`docs/design/README.md`](docs/design/README.md).
+The entry guide for that folder is [`docs/design/README.md`](docs/design/README.md).
 
-## Seguimiento del trabajo
+## Work tracking
 
-El seguimiento operativo del proyecto se realiza en [GitHub Projects](https://github.com/orgs/TheMonstersP4/projects/1) e [issues](https://github.com/TheMonstersP4/mejengueros-app/issues). Ahí deben vivir las tareas, prioridades, decisiones de alcance y vínculos entre trabajo pendiente y Pull Requests.
+The project's operational tracking happens in [GitHub Projects](https://github.com/orgs/TheMonstersP4/projects/1) and [issues](https://github.com/TheMonstersP4/mejengueros-app/issues). Tasks, priorities, scope decisions, and links between pending work and Pull Requests should live there.
 
-La documentación versionada del repositorio debe complementar ese seguimiento, no reemplazarlo. En general:
+The repository's versioned documentation should complement that tracking, not replace it. In general:
 
-| Espacio | Responsabilidad |
+| Space | Responsibility |
 |---------|-----------------|
-| [GitHub Project `Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1) | Backlog operativo, prioridad, estado, estimación y trazabilidad del MVP. |
-| [Issues del repositorio](https://github.com/TheMonstersP4/mejengueros-app/issues) | Descripción del trabajo, criterios de aceptación y discusión antes del Pull Request. |
-| [`docs/design/`](docs/design/) | Mockups, diagramas y artefactos de diseño. |
-| [`openspec/`](openspec/) | Especificaciones formales de cambios cuando se use SDD/OpenSpec. |
-| Pull requests | Cambios implementables vinculados a un issue o decisión aceptada por el equipo. |
+| [GitHub Project `Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1) | Operational backlog, priority, status, estimates, and MVP traceability. |
+| [Repository issues](https://github.com/TheMonstersP4/mejengueros-app/issues) | Work description, acceptance criteria, and discussion before the Pull Request. |
+| [`docs/design/`](docs/design/) | Mockups, diagrams, and design artifacts. |
+| [`openspec/`](openspec/) | Formal change specifications when SDD/OpenSpec is used. |
+| Pull requests | Implementable changes linked to an issue or a decision accepted by the team. |
 
-## Flujo de ramas y trabajo paralelo
+## Branch workflow and parallel work
 
-Cada cambio debe partir de `main` en una rama propia y enfocada. Si necesitas trabajar en más de una feature a la vez, no reutilices el mismo directorio ni mezcles cambios sin relación: usa `git worktree` para mantener cada feature aislada.
+Every change must start from `main` in its own focused branch. If you need to work on more than one feature at the same time, do not reuse the same directory or mix unrelated changes: use `git worktree` to keep each feature isolated.
 
-Ruta recomendada para trabajo paralelo:
+The branch convention is `type/<github-username>/<descripcion>`, for example `feat/ddgutierrezc/reservas`. Every Pull Request must request review from `@kevinah95`; in addition, `CODEOWNERS` covers the entire repository to reinforce this rule when branch protection requires code owner reviews.
+
+Recommended path for parallel work:
 
 ```powershell
 git switch main
 git pull
-git worktree add ..\mejengueros-app-<feature> -b <tipo>/<descripcion> main
+git worktree add ..\mejengueros-app-<feature> -b <tipo>/<github-username>/<descripcion> main
 ```
 
-Ejemplo:
+Example:
 
 ```powershell
-git worktree add ..\mejengueros-app-reservas -b feat/reservas main
+git worktree add ..\mejengueros-app-reservas -b feat/ddgutierrezc/reservas main
 ```
 
-Reglas prácticas:
+Practical rules:
 
-- una rama por issue, fix o feature;
-- cada worktree debe apuntar a una rama distinta;
-- antes de abrir un Pull Request, verifica que el cambio esté vinculado a un issue aprobado;
-- no mezcles documentación, infraestructura, backend y frontend en una misma rama salvo que formen parte del mismo cambio revisable.
+- one branch per issue, fix, or feature;
+- each worktree must point to a different branch;
+- always use the `type/<github-username>/<descripcion>` pattern with a valid `type` (`feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `revert`);
+- before opening a Pull Request, verify that the change is linked to an approved issue;
+- request `@kevinah95` as reviewer on every Pull Request;
+- do not mix documentation, infrastructure, backend, and frontend in the same branch unless they are part of the same reviewable change.
 
-## Lecturas recomendadas
+## Recommended reading
 
-- `app-backend/README.md`: guía técnica del backend, API, infraestructura y despliegue.
-- `app-frontend/README.md`: guía técnica del frontend y comandos de trabajo.
-- `docs/design/README.md`: referencias visuales y técnicas de diseño.
+- `app-backend/README.md`: backend technical guide, API, infrastructure, and deployment.
+- `app-frontend/README.md`: frontend technical guide and work commands.
+- `docs/design/README.md`: visual and technical design references.
 
-## Convención editorial
+## Editorial convention
 
-La documentación funcional del proyecto se escribe en español claro, con tildes y `ñ` cuando corresponda: por ejemplo, `contraseña`, `autenticación`, `configuración`, `sesión`, `catálogo`, `métricas` y `reseña`.
+README documentation and Pull Request titles/bodies must be written in clear English.
 
-Los identificadores técnicos pueden mantenerse en ASCII cuando la implementación lo requiera, como nombres de variables, campos JSON, rutas, endpoints, archivos, variables de entorno o claves de configuración.
+Technical identifiers may stay in ASCII when the implementation requires it, such as variable names, JSON fields, routes, endpoints, files, environment variables, or configuration keys.
 
-También se permiten términos técnicos ampliamente aceptados cuando sean más claros que una traducción forzada, como `frontend`, `backend`, `seed`, `wireframes`, `roadmap`, `backlog`, `Social Login`, `end-to-end`, `MVP`, `QR` y `post-MVP`.
+Widely accepted technical terms are also allowed when they are clearer than a forced translation, such as `frontend`, `backend`, `seed`, `wireframes`, `roadmap`, `backlog`, `Social Login`, `end-to-end`, `MVP`, `QR`, and `post-MVP`.
 
-## Alcance vigente del MVP
+## Current MVP scope
 
-El backlog activo del MVP se consulta en el [GitHub Project `Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1) y en el milestone [`Semana 10 — Flujo MVP`](https://github.com/TheMonstersP4/mejengueros-app/milestone/1). A nivel de producto, el camino crítico se concentra en:
+The active MVP backlog lives in the [GitHub Project `Mejengueros`](https://github.com/orgs/TheMonstersP4/projects/1) and in the milestone [`Semana 10 — Flujo MVP`](https://github.com/TheMonstersP4/mejengueros-app/milestone/1). From a product perspective, the critical path is focused on:
 
-- configuración técnica del proyecto;
-- complejo, cancha, servicios y disponibilidad reservable;
-- catálogo, detalle y reserva de slots de 1 hora;
-- seed mínimo en base de datos para demo visible;
-- notificación post-reserva;
-- reseña básica, rating visible y lectura simple de reseñas por el dueño.
+- project technical setup;
+- complex, court, services, and bookable availability;
+- catalog, detail, and 1-hour slot booking;
+- minimal database seed for a visible demo;
+- post-booking notification;
+- basic review, visible rating, and simple owner-facing review reading.
 
-Quedan fuera del camino crítico inicial funcionalidades como social login, landing pages, perfil/favoritos/foto, admin global, QR/código, imágenes de reseña, cuestionarios y métricas avanzadas, salvo que el equipo las reprograme explícitamente en el [Project](https://github.com/orgs/TheMonstersP4/projects/1).
+Features such as social login, landing pages, profile/favorites/photo, global admin, QR/code, review images, questionnaires, and advanced metrics remain outside the initial critical path unless the team explicitly reschedules them in the [Project](https://github.com/orgs/TheMonstersP4/projects/1).

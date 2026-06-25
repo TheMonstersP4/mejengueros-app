@@ -1,54 +1,54 @@
 # Mejengueros Backend
 
-Backend e infraestructura de Mejengueros.
+Mejengueros backend and infrastructure.
 
-El subproyecto concentra la API, la infraestructura cloud y un POC web de soporte para autenticación social y pruebas de WebSocket.
+This subproject contains the API, cloud infrastructure, and a support web POC for social authentication and WebSocket testing.
 
-## Qué incluye
+## What it includes
 
-- `api/`: API NestJS con Fastify, Prisma, Cognito y handlers Lambda para WebSocket.
-- `infra/`: Terraform para AWS, Azure AD, Cloudflare y composición de ambientes.
-- `poc/`: cliente web estático para validar login Hosted UI y flujo de chat.
-- `docs/`: estándares técnicos y documentación de arquitectura del backend.
+- `api/`: NestJS API with Fastify, Prisma, Cognito, and Lambda handlers for WebSocket.
+- `infra/`: Terraform for AWS, Azure AD, Cloudflare, and environment composition.
+- `poc/`: static web client to validate Hosted UI login and the chat flow.
+- `docs/`: backend technical standards and architecture documentation.
 
-## Estructura
+## Structure
 
 ```text
 .
-|-- api/      API NestJS, Prisma, tests y WebSocket Lambda handlers
-|-- infra/    Terraform por módulos y composición de ambientes
-|-- poc/      Cliente web estático para probar login Cognito + WebSocket
-|-- docs/     Estándares técnicos y decisiones de arquitectura
-`-- ../.github/  Workflows y scripts de deploy en la raíz del repositorio
+|-- api/      NestJS API, Prisma, tests, and WebSocket Lambda handlers
+|-- infra/    Terraform by modules and environment composition
+|-- poc/      Static web client to test Cognito login + WebSocket
+|-- docs/     Technical standards and architecture decisions
+`-- ../.github/  Workflows and deploy scripts at repository root
 ```
 
-## Prerrequisitos
+## Prerequisites
 
-- Node.js 22 y npm para `api/`.
-- Terraform para `infra/`.
-- Valores reales de Cognito y AWS cuando se prueban rutas protegidas o despliegues.
+- Node.js 22 and npm for `api/`.
+- Terraform for `infra/`.
+- Real Cognito and AWS values when testing protected routes or deployments.
 
 ## API
 
-La API está en `api/`.
+The API is in `api/`.
 
-Incluye:
+It includes:
 
-- NestJS con Fastify.
-- Pino para logs HTTP.
-- Cognito como broker de identidad para Google y Microsoft.
-- Prisma 7 para persistencia.
-- Estructura DDD por módulo.
-- Tests unitarios fuera de `src`.
-- Handlers Lambda para API Gateway WebSocket.
+- NestJS with Fastify.
+- Pino for HTTP logs.
+- Cognito as the identity broker for Google and Microsoft.
+- Prisma 7 for persistence.
+- DDD structure by module.
+- Unit tests outside `src`.
+- Lambda handlers for API Gateway WebSocket.
 
-Guía local:
+Local guide:
 
 ```text
 api/README.md
 ```
 
-Comandos principales:
+Main commands:
 
 ```powershell
 cd api
@@ -60,46 +60,46 @@ npm run test:cov -- --runInBand
 npm run build
 ```
 
-La API local expone rutas bajo:
+The local API exposes routes under:
 
 ```text
 http://localhost:3000/v1
 ```
 
-## Infraestructura
+## Infrastructure
 
-Terraform está en `infra/`.
+Terraform is in `infra/`.
 
-Incluye:
+It includes:
 
-- Cognito User Pool con Google y Microsoft como identity providers.
-- Microsoft Entra app registration automatizable con Terraform.
-- VPC privada sin NAT gateway por defecto.
-- S3 para archivos de aplicación.
-- ECR para imágenes Docker.
-- API Gateway WebSocket con DynamoDB para conexiones por room.
-- Lambdas para rutas `$connect`, `$disconnect` y `$default`.
-- CloudWatch log groups con retención definida.
-- POC site en S3 + Cloudflare Worker.
+- Cognito User Pool with Google and Microsoft as identity providers.
+- Microsoft Entra app registration that can be automated with Terraform.
+- Private VPC without a NAT gateway by default.
+- S3 for application files.
+- ECR for Docker images.
+- API Gateway WebSocket with DynamoDB for room connections.
+- Lambdas for the `$connect`, `$disconnect`, and `$default` routes.
+- CloudWatch log groups with defined retention.
+- POC site in S3 + Cloudflare Worker.
 - GitHub Actions OIDC deploy role.
 
-Estructura:
+Structure:
 
 ```text
 infra/
-|-- env/      tfvars y backend examples por ambiente
-|-- modules/  módulos reutilizables
-`-- root/     composición del ambiente
+|-- env/      tfvars and backend examples by environment
+|-- modules/  reusable modules
+`-- root/     environment composition
 ```
 
-Antes de ejecutar Terraform, crea tus archivos locales reales a partir de los ejemplos versionados:
+Before running Terraform, create your real local files from the versioned examples:
 
 ```powershell
 Copy-Item 'infra\env\dev.tfvars.example' 'infra\env\dev.tfvars'
 Copy-Item 'infra\env\dev.backend.hcl.example' 'infra\env\dev.backend.hcl'
 ```
 
-Comandos desde `app-backend/`:
+Commands from `app-backend/`:
 
 ```powershell
 terraform -chdir=infra/root init
@@ -107,23 +107,23 @@ terraform -chdir=infra/root plan -var-file '..\env\dev.tfvars'
 terraform -chdir=infra/root apply -var-file '..\env\dev.tfvars'
 ```
 
-Si usas backend remoto:
+If you use a remote backend:
 
 ```powershell
 terraform -chdir=infra/root init -backend-config '..\env\dev.backend.hcl'
 ```
 
-## POC Web
+## Web POC
 
-El POC está en `poc/web-chat`.
+The POC is in `poc/web-chat`.
 
-Sirve para probar:
+It is used to test:
 
-- Login con Cognito Hosted UI.
-- Callback OAuth con PKCE.
-- Página protegida `/chat/`.
-- Conexión WebSocket.
-- Mensajes y usuarios conectados por room.
+- Login with Cognito Hosted UI.
+- OAuth callback with PKCE.
+- Protected `/chat/` page.
+- WebSocket connection.
+- Messages and connected users by room.
 
 Local:
 
@@ -132,17 +132,17 @@ cd poc/web-chat
 python -m http.server 3000
 ```
 
-Abrir:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-## Documentación
+## Documentation
 
-`docs/` es la fuente canónica de estándares del proyecto.
+`docs/` is the canonical source for project standards.
 
-Documentos principales:
+Main documents:
 
 - `docs/nestjs-ddd-structure.md`
 - `docs/ddd-solid-standards.md`
@@ -153,50 +153,50 @@ Documentos principales:
 - `docs/unit-test-standards.md`
 - `docs/websocket-architecture.md`
 
-## Dónde profundizar
+## Where to go deeper
 
-- [`api/README.md`](api/README.md): variables de entorno, endpoints, calidad y arquitectura de la API.
-- [`infra/README.md`](infra/README.md): módulos Terraform, entradas/salidas y despliegue de infraestructura.
-- [`poc/web-chat/README.md`](poc/web-chat/README.md): flujo del POC web para autenticación y chat.
-- [`docs/`](docs/): estándares y decisiones técnicas del backend.
+- [`api/README.md`](api/README.md): environment variables, endpoints, quality, and API architecture.
+- [`infra/README.md`](infra/README.md): Terraform modules, inputs/outputs, and infrastructure deployment.
+- [`poc/web-chat/README.md`](poc/web-chat/README.md): web POC flow for authentication and chat.
+- [`docs/`](docs/): backend standards and technical decisions.
 
 ## Deploy
 
-GitHub Actions está en la carpeta `.github/` de la raíz del repositorio, no dentro de `app-backend/`.
+GitHub Actions lives in the repository root `.github/` folder, not inside `app-backend/`.
 
-El deploy es script-driven:
+Deployment is script-driven:
 
-- La workflow detecta cambios.
-- Usa OIDC para asumir rol en AWS.
-- Corre quality gate antes de publicar API y WebSocket.
-- Los scripts viven en la ruta repo-root `.github/scripts`.
+- The workflow detects changes.
+- It uses OIDC to assume the AWS role.
+- It runs the quality gate before publishing the API and WebSocket.
+- The scripts live at the repo-root path `.github/scripts`.
 
-Secrets requeridos para ambiente `dev`:
+Required secrets for the `dev` environment:
 
 ```text
 AWS_ROLE_ARN_DEV
 DEPLOY_DEV_CONFIG
 ```
 
-Se obtienen desde Terraform:
+They are obtained from Terraform:
 
 ```powershell
 terraform -chdir=infra/root output -raw github_actions_iam_role_arn
 terraform -chdir=infra/root output -json deploy_config
 ```
 
-## Seguridad
+## Security
 
-No se deben commitear:
+Do not commit:
 
 - `.env`
-- `.tfvars` reales
-- backend configs reales
-- secretos OAuth
-- passwords de base de datos
+- real `.tfvars`
+- real backend configs
+- OAuth secrets
+- database passwords
 - Terraform state
-- paquetes Lambda generados
+- generated Lambda packages
 - Prisma generated client
-- coverage o build output
+- coverage or build output
 
-Los ejemplos viven como `*.example` y los valores reales se manejan localmente o por secrets del ambiente.
+Examples live as `*.example`, and real values are handled locally or through environment secrets.

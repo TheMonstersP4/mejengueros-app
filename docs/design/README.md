@@ -1,30 +1,30 @@
-# Diseño de Mejengueros
+# Mejengueros Design
 
-Esta carpeta reúne artefactos visuales y técnicos que ayudan a entender el producto antes de implementar cambios en código.
+This folder gathers visual and technical artifacts that help explain the product before implementing code changes.
 
-## Alcance
+## Scope
 
-Aquí viven referencias de diseño y apoyo funcional, por ejemplo:
+This is where design references and functional support material live, for example:
 
-- mockups y pantallas de referencia;
-- diagramas o insumos de base de datos;
-- material visual útil para alinear backlog, producto y desarrollo.
+- mockups and reference screens;
+- database diagrams or related inputs;
+- visual material useful for aligning backlog, product, and development.
 
-## Estructura actual
+## Current structure
 
-| Ruta | Contenido |
+| Path | Content |
 |------|-----------|
-| `mockups/` | Referencias visuales de pantallas y flujos. |
-| `database/` | Diagramas o artefactos relacionados con datos y modelo persistente. |
+| `mockups/` | Visual references for screens and flows. |
+| `database/` | Diagrams or artifacts related to data and the persistent model. |
 
-## Cómo usar esta carpeta
+## How to use this folder
 
-1. Revisa estos artefactos antes de cambiar flujos, pantallas o estructuras de datos relevantes.
-2. Mantén el material alineado con el alcance vigente del MVP.
-3. Si una decisión de producto o diseño necesita contexto adicional, enlázala desde el issue o PR correspondiente.
+1. Review these artifacts before changing relevant flows, screens, or data structures.
+2. Keep the material aligned with the current MVP scope.
+3. If a product or design decision needs additional context, link it from the corresponding issue or PR.
 
-## Relación con otras guías
+## Relationship with other guides
 
-- [`../../README.md`](../../README.md): vista general del repositorio y alcance del proyecto.
-- [`../../app-backend/README.md`](../../app-backend/README.md): implementación backend, infraestructura y despliegue.
-- [`../../app-frontend/README.md`](../../app-frontend/README.md): base técnica del frontend móvil/KMP y comandos de trabajo.
+- [`../../README.md`](../../README.md): repository overview and project scope.
+- [`../../app-backend/README.md`](../../app-backend/README.md): backend implementation, infrastructure, and deployment.
+- [`../../app-frontend/README.md`](../../app-frontend/README.md): mobile/KMP frontend technical foundation and work commands.

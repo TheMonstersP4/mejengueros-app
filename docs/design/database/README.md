@@ -1,12 +1,12 @@
-# Diagramas de base de datos
+# Database diagrams
 
-Esta carpeta contiene diagramas técnicos de base de datos y modelo relacional del proyecto.
+This folder contains technical database diagrams and the project's relational model.
 
-## Milestone 1 — Esquema relacional MVP
+## Milestone 1 — MVP relational schema
 
-![Diagrama de base de datos de Mejengueros - Milestone 1](./mejengueros_diagrama_bd_milestone_1.png)
+![Mejengueros database diagram - Milestone 1](./mejengueros_diagrama_bd_milestone_1.png)
 
-Referencias:
+References:
 
 - Issue: [#29 Implementar esquema relacional mínimo MVP](https://github.com/TheMonstersP4/mejengueros-app/issues/29)
 - PR: [#70 feat(issue-29): add relational MVP schema](https://github.com/TheMonstersP4/mejengueros-app/pull/70)

@@ -42,10 +42,20 @@ app-backend/api/.lambda/
 # Local agent workspaces
 .atl/
 .pi/
-.agents/
 .skills/
-**/.agents/
 **/.skills/
+
+# Keep every shared project skill versioned while ignoring other local agent workspace files.
+.agents/*
+**/.agents/*
+!.agents/skills/
+!.agents/skills/**
+!**/.agents/skills/
+!**/.agents/skills/**
+!skills/
+!skills/**
+!**/skills/
+!**/skills/**
 
 # OS and editor noise
 .DS_Store
