@@ -24,6 +24,12 @@ resource "aws_cognito_user_pool" "user_pool" {
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
   mfa_configuration        = var.mfa_configuration
+  email_verification_subject = var.email_verification_subject
+  email_verification_message = var.email_verification_message
+
+  admin_create_user_config {
+    allow_admin_create_user_only = !var.self_signup_enabled
+  }
 
   password_policy {
     minimum_length    = var.password_minimum_length

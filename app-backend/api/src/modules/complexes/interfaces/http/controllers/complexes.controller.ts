@@ -32,7 +32,7 @@ export class ComplexesController {
   @ApiOperation({
     summary: 'Create a sports complex with its first court.',
     description:
-      'Requires an authenticated user with OWNER role in the local database and creates both records atomically.'
+      'Requires an authenticated user, creates the complex and first court atomically, and persists the local OWNER role for the creator when needed.'
   })
   @ApiBody({
     description: 'Required data to create the complex and its first court.',
@@ -42,7 +42,7 @@ export class ComplexesController {
     CreateComplexResponse,
     'Created complex and first court wrapped in the API response envelope.'
   )
-  @ApiEnvelopeErrors(400, 401, 403)
+  @ApiEnvelopeErrors(400, 401)
   async create(
     @CurrentUser() user: IAuthenticatedUserOutput,
     @Body() request: CreateComplexRequest

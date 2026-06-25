@@ -35,7 +35,6 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineT
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFormStack
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
@@ -47,13 +46,13 @@ fun RegisterScreen(
     state: AuthUiState,
     modifier: Modifier = Modifier,
     onBackToLogin: () -> Unit,
-    onOpenVerification: () -> Unit,
+    onRegister: (fullName: String, email: String, password: String) -> Unit,
 ) {
   var fullName by rememberSaveable { mutableStateOf("") }
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
   var confirmPassword by rememberSaveable { mutableStateOf("") }
-  var pendingMessage by rememberSaveable { mutableStateOf<String?>(null) }
+  var localErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
   val formEnabled = !state.isLoading
 
   Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -83,7 +82,7 @@ fun RegisterScreen(
               color = MaterialTheme.colorScheme.onSurface,
           )
           MejenguerosAuthTaglineText(
-              text = "Este formulario prepara el flujo visual de registro de semana 10.",
+              text = "Crea tu cuenta con correo y confirma el código que enviaremos.",
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -104,7 +103,7 @@ fun RegisterScreen(
               value = password,
               onValueChange = { password = it },
               enabled = formEnabled,
-              supportingText = "Mínimo 8 caracteres cuando el registro esté conectado.",
+              supportingText = PasswordPolicySupportingText,
           )
           MejenguerosPasswordField(
               value = confirmPassword,
@@ -120,7 +119,7 @@ fun RegisterScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        pendingMessage?.let { message ->
+        (localErrorMessage ?: state.errorMessage)?.let { message ->
           MejenguerosErrorText(
               text = message,
               color = MaterialTheme.colorScheme.error,
@@ -130,13 +129,20 @@ fun RegisterScreen(
         }
 
         MejenguerosFullWidthPrimaryButton(
-            text = "Registro manual pendiente",
-            onClick = { pendingMessage = "El registro manual aún no está conectado al backend." },
-            enabled = formEnabled,
-        )
-        MejenguerosFullWidthOutlinedButton(
-            text = "Ver pantalla de verificación",
-            onClick = onOpenVerification,
+            text = if (state.isLoading) "Creando cuenta..." else "Crear cuenta",
+            onClick = {
+              localErrorMessage =
+                  when {
+                    fullName.isBlank() -> "Ingresa tu nombre completo para crear la cuenta."
+                    email.isBlank() || password.isBlank() ->
+                        "Ingresa correo y contraseña para crear la cuenta."
+                    password != confirmPassword -> "Las contraseñas no coinciden."
+                    else -> null
+                  }
+              if (localErrorMessage == null) {
+                onRegister(fullName, email, password)
+              }
+            },
             enabled = formEnabled,
         )
       }

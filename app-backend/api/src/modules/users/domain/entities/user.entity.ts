@@ -8,11 +8,6 @@ export interface IUserEntityProps {
   id: string;
 
   /**
-   * Stable Cognito subject used to link authentication with local data.
-   */
-  cognitoSub: string;
-
-  /**
    * Primary user email stored by the application.
    */
   email: string;
@@ -28,9 +23,24 @@ export interface IUserEntityProps {
   pictureUrl?: string | null;
 
   /**
-   * Identity provider that created the Cognito identity.
+   * Identity used for the current auth context.
    */
-  provider?: string | null;
+  currentIdentity?: IUserEntityIdentityProps | null;
+}
+
+/**
+ * Login identity linked to a local user profile.
+ */
+export interface IUserEntityIdentityProps {
+  /**
+   * Upstream identity provider name.
+   */
+  provider: string;
+
+  /**
+   * Provider-specific stable subject.
+   */
+  providerSubject: string;
 }
 
 /**
@@ -43,9 +53,9 @@ export interface IUserProfileSnapshot {
   id: string;
 
   /**
-   * Stable Cognito subject linked to this user.
+   * Stable subject from the current identity.
    */
-  cognitoSub: string;
+  cognitoSub?: string;
 
   /**
    * Primary user email.
@@ -63,7 +73,7 @@ export interface IUserProfileSnapshot {
   pictureUrl?: string;
 
   /**
-   * Upstream identity provider name.
+   * Upstream identity provider name for the current identity.
    */
   provider?: string;
 }
@@ -96,11 +106,11 @@ export class UserEntity {
   toProfile(): IUserProfileSnapshot {
     return {
       id: this.props.id,
-      cognitoSub: this.props.cognitoSub,
+      cognitoSub: this.props.currentIdentity?.providerSubject,
       email: this.props.email,
       name: this.props.name ?? undefined,
       pictureUrl: this.props.pictureUrl ?? undefined,
-      provider: this.props.provider ?? undefined
+      provider: this.props.currentIdentity?.provider
     };
   }
 }

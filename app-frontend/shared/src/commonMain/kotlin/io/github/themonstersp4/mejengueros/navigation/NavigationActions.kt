@@ -4,6 +4,8 @@ class LoginNavigationActions(
     val onSignedIn: () -> Unit,
     val openRegister: () -> Unit,
     val openVerification: () -> Unit,
+    val openForgotPassword: () -> Unit,
+    val openPasswordReset: () -> Unit,
     val closeAuthStep: () -> Unit,
     val backToLogin: () -> Unit,
 )

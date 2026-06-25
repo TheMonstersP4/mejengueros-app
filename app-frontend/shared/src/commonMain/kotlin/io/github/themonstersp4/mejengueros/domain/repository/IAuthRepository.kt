@@ -10,6 +10,18 @@ interface IAuthRepository {
 
   suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest
 
+  suspend fun registerWithEmail(fullName: String, email: String, password: String)
+
+  suspend fun confirmRegistration(email: String, code: String)
+
+  suspend fun resendRegistrationCode(email: String)
+
+  suspend fun signInWithEmail(email: String, password: String): AuthSession
+
+  suspend fun requestPasswordReset(email: String)
+
+  suspend fun confirmPasswordReset(email: String, code: String, newPassword: String)
+
   suspend fun handleCallback(callbackUrl: String): AuthSession
 
   suspend fun signOut(): AuthSignOutRequest

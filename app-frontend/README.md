@@ -1,6 +1,10 @@
-# Mejengueros
+# Mejengueros Frontend
 
-Kotlin Multiplatform app targeting Android, iOS, and Desktop (JVM).
+Mejengueros Kotlin Multiplatform application with current targets for Android, iOS, and Desktop (JVM).
+
+## Purpose
+
+This subproject provides the MVP frontend technical foundation: shared UI with Compose Multiplatform, typed navigation, Cognito authentication, and early functional flows that serve as references for new features.
 
 ## Architecture decisions
 
@@ -11,6 +15,7 @@ androidApp/   Android application entry point
 desktopApp/   Desktop JVM application entry point
 iosApp/       SwiftUI/Xcode wrapper for iOS
 shared/       Shared Compose UI and shared Kotlin logic
+Taskfile.yml  Recommended command surface
 ```
 
 The project intentionally does **not** create a `composeApp` module. Shared UI and shared app logic live in `shared`, because all current targets use Compose Multiplatform UI.
@@ -175,6 +180,21 @@ These are public development identifiers, not secrets. Keep client secrets, real
 
 The Cognito app client is public (`generate_secret = false`) and allows the `code` OAuth flow with `openid email profile` scopes.
 
+## Current reference features
+
+- Authenticated shell with main navigation.
+- Cognito authentication flow (email/password and Hosted UI).
+- `Pokedex` feature as an example of architecture, navigation, local cache, and remote consumption.
+
+## Prerequisites and basic setup
+
+- JDK compatible with the project's Gradle/Kotlin Multiplatform setup.
+- Android SDK for Android builds.
+- Xcode if you are going to run `iosApp/`.
+- [Task](https://taskfile.dev/) is optional, but it is the recommended interface for repeatable commands.
+
+If you need integration values, review `.env.example` as a development configuration reference. That file is not automatically loaded at runtime.
+
 ## How to add a feature
 
 1. Add typed Navigation 3 route keys in `navigation/`.
@@ -231,6 +251,30 @@ Focused auth tasks are available for the recent login/auth flow work:
 
 The Taskfile resolves the Gradle wrapper for Windows (`gradlew.bat`) and Unix-like shells automatically. If Task is unavailable, run the equivalent Gradle commands directly.
 
+### Direct Gradle (fallback)
+
+Use `./gradlew` on Unix/macOS and `./gradlew.bat` on PowerShell/Windows.
+
+```bash
+./gradlew spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
+./gradlew :androidApp:assembleDebug
+./gradlew :shared:jvmTest
+./gradlew :shared:testAndroidHostTest
+./gradlew :desktopApp:compileKotlin
+```
+
+```powershell
+./gradlew.bat spotlessCheck :shared:jvmTest :shared:testAndroidHostTest :androidApp:assembleDebug :desktopApp:compileKotlin --no-configuration-cache --console=plain
+./gradlew.bat :androidApp:assembleDebug
+./gradlew.bat :shared:jvmTest
+./gradlew.bat :shared:testAndroidHostTest
+./gradlew.bat :desktopApp:compileKotlin
+```
+
+## Current verification scope
+
+Active validation covers Android, Desktop/JVM, and shared KMP logic. The iOS wrapper remains in the repository, but it is not currently part of the main CI scope.
+
 ## Running the apps
 
 - Android app: `./gradlew :androidApp:assembleDebug`
@@ -245,3 +289,10 @@ The Taskfile resolves the Gradle wrapper for Windows (`gradlew.bat`) and Unix-li
 - Desktop/shared JVM tests: `./gradlew :shared:jvmTest`
 
 The project still contains an iOS wrapper, but iOS tests are intentionally outside the current readiness/CI scope.
+
+## Where to go deeper
+
+- [`shared/`](shared/): shared architecture, screens, navigation, and data.
+- [`Taskfile.yml`](Taskfile.yml): repeatable commands for formatting, builds, and tests.
+- [`../docs/design/README.md`](../docs/design/README.md): product visual and functional context.
+- [`../README.md`](../README.md): overall repository context and MVP scope.

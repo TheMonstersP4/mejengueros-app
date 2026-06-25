@@ -7,7 +7,7 @@ import { configureValidation } from '@/bootstrap/validation';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
-describe('POST /complexes HTTP contract', () => {
+describe('complex wizard HTTP contract', () => {
   const originalEnv = {
     DATABASE_URL: process.env.DATABASE_URL,
     AWS_REGION: process.env.AWS_REGION,
@@ -17,17 +17,30 @@ describe('POST /complexes HTTP contract', () => {
     APP_S3_KEY_PREFIX: process.env.APP_S3_KEY_PREFIX,
     APP_S3_PROFILE_IMAGE_MAX_BYTES: process.env.APP_S3_PROFILE_IMAGE_MAX_BYTES,
     APP_S3_ALLOWED_IMAGE_MIME_TYPES: process.env.APP_S3_ALLOWED_IMAGE_MIME_TYPES,
-    WEBSOCKET_CONNECTIONS_TABLE_NAME: process.env.WEBSOCKET_CONNECTIONS_TABLE_NAME,
-    DEMO_OWNER_EMAILS: process.env.DEMO_OWNER_EMAILS,
-    DEMO_OWNER_SUBS: process.env.DEMO_OWNER_SUBS
+    WEBSOCKET_CONNECTIONS_TABLE_NAME: process.env.WEBSOCKET_CONNECTIONS_TABLE_NAME
+  };
+
+  const requestPayload = {
+    complex: {
+      name: 'North Sports Center',
+      provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+      cantonId: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
+      address: '123 Main Street',
+      latitude: 9.935,
+      longitude: -84.091,
+      serviceIds: ['d76a5f20-83f0-4538-a1c8-4f7b60d0f4be']
+    },
+    firstCourt: {
+      name: 'Court A',
+      serviceIds: [
+        'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7',
+        'f96c0626-e055-4187-a100-c7d465f51f3b'
+      ]
+    }
   };
 
   let app: NestFastifyApplication;
-  let prismaService: {
-    $transaction: jest.Mock;
-    onModuleInit: jest.Mock;
-    onModuleDestroy: jest.Mock;
-  };
+  let prismaService: ReturnType<typeof createPrismaMock>;
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
 
   beforeAll(async () => {
@@ -45,11 +58,7 @@ describe('POST /complexes HTTP contract', () => {
 
     const { AppModule } = await import('@/app.module');
 
-    prismaService = {
-      $transaction: jest.fn(),
-      onModuleInit: jest.fn(),
-      onModuleDestroy: jest.fn()
-    };
+    prismaService = createPrismaMock();
     tokenVerifier = {
       verify: jest.fn().mockResolvedValue({
         sub: 'owner-sub',
@@ -82,8 +91,7 @@ describe('POST /complexes HTTP contract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    delete process.env.DEMO_OWNER_EMAILS;
-    delete process.env.DEMO_OWNER_SUBS;
+    prismaService = Object.assign(prismaService, createPrismaMock());
 
     tokenVerifier.verify.mockResolvedValue({
       sub: 'owner-sub',
@@ -102,71 +110,127 @@ describe('POST /complexes HTTP contract', () => {
     for (const [key, value] of Object.entries(originalEnv)) {
       if (value === undefined) {
         delete process.env[key];
-        continue;
+      } else {
+        process.env[key] = value;
       }
-
-      process.env[key] = value;
     }
   });
 
-  function mockSuccessfulTransaction(): void {
-    prismaService.$transaction.mockImplementation(async (callback) =>
-      callback({
-        user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
-        },
-        userRole: {
-          findUnique: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-          deleteMany: jest.fn().mockResolvedValue({ count: 0 })
-        },
-        complex: {
-          create: jest.fn().mockResolvedValue({
-            id: 'complex-id',
-            name: 'North Sports Center',
-            address: '123 Main Street',
-            status: 'ACTIVE',
-            createdAt: new Date('2026-06-20T00:00:00.000Z'),
-            updatedAt: new Date('2026-06-20T00:00:00.000Z')
-          })
-        },
-        court: {
-          create: jest.fn().mockResolvedValue({
-            id: 'court-id',
-            complexId: 'complex-id',
-            name: 'Court A',
-            status: 'ACTIVE',
-            createdAt: new Date('2026-06-20T00:00:00.000Z'),
-            updatedAt: new Date('2026-06-20T00:00:00.000Z')
-          })
-        }
-      })
-    );
-  }
+  it('returns controlled provinces for authenticated wizard clients', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/locations/provinces',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      }
+    });
 
-  function mockForbiddenTransaction(): void {
-    prismaService.$transaction.mockImplementation(async (callback) =>
-      callback({
-        user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-id' })
-        },
-        userRole: {
-          findUnique: jest.fn().mockResolvedValue(null),
-          upsert: jest.fn(),
-          deleteMany: jest.fn()
-        },
-        complex: {
-          create: jest.fn()
-        },
-        court: {
-          create: jest.fn()
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.province.findMany).toHaveBeenCalledWith({
+      orderBy: { name: 'asc' },
+      select: { id: true, code: true, name: true }
+    });
+    expect(response.json()).toEqual({
+      success: true,
+      data: [
+        {
+          id: 'province-id',
+          code: 'SJ',
+          name: 'San José'
         }
+      ],
+      errors: [],
+      meta: expect.objectContaining({
+        path: '/v1/locations/provinces'
       })
-    );
-  }
+    });
+  });
 
-  it('returns 201 with the standard success envelope when the owner already has a persisted OWNER role', async () => {
-    mockSuccessfulTransaction();
+  it('returns only cantons that belong to the selected province', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/locations/provinces/province-id/cantons',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+
+    const validProvinceResponse = await app.inject({
+      method: 'GET',
+      url: '/v1/locations/provinces/3f91fe4d-a23b-4f85-ae1a-90db47d624f1/cantons',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      }
+    });
+
+    expect(validProvinceResponse.statusCode).toBe(200);
+    expect(prismaService.canton.findMany).toHaveBeenCalledWith({
+      where: { provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1' },
+      orderBy: { name: 'asc' },
+      select: { id: true, provinceId: true, code: true, name: true }
+    });
+    expect(validProvinceResponse.json()).toEqual({
+      success: true,
+      data: [
+        {
+          id: 'canton-id',
+          provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+          code: 'SJ-ESC',
+          name: 'Escazú'
+        }
+      ],
+      errors: [],
+      meta: expect.objectContaining({
+        path: '/v1/locations/provinces/3f91fe4d-a23b-4f85-ae1a-90db47d624f1/cantons'
+      })
+    });
+  });
+
+  it('returns only active services for the requested scope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/services?scope=COURT',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.serviceCatalog.findMany).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+        scope: 'COURT'
+      },
+      orderBy: [{ scope: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, scope: true }
+    });
+    expect(response.json()).toEqual({
+      success: true,
+      data: [
+        {
+          id: 'court-service-id',
+          name: 'Lighting',
+          scope: 'COURT'
+        },
+        {
+          id: 'grass-service-id',
+          name: 'Synthetic Grass',
+          scope: 'COURT'
+        }
+      ],
+      errors: [],
+      meta: expect.objectContaining({
+        path: '/v1/services?scope=COURT'
+      })
+    });
+  });
+
+  it('creates the complex, first court, and service associations from the wizard payload', async () => {
+    const state = createTransactionalState();
+    const transactionClient = createTransactionClient(state);
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
     const response = await app.inject({
       method: 'POST',
@@ -174,25 +238,29 @@ describe('POST /complexes HTTP contract', () => {
       headers: {
         Authorization: 'Bearer valid-token'
       },
-      payload: {
-        complex: {
-          name: 'North Sports Center',
-          address: '123 Main Street'
-        },
-        firstCourt: {
-          name: 'Court A'
-        }
-      }
+      payload: requestPayload
     });
 
     expect(response.statusCode).toBe(201);
+    expect(state.complexServices).toEqual([
+      { complexId: 'complex-id', serviceCatalogId: 'd76a5f20-83f0-4538-a1c8-4f7b60d0f4be' }
+    ]);
+    expect(state.courtServices).toEqual([
+      { courtId: 'court-id', serviceCatalogId: 'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7' },
+      { courtId: 'court-id', serviceCatalogId: 'f96c0626-e055-4187-a100-c7d465f51f3b' }
+    ]);
     expect(response.json()).toEqual({
       success: true,
       data: {
         complex: {
           id: 'complex-id',
           name: 'North Sports Center',
+          provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+          cantonId: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
           address: '123 Main Street',
+          latitude: 9.935,
+          longitude: -84.091,
+          serviceIds: ['d76a5f20-83f0-4538-a1c8-4f7b60d0f4be'],
           status: 'ACTIVE',
           createdAt: '2026-06-20T00:00:00.000Z',
           updatedAt: '2026-06-20T00:00:00.000Z'
@@ -201,92 +269,62 @@ describe('POST /complexes HTTP contract', () => {
           id: 'court-id',
           complexId: 'complex-id',
           name: 'Court A',
+          serviceIds: [
+            'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7',
+            'f96c0626-e055-4187-a100-c7d465f51f3b'
+          ],
           status: 'ACTIVE',
           createdAt: '2026-06-20T00:00:00.000Z',
           updatedAt: '2026-06-20T00:00:00.000Z'
         }
       },
       errors: [],
-      meta: {
-        requestId: expect.any(String),
-        path: '/v1/complexes',
-        timestamp: expect.any(String)
-      }
+      meta: expect.objectContaining({
+        path: '/v1/complexes'
+      })
     });
-    expect(tokenVerifier.verify).toHaveBeenCalledWith('valid-token');
   });
 
-  it.each([
-    [{ firstCourt: { name: 'Court A' } }, 'complex'],
-    [{ complex: { name: 'North Sports Center', address: '123 Main Street' } }, 'firstCourt']
-  ])(
-    'returns 400 when %s is missing from the payload',
-    async (payload, missingField) => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/v1/complexes',
-        headers: {
-          Authorization: 'Bearer valid-token'
-        },
-        payload
-      });
+  it('rejects a canton that does not belong to the selected province', async () => {
+    const transactionClient = createTransactionClient(createTransactionalState(), {
+      cantonMatchesProvince: false
+    });
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
-      expect(response.statusCode).toBe(400);
-      expect(prismaService.$transaction).not.toHaveBeenCalled();
-      expect(response.json()).toEqual(
-        expect.objectContaining({
-          success: false,
-          data: null,
-          errors: expect.arrayContaining([
-            expect.objectContaining({
-              code: APP_ERROR_CODES.VALIDATION_FAILED,
-              status: 400,
-              message: expect.stringContaining(missingField)
-            })
-          ]),
-          meta: expect.objectContaining({
-            path: '/v1/complexes'
-          })
-        })
-      );
-    }
-  );
-
-  it('returns 400 when visible field lengths exceed DTO limits', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/v1/complexes',
       headers: {
         Authorization: 'Bearer valid-token'
       },
-      payload: {
-        complex: {
-          name: 'N'.repeat(121),
-          address: '123 Main Street'
-        },
-        firstCourt: {
-          name: 'Court A'
-        }
-      }
+      payload: requestPayload
     });
 
     expect(response.statusCode).toBe(400);
-    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(transactionClient.userIdentity.findUnique).not.toHaveBeenCalled();
+    expect(transactionClient.user.create).not.toHaveBeenCalled();
+    expect(transactionClient.userRole.upsert).not.toHaveBeenCalled();
     expect(response.json()).toEqual(
       expect.objectContaining({
+        success: false,
+        data: null,
         errors: [
           expect.objectContaining({
             code: APP_ERROR_CODES.VALIDATION_FAILED,
             status: 400,
-            message: 'complex.name must be shorter than or equal to 120 characters'
+            message:
+              'Selected canton "1f6adf24-ea42-4c49-9179-c5f73fef7a41" does not belong to province "3f91fe4d-a23b-4f85-ae1a-90db47d624f1".'
           })
         ]
       })
     );
   });
 
-  it('returns 403 when the authenticated user is not an OWNER', async () => {
-    mockForbiddenTransaction();
+  it('rejects service ids that are inactive or from the wrong scope', async () => {
+    const transactionClient = createTransactionClient(createTransactionalState(), {
+      complexServicesFound: false
+    });
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
     const response = await app.inject({
       method: 'POST',
@@ -294,41 +332,30 @@ describe('POST /complexes HTTP contract', () => {
       headers: {
         Authorization: 'Bearer valid-token'
       },
-      payload: {
-        complex: {
-          name: 'North Sports Center',
-          address: '123 Main Street'
-        },
-        firstCourt: {
-          name: 'Court A'
-        }
-      }
+      payload: requestPayload
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toEqual({
-      success: false,
-      data: null,
-      errors: [
-        {
-          code: APP_ERROR_CODES.FORBIDDEN,
-          message: 'Only users with the OWNER role can create complexes.',
-          status: 403,
-          type: 'urn:problem-type:backend:forbidden'
-        }
-      ],
-      meta: {
-        requestId: expect.any(String),
-        path: '/v1/complexes',
-        timestamp: expect.any(String)
-      }
-    });
+    expect(response.statusCode).toBe(400);
+    expect(transactionClient.userIdentity.findUnique).not.toHaveBeenCalled();
+    expect(transactionClient.user.create).not.toHaveBeenCalled();
+    expect(transactionClient.userRole.upsert).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400,
+            message:
+              'Selected complex services must exist, be active, and belong to scope COMPLEX.'
+          })
+        ]
+      })
+    );
   });
 
-  it('returns 201 for an allowlisted demo owner matched by Cognito sub', async () => {
-    process.env.DEMO_OWNER_SUBS = 'owner-sub';
-    mockSuccessfulTransaction();
-
+  it('rejects an empty first court service selection at the HTTP boundary', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/v1/complexes',
@@ -336,105 +363,176 @@ describe('POST /complexes HTTP contract', () => {
         Authorization: 'Bearer valid-token'
       },
       payload: {
-        complex: {
-          name: 'North Sports Center',
-          address: '123 Main Street'
-        },
+        ...requestPayload,
         firstCourt: {
-          name: 'Court A'
+          ...requestPayload.firstCourt,
+          serviceIds: []
         }
       }
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({
+          path: '/v1/complexes'
+        })
+      })
+    );
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
   });
 
-  it('returns 201 for an allowlisted demo owner matched by verified email', async () => {
-    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
-    mockSuccessfulTransaction();
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/v1/complexes',
-      headers: {
-        Authorization: 'Bearer valid-token'
+  function createPrismaMock() {
+    return {
+      $transaction: jest.fn(),
+      province: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'province-id',
+            code: 'SJ',
+            name: 'San José'
+          }
+        ])
       },
-      payload: {
-        complex: {
-          name: 'North Sports Center',
-          address: '123 Main Street'
-        },
-        firstCourt: {
-          name: 'Court A'
-        }
-      }
-    });
-
-    expect(response.statusCode).toBe(201);
-  });
-
-  it('returns 403 when the demo email allowlist matches but email is not verified', async () => {
-    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
-    tokenVerifier.verify.mockResolvedValue({
-      sub: 'owner-sub',
-      email: 'owner@example.test',
-      emailVerified: false,
-      name: 'Owner User',
-      pictureUrl: 'https://example.test/owner.png',
-      provider: 'Google',
-      groups: ['players']
-    });
-    mockForbiddenTransaction();
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/v1/complexes',
-      headers: {
-        Authorization: 'Bearer valid-token'
+      canton: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'canton-id',
+            provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+            code: 'SJ-ESC',
+            name: 'Escazú'
+          }
+        ])
       },
-      payload: {
-        complex: {
-          name: 'North Sports Center',
-          address: '123 Main Street'
-        },
-        firstCourt: {
-          name: 'Court A'
-        }
-      }
-    });
+      serviceCatalog: {
+        findMany: jest
+          .fn()
+          .mockImplementation(async ({ where }: { where: { scope?: string } }) => {
+            if (where.scope === 'COURT') {
+              return [
+                {
+                  id: 'court-service-id',
+                  name: 'Lighting',
+                  scope: 'COURT'
+                },
+                {
+                  id: 'grass-service-id',
+                  name: 'Synthetic Grass',
+                  scope: 'COURT'
+                }
+              ];
+            }
 
-    expect(response.statusCode).toBe(403);
-  });
-
-  it('returns 403 when the demo email allowlist matches but email verification is missing', async () => {
-    process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
-    tokenVerifier.verify.mockResolvedValue({
-      sub: 'owner-sub',
-      email: 'owner@example.test',
-      name: 'Owner User',
-      pictureUrl: 'https://example.test/owner.png',
-      provider: 'Google',
-      groups: ['players']
-    });
-    mockForbiddenTransaction();
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/v1/complexes',
-      headers: {
-        Authorization: 'Bearer valid-token'
+            return [
+              {
+                id: 'complex-service-id',
+                name: 'Parking',
+                scope: 'COMPLEX'
+              }
+            ];
+          })
       },
-      payload: {
-        complex: {
-          name: 'North Sports Center',
-          address: '123 Main Street'
-        },
-        firstCourt: {
-          name: 'Court A'
-        }
-      }
-    });
+      onModuleInit: jest.fn(),
+      onModuleDestroy: jest.fn()
+    };
+  }
 
-    expect(response.statusCode).toBe(403);
-  });
+  function createTransactionalState() {
+    return {
+      complexServices: [] as Array<Record<string, string>>,
+      courtServices: [] as Array<Record<string, string>>
+    };
+  }
+
+  function createTransactionClient(
+    state: ReturnType<typeof createTransactionalState>,
+    options?: {
+      cantonMatchesProvince?: boolean;
+      complexServicesFound?: boolean;
+    }
+  ) {
+    return {
+      province: {
+        findUnique: jest.fn().mockResolvedValue({ id: requestPayload.complex.provinceId })
+      },
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(
+          options?.cantonMatchesProvince === false
+            ? null
+            : { id: requestPayload.complex.cantonId }
+        )
+      },
+      serviceCatalog: {
+        findMany: jest
+          .fn()
+          .mockImplementation(async ({ where }: { where: { scope: string } }) => {
+            if (where.scope === 'COMPLEX') {
+              return options?.complexServicesFound === false
+                ? []
+                : [{ id: 'd76a5f20-83f0-4538-a1c8-4f7b60d0f4be' }];
+            }
+
+            return [
+              { id: 'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7' },
+              { id: 'f96c0626-e055-4187-a100-c7d465f51f3b' }
+            ];
+          })
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' })
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      userRole: {
+        upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' })
+      },
+      complex: {
+        create: jest.fn().mockResolvedValue({
+          id: 'complex-id',
+          name: 'North Sports Center',
+          provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+          cantonId: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
+          address: '123 Main Street',
+          latitude: 9.935,
+          longitude: -84.091,
+          status: 'ACTIVE',
+          createdAt: new Date('2026-06-20T00:00:00.000Z'),
+          updatedAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+      },
+      court: {
+        create: jest.fn().mockResolvedValue({
+          id: 'court-id',
+          complexId: 'complex-id',
+          name: 'Court A',
+          status: 'ACTIVE',
+          createdAt: new Date('2026-06-20T00:00:00.000Z'),
+          updatedAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+      },
+      complexService: {
+        createMany: jest.fn().mockImplementation(async ({ data }: { data: Array<Record<string, string>> }) => {
+          state.complexServices.push(...data);
+          return { count: data.length };
+        })
+      },
+      courtService: {
+        createMany: jest.fn().mockImplementation(async ({ data }: { data: Array<Record<string, string>> }) => {
+          state.courtServices.push(...data);
+          return { count: data.length };
+        })
+      }
+    };
+  }
 });

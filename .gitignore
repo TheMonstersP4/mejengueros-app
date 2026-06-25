@@ -2,6 +2,8 @@
 **/.terraform/
 **/*.tfstate
 **/*.tfstate.*
+**/*.tfplan
+**/tfplan
 **/crash.log
 **/crash.*.log
 **/override.tf
@@ -32,6 +34,7 @@ dist/
 **/dist/
 coverage/
 **/coverage/
+**/bin/
 *.tsbuildinfo
 app-backend/api/src/generated/prisma/
 app-backend/api/.lambda/
@@ -39,10 +42,20 @@ app-backend/api/.lambda/
 # Local agent workspaces
 .atl/
 .pi/
-.agents/
 .skills/
-**/.agents/
 **/.skills/
+
+# Keep every shared project skill versioned while ignoring other local agent workspace files.
+.agents/*
+**/.agents/*
+!.agents/skills/
+!.agents/skills/**
+!**/.agents/skills/
+!**/.agents/skills/**
+!skills/
+!skills/**
+!**/skills/
+!**/skills/**
 
 # OS and editor noise
 .DS_Store

@@ -20,6 +20,8 @@ private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
       subclass(LoginRoute::class, LoginRoute.serializer())
       subclass(RegisterRoute::class, RegisterRoute.serializer())
       subclass(VerifyAccountRoute::class, VerifyAccountRoute.serializer())
+      subclass(ForgotPasswordRoute::class, ForgotPasswordRoute.serializer())
+      subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
       subclass(HomeRoute::class, HomeRoute.serializer())
       subclass(CreateComplexRoute::class, CreateComplexRoute.serializer())
       subclass(KitRoute::class, KitRoute.serializer())
@@ -53,6 +55,16 @@ fun AppNavHost() {
           openVerification = {
             if (loginBackStack.lastOrNull() != VerifyAccountRoute) {
               loginBackStack.add(VerifyAccountRoute)
+            }
+          },
+          openForgotPassword = {
+            if (loginBackStack.lastOrNull() != ForgotPasswordRoute) {
+              loginBackStack.add(ForgotPasswordRoute)
+            }
+          },
+          openPasswordReset = {
+            if (loginBackStack.lastOrNull() != ResetPasswordRoute) {
+              loginBackStack.add(ResetPasswordRoute)
             }
           },
           closeAuthStep = { if (loginBackStack.size > 1) loginBackStack.removeLastOrNull() },

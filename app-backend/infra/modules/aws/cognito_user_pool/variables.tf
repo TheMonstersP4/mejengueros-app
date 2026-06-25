@@ -20,6 +20,24 @@ variable "password_minimum_length" {
   default     = 12
 }
 
+variable "self_signup_enabled" {
+  description = "Allow users to register themselves with email and password."
+  type        = bool
+  default     = true
+}
+
+variable "email_verification_subject" {
+  description = "Subject for Cognito email verification messages."
+  type        = string
+  default     = "Verify your Mejengueros account"
+}
+
+variable "email_verification_message" {
+  description = "Email verification message. Use {####} where Cognito should place the code."
+  type        = string
+  default     = "Your Mejengueros verification code is {####}."
+}
+
 variable "callback_urls" {
   description = "Allowed OAuth callback URLs."
   type        = list(string)

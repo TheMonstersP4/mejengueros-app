@@ -69,8 +69,7 @@ private fun resolveLoginEmailAccessUiModel(
   return if (hasCredentials) {
     LoginEmailAccessUiModel(
         enabled = !isLoading,
-        supportingText =
-            "Si el acceso manual todavía no está listo, podés continuar con Google o Microsoft más abajo.",
+        supportingText = "Entrá con tu cuenta de correo o continuá con Google o Microsoft.",
     )
   } else {
     LoginEmailAccessUiModel(
@@ -142,10 +141,18 @@ fun LoginScreen(
                 style = MaterialTheme.typography.labelLarge,
             )
           }
+          state.errorMessage?.let { message ->
+            MejenguerosErrorText(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+          }
         }
 
         MejenguerosFullWidthPrimaryButton(
-            text = "Continuar con correo",
+            text = if (state.isLoading) "Ingresando..." else "Continuar con correo",
             onClick = { onEmailSignIn(email, password) },
             enabled = emailAccessUiModel.enabled,
             modifier = Modifier.testTag("login_email_cta_button"),
@@ -156,15 +163,6 @@ fun LoginScreen(
             onGoogleSignIn = onGoogleSignIn,
             onMicrosoftSignIn = onMicrosoftSignIn,
         )
-
-        state.errorMessage?.let { message ->
-          MejenguerosErrorText(
-              text = message,
-              color = MaterialTheme.colorScheme.error,
-              textAlign = TextAlign.Center,
-              modifier = Modifier.fillMaxWidth(),
-          )
-        }
       }
 
       TextButton(
@@ -227,20 +225,25 @@ private fun LoginProviderSection(
           color = MaterialTheme.colorScheme.outlineVariant,
       )
     }
-    MejenguerosFullWidthOutlinedButton(
-        text = "Continuar con Google",
-        onClick = onGoogleSignIn,
-        enabled = !isLoading,
-        modifier = Modifier.testTag("login_google_button"),
-        leadingContent = { GoogleProviderIcon(modifier = Modifier.size(18.dp)) },
-    )
-    MejenguerosFullWidthOutlinedButton(
-        text = "Continuar con Microsoft",
-        onClick = onMicrosoftSignIn,
-        enabled = !isLoading,
-        modifier = Modifier.testTag("login_microsoft_button"),
-        leadingContent = { MicrosoftProviderIcon(modifier = Modifier.size(18.dp)) },
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      MejenguerosFullWidthOutlinedButton(
+          text = "Google",
+          onClick = onGoogleSignIn,
+          enabled = !isLoading,
+          modifier = Modifier.weight(1f).testTag("login_google_button"),
+          leadingContent = { GoogleProviderIcon(modifier = Modifier.size(18.dp)) },
+      )
+      MejenguerosFullWidthOutlinedButton(
+          text = "Outlook",
+          onClick = onMicrosoftSignIn,
+          enabled = !isLoading,
+          modifier = Modifier.weight(1f).testTag("login_microsoft_button"),
+          leadingContent = { MicrosoftProviderIcon(modifier = Modifier.size(18.dp)) },
+      )
+    }
   }
 }
 

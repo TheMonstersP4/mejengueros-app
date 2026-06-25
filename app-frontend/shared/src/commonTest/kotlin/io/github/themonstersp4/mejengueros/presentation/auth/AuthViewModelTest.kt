@@ -187,7 +187,7 @@ class AuthViewModelTest {
     viewModel.signInWithEmail(email = "", password = "")
 
     assertEquals(
-        "Ingresá tu correo y contraseña para continuar.",
+        "Ingresa tu correo y contraseña para continuar.",
         viewModel.uiState.value.errorMessage,
     )
     assertFalse(viewModel.uiState.value.isLoading)
@@ -196,39 +196,170 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signInWithEmailExplainsProviderFallbackWhenManualAuthIsUnavailable() = runTest {
+  fun signInWithEmailAuthenticatesSession() = runTest {
+    val repository = FakeAuthRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
     val viewModel =
-        AuthViewModel(
-            FakeAuthRepository(),
-            FakeOAuthBrowser(),
-            MutableSharedFlow(),
-            coroutineScope = scope,
-        )
+        AuthViewModel(repository, FakeOAuthBrowser(), MutableSharedFlow(), coroutineScope = scope)
 
     viewModel.signInWithEmail(email = "player@example.com", password = "secret123")
+    advanceUntilIdle()
 
-    assertEquals(
-        "El inicio con correo y contraseña está en preparación. Usá Google o Microsoft por ahora.",
-        viewModel.uiState.value.errorMessage,
-    )
-    assertFalse(viewModel.uiState.value.isLoading)
-    assertNull(viewModel.uiState.value.pendingProvider)
+    assertEquals("player@example.com", repository.receivedEmailSignInEmail)
+    assertTrue(viewModel.uiState.value.isAuthenticated)
+    assertNull(viewModel.uiState.value.errorMessage)
     scope.cancel()
   }
 
-  private class FakeAuthRepository(private val existingSession: AuthSession? = null) :
-      IAuthRepository {
+  @Test
+  fun registerWithEmailStoresEmailAndRunsNavigationCallback() = runTest {
+    val repository = FakeAuthRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(repository, FakeOAuthBrowser(), MutableSharedFlow(), coroutineScope = scope)
+    var navigationCallbackCount = 0
+
+    viewModel.registerWithEmail(
+        fullName = "Player One",
+        email = "player@example.com",
+        password = "secret123",
+        onCodeSent = { navigationCallbackCount++ },
+    )
+    advanceUntilIdle()
+
+    assertEquals("Player One", repository.receivedRegisterFullName)
+    assertEquals("player@example.com", repository.receivedRegisterEmail)
+    assertEquals("player@example.com", viewModel.uiState.value.emailInput)
+    assertEquals(1, navigationCallbackCount)
+    scope.cancel()
+  }
+
+  @Test
+  fun confirmRegistrationUsesStoredEmailAndRunsNavigationCallback() = runTest {
+    val repository = FakeAuthRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(repository, FakeOAuthBrowser(), MutableSharedFlow(), coroutineScope = scope)
+    var navigationCallbackCount = 0
+
+    viewModel.registerWithEmail(
+        fullName = "Player One",
+        email = "player@example.com",
+        password = "secret123",
+        onCodeSent = {},
+    )
+    advanceUntilIdle()
+    viewModel.confirmRegistration(code = "123456", onConfirmed = { navigationCallbackCount++ })
+    advanceUntilIdle()
+
+    assertEquals("player@example.com", repository.receivedConfirmEmail)
+    assertEquals("123456", repository.receivedConfirmCode)
+    assertEquals(1, navigationCallbackCount)
+    scope.cancel()
+  }
+
+  @Test
+  fun passwordResetUsesStoredEmailAndRunsNavigationCallbacks() = runTest {
+    val repository = FakeAuthRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(repository, FakeOAuthBrowser(), MutableSharedFlow(), coroutineScope = scope)
+    var resetOpenedCount = 0
+    var loginOpenedCount = 0
+
+    viewModel.requestPasswordReset(
+        email = "player@example.com",
+        onCodeSent = { resetOpenedCount++ },
+    )
+    advanceUntilIdle()
+    viewModel.confirmPasswordReset(
+        code = "123456",
+        newPassword = "new-password",
+        onConfirmed = { loginOpenedCount++ },
+    )
+    advanceUntilIdle()
+
+    assertEquals("player@example.com", repository.receivedForgotEmail)
+    assertEquals("player@example.com", repository.receivedResetEmail)
+    assertEquals("123456", repository.receivedResetCode)
+    assertEquals(1, resetOpenedCount)
+    assertEquals(1, loginOpenedCount)
+    scope.cancel()
+  }
+
+  @Test
+  fun requestPasswordResetMapsNetworkFailureToSpanishRetryMessage() = runTest {
+    val repository =
+        FakeAuthRepository(
+            passwordResetError =
+                IllegalStateException(
+                    "Failed to connect to cognito-idp.us-east-2.amazonaws.com/[2600:1f16::]:443"
+                )
+        )
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(repository, FakeOAuthBrowser(), MutableSharedFlow(), coroutineScope = scope)
+
+    viewModel.requestPasswordReset(email = "player@example.com", onCodeSent = {})
+    advanceUntilIdle()
+
+    assertEquals(
+        "No pudimos conectar con el servicio. Revisá tu conexión e intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertFalse(viewModel.uiState.value.isLoading)
+    scope.cancel()
+  }
+
+  private class FakeAuthRepository(
+      private val existingSession: AuthSession? = null,
+      private val passwordResetError: Throwable? = null,
+  ) : IAuthRepository {
     var receivedProvider: AuthProvider? = null
     var receivedCallback: String? = null
     var callbackCount = 0
     var signOutCount = 0
+    var receivedRegisterFullName: String? = null
+    var receivedRegisterEmail: String? = null
+    var receivedConfirmEmail: String? = null
+    var receivedConfirmCode: String? = null
+    var receivedEmailSignInEmail: String? = null
+    var receivedForgotEmail: String? = null
+    var receivedResetEmail: String? = null
+    var receivedResetCode: String? = null
 
     override suspend fun getSession(): AuthSession? = existingSession
 
     override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest {
       receivedProvider = provider
       return AuthSignInRequest("https://cognito.example/authorize")
+    }
+
+    override suspend fun registerWithEmail(fullName: String, email: String, password: String) {
+      receivedRegisterFullName = fullName
+      receivedRegisterEmail = email
+    }
+
+    override suspend fun confirmRegistration(email: String, code: String) {
+      receivedConfirmEmail = email
+      receivedConfirmCode = code
+    }
+
+    override suspend fun resendRegistrationCode(email: String) = Unit
+
+    override suspend fun signInWithEmail(email: String, password: String): AuthSession {
+      receivedEmailSignInEmail = email
+      return sampleSession()
+    }
+
+    override suspend fun requestPasswordReset(email: String) {
+      passwordResetError?.let { throw it }
+      receivedForgotEmail = email
+    }
+
+    override suspend fun confirmPasswordReset(email: String, code: String, newPassword: String) {
+      receivedResetEmail = email
+      receivedResetCode = code
     }
 
     override suspend fun handleCallback(callbackUrl: String): AuthSession {

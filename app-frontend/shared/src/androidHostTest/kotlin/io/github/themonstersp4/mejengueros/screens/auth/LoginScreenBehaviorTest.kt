@@ -47,6 +47,20 @@ class LoginScreenBehaviorTest {
   }
 
   @Test
+  fun loginFeedbackShowsErrorAndLoadingLabel() {
+    composeRule.setLoginScreenContent(
+        state =
+            AuthUiState(
+                isLoading = true,
+                errorMessage = "El correo o la contraseña no son válidos.",
+            )
+    )
+
+    composeRule.supportingText("El correo o la contraseña no son válidos.").assertExists()
+    composeRule.actionButton("Ingresando...").assertIsNotEnabled()
+  }
+
+  @Test
   fun nonBlankCredentialsEnableEmailCtaAndSubmitEnteredValues() {
     var submittedEmail: String? = null
     var submittedPassword: String? = null
@@ -163,8 +177,8 @@ class LoginScreenBehaviorTest {
     composeRule.setLoginScreenContent(state = AuthUiState(isLoading = true))
 
     composeRule.emailCtaButton().assertIsNotEnabled()
-    composeRule.providerButton("Continuar con Google").assertExists().assertIsNotEnabled()
-    composeRule.providerButton("Continuar con Microsoft").assertExists().assertIsNotEnabled()
+    composeRule.providerButton("Google").assertExists().assertIsNotEnabled()
+    composeRule.providerButton("Outlook").assertExists().assertIsNotEnabled()
     composeRule.supportingText("O seguí con un proveedor disponible hoy").assertExists()
     composeRule.actionButton("¿Olvidaste tu contraseña?").assertIsNotEnabled()
     composeRule.registerButton().assertIsNotEnabled()

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { ImageUpload } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import type { ImageUploadEntity } from '../../domain/entities/image-upload.entity';
 import type {
@@ -49,7 +50,7 @@ export class PrismaImageUploadRepository implements IImageUploadRepository {
    * @returns Image upload entities ordered by recent creation.
    */
   async listRecent(limit: number): Promise<ImageUploadEntity[]> {
-    const imageUploads = await this.prisma.imageUpload.findMany({
+    const imageUploads: ImageUpload[] = await this.prisma.imageUpload.findMany({
       orderBy: { createdAt: 'desc' },
       take: limit
     });
