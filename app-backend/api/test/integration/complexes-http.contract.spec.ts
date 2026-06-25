@@ -355,6 +355,41 @@ describe('complex wizard HTTP contract', () => {
     );
   });
 
+  it('rejects an empty first court service selection at the HTTP boundary', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          serviceIds: []
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({
+          path: '/v1/complexes'
+        })
+      })
+    );
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+  });
+
   function createPrismaMock() {
     return {
       $transaction: jest.fn(),

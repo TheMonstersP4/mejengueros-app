@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayNotEmpty,
   ArrayUnique,
   IsArray,
   IsDefined,
@@ -116,6 +117,7 @@ export class CreateFirstCourtBodyRequest {
     type: [String]
   })
   @IsArray()
+  @ArrayNotEmpty()
   @ArrayUnique()
   @IsUUID(undefined, { each: true })
   serviceIds!: string[];
