@@ -4,8 +4,7 @@ Main backend API for Mejengueros. It is a NestJS API with Fastify, Pino, Cognito
 
 The HTTP API exposes versioned endpoints under `/v1`. Cognito owns social login with Google and Microsoft; this API validates tokens issued by Cognito. WebSocket handlers live in the same package, but they are deployed as small Lambdas so each WebSocket event does not need to bootstrap the full HTTP app.
 
-All JSON responses use the standard `success`, `data`, `errors`, and `meta`
-envelope documented in `docs/api-response-contract.md`.
+All JSON responses use the standard `success`, `data`, `errors`, and `meta` envelope documented in `docs/api-response-contract.md`.
 
 ## Requirements
 
@@ -42,13 +41,12 @@ Variables validated when the API starts:
 | `COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID. |
 | `COGNITO_CLIENT_ID` | Yes | Cognito App Client ID. |
 | `COGNITO_TOKEN_USE` | No | Token type accepted by the API: `id` or `access`. Default: `id`. |
-| `DEMO_OWNER_SUBS` | No | Preferred comma-separated Cognito subject allowlist that grants the local `OWNER` role during authenticated user reconciliation in demo/MVP environments, including `POST /v1/complexes` and `GET /v1/users/me`. |
-| `DEMO_OWNER_EMAILS` | No | Optional fallback comma-separated email allowlist that grants the local `OWNER` role only when Cognito also reports `email_verified=true`. |
+| `DEMO_OWNER_SUBS` | No | Comma-separated Cognito subject allowlist that grants the `OWNER` role during authenticated user reconciliation in demo/MVP environments, including `POST /v1/complexes` and `GET /v1/users/me`. |
+| `DEMO_OWNER_EMAILS` | No | Optional fallback comma-separated email allowlist that grants the `OWNER` role only when Cognito also reports `email_verified=true`. |
 | `WEBSOCKET_CONNECTIONS_TABLE_NAME` | Yes | DynamoDB table for WebSocket connections. |
 | `WEBSOCKET_CONNECTION_TTL_SECONDS` | No | TTL for stale WebSocket connections. Default: `86400`. |
 
-Prisma-backed endpoints are disabled until `DATABASE_URL` is available directly
-or through `DATABASE_SECRET_ARN`.
+Prisma-backed endpoints are disabled until `DATABASE_URL` is available directly or through `DATABASE_SECRET_ARN`.
 
 Minimal local example:
 
@@ -184,8 +182,7 @@ prisma.config.ts
 src/generated/prisma
 ```
 
-Application tables live in the PostgreSQL schema `mejengueros_dev`. Do not use
-the shared database `public` schema for this project.
+Application tables live in the PostgreSQL schema `mejengueros_dev`. Do not use the shared database `public` schema for this project.
 
 Useful commands:
 
@@ -209,7 +206,61 @@ The generated client lives in `src/generated/prisma` and must not be imported fr
 Current transition rule:
 
 - `provinceId`, `cantonId`, `latitude`, and `longitude` are nullable in the schema for now so the existing `POST /v1/complexes` contract can remain unchanged until the follow-up API issue expands the request body.
-- PR #158 is responsible for seeding catalog and demo data after this schema contract lands.
+
+## Demo Seed
+
+A minimal seed that populates the database with demo data for the MVP flow: catalogue, detail, availability, and reservation.
+
+### Load or reset
+
+Requires `ALLOW_DEMO_SEED=true`. Does not run against `NODE_ENV=production`.
+
+```powershell
+$env:ALLOW_DEMO_SEED="true"; npm run db:seed
+```
+
+The seed is idempotent: it tears down existing demo data and inserts a fresh set on each run.
+
+### What it creates
+
+| Entity | Value |
+| --- | --- |
+| Owner user | `demo-owner@mejengueros.demo` — provider `demo`, subject `demo-owner-sub-00000001`, role `OWNER` |
+| Player 1 | `demo-player1@mejengueros.demo` — provider `demo`, subject `demo-player-sub-00000001`, role `PLAYER` |
+| Player 2 | `demo-player2@mejengueros.demo` — provider `demo`, subject `demo-player-sub-00000002`, role `PLAYER` |
+| Province | San Jose (code `SJ`) |
+| Canton | San Jose (code `SJ-01`) |
+| Complex | "Complejo Demo Los Nogales" — Av. Central 1234, San Jose, Costa Rica |
+| Complex services | Parqueo |
+| Court | "Cancha 1 — Demo" |
+| Court services | Iluminacion, Sintetico, Natural, Hibrido |
+| Availability | Monday to Saturday, 08:00 to 22:00 UTC |
+| Confirmed reservation | Next Saturday at 10:00–11:00 UTC — held by Player 1 |
+| Completed reservation | 7 days ago at 10:00–11:00 UTC — held by Player 2, includes a 5-star review |
+
+### Demo scenarios
+
+- **Catalogue and detail**: any user can browse the complex and court data from the database.
+- **Available slot**: any slot within the Mon–Sat 08:00–22:00 window other than Saturday 10:00 UTC is open to book.
+- **Double-booking error**: attempting to book the Saturday 10:00 UTC slot triggers the unique partial index on confirmed reservations and returns the business error.
+
+### Teardown
+
+Identifies demo data by `UserIdentity.provider = 'demo'` and deletes in FK-safe order: reviews, notifications, reservations (all on demo courts), courts, complexes, and users. Catalog tables (`Province`, `Canton`, `ServiceCatalog`) are shared data and are not removed.
+
+### Local idempotency validation
+
+Use the disposable database in `app-backend/api/docker/`:
+
+```powershell
+npm run docker:migration-db:up
+# Set DATABASE_URL to the local URL (see docker/migration-validation.env.example)
+$env:ALLOW_DEMO_SEED="true"; npm run db:seed
+$env:ALLOW_DEMO_SEED="true"; npm run db:seed
+npm run docker:migration-db:reset
+```
+
+Both runs must complete without errors and leave the expected demo dataset.
 
 ## Quality
 
