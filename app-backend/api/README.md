@@ -246,7 +246,7 @@ The seed is idempotent: it tears down existing demo data and inserts a fresh set
 
 ### Teardown
 
-Identifies demo data by `UserIdentity.provider = 'demo'` and deletes in FK-safe order: reviews, notifications, reservations (all on demo courts), courts, complexes, and users. Catalog tables (`Province`, `Canton`, `ServiceCatalog`) are shared data and are not removed.
+Identifies demo data by `UserIdentity.provider = 'demo'` or the exact demo emails (`demo-owner@mejengueros.demo`, `demo-player1@mejengueros.demo`, `demo-player2@mejengueros.demo`) and deletes in FK-safe order: reviews, notifications, reservations tied to demo users or demo courts, courts, complexes, and users. Catalog tables (`Province`, `Canton`, `ServiceCatalog`) are shared data and are not removed.
 
 ### Local idempotency validation
 
