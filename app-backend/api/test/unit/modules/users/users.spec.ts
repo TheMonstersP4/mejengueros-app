@@ -8,6 +8,12 @@ import { PrismaUserRepository } from '@/modules/users/infrastructure/persistence
 import { UsersController } from '@/modules/users/interfaces/http/controllers/users.controller';
 
 describe('users module behavior', () => {
+  function createUniqueConstraintError(): Error & { code: 'P2002' } {
+    return Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002' as const
+    });
+  }
+
   const googleIdentity = {
     provider: 'Google',
     providerSubject: 'cognito-sub'
@@ -214,6 +220,164 @@ describe('users module behavior', () => {
       }
     });
     expect(prisma.user.create).not.toHaveBeenCalled();
+    process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
+    process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
+  it('re-reads and succeeds when user creation loses a P2002 race to the same identity', async () => {
+    const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
+    const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
+    delete process.env.DEMO_OWNER_EMAILS;
+    delete process.env.DEMO_OWNER_SUBS;
+    const linkedUser = {
+      ...persistenceUser,
+      identities: [
+        {
+          provider: 'Cognito',
+          providerSubject: 'cognito-sub'
+        }
+      ]
+    };
+    const prisma = {
+      user: {
+        create: jest
+          .fn()
+          .mockRejectedValueOnce(createUniqueConstraintError()),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue(linkedUser),
+        findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            userId: 'user-id',
+            user: linkedUser
+          })
+          .mockResolvedValueOnce({
+            userId: 'user-id',
+            user: linkedUser
+          })
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+        deleteMany: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(
+      repository.syncAuthenticatedUser({
+        cognitoSub: 'cognito-sub',
+        email: 'user@example.test',
+        emailVerified: true,
+        name: 'User Name',
+        provider: 'Cognito'
+      })
+    ).resolves.toEqual(expect.any(UserEntity));
+
+    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      data: {
+        email: 'user@example.test',
+        name: 'User Name'
+      },
+      include: {
+        identities: true
+      }
+    });
+    process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
+    process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
+  it('re-reads and succeeds when verified email linking loses a P2002 race to identity creation', async () => {
+    const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
+    const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
+    delete process.env.DEMO_OWNER_EMAILS;
+    delete process.env.DEMO_OWNER_SUBS;
+    const linkedUser = {
+      ...persistenceUser,
+      identities: [
+        googleIdentity,
+        {
+          provider: 'Cognito',
+          providerSubject: 'new-cognito-sub'
+        }
+      ]
+    };
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(persistenceUser),
+        update: jest
+          .fn()
+          .mockRejectedValueOnce(createUniqueConstraintError())
+          .mockResolvedValueOnce(linkedUser),
+        findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            userId: 'user-id',
+            user: linkedUser
+          })
+          .mockResolvedValueOnce({
+            userId: 'user-id',
+            user: linkedUser
+          })
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+        deleteMany: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(
+      repository.syncAuthenticatedUser({
+        cognitoSub: 'new-cognito-sub',
+        email: 'user@example.test',
+        emailVerified: true,
+        name: 'User Name',
+        provider: 'Cognito'
+      })
+    ).resolves.toEqual(expect.any(UserEntity));
+
+    expect(prisma.user.update).toHaveBeenNthCalledWith(1, {
+      where: { id: 'user-id' },
+      data: {
+        email: 'user@example.test',
+        name: 'User Name',
+        identities: {
+          create: {
+            provider: 'Cognito',
+            providerSubject: 'new-cognito-sub',
+            emailAtLogin: 'user@example.test'
+          }
+        }
+      },
+      include: {
+        identities: true
+      }
+    });
+    expect(prisma.user.update).toHaveBeenNthCalledWith(2, {
+      where: { id: 'user-id' },
+      data: {
+        email: 'user@example.test',
+        name: 'User Name'
+      },
+      include: {
+        identities: true
+      }
+    });
     process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
     process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
   });

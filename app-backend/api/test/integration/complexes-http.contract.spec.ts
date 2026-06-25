@@ -8,6 +8,13 @@ import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
 describe('POST /complexes HTTP contract', () => {
+  interface ITransactionalState {
+    userIds: string[];
+    ownerRoles: Array<{ userId: string; role: 'OWNER' }>;
+    complexes: Array<{ id: string; ownerId: string; name: string; address: string }>;
+    courts: Array<{ id: string; complexId: string; name: string }>;
+  }
+
   const originalEnv = {
     DATABASE_URL: process.env.DATABASE_URL,
     AWS_REGION: process.env.AWS_REGION,
@@ -25,6 +32,12 @@ describe('POST /complexes HTTP contract', () => {
   let app: NestFastifyApplication;
   let prismaService: {
     $transaction: jest.Mock;
+    user: {
+      create: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+    };
+    userIdentity: { findUnique: jest.Mock };
     onModuleInit: jest.Mock;
     onModuleDestroy: jest.Mock;
   };
@@ -47,6 +60,14 @@ describe('POST /complexes HTTP contract', () => {
 
     prismaService = {
       $transaction: jest.fn(),
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn()
+      },
       onModuleInit: jest.fn(),
       onModuleDestroy: jest.fn()
     };
@@ -85,6 +106,11 @@ describe('POST /complexes HTTP contract', () => {
     delete process.env.DEMO_OWNER_EMAILS;
     delete process.env.DEMO_OWNER_SUBS;
 
+    prismaService.user.create.mockResolvedValue({ id: 'owner-id' });
+    prismaService.user.findUnique.mockResolvedValue(null);
+    prismaService.user.update.mockResolvedValue({ id: 'owner-id' });
+    prismaService.userIdentity.findUnique.mockResolvedValue(null);
+
     tokenVerifier.verify.mockResolvedValue({
       sub: 'owner-sub',
       email: 'owner@example.test',
@@ -110,73 +136,184 @@ describe('POST /complexes HTTP contract', () => {
   });
 
   function mockSuccessfulTransaction(): void {
-    prismaService.$transaction.mockImplementation(async (callback) =>
-      callback({
-        user: {
-          create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
-          findUnique: jest.fn().mockResolvedValue(null),
-          update: jest.fn()
+    prismaService.$transaction.mockImplementation(async (callback) => callback(createTransactionClient()));
+  }
+
+  function createTransactionalPersistenceHarness(options?: {
+    failComplexCreate?: boolean;
+  }): {
+    state: ITransactionalState;
+    rootClient: {
+      user: {
+        create: jest.Mock;
+        findUnique: jest.Mock;
+        update: jest.Mock;
+      };
+      userIdentity: { findUnique: jest.Mock };
+      userRole: { upsert: jest.Mock };
+      complex: { create: jest.Mock };
+      court: { create: jest.Mock };
+    };
+    transaction: jest.Mock;
+  } {
+    const state: ITransactionalState = {
+      userIds: [],
+      ownerRoles: [],
+      complexes: [],
+      courts: []
+    };
+
+    const rootClient = {
+      user: {
+        create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ id: 'owner-id' })
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      userRole: {
+        upsert: jest.fn()
+      },
+      complex: {
+        create: jest.fn()
+      },
+      court: {
+        create: jest.fn()
+      }
+    };
+
+    const cloneState = (current: ITransactionalState): ITransactionalState => ({
+      userIds: [...current.userIds],
+      ownerRoles: current.ownerRoles.map((role) => ({ ...role })),
+      complexes: current.complexes.map((complex) => ({ ...complex })),
+      courts: current.courts.map((court) => ({ ...court }))
+    });
+
+    const transaction = jest.fn(async (callback: (client: ReturnType<typeof createTransactionClient>) => Promise<unknown>) => {
+      const transactionState = cloneState(state);
+      const transactionClient = createTransactionClient({
+        onUserCreate: () => {
+          transactionState.userIds.push('owner-id');
         },
-        userIdentity: {
-          findUnique: jest.fn().mockResolvedValue(null)
+        onOwnerRoleUpsert: () => {
+          transactionState.ownerRoles.push({ userId: 'owner-id', role: 'OWNER' });
         },
-        userRole: {
-          findUnique: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-          upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-          deleteMany: jest.fn().mockResolvedValue({ count: 0 })
+        onComplexCreate: () => {
+          transactionState.complexes.push({
+            id: 'complex-id',
+            ownerId: 'owner-id',
+            name: 'North Sports Center',
+            address: '123 Main Street'
+          });
         },
-        complex: {
-          create: jest.fn().mockResolvedValue({
+        onCourtCreate: () => {
+          transactionState.courts.push({
+            id: 'court-id',
+            complexId: 'complex-id',
+            name: 'Court A'
+          });
+        },
+        failComplexCreate: options?.failComplexCreate === true
+      });
+
+      try {
+        const result = await callback(transactionClient);
+
+        state.userIds = transactionState.userIds;
+        state.ownerRoles = transactionState.ownerRoles;
+        state.complexes = transactionState.complexes;
+        state.courts = transactionState.courts;
+
+        return result;
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    });
+
+    return {
+      state,
+      rootClient,
+      transaction
+    };
+  }
+
+  function createTransactionClient(options?: {
+    onUserCreate?: () => void;
+    onOwnerRoleUpsert?: () => void;
+    onComplexCreate?: () => void;
+    onCourtCreate?: () => void;
+    failComplexCreate?: boolean;
+  }): {
+    user: {
+      create: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+    };
+    userIdentity: { findUnique: jest.Mock };
+    userRole: { upsert: jest.Mock; deleteMany: jest.Mock };
+    complex: { create: jest.Mock };
+    court: { create: jest.Mock };
+  } {
+    return {
+      user: {
+        create: jest.fn().mockImplementation(async () => {
+          options?.onUserCreate?.();
+
+          return { id: 'owner-id' };
+        }),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      userRole: {
+        upsert: jest.fn().mockImplementation(async () => {
+          options?.onOwnerRoleUpsert?.();
+
+          return { id: 'owner-role-id' };
+        }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 })
+      },
+      complex: {
+        create: jest.fn().mockImplementation(async () => {
+          if (options?.failComplexCreate === true) {
+            throw new Error('complex-create-failed');
+          }
+
+          options?.onComplexCreate?.();
+
+          return {
             id: 'complex-id',
             name: 'North Sports Center',
             address: '123 Main Street',
             status: 'ACTIVE',
             createdAt: new Date('2026-06-20T00:00:00.000Z'),
             updatedAt: new Date('2026-06-20T00:00:00.000Z')
-          })
-        },
-        court: {
-          create: jest.fn().mockResolvedValue({
+          };
+        })
+      },
+      court: {
+        create: jest.fn().mockImplementation(async () => {
+          options?.onCourtCreate?.();
+
+          return {
             id: 'court-id',
             complexId: 'complex-id',
             name: 'Court A',
             status: 'ACTIVE',
             createdAt: new Date('2026-06-20T00:00:00.000Z'),
             updatedAt: new Date('2026-06-20T00:00:00.000Z')
-          })
-        }
-      })
-    );
+          };
+        })
+      }
+    };
   }
 
-  function mockForbiddenTransaction(): void {
-    prismaService.$transaction.mockImplementation(async (callback) =>
-      callback({
-        user: {
-          create: jest.fn().mockResolvedValue({ id: 'owner-id' }),
-          findUnique: jest.fn().mockResolvedValue(null),
-          update: jest.fn()
-        },
-        userIdentity: {
-          findUnique: jest.fn().mockResolvedValue(null)
-        },
-        userRole: {
-          findUnique: jest.fn().mockResolvedValue(null),
-          upsert: jest.fn(),
-          deleteMany: jest.fn()
-        },
-        complex: {
-          create: jest.fn()
-        },
-        court: {
-          create: jest.fn()
-        }
-      })
-    );
-  }
-
-  it('returns 201 with the standard success envelope when the owner already has a persisted OWNER role', async () => {
-    mockSuccessfulTransaction();
+  it('returns 201 with the standard success envelope for an authenticated user creating a first complex', async () => {
+    const transactionClient = createTransactionClient();
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
     const response = await app.inject({
       method: 'POST',
@@ -196,6 +333,19 @@ describe('POST /complexes HTTP contract', () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(transactionClient.userRole.upsert).toHaveBeenCalledWith({
+      where: {
+        userId_role: {
+          userId: 'owner-id',
+          role: 'OWNER'
+        }
+      },
+      create: {
+        userId: 'owner-id',
+        role: 'OWNER'
+      },
+      update: {}
+    });
     expect(response.json()).toEqual({
       success: true,
       data: {
@@ -295,8 +445,9 @@ describe('POST /complexes HTTP contract', () => {
     );
   });
 
-  it('returns 403 when the authenticated user is not an OWNER', async () => {
-    mockForbiddenTransaction();
+  it('preserves existing local roles while adding OWNER for the authenticated user', async () => {
+    const transactionClient = createTransactionClient();
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
     const response = await app.inject({
       method: 'POST',
@@ -315,24 +466,8 @@ describe('POST /complexes HTTP contract', () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toEqual({
-      success: false,
-      data: null,
-      errors: [
-        {
-          code: APP_ERROR_CODES.FORBIDDEN,
-          message: 'Only users with the OWNER role can create complexes.',
-          status: 403,
-          type: 'urn:problem-type:backend:forbidden'
-        }
-      ],
-      meta: {
-        requestId: expect.any(String),
-        path: '/v1/complexes',
-        timestamp: expect.any(String)
-      }
-    });
+    expect(response.statusCode).toBe(201);
+    expect(transactionClient.userRole.deleteMany).not.toHaveBeenCalled();
   });
 
   it('returns 201 for an allowlisted demo owner matched by Cognito sub', async () => {
@@ -359,6 +494,99 @@ describe('POST /complexes HTTP contract', () => {
     expect(response.statusCode).toBe(201);
   });
 
+  it('returns 201 for a user who is already an OWNER without creating duplicate OWNER assignments', async () => {
+    const transactionClient = createTransactionClient();
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        complex: {
+          name: 'North Sports Center',
+          address: '123 Main Street'
+        },
+        firstCourt: {
+          name: 'Court A'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(transactionClient.userRole.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 401 when the request is unauthenticated', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      payload: {
+        complex: {
+          name: 'North Sports Center',
+          address: '123 Main Street'
+        },
+        firstCourt: {
+          name: 'Court A'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: expect.arrayContaining([
+          expect.objectContaining({
+            code: APP_ERROR_CODES.AUTH_MISSING_TOKEN,
+            status: 401,
+            message: 'Authentication token is required.'
+          })
+        ]),
+        meta: expect.objectContaining({
+          path: '/v1/complexes'
+        })
+      })
+    );
+  });
+
+  it('returns 500 when the transaction fails after OWNER upsert so no OWNER role, complex, or court is persisted', async () => {
+    const harness = createTransactionalPersistenceHarness({ failComplexCreate: true });
+    prismaService.user = harness.rootClient.user;
+    prismaService.userIdentity = harness.rootClient.userIdentity;
+    prismaService.$transaction.mockImplementation(harness.transaction);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        complex: {
+          name: 'North Sports Center',
+          address: '123 Main Street'
+        },
+        firstCourt: {
+          name: 'Court A'
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(harness.transaction).toHaveBeenCalledTimes(1);
+    expect(harness.state.ownerRoles).toEqual([]);
+    expect(harness.state.complexes).toEqual([]);
+    expect(harness.state.courts).toEqual([]);
+    expect(harness.rootClient.userRole.upsert).not.toHaveBeenCalled();
+    expect(harness.rootClient.complex.create).not.toHaveBeenCalled();
+    expect(harness.rootClient.court.create).not.toHaveBeenCalled();
+  });
+
   it('returns 201 for an allowlisted demo owner matched by verified email', async () => {
     process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
     mockSuccessfulTransaction();
@@ -383,7 +611,7 @@ describe('POST /complexes HTTP contract', () => {
     expect(response.statusCode).toBe(201);
   });
 
-  it('returns 403 when the demo email allowlist matches but email is not verified', async () => {
+  it('returns 201 when the demo email allowlist matches but email is not verified because onboarding no longer depends on allowlist eligibility', async () => {
     process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
     tokenVerifier.verify.mockResolvedValue({
       sub: 'owner-sub',
@@ -394,7 +622,8 @@ describe('POST /complexes HTTP contract', () => {
       provider: 'Google',
       groups: ['players']
     });
-    mockForbiddenTransaction();
+    const transactionClient = createTransactionClient();
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
     const response = await app.inject({
       method: 'POST',
@@ -413,10 +642,10 @@ describe('POST /complexes HTTP contract', () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(201);
   });
 
-  it('returns 403 when the demo email allowlist matches but email verification is missing', async () => {
+  it('returns 201 when the demo email allowlist matches but email verification is missing because onboarding no longer depends on allowlist eligibility', async () => {
     process.env.DEMO_OWNER_EMAILS = 'owner@example.test';
     tokenVerifier.verify.mockResolvedValue({
       sub: 'owner-sub',
@@ -426,7 +655,8 @@ describe('POST /complexes HTTP contract', () => {
       provider: 'Google',
       groups: ['players']
     });
-    mockForbiddenTransaction();
+    const transactionClient = createTransactionClient();
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
 
     const response = await app.inject({
       method: 'POST',
@@ -445,6 +675,6 @@ describe('POST /complexes HTTP contract', () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(201);
   });
 });
