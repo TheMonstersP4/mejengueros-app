@@ -24,6 +24,14 @@
       "sessions": 32,
       "memories": 123,
       "prompts": 63
+    },
+    {
+      "id": "e0f917d8",
+      "created_by": "screi",
+      "created_at": "2026-06-25T17:49:23Z",
+      "sessions": 34,
+      "memories": 158,
+      "prompts": 105
     }
   ]
 }
