@@ -24,6 +24,7 @@ import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexStep
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexUiState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFormStack
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
@@ -51,6 +52,7 @@ data class CreateComplexScreenActions(
     val onNext: () -> Unit,
     val onBack: () -> Unit,
     val onSubmit: () -> Unit,
+    val onSuccessAcknowledged: () -> Unit,
 )
 
 @Composable
@@ -136,28 +138,6 @@ fun CreateComplexScreen(
       }
     }
 
-    state.successMessage?.let { message ->
-      Card(modifier = Modifier.testTag("create_complex_success")) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-          Text(
-              text = message,
-              style = MaterialTheme.typography.titleMedium,
-              color = MaterialTheme.colorScheme.primary,
-          )
-          state.createdComplex?.let { createdComplex ->
-            MejenguerosSupportingText(
-                text =
-                    "${createdComplex.complexName} · ${createdComplex.complexAddress}\nPrimera cancha: ${createdComplex.firstCourtName}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
-      }
-    }
-
     if (state.currentStep == CreateComplexStep.Complex) {
       MejenguerosFullWidthPrimaryButton(
           text = "Continuar con la primera cancha",
@@ -180,6 +160,24 @@ fun CreateComplexScreen(
             modifier = Modifier.weight(1f).testTag("create_complex_submit_button"),
         )
       }
+    }
+
+    state.successMessage?.let { message ->
+      val createdComplex = state.createdComplex
+      val dialogMessage =
+          if (createdComplex == null) {
+            message
+          } else {
+            "$message\n\n${createdComplex.complexName} · ${createdComplex.complexAddress}\nPrimera cancha: ${createdComplex.firstCourtName}"
+          }
+      MejenguerosConfirmationDialog(
+          title = "Complejo creado",
+          message = dialogMessage,
+          confirmText = "Aceptar",
+          onConfirm = actions.onSuccessAcknowledged,
+          onDismissRequest = {},
+          modifier = Modifier.testTag("create_complex_success_dialog"),
+      )
     }
   }
 }

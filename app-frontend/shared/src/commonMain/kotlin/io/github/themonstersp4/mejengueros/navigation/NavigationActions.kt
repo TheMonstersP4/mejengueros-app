@@ -12,6 +12,7 @@ class LoginNavigationActions(
 
 class AuthenticatedShellActions(
     val selectHome: () -> Unit,
+    val returnToHomeRoot: () -> Unit,
     val openCreateComplex: () -> Unit,
     val selectKit: () -> Unit,
     val openAvailabilitySelectors: () -> Unit,

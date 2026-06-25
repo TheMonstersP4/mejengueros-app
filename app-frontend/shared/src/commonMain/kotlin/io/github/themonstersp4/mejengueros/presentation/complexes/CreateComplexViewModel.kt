@@ -186,6 +186,10 @@ class CreateComplexViewModel(
     }
   }
 
+  fun acknowledgeSuccess() {
+    _uiState.value = _uiState.value.clearFormFeedback()
+  }
+
   fun refreshCatalogs() {
     loadCatalogsJob?.cancel()
     _uiState.value =

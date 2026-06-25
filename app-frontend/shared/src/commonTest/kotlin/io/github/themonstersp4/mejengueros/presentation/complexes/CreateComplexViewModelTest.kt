@@ -29,7 +29,7 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class CreateComplexViewModelTest {
   @Test
-  fun submitCreatesComplexAndResetsWizardIntoSuccessState() = runTest {
+  fun submitCreatesComplexAndExposesSuccessStateUntilAcknowledged() = runTest {
     val repository = FakeComplexRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
     val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
@@ -78,6 +78,11 @@ class CreateComplexViewModelTest {
     assertEquals(1, viewModel.uiState.value.courtServices.size)
     assertNull(viewModel.uiState.value.selectedProvinceId)
     assertEquals("complex-id", viewModel.uiState.value.createdComplex?.complexId)
+
+    viewModel.acknowledgeSuccess()
+
+    assertNull(viewModel.uiState.value.successMessage)
+    assertNull(viewModel.uiState.value.createdComplex)
     scope.cancel()
   }
 

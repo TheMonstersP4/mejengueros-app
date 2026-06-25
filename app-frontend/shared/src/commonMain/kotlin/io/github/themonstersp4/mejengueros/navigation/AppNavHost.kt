@@ -76,6 +76,7 @@ fun AppNavHost() {
   val shellActions =
       AuthenticatedShellActions(
           selectHome = authenticatedNavigationState::selectHome,
+          returnToHomeRoot = authenticatedNavigationState::returnToHomeRoot,
           openCreateComplex = authenticatedNavigationState::openCreateComplex,
           selectKit = authenticatedNavigationState::selectKit,
           openAvailabilitySelectors = authenticatedNavigationState::openAvailabilitySelectors,

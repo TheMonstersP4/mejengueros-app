@@ -245,7 +245,7 @@ private fun CreateComplexEntry(
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Home,
-      onHomeSelected = shellActions.closeCurrentDetail,
+      onHomeSelected = shellActions.returnToHomeRoot,
       onKitSelected = shellActions.selectKit,
       onPokedexSelected = shellActions.selectPokedex,
       onSignOut = shellActions.signOut,
@@ -277,6 +277,10 @@ private fun CreateComplexEntry(
                 onNext = createComplexViewModel::goToFirstCourtStep,
                 onBack = createComplexViewModel::goToComplexStep,
                 onSubmit = createComplexViewModel::submit,
+                onSuccessAcknowledged = {
+                  createComplexViewModel.acknowledgeSuccess()
+                  shellActions.returnToHomeRoot()
+                },
             ),
     )
   }

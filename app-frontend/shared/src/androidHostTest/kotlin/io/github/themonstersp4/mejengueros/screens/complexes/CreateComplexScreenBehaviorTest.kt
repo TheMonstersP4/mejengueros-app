@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import io.github.themonstersp4.mejengueros.domain.model.Canton
+import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
@@ -153,11 +154,41 @@ class CreateComplexScreenBehaviorTest {
     composeRule.runOnIdle { assertEquals(1, retries) }
   }
 
+  @Test
+  fun successDialogAppearsAndAcceptTriggersAcknowledgedCallback() {
+    var acknowledgements = 0
+
+    composeRule.setCreateComplexScreenContent(
+        initialState =
+            defaultUiState()
+                .copy(
+                    successMessage = "Complejo y primera cancha creados correctamente.",
+                    createdComplex =
+                        CreatedComplex(
+                            complexId = "complex-id",
+                            complexName = "North Sports Center",
+                            complexAddress = "123 Main Street",
+                            firstCourtId = "court-id",
+                            firstCourtName = "Court A",
+                        ),
+                ),
+        onSuccessAcknowledged = { acknowledgements += 1 },
+    )
+
+    composeRule.onNodeWithTag("create_complex_success_dialog").assertExists()
+    composeRule.onNodeWithTag("mejengueros_confirmation_dialog_confirm").performTouchInput {
+      click()
+    }
+
+    composeRule.runOnIdle { assertEquals(1, acknowledgements) }
+  }
+
   private fun ComposeContentTestRule.setCreateComplexScreenContent(
       initialState: CreateComplexUiState = defaultUiState(),
       onRetryCatalogs: () -> Unit = {},
       onRetryCantons: () -> Unit = {},
       onSubmit: () -> Unit = {},
+      onSuccessAcknowledged: () -> Unit = {},
   ): CreateComplexScreenTestHost {
     val host = CreateComplexScreenTestHost()
     setContent {
@@ -210,6 +241,7 @@ class CreateComplexScreenBehaviorTest {
                       localState = localState.copy(currentStep = CreateComplexStep.Complex)
                     },
                     onSubmit = onSubmit,
+                    onSuccessAcknowledged = onSuccessAcknowledged,
                 ),
         )
       }
