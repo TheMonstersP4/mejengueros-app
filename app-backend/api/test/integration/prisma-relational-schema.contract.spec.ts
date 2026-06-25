@@ -237,9 +237,9 @@ describe('Prisma relational MVP schema contract', () => {
         const complexId = randomUUID();
 
         await client.query(
-          `INSERT INTO "mejengueros_dev"."User" ("id", "cognitoSub", "email", "status", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, 'ACTIVE', NOW(), NOW())`,
-          [ownerId, `judgment-day-owner-${ownerId}`, `judgment-day-owner-${ownerId}@example.test`]
+          `INSERT INTO "mejengueros_dev"."User" ("id", "email", "status", "createdAt", "updatedAt")
+           VALUES ($1, $2, 'ACTIVE', NOW(), NOW())`,
+          [ownerId, `judgment-day-owner-${ownerId}@example.test`]
         );
 
         await client.query(
