@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 
-// Guard: only run in explicit demo/local environments.
+// Guard: only run against known local/demo databases.
 const allowDemoSeed = process.env.ALLOW_DEMO_SEED === 'true';
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 
@@ -16,6 +16,33 @@ if (nodeEnv === 'production') {
   console.error('ERROR: Seed cannot run against a production environment.');
   process.exit(1);
 }
+
+function assertLocalDatabase(rawUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    console.error('ERROR: DATABASE_URL is not a valid URL.');
+    process.exit(1);
+  }
+
+  const host = parsed.hostname;
+  const dbName = parsed.pathname.replace(/^\//, '');
+
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  const isLocalDbName = /local|test|demo|migration.?validation/i.test(dbName);
+
+  if (!isLocalHost && !isLocalDbName) {
+    console.error(
+      `ERROR: DATABASE_URL points to "${host}/${dbName}" which does not look like a local or demo database.\n` +
+      `  Allowed: host is localhost/127.0.0.1, OR database name matches local|test|demo|migration_validation.\n` +
+      `  To run the seed, use the disposable Docker database documented in app-backend/api/docker/.`
+    );
+    process.exit(1);
+  }
+}
+
+assertLocalDatabase(process.env.DATABASE_URL ?? '');
 
 // All demo identities use provider='demo' so teardown can find them by provider.
 const DEMO_PROVIDER = 'demo';
