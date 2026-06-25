@@ -26,6 +26,10 @@ jobs:
         working-directory: app-backend/api
         run: npm ci
 
+      - name: Generate Prisma client
+        working-directory: app-backend/api
+        run: npm run prisma:generate
+
       - name: Seed demo data
         working-directory: app-backend/api
         env:
