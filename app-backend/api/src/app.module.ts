@@ -10,13 +10,21 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ComplexesModule } from './modules/complexes/complexes.module';
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
+import { LocationsModule } from './modules/locations/locations.module';
+import { ServiceCatalogModule } from './modules/service-catalog/service-catalog.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './shared/infrastructure/database/prisma.module';
 import { ApiExceptionFilter } from './shared/interfaces/http/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './shared/interfaces/http/interceptors/api-response.interceptor';
 
 const databaseBackedModules = process.env.DATABASE_URL
-  ? [PrismaModule, UsersModule, ComplexesModule]
+  ? [
+      PrismaModule,
+      UsersModule,
+      ComplexesModule,
+      LocationsModule,
+      ServiceCatalogModule
+    ]
   : [];
 
 @Module({

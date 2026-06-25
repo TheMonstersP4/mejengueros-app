@@ -23,7 +23,7 @@ interface IUserProfileUpdatePayload {
   pictureUrl?: string;
 }
 
-interface IUserIdentityPersistenceClient<TResult extends { id: string }> {
+export interface IUserIdentityPersistenceClient<TResult extends { id: string }> {
   user: {
     findUnique(args: unknown): Promise<IUserPersistenceRecord | null>;
     update(args: unknown): Promise<TResult>;
@@ -37,7 +37,7 @@ interface IUserIdentityPersistenceClient<TResult extends { id: string }> {
   };
 }
 
-interface IUserRoleUpsertClient {
+export interface IUserRoleUpsertClient {
   userRole: {
     upsert(args: {
       where: {
@@ -109,13 +109,15 @@ export function shouldProvisionDemoOwnerRole(identity: IExternalUserIdentity): b
 export async function upsertAuthenticatedUserIdentity<TResult extends { id: string }>(
   client: IUserIdentityPersistenceClient<TResult>,
   identity: IExternalUserIdentity,
-  options?: { selectIdOnly?: boolean }
+  options?: { selectIdOnly?: boolean; retryOnUniqueConstraint?: boolean }
 ): Promise<TResult> {
   const readArgs = buildUserReadArgs(options);
   const identityLookup = buildIdentityLookup(identity);
+  const shouldRetryOnUniqueConstraint = options?.retryOnUniqueConstraint !== false;
+  const maxAttempts = shouldRetryOnUniqueConstraint ? MAX_USER_IDENTITY_UPSERT_ATTEMPTS : 1;
   let lastUniqueConstraintError: unknown;
 
-  for (let attempt = 0; attempt < MAX_USER_IDENTITY_UPSERT_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const existingIdentity = await findUserIdentity(client, identityLookup);
 
     if (existingIdentity) {
@@ -158,6 +160,10 @@ export async function upsertAuthenticatedUserIdentity<TResult extends { id: stri
             throw error;
           }
 
+          if (!shouldRetryOnUniqueConstraint) {
+            throw error;
+          }
+
           lastUniqueConstraintError = error;
           continue;
         }
@@ -179,8 +185,16 @@ export async function upsertAuthenticatedUserIdentity<TResult extends { id: stri
         throw error;
       }
 
+      if (!shouldRetryOnUniqueConstraint) {
+        throw error;
+      }
+
       lastUniqueConstraintError = error;
     }
+  }
+
+  if (!shouldRetryOnUniqueConstraint) {
+    throw lastUniqueConstraintError;
   }
 
   const existingIdentity = await findUserIdentity(client, identityLookup);

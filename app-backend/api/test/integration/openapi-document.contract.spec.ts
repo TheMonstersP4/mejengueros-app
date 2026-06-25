@@ -52,13 +52,41 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema('/v1/auth/me', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/health', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/users', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/locations/provinces', 'get', '200')).toBeDefined();
+    expect(
+      responseSchema('/v1/locations/provinces/{provinceId}/cantons', 'get', '200')
+    ).toBeDefined();
+    expect(responseSchema('/v1/services', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/complexes', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
     expectSuccessEnvelopeSchema(responseSchema('/v1/auth/me', 'get', '200'));
     expectSuccessEnvelopeSchema(responseSchema('/v1/health', 'get', '200'));
     expectSuccessEnvelopeSchema(responseSchema('/v1/files/uploads', 'post', '201'));
-    expectArrayEnvelopeSchema(responseSchema('/v1/users', 'get', '200'));
+    expectArrayEnvelopeSchema(
+      responseSchema('/v1/users', 'get', '200'),
+      '#/components/schemas/UserProfileResponse'
+    );
+    expectArrayEnvelopeSchema(
+      responseSchema('/v1/locations/provinces', 'get', '200'),
+      '#/components/schemas/ProvinceCatalogResponse'
+    );
+    expectArrayEnvelopeSchema(
+      responseSchema('/v1/locations/provinces/{provinceId}/cantons', 'get', '200'),
+      '#/components/schemas/CantonCatalogResponse'
+    );
+    expectArrayEnvelopeSchema(
+      responseSchema('/v1/services', 'get', '200'),
+      '#/components/schemas/ServiceCatalogResponse'
+    );
+    expectSuccessEnvelopeSchema(responseSchema('/v1/complexes', 'post', '201'));
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/services', 'get', '400');
+    expectErrorEnvelopeSchema(
+      '/v1/locations/provinces/{provinceId}/cantons',
+      'get',
+      '400'
+    );
   });
 
   function responseSchema(
@@ -91,13 +119,16 @@ describe('OpenAPI document contract', () => {
     expect(dataSchema(schema)).toBeDefined();
   }
 
-  function expectArrayEnvelopeSchema(schema: SchemaRecord): void {
+  function expectArrayEnvelopeSchema(
+    schema: SchemaRecord,
+    itemRef: string
+  ): void {
     expectSuccessEnvelopeSchema(schema);
     expect(dataSchema(schema)).toEqual(
       expect.objectContaining({
         type: 'array',
         items: expect.objectContaining({
-          $ref: '#/components/schemas/UserProfileResponse'
+          $ref: itemRef
         })
       })
     );
