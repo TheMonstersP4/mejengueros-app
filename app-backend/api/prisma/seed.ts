@@ -3,27 +3,32 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 
-// Guard: only run against known local/demo databases.
-const allowDemoSeed = process.env.ALLOW_DEMO_SEED === 'true';
-const nodeEnv = process.env.NODE_ENV ?? 'development';
+type ProvinceSeedRecord = {
+  id: string;
+  code: string;
+  name: string;
+};
 
-if (!allowDemoSeed) {
-  console.error('ERROR: Set ALLOW_DEMO_SEED=true to run this seed.');
-  process.exit(1);
-}
+type CantonSeedRecord = {
+  id: string;
+  provinceId: string;
+  code: string;
+  name: string;
+};
 
-if (nodeEnv === 'production') {
-  console.error('ERROR: Seed cannot run against a production environment.');
-  process.exit(1);
-}
+type SeedEnvironment = NodeJS.ProcessEnv;
 
-function assertLocalDatabase(rawUrl: string): void {
+type ServiceCatalogSeed = {
+  name: string;
+  scope: 'COMPLEX' | 'COURT';
+};
+
+function assertLocalDatabase(rawUrl: string, env: SeedEnvironment = process.env): void {
   let parsed: URL;
   try {
     parsed = new URL(rawUrl);
   } catch {
-    console.error('ERROR: DATABASE_URL is not a valid URL.');
-    process.exit(1);
+    throw new Error('ERROR: DATABASE_URL is not a valid URL.');
   }
 
   const host = parsed.hostname;
@@ -33,25 +38,23 @@ function assertLocalDatabase(rawUrl: string): void {
   const isLocalHost = host === 'localhost' || host === '127.0.0.1';
   const isLocalDbName = /local|test|demo|migration.?validation/i.test(dbName);
   const isGithubActionsSharedDevOverride =
-    process.env.GITHUB_ACTIONS === 'true' && process.env.ALLOW_SHARED_DEV_DEMO_SEED === 'true';
+    env.GITHUB_ACTIONS === 'true' && env.ALLOW_SHARED_DEV_DEMO_SEED === 'true';
   const isGithubActionsSharedDevSchema = schema === 'mejengueros_dev';
 
   if (!isLocalHost && !isLocalDbName && !isGithubActionsSharedDevOverride) {
-    console.error(
+    throw new Error(
       `ERROR: DATABASE_URL points to "${host}/${dbName}" which does not look like a local or demo database.\n` +
-      `  Allowed: host is localhost/127.0.0.1, OR database name matches local|test|demo|migration_validation.\n` +
-      `  Manual GitHub Actions dev seed override requires GITHUB_ACTIONS=true and ALLOW_SHARED_DEV_DEMO_SEED=true.\n` +
-      `  To run the seed locally, use the disposable Docker database documented in app-backend/api/docker/.`
+        `  Allowed: host is localhost/127.0.0.1, OR database name matches local|test|demo|migration_validation.\n` +
+        `  Manual GitHub Actions dev seed override requires GITHUB_ACTIONS=true and ALLOW_SHARED_DEV_DEMO_SEED=true.\n` +
+        `  To run the seed locally, use the disposable Docker database documented in app-backend/api/docker/.`
     );
-    process.exit(1);
   }
 
   if (isGithubActionsSharedDevOverride) {
     if (!isGithubActionsSharedDevSchema) {
-      console.error(
+      throw new Error(
         'ERROR: Manual GitHub Actions dev seed override requires DATABASE_URL to use schema=mejengueros_dev.'
       );
-      process.exit(1);
     }
 
     // Manual GitHub Actions dev seed override is constrained to the shared dev schema
@@ -61,16 +64,44 @@ function assertLocalDatabase(rawUrl: string): void {
   }
 }
 
-assertLocalDatabase(process.env.DATABASE_URL ?? '');
+export function assertSeedEnvironment(env: SeedEnvironment = process.env): void {
+  const allowDemoSeed = env.ALLOW_DEMO_SEED === 'true';
+  const nodeEnv = env.NODE_ENV ?? 'development';
 
-// All demo identities use provider='demo' so teardown can find them by provider.
+  if (!allowDemoSeed) {
+    throw new Error('ERROR: Set ALLOW_DEMO_SEED=true to run this seed.');
+  }
+
+  if (nodeEnv === 'production') {
+    throw new Error('ERROR: Seed cannot run against a production environment.');
+  }
+
+  assertLocalDatabase(env.DATABASE_URL ?? '', env);
+}
+
+// All demo identities use provider='demo' and demo emails remain exact so teardown can
+// recover legacy partial rows safely without touching unrelated records.
 const DEMO_PROVIDER = 'demo';
 const DEMO_OWNER_SUBJECT = 'demo-owner-sub-00000001';
 const DEMO_PLAYER_1_SUBJECT = 'demo-player-sub-00000001';
 const DEMO_PLAYER_2_SUBJECT = 'demo-player-sub-00000002';
+const DEMO_OWNER_EMAIL = 'demo-owner@mejengueros.demo';
+const DEMO_PLAYER_1_EMAIL = 'demo-player1@mejengueros.demo';
+const DEMO_PLAYER_2_EMAIL = 'demo-player2@mejengueros.demo';
+const DEMO_EMAILS = [DEMO_OWNER_EMAIL, DEMO_PLAYER_1_EMAIL, DEMO_PLAYER_2_EMAIL];
 
 const DEMO_PROVINCE_CODE = 'SJ';
 const DEMO_CANTON_CODE = 'SJ-01';
+const DEMO_PROVINCE_NAME = 'San Jose';
+const DEMO_CANTON_NAME = 'San Jose';
+
+const SERVICE_CATALOG_SEEDS: readonly ServiceCatalogSeed[] = [
+  { name: 'Parqueo', scope: 'COMPLEX' },
+  { name: 'Iluminacion', scope: 'COURT' },
+  { name: 'Sintetico', scope: 'COURT' },
+  { name: 'Natural', scope: 'COURT' },
+  { name: 'Hibrido', scope: 'COURT' }
+];
 
 function sanitizeConnectionString(raw: string): string {
   const url = new URL(raw);
@@ -88,41 +119,64 @@ function nextWeekdayAt(targetDay: number, hourUtc: number): Date {
   const now = new Date();
   const currentDay = now.getUTCDay();
   const daysUntil = ((targetDay - currentDay + 7) % 7) || 7;
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntil, hourUtc, 0, 0, 0));
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntil, hourUtc, 0, 0, 0)
+  );
 }
 
 function daysAgoAt(days: number, hourUtc: number): Date {
   const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days, hourUtc, 0, 0, 0));
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days, hourUtc, 0, 0, 0)
+  );
 }
 
-async function teardown(prisma: PrismaClient): Promise<void> {
+export async function teardown(prisma: PrismaClient): Promise<void> {
   const demoIdentities = await prisma.userIdentity.findMany({
     where: { provider: DEMO_PROVIDER },
     select: { userId: true }
   });
 
-  if (demoIdentities.length === 0) return;
+  const demoUsersByEmail = await prisma.user.findMany({
+    where: { email: { in: DEMO_EMAILS } },
+    select: { id: true }
+  });
 
-  const demoUserIds = [...new Set(demoIdentities.map((i) => i.userId))];
+  const demoUserIds = [
+    ...new Set([...demoIdentities.map((identity) => identity.userId), ...demoUsersByEmail.map((user) => user.id)])
+  ];
+
+  if (demoUserIds.length === 0) return;
 
   const demoComplexes = await prisma.complex.findMany({
     where: { ownerId: { in: demoUserIds } },
     select: { id: true }
   });
-  const demoComplexIds = demoComplexes.map((c) => c.id);
+  const demoComplexIds = demoComplexes.map((complex) => complex.id);
 
   const demoCourts = await prisma.court.findMany({
     where: { complexId: { in: demoComplexIds } },
     select: { id: true }
   });
-  const demoCourtIds = demoCourts.map((c) => c.id);
+  const demoCourtIds = demoCourts.map((court) => court.id);
 
-  // Delete all data associated with demo courts (not just demo users) to avoid FK violations
-  // when non-demo users have reserved demo courts.
-  await prisma.review.deleteMany({ where: { reservation: { courtId: { in: demoCourtIds } } } });
-  await prisma.notification.deleteMany({ where: { reservation: { courtId: { in: demoCourtIds } } } });
-  await prisma.reservation.deleteMany({ where: { courtId: { in: demoCourtIds } } });
+  const demoReservations = await prisma.reservation.findMany({
+    where: {
+      OR: [{ courtId: { in: demoCourtIds } }, { userId: { in: demoUserIds } }]
+    },
+    select: { id: true }
+  });
+  const demoReservationIds = demoReservations.map((reservation) => reservation.id);
+
+  await prisma.review.deleteMany({
+    where: { reservationId: { in: demoReservationIds } }
+  });
+  await prisma.notification.deleteMany({
+    where: {
+      OR: [{ reservationId: { in: demoReservationIds } }, { userId: { in: demoUserIds } }]
+    }
+  });
+  await prisma.reservation.deleteMany({ where: { id: { in: demoReservationIds } } });
   // CourtAvailabilityDay, CourtAvailability, and CourtService cascade from Court.
   await prisma.court.deleteMany({ where: { id: { in: demoCourtIds } } });
   // ComplexService cascades from Complex.
@@ -131,52 +185,126 @@ async function teardown(prisma: PrismaClient): Promise<void> {
   await prisma.user.deleteMany({ where: { id: { in: demoUserIds } } });
 }
 
-async function seed(prisma: PrismaClient): Promise<void> {
-  // Province and Canton are geographic catalogs — upsert, never deleted in teardown.
-  const province = await prisma.province.upsert({
-    where: { code: DEMO_PROVINCE_CODE },
-    create: { code: DEMO_PROVINCE_CODE, name: 'San Jose' },
-    update: {}
-  });
-
-  const canton = await prisma.canton.upsert({
-    where: { code: DEMO_CANTON_CODE },
-    create: { code: DEMO_CANTON_CODE, name: 'San Jose', provinceId: province.id },
-    update: {}
-  });
-
-  // ServiceCatalog entries are shared — upsert, never deleted in teardown.
-  const [svcParqueo, svcIluminacion, svcSintetico, svcNatural, svcHibrido] = await Promise.all([
-    prisma.serviceCatalog.upsert({
-      where: { name: 'Parqueo' },
-      create: { name: 'Parqueo', scope: 'COMPLEX' },
-      update: {}
+export async function ensureProvinceCatalog(prisma: PrismaClient): Promise<ProvinceSeedRecord> {
+  const [provinceByCode, provinceByName] = await Promise.all([
+    prisma.province.findUnique({
+      where: { code: DEMO_PROVINCE_CODE },
+      select: { id: true, code: true, name: true }
     }),
-    prisma.serviceCatalog.upsert({
-      where: { name: 'Iluminacion' },
-      create: { name: 'Iluminacion', scope: 'COURT' },
-      update: {}
-    }),
-    prisma.serviceCatalog.upsert({
-      where: { name: 'Sintetico' },
-      create: { name: 'Sintetico', scope: 'COURT' },
-      update: {}
-    }),
-    prisma.serviceCatalog.upsert({
-      where: { name: 'Natural' },
-      create: { name: 'Natural', scope: 'COURT' },
-      update: {}
-    }),
-    prisma.serviceCatalog.upsert({
-      where: { name: 'Hibrido' },
-      create: { name: 'Hibrido', scope: 'COURT' },
-      update: {}
+    prisma.province.findUnique({
+      where: { name: DEMO_PROVINCE_NAME },
+      select: { id: true, code: true, name: true }
     })
   ]);
 
+  if (provinceByCode && provinceByName && provinceByCode.id !== provinceByName.id) {
+    throw new Error(
+      `Province seed conflict: code ${DEMO_PROVINCE_CODE} and name ${DEMO_PROVINCE_NAME} belong to different rows (${provinceByCode.id} vs ${provinceByName.id}).`
+    );
+  }
+
+  const existingProvince = provinceByCode ?? provinceByName;
+
+  if (!existingProvince) {
+    return prisma.province.create({
+      data: { code: DEMO_PROVINCE_CODE, name: DEMO_PROVINCE_NAME },
+      select: { id: true, code: true, name: true }
+    });
+  }
+
+  if (
+    existingProvince.code !== DEMO_PROVINCE_CODE ||
+    existingProvince.name !== DEMO_PROVINCE_NAME
+  ) {
+    return prisma.province.update({
+      where: { id: existingProvince.id },
+      data: { code: DEMO_PROVINCE_CODE, name: DEMO_PROVINCE_NAME },
+      select: { id: true, code: true, name: true }
+    });
+  }
+
+  return existingProvince;
+}
+
+export async function ensureCantonCatalog(
+  prisma: PrismaClient,
+  provinceId: string
+): Promise<CantonSeedRecord> {
+  const [cantonByCode, cantonByProvinceAndName] = await Promise.all([
+    prisma.canton.findUnique({
+      where: { code: DEMO_CANTON_CODE },
+      select: { id: true, provinceId: true, code: true, name: true }
+    }),
+    prisma.canton.findFirst({
+      where: { provinceId, name: DEMO_CANTON_NAME },
+      select: { id: true, provinceId: true, code: true, name: true }
+    })
+  ]);
+
+  if (cantonByCode && cantonByCode.provinceId !== provinceId) {
+    throw new Error(
+      `Canton seed conflict: code ${DEMO_CANTON_CODE} belongs to province ${cantonByCode.provinceId}, expected ${provinceId}.`
+    );
+  }
+
+  if (
+    cantonByCode &&
+    cantonByProvinceAndName &&
+    cantonByCode.id !== cantonByProvinceAndName.id
+  ) {
+    throw new Error(
+      `Canton seed conflict: code ${DEMO_CANTON_CODE} and (${provinceId}, ${DEMO_CANTON_NAME}) belong to different rows (${cantonByCode.id} vs ${cantonByProvinceAndName.id}).`
+    );
+  }
+
+  const existingCanton = cantonByCode ?? cantonByProvinceAndName;
+
+  if (!existingCanton) {
+    return prisma.canton.create({
+      data: { code: DEMO_CANTON_CODE, name: DEMO_CANTON_NAME, provinceId },
+      select: { id: true, provinceId: true, code: true, name: true }
+    });
+  }
+
+  if (
+    existingCanton.provinceId !== provinceId ||
+    existingCanton.code !== DEMO_CANTON_CODE ||
+    existingCanton.name !== DEMO_CANTON_NAME
+  ) {
+    return prisma.canton.update({
+      where: { id: existingCanton.id },
+      data: { provinceId, code: DEMO_CANTON_CODE, name: DEMO_CANTON_NAME },
+      select: { id: true, provinceId: true, code: true, name: true }
+    });
+  }
+
+  return existingCanton;
+}
+
+export async function seedSharedCatalogs(prisma: PrismaClient) {
+  return Promise.all(
+    SERVICE_CATALOG_SEEDS.map((service) =>
+      prisma.serviceCatalog.upsert({
+        where: { name: service.name },
+        create: { name: service.name, scope: service.scope, isActive: true },
+        update: { scope: service.scope, isActive: true }
+      })
+    )
+  );
+}
+
+export async function seed(prisma: PrismaClient): Promise<void> {
+  // Province and Canton are geographic catalogs — reconciled, never deleted in teardown.
+  const province = await ensureProvinceCatalog(prisma);
+  const canton = await ensureCantonCatalog(prisma, province.id);
+
+  // ServiceCatalog entries are shared — reconciled, never deleted in teardown.
+  const [svcParqueo, svcIluminacion, svcSintetico, svcNatural, svcHibrido] =
+    await seedSharedCatalogs(prisma);
+
   const owner = await prisma.user.create({
     data: {
-      email: 'demo-owner@mejengueros.demo',
+      email: DEMO_OWNER_EMAIL,
       name: 'Carlos Demo (Dueno)',
       identities: { create: { provider: DEMO_PROVIDER, providerSubject: DEMO_OWNER_SUBJECT } },
       roles: { create: { role: 'OWNER' } }
@@ -186,7 +314,7 @@ async function seed(prisma: PrismaClient): Promise<void> {
   const [player1, player2] = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'demo-player1@mejengueros.demo',
+        email: DEMO_PLAYER_1_EMAIL,
         name: 'Martin Demo (Jugador)',
         identities: { create: { provider: DEMO_PROVIDER, providerSubject: DEMO_PLAYER_1_SUBJECT } },
         roles: { create: { role: 'PLAYER' } }
@@ -194,7 +322,7 @@ async function seed(prisma: PrismaClient): Promise<void> {
     }),
     prisma.user.create({
       data: {
-        email: 'demo-player2@mejengueros.demo',
+        email: DEMO_PLAYER_2_EMAIL,
         name: 'Ana Demo (Jugadora)',
         identities: { create: { provider: DEMO_PROVIDER, providerSubject: DEMO_PLAYER_2_SUBJECT } },
         roles: { create: { role: 'PLAYER' } }
@@ -249,7 +377,7 @@ async function seed(prisma: PrismaClient): Promise<void> {
   });
 
   // Future CONFIRMED slot — used to demonstrate the double-booking error.
-  const takenStart = nextWeekdayAt(6, 10); // next Saturday at 10:00 UTC
+  const takenStart = nextWeekdayAt(6, 10);
   const takenEnd = new Date(takenStart.getTime() + 60 * 60 * 1000);
 
   await prisma.reservation.create({
@@ -287,6 +415,8 @@ async function seed(prisma: PrismaClient): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  assertSeedEnvironment(process.env);
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL is required');
 
@@ -308,7 +438,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err: unknown) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}
