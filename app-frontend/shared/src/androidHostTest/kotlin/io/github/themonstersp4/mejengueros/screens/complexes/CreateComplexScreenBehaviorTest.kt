@@ -5,9 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -72,6 +75,21 @@ class CreateComplexScreenBehaviorTest {
     composeRule.nextButton().assertIsNotEnabled()
     host.selectCanton(composeRule, "canton-2")
     composeRule.nextButton().assertIsEnabled()
+  }
+
+  @Test
+  fun tappingCreateComplexBackgroundClearsFocusedInput() {
+    composeRule.setCreateComplexScreenContent()
+
+    composeRule.complexNameField().assertIsNotFocused()
+    composeRule.complexNameFieldContainer().performFieldContainerTap()
+    composeRule.waitForIdle()
+    composeRule.complexNameField().assertIsFocused()
+
+    composeRule.createComplexRoot().performBackgroundTap()
+    composeRule.waitForIdle()
+
+    composeRule.complexNameField().assertIsNotFocused()
   }
 
   @Test
@@ -252,6 +270,12 @@ class CreateComplexScreenBehaviorTest {
   private fun ComposeContentTestRule.complexNameField() =
       onNode(hasSetTextAction() and hasContentDescription("Nombre del complejo"))
 
+  private fun ComposeContentTestRule.complexNameFieldContainer() =
+      onNodeWithTag("Nombre del complejo text field container", useUnmergedTree = true)
+
+  private fun ComposeContentTestRule.createComplexRoot() =
+      onNodeWithTag("create_complex_root", useUnmergedTree = true)
+
   private fun ComposeContentTestRule.addressField() =
       onNode(hasSetTextAction() and hasContentDescription("Dirección"))
 
@@ -260,6 +284,14 @@ class CreateComplexScreenBehaviorTest {
 
   private fun ComposeContentTestRule.submitButton() =
       onNodeWithTag("create_complex_submit_button", useUnmergedTree = true)
+
+  private fun androidx.compose.ui.test.SemanticsNodeInteraction.performBackgroundTap() {
+    performTouchInput { click(Offset(5f, 5f)) }
+  }
+
+  private fun androidx.compose.ui.test.SemanticsNodeInteraction.performFieldContainerTap() {
+    performTouchInput { click(Offset(8f, height - 8f)) }
+  }
 
   private class CreateComplexScreenTestHost {
     lateinit var selectProvince: (String) -> Unit
