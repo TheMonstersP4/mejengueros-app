@@ -53,6 +53,19 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.Home
   }
 
+  fun openCreateComplex() {
+    selectedRoute = AuthenticatedTopLevelRoute.Home
+    if (homeBackStack.lastOrNull() != CreateComplexRoute) {
+      homeBackStack.add(CreateComplexRoute)
+    }
+  }
+
+  fun returnToHomeRoot() {
+    selectedRoute = AuthenticatedTopLevelRoute.Home
+    homeBackStack.clear()
+    homeBackStack.add(HomeRoute)
+  }
+
   fun selectKit() {
     selectedRoute = AuthenticatedTopLevelRoute.Kit
   }
@@ -80,9 +93,7 @@ class AuthenticatedNavigationState(
   }
 
   fun reset() {
-    selectedRoute = AuthenticatedTopLevelRoute.Home
-    homeBackStack.clear()
-    homeBackStack.add(HomeRoute)
+    returnToHomeRoot()
     kitBackStack.clear()
     kitBackStack.add(KitRoute)
     pokedexBackStack.clear()

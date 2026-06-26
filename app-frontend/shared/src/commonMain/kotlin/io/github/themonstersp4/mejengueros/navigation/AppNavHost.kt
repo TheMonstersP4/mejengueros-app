@@ -23,6 +23,7 @@ private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
       subclass(ForgotPasswordRoute::class, ForgotPasswordRoute.serializer())
       subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
       subclass(HomeRoute::class, HomeRoute.serializer())
+      subclass(CreateComplexRoute::class, CreateComplexRoute.serializer())
       subclass(KitRoute::class, KitRoute.serializer())
       subclass(AvailabilitySelectorsRoute::class, AvailabilitySelectorsRoute.serializer())
       subclass(PokedexRoute::class, PokedexRoute.serializer())
@@ -75,6 +76,8 @@ fun AppNavHost() {
   val shellActions =
       AuthenticatedShellActions(
           selectHome = authenticatedNavigationState::selectHome,
+          returnToHomeRoot = authenticatedNavigationState::returnToHomeRoot,
+          openCreateComplex = authenticatedNavigationState::openCreateComplex,
           selectKit = authenticatedNavigationState::selectKit,
           openAvailabilitySelectors = authenticatedNavigationState::openAvailabilitySelectors,
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,

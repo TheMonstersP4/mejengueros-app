@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object HomeRoute : AppRoute
 
+@Serializable data object CreateComplexRoute : AppRoute
+
 @Serializable data object KitRoute : AppRoute
 
 @Serializable data object AvailabilitySelectorsRoute : AppRoute

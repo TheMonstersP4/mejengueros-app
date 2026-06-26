@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +19,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNavigationItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosMobileScaffold
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTopAppBar
 
@@ -99,25 +98,16 @@ fun AuthenticatedScaffold(
     }
 
     if (showSignOutConfirmation) {
-      AlertDialog(
+      MejenguerosConfirmationDialog(
+          title = "¿Cerrar sesión?",
+          message = "Tendrás que iniciar sesión de nuevo para continuar.",
+          confirmText = "Cerrar sesión",
+          dismissText = "Cancelar",
+          onConfirm = {
+            showSignOutConfirmation = false
+            onSignOut()
+          },
           onDismissRequest = { showSignOutConfirmation = false },
-          title = { Text("¿Cerrar sesión?") },
-          text = { Text("Tendrás que iniciar sesión de nuevo para continuar.") },
-          confirmButton = {
-            androidx.compose.material3.TextButton(
-                onClick = {
-                  showSignOutConfirmation = false
-                  onSignOut()
-                }
-            ) {
-              Text("Cerrar sesión")
-            }
-          },
-          dismissButton = {
-            androidx.compose.material3.TextButton(onClick = { showSignOutConfirmation = false }) {
-              Text("Cancelar")
-            }
-          },
       )
     }
   }

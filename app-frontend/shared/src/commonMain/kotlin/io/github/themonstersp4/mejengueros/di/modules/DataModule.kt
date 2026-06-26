@@ -16,15 +16,19 @@ import io.github.themonstersp4.mejengueros.data.remote.AppApiHttpClientQualifier
 import io.github.themonstersp4.mejengueros.data.remote.AuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoAuthRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoNativeAuthDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ComplexRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
+import io.github.themonstersp4.mejengueros.data.remote.IComplexRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.defaultAppApiConfig
 import io.github.themonstersp4.mejengueros.data.repository.AuthRepository
+import io.github.themonstersp4.mejengueros.data.repository.ComplexRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
+import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IPokemonRepository
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -48,6 +52,10 @@ val dataModule = module {
   single<IAuthRepository> {
     AuthRepository(get(), get(), get(), get(), get(), get(), get(), get(), get())
   }
+  single<IComplexRemoteDataSource> {
+    ComplexRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
+  }
+  single<IComplexRepository> { ComplexRepository(get()) }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }

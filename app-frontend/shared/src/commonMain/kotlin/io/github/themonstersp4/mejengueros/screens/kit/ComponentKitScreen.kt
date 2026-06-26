@@ -30,17 +30,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationField
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerMapScope
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerScreen
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOpenFreeMapLocationPickerMap
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosRating
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReceivedReviewCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReservationSummaryBar
@@ -56,8 +52,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTicketSummar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTicketSummaryRow
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 
-internal val ComponentKitDemoLocationPickerCenter =
-    SelectedLocation(latitude = 9.93510, longitude = -84.09110)
+internal val ComponentKitDemoLocationPickerCenter = DefaultMejenguerosLocationPickerCenter
 
 @Composable
 fun ComponentKitScreen(
@@ -95,25 +90,6 @@ fun ComponentKitScreen(
     item { ReviewComponentsSection() }
     item { ReceivedReviewsSection() }
   }
-}
-
-@Composable
-internal fun ComponentKitLocationPickerMap(scope: MejenguerosLocationPickerMapScope) {
-  MejenguerosOpenFreeMapLocationPickerMap(scope = scope)
-}
-
-@Composable
-internal fun ComponentKitLocationPickerOverlay(
-    state: MejenguerosLocationPickerState,
-    actions: MejenguerosLocationPickerActions,
-    modifier: Modifier = Modifier,
-) {
-  MejenguerosLocationPickerScreen(
-      state = state,
-      actions = actions,
-      modifier = modifier,
-      mapContent = { scope -> ComponentKitLocationPickerMap(scope = scope) },
-  )
 }
 
 @Composable
