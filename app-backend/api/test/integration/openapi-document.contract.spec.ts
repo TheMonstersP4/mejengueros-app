@@ -57,6 +57,7 @@ describe('OpenAPI document contract', () => {
       responseSchema('/v1/locations/provinces/{provinceId}/cantons', 'get', '200')
     ).toBeDefined();
     expect(responseSchema('/v1/services', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/courts/catalog', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/complexes', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
@@ -76,12 +77,17 @@ describe('OpenAPI document contract', () => {
       '#/components/schemas/CantonCatalogResponse'
     );
     expectArrayEnvelopeSchema(
+      responseSchema('/v1/courts/catalog', 'get', '200'),
+      '#/components/schemas/CourtCatalogResponse'
+    );
+    expectArrayEnvelopeSchema(
       responseSchema('/v1/services', 'get', '200'),
       '#/components/schemas/ServiceCatalogResponse'
     );
     expectSuccessEnvelopeSchema(responseSchema('/v1/complexes', 'post', '201'));
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
     expectErrorEnvelopeSchema('/v1/services', 'get', '400');
+    expectErrorEnvelopeSchema('/v1/courts/catalog', 'get', '400');
     expectErrorEnvelopeSchema(
       '/v1/locations/provinces/{provinceId}/cantons',
       'get',

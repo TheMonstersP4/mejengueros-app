@@ -1,5 +1,8 @@
 import { ListCantonsByProvinceUseCase } from '@/modules/locations/application/use-cases/list-cantons-by-province.use-case';
 import { ListProvincesUseCase } from '@/modules/locations/application/use-cases/list-provinces.use-case';
+import { ListPublicCourtCatalogUseCase } from '@/modules/courts/application/use-cases/list-public-court-catalog.use-case';
+import { PrismaCourtCatalogRepository } from '@/modules/courts/infrastructure/persistence/prisma-court-catalog.repository';
+import { CourtsController } from '@/modules/courts/interfaces/http/controllers/courts.controller';
 import { PrismaLocationCatalogRepository } from '@/modules/locations/infrastructure/persistence/prisma-location-catalog.repository';
 import { LocationsController } from '@/modules/locations/interfaces/http/controllers/locations.controller';
 import { ListActiveServicesUseCase } from '@/modules/service-catalog/application/use-cases/list-active-services.use-case';
@@ -96,5 +99,91 @@ describe('catalog modules behavior', () => {
       orderBy: [{ scope: 'asc' }, { name: 'asc' }],
       select: { id: true, name: true, scope: true }
     });
+  });
+
+  it('validates province/canton filters and delegates public court catalog listing', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue([
+        {
+          courtId: 'court-id',
+          courtName: 'Court A',
+          complexId: 'complex-id',
+          complexName: 'North Sports Center',
+          province: { id: 'province-id', name: 'San José' },
+          canton: { id: 'canton-id', name: 'Escazú' },
+          services: ['Sintetico'],
+          rating: { average: 4.5, count: 2 },
+          isReservableToday: true,
+          imageUrl: null
+        }
+      ])
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    await expect(
+      controller.listCatalog({ q: 'north', provinceId: 'province-id', cantonId: 'canton-id' })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        services: ['Sintetico']
+      })
+    ]);
+    expect(repository.assertProvinceAndCantonMatch).toHaveBeenCalledWith(
+      'province-id',
+      'canton-id'
+    );
+    expect(repository.listPublicCatalog).toHaveBeenCalledWith({
+      q: 'north',
+      provinceId: 'province-id',
+      cantonId: 'canton-id'
+    });
+  });
+
+  it('builds Prisma queries for the public court catalog and validates province/canton pairs', async () => {
+    const prisma = {
+      canton: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'canton-id' })
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(prisma as never);
+
+    await repository.assertProvinceAndCantonMatch('province-id', 'canton-id');
+    await repository.listPublicCatalog({
+      q: 'north',
+      provinceId: 'province-id',
+      cantonId: 'canton-id'
+    });
+
+    expect(prisma.canton.findFirst).toHaveBeenCalledWith({
+      where: { id: 'canton-id', provinceId: 'province-id' },
+      select: { id: true }
+    });
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'ACTIVE',
+          deletedAt: null,
+          isPublished: true,
+          complex: expect.objectContaining({
+            status: 'ACTIVE',
+            deletedAt: null,
+            isPublished: true,
+            provinceId: 'province-id',
+            cantonId: 'canton-id'
+          })
+        }),
+        orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
+        select: expect.objectContaining({
+          complex: expect.any(Object),
+          services: expect.any(Object),
+          reservations: expect.any(Object)
+        })
+      })
+    );
   });
 });

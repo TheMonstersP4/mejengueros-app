@@ -128,7 +128,7 @@ class AppApiException(
     override val message: String,
 ) : Exception(message)
 
-private suspend fun ResponseException.toAppApiException(json: Json): AppApiException {
+internal suspend fun ResponseException.toAppApiException(json: Json): AppApiException {
   val rawBody = response.bodyAsText()
   val envelope = runCatching { json.decodeFromString<ApiErrorEnvelopeDto>(rawBody) }.getOrNull()
   val message = envelope?.errors?.firstOrNull()?.message ?: response.status.description

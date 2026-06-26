@@ -17,16 +17,18 @@ import io.github.themonstersp4.mejengueros.data.remote.AuthenticatedUserRemoteDa
 import io.github.themonstersp4.mejengueros.data.remote.CognitoAuthRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ComplexRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.CourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IComplexRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ICourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.defaultAppApiConfig
 import io.github.themonstersp4.mejengueros.data.repository.AuthRepository
 import io.github.themonstersp4.mejengueros.data.repository.ComplexRepository
-import io.github.themonstersp4.mejengueros.data.repository.DemoCourtCatalogRepository
+import io.github.themonstersp4.mejengueros.data.repository.CourtCatalogRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
@@ -58,7 +60,10 @@ val dataModule = module {
     ComplexRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
   single<IComplexRepository> { ComplexRepository(get()) }
-  single<ICourtCatalogRepository> { DemoCourtCatalogRepository() }
+  single<ICourtCatalogRemoteDataSource> {
+    CourtCatalogRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
+  }
+  single<ICourtCatalogRepository> { CourtCatalogRepository(get()) }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }

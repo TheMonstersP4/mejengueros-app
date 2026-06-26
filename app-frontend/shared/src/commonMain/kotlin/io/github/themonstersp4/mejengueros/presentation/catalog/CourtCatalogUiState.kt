@@ -12,5 +12,4 @@ data class CourtCatalogUiState(
     val visibleCourts: List<CourtCatalogItem> = emptyList(),
     val allCourts: List<CourtCatalogItem> = emptyList(),
     val loadErrorMessage: String? = null,
-    val isDemoMode: Boolean = true,
 )

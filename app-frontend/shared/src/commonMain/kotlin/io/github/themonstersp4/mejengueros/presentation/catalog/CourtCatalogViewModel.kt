@@ -72,7 +72,7 @@ class CourtCatalogViewModel(
             CourtCatalogUiState(
                 isLoading = false,
                 loadErrorMessage =
-                    "No pudimos cargar esta vista previa del catálogo. Intentá nuevamente.",
+                    "No pudimos cargar el catálogo en este momento. Intentá nuevamente.",
             )
       }
     }
@@ -110,27 +110,25 @@ private fun filterCourts(
 
   return allCourts
       .asSequence()
-      .filter { it.isPublished && it.isActive }
       .filter {
         normalizedQuery.isBlank() ||
             it.complexName.lowercase().contains(normalizedQuery) ||
             it.courtName.lowercase().contains(normalizedQuery)
       }
-      .filter { selectedProvince == null || it.province == selectedProvince }
-      .filter { selectedCanton == null || it.canton == selectedCanton }
+      .filter { selectedProvince == null || it.provinceName == selectedProvince }
+      .filter { selectedCanton == null || it.cantonName == selectedCanton }
       .toList()
 }
 
 private fun buildAvailableProvinces(allCourts: List<CourtCatalogItem>): List<String> =
-    allCourts.filter { it.isPublished && it.isActive }.map { it.province }.distinct().sorted()
+    allCourts.map { it.provinceName }.distinct().sorted()
 
 private fun buildAvailableCantons(
     allCourts: List<CourtCatalogItem>,
     selectedProvince: String?,
 ): List<String> =
     allCourts
-        .filter { it.isPublished && it.isActive }
-        .filter { selectedProvince == null || it.province == selectedProvince }
-        .map { it.canton }
+        .filter { selectedProvince == null || it.provinceName == selectedProvince }
+        .map { it.cantonName }
         .distinct()
         .sorted()

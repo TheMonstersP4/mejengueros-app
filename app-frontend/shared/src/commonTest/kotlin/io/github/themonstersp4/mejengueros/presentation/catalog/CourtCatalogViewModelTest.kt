@@ -21,7 +21,7 @@ class CourtCatalogViewModelTest {
   private val dispatcher = StandardTestDispatcher()
 
   @Test
-  fun initLoadsOnlyPublishedActiveCourtsAndBuildsFilterOptions() =
+  fun initLoadsCatalogAndBuildsFilterOptions() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
@@ -131,78 +131,66 @@ class CourtCatalogViewModelTest {
 }
 
 private class FakeCourtCatalogRepository : ICourtCatalogRepository {
-  override suspend fun getCatalogCourts(): List<CourtCatalogItem> =
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> =
       listOf(
           CourtCatalogItem(
               id = "court-1",
+              complexId = "complex-1",
               complexName = "Mejengas CR",
               courtName = "Cancha 1",
-              province = "San José",
-              canton = "Escazú",
-              surface = "Sintético",
-              courtType = "Fútbol 5",
+              provinceId = "province-1",
+              provinceName = "San José",
+              cantonId = "canton-1",
+              cantonName = "Escazú",
+              services = listOf("Sintetico", "Iluminacion"),
+              ratingAverage = 4.5,
+              ratingCount = 2,
               imageUrl = null,
               isReservableToday = true,
-              isPublished = true,
-              isActive = true,
           ),
           CourtCatalogItem(
               id = "court-2",
+              complexId = "complex-2",
               complexName = "Moravia FC",
               courtName = "Cancha A",
-              province = "San José",
-              canton = "Moravia",
-              surface = "Sintético",
-              courtType = "Fútbol 7",
+              provinceId = "province-1",
+              provinceName = "San José",
+              cantonId = "canton-2",
+              cantonName = "Moravia",
+              services = listOf("Sintetico"),
+              ratingAverage = null,
+              ratingCount = 0,
               imageUrl = null,
               isReservableToday = true,
-              isPublished = true,
-              isActive = true,
-          ),
-          CourtCatalogItem(
-              id = "court-3",
-              complexName = "Oculta",
-              courtName = "Cancha B",
-              province = "Cartago",
-              canton = "Tres Ríos",
-              surface = "Natural",
-              courtType = "Fútbol 11",
-              imageUrl = null,
-              isReservableToday = false,
-              isPublished = false,
-              isActive = true,
-          ),
-          CourtCatalogItem(
-              id = "court-4",
-              complexName = "Inactiva",
-              courtName = "Cancha C",
-              province = "Heredia",
-              canton = "Belén",
-              surface = "Híbrido",
-              courtType = "Fútbol 5",
-              imageUrl = null,
-              isReservableToday = false,
-              isPublished = true,
-              isActive = false,
           ),
           CourtCatalogItem(
               id = "court-5",
+              complexId = "complex-5",
               complexName = "Grecia Arena",
               courtName = "Cancha Central",
-              province = "Alajuela",
-              canton = "Grecia",
-              surface = "Híbrido",
-              courtType = "Fútbol 5",
+              provinceId = "province-2",
+              provinceName = "Alajuela",
+              cantonId = "canton-5",
+              cantonName = "Grecia",
+              services = listOf("Hibrido", "Parqueo"),
+              ratingAverage = 3.0,
+              ratingCount = 1,
               imageUrl = null,
               isReservableToday = false,
-              isPublished = true,
-              isActive = true,
           ),
       )
 }
 
 private class FailingCourtCatalogRepository : ICourtCatalogRepository {
-  override suspend fun getCatalogCourts(): List<CourtCatalogItem> {
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> {
     throw IllegalStateException("boom")
   }
 }
@@ -210,12 +198,16 @@ private class FailingCourtCatalogRepository : ICourtCatalogRepository {
 private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
   private var attempts = 0
 
-  override suspend fun getCatalogCourts(): List<CourtCatalogItem> {
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> {
     attempts += 1
     if (attempts == 1) {
       throw IllegalStateException("temporary failure")
     }
 
-    return FakeCourtCatalogRepository().getCatalogCourts()
+    return FakeCourtCatalogRepository().getCatalogCourts(null, null, null)
   }
 }

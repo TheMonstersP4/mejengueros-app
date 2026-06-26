@@ -44,13 +44,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPill
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPillStyle
+import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
@@ -77,7 +77,7 @@ fun HomeScreen(
       state.isLoading -> {
         MejenguerosStateContent(
             title = "Cargando canchas",
-            description = "Preparando la vista previa del catálogo.",
+            description = "Preparando el catálogo disponible.",
             variant = MejenguerosStateVariant.Pending,
         )
       }
@@ -116,10 +116,10 @@ fun HomeScreen(
           items(state.visibleCourts, key = { it.id }) { court ->
             MejenguerosCourtCard(
                 title = court.displayName,
-                location = "${court.province} · ${court.canton}",
+                location = "${court.provinceName} · ${court.cantonName}",
                 imageUrl = court.imageUrl,
                 imageContentDescription = court.displayName,
-                metadata = listOf("${court.surface} · ${court.courtType}"),
+                metadata = buildCourtMetadata(court),
                 statusText = if (court.isReservableToday) "Reservable hoy" else null,
                 modifier = Modifier.padding(horizontal = 20.dp),
                 onClick = { onCourtSelected(court.id) },
@@ -220,15 +220,9 @@ private fun CatalogHeader(
                     shape = RoundedCornerShape(999.dp),
                 )
     )
-    if (state.isDemoMode) {
-      MejenguerosStatusPill(
-          text = "Vista previa · datos de ejemplo",
-          style = MejenguerosStatusPillStyle.Subtle,
-      )
-    }
     Text(
         text =
-            "Explorá canchas publicadas con una vista previa honesta mientras el catálogo real se conecta.",
+            "Explorá canchas activas y publicadas del catálogo real por provincia, cantón o nombre.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -351,6 +345,35 @@ private fun CatalogHeader(
       }
     }
   }
+}
+
+private fun buildCourtMetadata(court: CourtCatalogItem): List<String> {
+  val metadata = mutableListOf<String>()
+
+  court.services.firstOrNull()?.let(metadata::add)
+
+  ratingLabel(court.ratingAverage, court.ratingCount)?.let(metadata::add)
+
+  if (metadata.size < 2) {
+    court.services.drop(1).firstOrNull()?.let(metadata::add)
+  }
+
+  if (metadata.isEmpty()) {
+    metadata.add("Servicios por confirmar")
+  }
+
+  return metadata.distinct().take(2)
+}
+
+private fun ratingLabel(average: Double?, count: Int): String? {
+  if (average == null || count <= 0) {
+    return null
+  }
+
+  val rounded = (average * 10).roundToInt() / 10.0
+  val averageLabel = if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
+
+  return "★ $averageLabel · $count reseñas"
 }
 
 @Composable

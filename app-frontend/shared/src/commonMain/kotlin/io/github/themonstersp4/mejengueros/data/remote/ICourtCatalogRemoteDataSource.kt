@@ -1,8 +1,8 @@
-package io.github.themonstersp4.mejengueros.domain.repository
+package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 
-interface ICourtCatalogRepository {
+interface ICourtCatalogRemoteDataSource {
   suspend fun getCatalogCourts(
       searchQuery: String? = null,
       provinceId: String? = null,
