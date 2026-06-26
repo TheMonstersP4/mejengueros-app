@@ -23,6 +23,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object AvailabilitySelectorsRoute : AppRoute
 
+@Serializable
+data class CourtAvailabilityRoute(
+    val courtId: String,
+    val courtName: String,
+    val complexName: String,
+) : AppRoute
+
 @Serializable data object PokedexRoute : AppRoute
 
 @Serializable data class PokemonDetailRoute(val id: Int) : AppRoute
