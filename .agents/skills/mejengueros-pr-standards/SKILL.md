@@ -13,13 +13,16 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 
 ## Hard Rules
 
-- This skill COMPLEMENTS the global `branch-pr` skill; it does not replace it.
+- This skill COMPLEMENTS the global `branch-pr` and `comment-writer` skills; it does not replace them.
 - First follow the complete `branch-pr` flow for approved issues, `type:*` labels, PR body, Conventional Commit titles, and base validations.
 - Do not create or overwrite a local skill named `branch-pr`.
 - All branches must use the `type/<github-username>/<description>` format.
 - Valid types are `feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert`.
 - Every PR title must keep the Conventional Commit format, and the summary after `:` must be written in English.
 - Every PR body must be written in clear English.
+- Every PR comment, review comment, inline review, and maintainer reply must be written in clear English by default.
+- If the user explicitly requests another language for a specific PR comment or review, follow that request for that comment only.
+- Do not apply PR language rules to GitHub issues; issue titles and bodies remain governed by `mejengueros-issue-standards`.
 - Every PR must use exactly one primary `type:*` label chosen by evaluating the dominant impact of the full change; do not copy a template option mechanically.
 - Every PR must request `@kevinah95` as reviewer.
 - `CODEOWNERS` covers all files and will enforce this review when branch protection requires code owner reviews.
@@ -38,6 +41,8 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 | New branch | Use `type/<github-username>/<description>` |
 | PR title | Use the `type(scope): summary in English` format |
 | PR body | Write it in clear English |
+| PR comments and reviews | Write human review/conversation feedback in clear English by default |
+| Explicit comment language request | Use the requested language for that comment only |
 | PR type | Choose exactly one primary `type:*` based on the dominant impact of the full change |
 | Required reviewer | Request `@kevinah95` |
 | Ownership automation | Rely on `CODEOWNERS` once branch protection requires code owner reviews |
@@ -57,8 +62,9 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 5. Do not use `type:epic` for PRs; it is only for container issues.
 6. Write the PR title as `type(scope): English summary`, for example `chore(repo): standardize PR governance`.
 7. Write the PR body in clear English.
-8. When opening or editing the PR, request `@kevinah95` as reviewer.
-9. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
+8. Write PR comments, review comments, inline reviews, and maintainer replies in clear English by default.
+9. When opening or editing the PR, request `@kevinah95` as reviewer.
+10. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
 
 ## Issue Tracking Steps
 
@@ -77,7 +83,7 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 
 ## Output Contract
 
-Report whether the PR follows the global `branch-pr` flow, whether the branch matches the local pattern, whether the title and body are in English, and whether `@kevinah95` was requested as reviewer. For issue work, report Project assignment, sprint, estimate, assignee, milestone, parent issue assignment with reason and confidence, and whether `type:epic` was used as an explicit container exception.
+Report whether the PR follows the global `branch-pr` flow, whether the branch matches the local pattern, whether the title, body, and PR comments/reviews are in English, and whether `@kevinah95` was requested as reviewer. For issue work, report Project assignment, sprint, estimate, assignee, milestone, parent issue assignment with reason and confidence, and whether `type:epic` was used as an explicit container exception.
 
 ## References
 
