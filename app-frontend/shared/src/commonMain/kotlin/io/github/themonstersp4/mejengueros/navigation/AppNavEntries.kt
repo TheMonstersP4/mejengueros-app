@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
@@ -21,6 +22,7 @@ import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
+import io.github.themonstersp4.mejengueros.screens.home.CourtCatalogDetailPendingScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
@@ -69,11 +71,9 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
-  entry<HomeRoute> {
-    HomeEntry(
-        authViewModel = authViewModel,
-        shellActions = shellActions,
-    )
+  entry<HomeRoute> { HomeEntry(shellActions = shellActions) }
+  entry<CourtCatalogDetailRoute> { route ->
+    CourtCatalogDetailEntry(route = route, shellActions = shellActions)
   }
   entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
   entry<KitRoute> { ComponentKitEntry(shellActions = shellActions) }
@@ -200,11 +200,9 @@ private fun PasswordResetEntry(
 }
 
 @Composable
-private fun HomeEntry(
-    authViewModel: AuthViewModel,
-    shellActions: AuthenticatedShellActions,
-) {
-  val state by authViewModel.uiState.collectAsState()
+private fun HomeEntry(shellActions: AuthenticatedShellActions) {
+  val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
+  val state by courtCatalogViewModel.uiState.collectAsState()
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Home,
@@ -214,10 +212,32 @@ private fun HomeEntry(
       onSignOut = shellActions.signOut,
   ) { contentPadding ->
     HomeScreen(
-        username = state.title,
+        state = state,
         contentPadding = contentPadding,
-        onCreateComplex = shellActions.openCreateComplex,
+        onSearchQueryChange = courtCatalogViewModel::updateSearchQuery,
+        onProvinceSelected = courtCatalogViewModel::selectProvince,
+        onCantonSelected = courtCatalogViewModel::selectCanton,
+        onRetryLoad = courtCatalogViewModel::retryLoad,
+        onCourtSelected = shellActions.openCourtCatalogDetail,
+        onOpenCreateComplex = shellActions.openCreateComplex,
     )
+  }
+}
+
+@Composable
+private fun CourtCatalogDetailEntry(
+    route: CourtCatalogDetailRoute,
+    shellActions: AuthenticatedShellActions,
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Home,
+      onHomeSelected = shellActions.returnToHomeRoot,
+      onKitSelected = shellActions.selectKit,
+      onPokedexSelected = shellActions.selectPokedex,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+  ) { contentPadding ->
+    CourtCatalogDetailPendingScreen(courtId = route.courtId, contentPadding = contentPadding)
   }
 }
 

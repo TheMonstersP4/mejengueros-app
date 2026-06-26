@@ -37,6 +37,19 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun openCourtCatalogDetailKeepsHomeSelectedAndAppendsCatalogDetailRoute() {
+    val state = testNavigationState()
+
+    state.openCourtCatalogDetail("court-1")
+
+    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
+    assertEquals(
+        listOf(HomeRoute, CourtCatalogDetailRoute("court-1")),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
   fun returnToHomeRootClearsHomeDetailStack() {
     val state = testNavigationState()
 

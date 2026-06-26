@@ -26,9 +26,11 @@ import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.defaultAppApiConfig
 import io.github.themonstersp4.mejengueros.data.repository.AuthRepository
 import io.github.themonstersp4.mejengueros.data.repository.ComplexRepository
+import io.github.themonstersp4.mejengueros.data.repository.DemoCourtCatalogRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IPokemonRepository
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -56,6 +58,7 @@ val dataModule = module {
     ComplexRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
   single<IComplexRepository> { ComplexRepository(get()) }
+  single<ICourtCatalogRepository> { DemoCourtCatalogRepository() }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }

@@ -60,6 +60,14 @@ class AuthenticatedNavigationState(
     }
   }
 
+  fun openCourtCatalogDetail(courtId: String) {
+    selectedRoute = AuthenticatedTopLevelRoute.Home
+    val route = CourtCatalogDetailRoute(courtId)
+    if (homeBackStack.lastOrNull() != route) {
+      homeBackStack.add(route)
+    }
+  }
+
   fun returnToHomeRoot() {
     selectedRoute = AuthenticatedTopLevelRoute.Home
     homeBackStack.clear()
