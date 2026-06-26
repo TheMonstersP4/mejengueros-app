@@ -79,6 +79,62 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun openCourtAvailabilityReplacesCreateComplexDetailInsideHomeFlow() {
+    val state = testNavigationState()
+
+    state.openCreateComplex()
+    state.openCourtAvailability(
+        courtId = "court-id",
+        courtName = "Cancha 1",
+        complexName = "Mejengas CR",
+    )
+
+    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
+    assertEquals(
+        listOf(HomeRoute, CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
+  fun openCourtAvailabilityStoresOwnerAvailabilityEntrypointContext() {
+    val state = testNavigationState()
+
+    state.openCourtAvailability(
+        courtId = "court-id",
+        courtName = "Cancha 1",
+        complexName = "Mejengas CR",
+    )
+
+    assertEquals(
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        ),
+        state.ownerCourtAvailabilityEntrypoint,
+    )
+  }
+
+  @Test
+  fun reopenOwnerCourtAvailabilityUsesStoredContextFromHomeRoot() {
+    val state = testNavigationState()
+
+    state.openCourtAvailability(
+        courtId = "court-id",
+        courtName = "Cancha 1",
+        complexName = "Mejengas CR",
+    )
+    state.returnToHomeRoot()
+    state.openOwnerCourtAvailabilityEntrypoint()
+
+    assertEquals(
+        listOf(HomeRoute, CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
   fun closeAvailabilitySelectorsReturnsToKitRoot() {
     val state = testNavigationState()
 
@@ -117,11 +173,27 @@ class AuthenticatedNavigationStateTest {
     assertEquals(listOf(PokedexRoute), state.currentBackStack.toList())
   }
 
+  @Test
+  fun resetClearsOwnerAvailabilityEntrypoint() {
+    val state = testNavigationState()
+
+    state.openCourtAvailability(
+        courtId = "court-id",
+        courtName = "Cancha 1",
+        complexName = "Mejengas CR",
+    )
+
+    state.reset()
+
+    assertEquals(null, state.ownerCourtAvailabilityEntrypoint)
+  }
+
   private fun testNavigationState(): AuthenticatedNavigationState =
       AuthenticatedNavigationState(
           selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Home),
           homeBackStack = NavBackStack<NavKey>(HomeRoute),
           kitBackStack = NavBackStack<NavKey>(KitRoute),
           pokedexBackStack = NavBackStack<NavKey>(PokedexRoute),
+          ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
       )
 }

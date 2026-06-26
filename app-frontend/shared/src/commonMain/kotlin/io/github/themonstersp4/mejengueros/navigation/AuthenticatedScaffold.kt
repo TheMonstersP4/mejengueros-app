@@ -31,6 +31,7 @@ fun AuthenticatedScaffold(
     onPokedexSelected: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "Mejengueros",
     onNavigateBack: (() -> Unit)? = null,
     overlayVisible: Boolean = false,
     overlayContent: @Composable () -> Unit = {},
@@ -45,7 +46,7 @@ fun AuthenticatedScaffold(
                 .then(if (overlayVisible) Modifier.clearAndSetSemantics {} else Modifier),
         topBar = {
           MejenguerosTopAppBar(
-              title = "Mejengueros",
+              title = title,
               navigationIcon = {
                 onNavigateBack?.let { navigateBack ->
                   IconButton(onClick = navigateBack) {

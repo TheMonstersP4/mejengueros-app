@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
@@ -19,6 +20,8 @@ import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
 import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
+import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreen
+import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreenActions
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
@@ -34,6 +37,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 fun EntryProviderScope<NavKey>.appEntries(
+    authenticatedNavigationState: AuthenticatedNavigationState,
     authViewModel: AuthViewModel,
     loginActions: LoginNavigationActions,
     shellActions: AuthenticatedShellActions,
@@ -71,6 +75,7 @@ fun EntryProviderScope<NavKey>.appEntries(
   }
   entry<HomeRoute> {
     HomeEntry(
+        authenticatedNavigationState = authenticatedNavigationState,
         authViewModel = authViewModel,
         shellActions = shellActions,
     )
@@ -78,6 +83,9 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
   entry<KitRoute> { ComponentKitEntry(shellActions = shellActions) }
   entry<AvailabilitySelectorsRoute> { AvailabilitySelectorsEntry(shellActions = shellActions) }
+  entry<CourtAvailabilityRoute> { route ->
+    CourtAvailabilityEntry(route = route, shellActions = shellActions)
+  }
   entry<PokedexRoute> {
     PokedexEntry(
         shellActions = shellActions,
@@ -201,6 +209,7 @@ private fun PasswordResetEntry(
 
 @Composable
 private fun HomeEntry(
+    authenticatedNavigationState: AuthenticatedNavigationState,
     authViewModel: AuthViewModel,
     shellActions: AuthenticatedShellActions,
 ) {
@@ -217,6 +226,9 @@ private fun HomeEntry(
         username = state.title,
         contentPadding = contentPadding,
         onCreateComplex = shellActions.openCreateComplex,
+        ownerAvailabilityEntrypoint = authenticatedNavigationState.ownerCourtAvailabilityEntrypoint,
+        onOpenOwnerAvailabilityEntrypoint =
+            authenticatedNavigationState::openOwnerCourtAvailabilityEntrypoint,
     )
   }
 }
@@ -227,6 +239,18 @@ private fun CreateComplexEntry(
 ) {
   val createComplexViewModel = koinViewModel<CreateComplexViewModel>()
   val state by createComplexViewModel.uiState.collectAsState()
+  val createdComplex = state.createdComplex
+  if (createdComplex != null) {
+    LaunchedEffect(createdComplex.firstCourtId) {
+      createComplexViewModel.acknowledgeSuccess()
+      shellActions.openCourtAvailability(
+          createdComplex.firstCourtId,
+          createdComplex.firstCourtName,
+          createdComplex.complexName,
+      )
+    }
+    return
+  }
   val selectedLatitude = state.latitude
   val selectedLongitude = state.longitude
   val selectedLocation =
@@ -281,6 +305,42 @@ private fun CreateComplexEntry(
                   createComplexViewModel.acknowledgeSuccess()
                   shellActions.returnToHomeRoot()
                 },
+            ),
+    )
+  }
+}
+
+@Composable
+private fun CourtAvailabilityEntry(
+    route: CourtAvailabilityRoute,
+    shellActions: AuthenticatedShellActions,
+) {
+  val viewModel =
+      koinViewModel<CourtAvailabilityViewModel>(
+          key = "court-availability-${route.courtId}",
+          parameters = { parametersOf(route.courtId, route.courtName, route.complexName) },
+      )
+  val state by viewModel.uiState.collectAsState()
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Home,
+      onHomeSelected = shellActions.returnToHomeRoot,
+      onKitSelected = shellActions.selectKit,
+      onPokedexSelected = shellActions.selectPokedex,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = state.appBarTitle,
+  ) { contentPadding ->
+    CourtAvailabilityScreen(
+        state = state,
+        contentPadding = contentPadding,
+        actions =
+            CourtAvailabilityScreenActions(
+                onToggleDay = viewModel::toggleDay,
+                onStartTimeSelected = viewModel::updateStartTime,
+                onEndTimeSelected = viewModel::updateEndTime,
+                onRetry = viewModel::load,
+                onSave = viewModel::save,
             ),
     )
   }
