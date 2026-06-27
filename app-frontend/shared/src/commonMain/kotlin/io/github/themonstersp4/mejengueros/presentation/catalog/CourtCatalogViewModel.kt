@@ -78,6 +78,8 @@ class CourtCatalogViewModel(
                     searchQuery = currentFilters.searchQuery,
                     selectedProvinceId = currentFilters.selectedProvinceId,
                     selectedCantonId = currentFilters.selectedCantonId,
+                    fallbackProvinces = currentFilters.availableProvinces,
+                    fallbackCantons = currentFilters.availableCantons,
                 )
           } catch (error: Throwable) {
             if (error is CancellationException) {
@@ -100,13 +102,25 @@ private fun buildCourtCatalogState(
     searchQuery: String = "",
     selectedProvinceId: String? = null,
     selectedCantonId: String? = null,
+    fallbackProvinces: List<CatalogFilterOption> = emptyList(),
+    fallbackCantons: List<CatalogFilterOption> = emptyList(),
 ): CourtCatalogUiState {
-  val availableProvinces = buildAvailableProvinces(allCourts)
-  val normalizedProvinceId =
-      selectedProvinceId?.takeIf { provinceId -> availableProvinces.any { it.id == provinceId } }
-  val availableCantons = buildAvailableCantons(allCourts, normalizedProvinceId)
-  val normalizedCantonId =
-      selectedCantonId?.takeIf { cantonId -> availableCantons.any { it.id == cantonId } }
+  val responseProvinces = buildAvailableProvinces(allCourts)
+  val resolvedSelectedProvince =
+      selectedProvinceId?.let { provinceId ->
+        responseProvinces.firstOrNull { it.id == provinceId }
+            ?: fallbackProvinces.firstOrNull { it.id == provinceId }
+      }
+  val availableProvinces = responseProvinces.preservingSelection(resolvedSelectedProvince)
+  val normalizedProvinceId = resolvedSelectedProvince?.id
+  val responseCantons = buildAvailableCantons(allCourts, normalizedProvinceId)
+  val resolvedSelectedCanton =
+      selectedCantonId?.let { cantonId ->
+        responseCantons.firstOrNull { it.id == cantonId }
+            ?: fallbackCantons.firstOrNull { it.id == cantonId }
+      }
+  val availableCantons = responseCantons.preservingSelection(resolvedSelectedCanton)
+  val normalizedCantonId = resolvedSelectedCanton?.id
 
   return CourtCatalogUiState(
       isLoading = false,
@@ -135,3 +149,13 @@ private fun buildAvailableCantons(
         .map { CatalogFilterOption(id = it.cantonId, label = it.cantonName) }
         .distinctBy(CatalogFilterOption::id)
         .sortedBy(CatalogFilterOption::label)
+
+private fun List<CatalogFilterOption>.preservingSelection(
+    selectedOption: CatalogFilterOption?
+): List<CatalogFilterOption> {
+  if (selectedOption == null || any { it.id == selectedOption.id }) {
+    return this
+  }
+
+  return (this + selectedOption).sortedBy(CatalogFilterOption::label)
+}

@@ -150,6 +150,43 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
+  fun successfulEmptyFilteredResponsePreservesSelectedProvinceAndCanton() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              RecordingCourtCatalogRepository(
+                  responses =
+                      mutableListOf(
+                          allCatalogCourts,
+                          listOf(allCatalogCourts.first()),
+                          emptyList(),
+                      )
+              )
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.selectProvince("province-1")
+          advanceUntilIdle()
+          viewModel.selectCanton("canton-1")
+          advanceUntilIdle()
+
+          assertEquals(
+              CatalogRequest(searchQuery = "", provinceId = "province-1", cantonId = "canton-1"),
+              repository.requests.last(),
+          )
+          assertEquals("province-1", viewModel.uiState.value.selectedProvinceId)
+          assertEquals("San José", viewModel.uiState.value.selectedProvince?.label)
+          assertEquals("canton-1", viewModel.uiState.value.selectedCantonId)
+          assertEquals("Escazú", viewModel.uiState.value.selectedCanton?.label)
+          assertTrue(viewModel.uiState.value.visibleCourts.isEmpty())
+          assertNull(viewModel.uiState.value.loadErrorMessage)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
   fun initFailureExposesLoadErrorAndKeepsCatalogEmpty() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
@@ -203,7 +240,9 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
           .filter { cantonId == null || it.cantonId == cantonId }
 }
 
-private class RecordingCourtCatalogRepository : ICourtCatalogRepository {
+private class RecordingCourtCatalogRepository(
+    private val responses: MutableList<List<CourtCatalogItem>> = mutableListOf()
+) : ICourtCatalogRepository {
   val requests = mutableListOf<CatalogRequest>()
 
   override suspend fun getCatalogCourts(
@@ -212,6 +251,10 @@ private class RecordingCourtCatalogRepository : ICourtCatalogRepository {
       cantonId: String?,
   ): List<CourtCatalogItem> {
     requests += CatalogRequest(searchQuery, provinceId, cantonId)
+    if (responses.isNotEmpty()) {
+      return responses.removeFirst()
+    }
+
     return FakeCourtCatalogRepository().getCatalogCourts(searchQuery, provinceId, cantonId)
   }
 }
