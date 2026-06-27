@@ -111,7 +111,8 @@ class CourtAvailabilityViewModel(
                     isLoading = false,
                     isSaving = false,
                     errorMessage = null,
-                    successMessage = "Disponibilidad guardada correctamente.",
+                    successMessage =
+                        "Tu cancha ya tiene una disponibilidad base para recibir reservas.",
                 )
           }
           .onFailure { error ->
@@ -124,6 +125,10 @@ class CourtAvailabilityViewModel(
                 )
           }
     }
+  }
+
+  fun acknowledgeSuccess() {
+    _uiState.value = _uiState.value.copy(successMessage = null)
   }
 
   private fun applyLoadedContext(context: CourtAvailabilityContext) {

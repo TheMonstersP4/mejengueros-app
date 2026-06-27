@@ -136,6 +136,21 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun returnToMyComplexRootClosesAvailabilityDetailAndKeepsMyComplexSelected() {
+    val state = testNavigationState()
+
+    state.openCourtAvailability(
+        courtId = "court-id",
+        courtName = "Cancha 1",
+        complexName = "Mejengas CR",
+    )
+    state.returnToMyComplexRoot()
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun closeCurrentDetailReturnsToMyComplexRoot() {
     val state = testNavigationState()
 

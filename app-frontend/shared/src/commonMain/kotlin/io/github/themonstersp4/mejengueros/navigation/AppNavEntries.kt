@@ -388,6 +388,10 @@ private fun CourtAvailabilityEntry(
                 onEndTimeSelected = viewModel::updateEndTime,
                 onRetry = viewModel::load,
                 onSave = viewModel::save,
+                onSuccessAcknowledged = {
+                  viewModel.acknowledgeSuccess()
+                  shellActions.returnToMyComplexRoot()
+                },
             ),
     )
   }
