@@ -16,6 +16,7 @@
 - [x] Replace production DI wiring of `DemoCourtCatalogRepository` with a real Ktor remote datasource and repository backed by `/v1/courts/catalog`
 - [x] Adapt shared catalog models/UI copy to real API fields (`services`, `rating`, province/canton ids) without inventing `courtType` or demo claims
 - [x] Add focused backend + frontend tests for the real catalog contract, repository wiring, and public endpoint behavior
+- [x] Fix Judgment Day PR #207 blockers so Home refetches the backend catalog with real `q/provinceId/cantonId`, frontend filters use `{ id, label }`, and create-complex publishes catalog-ready records explicitly
 
 ### TDD Cycle Evidence
 | Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
@@ -36,6 +37,10 @@
 - ✅ `npm run lint`
 - ✅ `./gradlew spotlessCheck :shared:jvmTest --tests "io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModelTest" --tests "io.github.themonstersp4.mejengueros.data.remote.CourtCatalogRemoteDataSourceTest" --tests "io.github.themonstersp4.mejengueros.data.repository.CourtCatalogRepositoryTest" --no-configuration-cache --console=plain`
 - ✅ `./gradlew :shared:testAndroidHostTest --tests "io.github.themonstersp4.mejengueros.screens.home.HomeScreenBehaviorTest" --no-configuration-cache --console=plain`
+- ✅ `./gradlew spotlessApply --no-configuration-cache --console=plain`
+- ✅ `./gradlew spotlessCheck :shared:jvmTest --tests "io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModelTest" --tests "io.github.themonstersp4.mejengueros.data.remote.CourtCatalogRemoteDataSourceTest" --tests "io.github.themonstersp4.mejengueros.data.repository.CourtCatalogRepositoryTest" :shared:testAndroidHostTest --tests "io.github.themonstersp4.mejengueros.screens.home.HomeScreenBehaviorTest" --no-configuration-cache --console=plain`
+- ✅ `npm test -- --runInBand test/unit/modules/complexes/complexes.spec.ts test/unit/modules/catalogs.spec.ts test/integration/courts-http.contract.spec.ts`
+- ✅ `npm run lint`
 
 ### Follow-up Adjustment
 - ✅ Canceled the catalog-only shell alignment so the authenticated scaffold no longer pretends `Buscar / Reservas / Notificaciones`; the catalog remains centered in `HomeScreen` content.
@@ -44,4 +49,4 @@
 - The catalog now uses a real public backend endpoint (`GET /v1/courts/catalog`) and production DI no longer points to `DemoCourtCatalogRepository`.
 - The later shell-alignment experiment was canceled: authenticated navigation stays generic (`Mejengueros` plus `Home / Kit / Pokédex`) and the honest catalog framing lives inside `HomeScreen` instead of the shell.
 - The `Crear complejo` entrypoint now stays visible as a secondary owner/admin action under the catalog filters so Home keeps the mejenguero-first catalog focus without orphaning the existing create flow.
-- The backend now adds explicit `isPublished` flags to `Complex` and `Court`; create-complex flow still defaults to unpublished so issue #15 stays catalog-only and does not absorb owner publishing workflows.
+- The create-complex flow now sets `isPublished: true` for both the created complex and its first court so the current owner flow can feed the public catalog without depending on seed/manual SQL.

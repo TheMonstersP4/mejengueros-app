@@ -25,17 +25,31 @@ class CourtCatalogViewModelTest {
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
-          val viewModel = CourtCatalogViewModel(FakeCourtCatalogRepository(), this)
+          val repository = RecordingCourtCatalogRepository()
+          val viewModel = CourtCatalogViewModel(repository, this)
 
           advanceUntilIdle()
 
+          assertEquals(listOf(CatalogRequest("", null, null)), repository.requests)
           assertEquals(
-              listOf("court-1", "court-2", "court-5"),
+              listOf("court-1", "court-2", "court-3", "court-5"),
               viewModel.uiState.value.visibleCourts.map { it.id },
           )
-          assertEquals(listOf("Alajuela", "San José"), viewModel.uiState.value.availableProvinces)
           assertEquals(
-              listOf("Escazú", "Grecia", "Moravia"),
+              listOf(
+                  CatalogFilterOption(id = "province-2", label = "Alajuela"),
+                  CatalogFilterOption(id = "province-3", label = "Heredia"),
+                  CatalogFilterOption(id = "province-1", label = "San José"),
+              ),
+              viewModel.uiState.value.availableProvinces,
+          )
+          assertEquals(
+              listOf(
+                  CatalogFilterOption(id = "canton-1", label = "Escazú"),
+                  CatalogFilterOption(id = "canton-5", label = "Grecia"),
+                  CatalogFilterOption(id = "canton-2", label = "Moravia"),
+                  CatalogFilterOption(id = "canton-3", label = "Moravia"),
+              ),
               viewModel.uiState.value.availableCantons,
           )
         } finally {
@@ -44,17 +58,34 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
-  fun searchQueryFiltersByCourtOrComplexName() =
+  fun searchQueryRefetchesCatalogUsingRemoteQueryParameters() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
-          val viewModel = CourtCatalogViewModel(FakeCourtCatalogRepository(), this)
+          val repository = RecordingCourtCatalogRepository()
+          val viewModel = CourtCatalogViewModel(repository, this)
           advanceUntilIdle()
 
           viewModel.updateSearchQuery("moravia")
-          assertEquals(listOf("court-2"), viewModel.uiState.value.visibleCourts.map { it.id })
+          advanceUntilIdle()
+          assertEquals(
+              listOf(
+                  CatalogRequest("", null, null),
+                  CatalogRequest(searchQuery = "moravia", provinceId = null, cantonId = null),
+              ),
+              repository.requests,
+          )
+          assertEquals(
+              listOf("court-2", "court-3"),
+              viewModel.uiState.value.visibleCourts.map { it.id },
+          )
 
           viewModel.updateSearchQuery("mejengas")
+          advanceUntilIdle()
+          assertEquals(
+              CatalogRequest(searchQuery = "mejengas", provinceId = null, cantonId = null),
+              repository.requests.last(),
+          )
           assertEquals(listOf("court-1"), viewModel.uiState.value.visibleCourts.map { it.id })
         } finally {
           Dispatchers.resetMain()
@@ -62,27 +93,57 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
-  fun selectingProvinceResetsUnavailableCantonAndNarrowsVisibleCourts() =
+  fun selectingProvinceAndCantonUsesIdsForRemoteFiltering() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
-          val viewModel = CourtCatalogViewModel(FakeCourtCatalogRepository(), this)
+          val repository = RecordingCourtCatalogRepository()
+          val viewModel = CourtCatalogViewModel(repository, this)
           advanceUntilIdle()
 
-          viewModel.selectProvince("San José")
+          viewModel.selectProvince("province-1")
+          advanceUntilIdle()
+          assertEquals(
+              CatalogRequest(searchQuery = "", provinceId = "province-1", cantonId = null),
+              repository.requests.last(),
+          )
           assertEquals(
               listOf("court-1", "court-2"),
               viewModel.uiState.value.visibleCourts.map { it.id },
           )
-          assertEquals(listOf("Escazú", "Moravia"), viewModel.uiState.value.availableCantons)
+          assertEquals(
+              listOf(
+                  CatalogFilterOption(id = "canton-1", label = "Escazú"),
+                  CatalogFilterOption(id = "canton-2", label = "Moravia"),
+              ),
+              viewModel.uiState.value.availableCantons,
+          )
 
-          viewModel.selectCanton("Escazú")
+          viewModel.selectCanton("canton-1")
+          advanceUntilIdle()
+          assertEquals(
+              CatalogRequest(searchQuery = "", provinceId = "province-1", cantonId = "canton-1"),
+              repository.requests.last(),
+          )
           assertEquals(listOf("court-1"), viewModel.uiState.value.visibleCourts.map { it.id })
 
-          viewModel.selectProvince("Alajuela")
-          assertNull(viewModel.uiState.value.selectedCanton)
+          viewModel.selectProvince("province-2")
+          advanceUntilIdle()
+          assertEquals(4, repository.requests.size)
+          assertEquals(
+              CatalogRequest(searchQuery = "", provinceId = "province-2", cantonId = null),
+              repository.requests.last(),
+          )
+          assertNull(viewModel.uiState.value.selectedCantonId)
           assertEquals(listOf("court-5"), viewModel.uiState.value.visibleCourts.map { it.id })
-          assertEquals(listOf("Grecia"), viewModel.uiState.value.availableCantons)
+          assertEquals(
+              listOf(CatalogFilterOption(id = "canton-5", label = "Grecia")),
+              viewModel.uiState.value.availableCantons,
+          )
+
+          viewModel.selectCanton(null)
+          advanceUntilIdle()
+          assertEquals(4, repository.requests.size)
         } finally {
           Dispatchers.resetMain()
         }
@@ -121,7 +182,7 @@ class CourtCatalogViewModelTest {
 
           assertNull(viewModel.uiState.value.loadErrorMessage)
           assertEquals(
-              listOf("court-1", "court-2", "court-5"),
+              listOf("court-1", "court-2", "court-3", "court-5"),
               viewModel.uiState.value.visibleCourts.map { it.id },
           )
         } finally {
@@ -136,53 +197,99 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
   ): List<CourtCatalogItem> =
-      listOf(
-          CourtCatalogItem(
-              id = "court-1",
-              complexId = "complex-1",
-              complexName = "Mejengas CR",
-              courtName = "Cancha 1",
-              provinceId = "province-1",
-              provinceName = "San José",
-              cantonId = "canton-1",
-              cantonName = "Escazú",
-              services = listOf("Sintetico", "Iluminacion"),
-              ratingAverage = 4.5,
-              ratingCount = 2,
-              imageUrl = null,
-              isReservableToday = true,
-          ),
-          CourtCatalogItem(
-              id = "court-2",
-              complexId = "complex-2",
-              complexName = "Moravia FC",
-              courtName = "Cancha A",
-              provinceId = "province-1",
-              provinceName = "San José",
-              cantonId = "canton-2",
-              cantonName = "Moravia",
-              services = listOf("Sintetico"),
-              ratingAverage = null,
-              ratingCount = 0,
-              imageUrl = null,
-              isReservableToday = true,
-          ),
-          CourtCatalogItem(
-              id = "court-5",
-              complexId = "complex-5",
-              complexName = "Grecia Arena",
-              courtName = "Cancha Central",
-              provinceId = "province-2",
-              provinceName = "Alajuela",
-              cantonId = "canton-5",
-              cantonName = "Grecia",
-              services = listOf("Hibrido", "Parqueo"),
-              ratingAverage = 3.0,
-              ratingCount = 1,
-              imageUrl = null,
-              isReservableToday = false,
-          ),
-      )
+      allCatalogCourts
+          .filter { searchQuery.isNullOrBlank() || it.matchesSearch(searchQuery) }
+          .filter { provinceId == null || it.provinceId == provinceId }
+          .filter { cantonId == null || it.cantonId == cantonId }
+}
+
+private class RecordingCourtCatalogRepository : ICourtCatalogRepository {
+  val requests = mutableListOf<CatalogRequest>()
+
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> {
+    requests += CatalogRequest(searchQuery, provinceId, cantonId)
+    return FakeCourtCatalogRepository().getCatalogCourts(searchQuery, provinceId, cantonId)
+  }
+}
+
+private data class CatalogRequest(
+    val searchQuery: String?,
+    val provinceId: String?,
+    val cantonId: String?,
+)
+
+private val allCatalogCourts =
+    listOf(
+        CourtCatalogItem(
+            id = "court-1",
+            complexId = "complex-1",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+            provinceId = "province-1",
+            provinceName = "San José",
+            cantonId = "canton-1",
+            cantonName = "Escazú",
+            services = listOf("Sintetico", "Iluminacion"),
+            ratingAverage = 4.5,
+            ratingCount = 2,
+            imageUrl = null,
+            isReservableToday = true,
+        ),
+        CourtCatalogItem(
+            id = "court-2",
+            complexId = "complex-2",
+            complexName = "Moravia FC",
+            courtName = "Cancha A",
+            provinceId = "province-1",
+            provinceName = "San José",
+            cantonId = "canton-2",
+            cantonName = "Moravia",
+            services = listOf("Sintetico"),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            isReservableToday = true,
+        ),
+        CourtCatalogItem(
+            id = "court-3",
+            complexId = "complex-3",
+            complexName = "Moravia Norte",
+            courtName = "Cancha B",
+            provinceId = "province-3",
+            provinceName = "Heredia",
+            cantonId = "canton-3",
+            cantonName = "Moravia",
+            services = listOf("Natural"),
+            ratingAverage = 4.0,
+            ratingCount = 4,
+            imageUrl = null,
+            isReservableToday = true,
+        ),
+        CourtCatalogItem(
+            id = "court-5",
+            complexId = "complex-5",
+            complexName = "Grecia Arena",
+            courtName = "Cancha Central",
+            provinceId = "province-2",
+            provinceName = "Alajuela",
+            cantonId = "canton-5",
+            cantonName = "Grecia",
+            services = listOf("Hibrido", "Parqueo"),
+            ratingAverage = 3.0,
+            ratingCount = 1,
+            imageUrl = null,
+            isReservableToday = false,
+        ),
+    )
+
+private fun CourtCatalogItem.matchesSearch(searchQuery: String): Boolean {
+  val normalizedQuery = searchQuery.trim().lowercase()
+  return complexName.lowercase().contains(normalizedQuery) ||
+      courtName.lowercase().contains(normalizedQuery)
 }
 
 private class FailingCourtCatalogRepository : ICourtCatalogRepository {

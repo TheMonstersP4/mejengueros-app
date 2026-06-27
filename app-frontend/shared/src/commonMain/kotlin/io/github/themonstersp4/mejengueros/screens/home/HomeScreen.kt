@@ -235,7 +235,7 @@ private fun CatalogHeader(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       FilterChipSummary(
-          label = state.selectedProvince ?: "Provincia",
+          label = state.selectedProvince?.label ?: "Provincia",
           selected = state.selectedProvince != null,
           onClick = { provinceMenuExpanded = true },
           modifier = Modifier.weight(1f),
@@ -249,23 +249,21 @@ private fun CatalogHeader(
               onClick = {
                 provinceMenuExpanded = false
                 onProvinceSelected(null)
-                onCantonSelected(null)
               },
           )
           state.availableProvinces.forEach { province ->
             DropdownMenuItem(
-                text = { Text(province) },
+                text = { Text(province.label) },
                 onClick = {
                   provinceMenuExpanded = false
-                  onProvinceSelected(province)
-                  onCantonSelected(null)
+                  onProvinceSelected(province.id)
                 },
             )
           }
         }
       }
       FilterChipSummary(
-          label = state.selectedCanton ?: "Cantón",
+          label = state.selectedCanton?.label ?: "Cantón",
           selected = state.selectedCanton != null,
           onClick = { cantonMenuExpanded = true },
           modifier = Modifier.weight(1f),
@@ -283,10 +281,10 @@ private fun CatalogHeader(
           )
           state.availableCantons.forEach { canton ->
             DropdownMenuItem(
-                text = { Text(canton) },
+                text = { Text(canton.label) },
                 onClick = {
                   cantonMenuExpanded = false
-                  onCantonSelected(canton)
+                  onCantonSelected(canton.id)
                 },
             )
           }

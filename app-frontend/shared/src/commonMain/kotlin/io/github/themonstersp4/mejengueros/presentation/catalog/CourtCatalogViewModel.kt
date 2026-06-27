@@ -6,6 +6,7 @@ import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ class CourtCatalogViewModel(
 ) : ViewModel() {
   private val scope = coroutineScope ?: viewModelScope
   private val _uiState = MutableStateFlow(CourtCatalogUiState())
+  private var loadJob: Job? = null
   val uiState: StateFlow<CourtCatalogUiState> = _uiState.asStateFlow()
 
   init {
@@ -28,107 +30,108 @@ class CourtCatalogViewModel(
   }
 
   fun updateSearchQuery(value: String) {
-    _uiState.value =
-        buildCourtCatalogState(
-            allCourts = _uiState.value.allCourts,
-            searchQuery = value,
-            selectedProvince = _uiState.value.selectedProvince,
-            selectedCanton = _uiState.value.selectedCanton,
-        )
+    _uiState.value = _uiState.value.copy(searchQuery = value)
+    loadCatalog()
   }
 
-  fun selectProvince(province: String?) {
-    _uiState.value =
-        buildCourtCatalogState(
-            allCourts = _uiState.value.allCourts,
-            searchQuery = _uiState.value.searchQuery,
-            selectedProvince = province,
-            selectedCanton = _uiState.value.selectedCanton,
+  fun selectProvince(provinceId: String?) {
+    val currentState = _uiState.value
+    val nextState =
+        currentState.copy(
+            selectedProvinceId = provinceId,
+            selectedCantonId = null,
         )
+    if (nextState == currentState) {
+      return
+    }
+
+    _uiState.value = nextState
+    loadCatalog()
   }
 
-  fun selectCanton(canton: String?) {
-    _uiState.value =
-        buildCourtCatalogState(
-            allCourts = _uiState.value.allCourts,
-            searchQuery = _uiState.value.searchQuery,
-            selectedProvince = _uiState.value.selectedProvince,
-            selectedCanton = canton,
-        )
+  fun selectCanton(cantonId: String?) {
+    val currentState = _uiState.value
+    if (currentState.selectedCantonId == cantonId) {
+      return
+    }
+
+    _uiState.value = currentState.copy(selectedCantonId = cantonId)
+    loadCatalog()
   }
 
   private fun loadCatalog() {
-    scope.launch {
-      _uiState.value = _uiState.value.copy(isLoading = true, loadErrorMessage = null)
-      try {
-        val allCourts = repository.getCatalogCourts()
-        _uiState.value = buildCourtCatalogState(allCourts = allCourts)
-      } catch (error: Throwable) {
-        if (error is CancellationException) {
-          throw error
-        }
+    loadJob?.cancel()
+    loadJob =
+        scope.launch {
+          val currentFilters = _uiState.value
+          _uiState.value = currentFilters.copy(isLoading = true, loadErrorMessage = null)
+          try {
+            val allCourts =
+                repository.getCatalogCourts(
+                    searchQuery = currentFilters.searchQuery,
+                    provinceId = currentFilters.selectedProvinceId,
+                    cantonId = currentFilters.selectedCantonId,
+                )
+            _uiState.value =
+                buildCourtCatalogState(
+                    allCourts = allCourts,
+                    searchQuery = currentFilters.searchQuery,
+                    selectedProvinceId = currentFilters.selectedProvinceId,
+                    selectedCantonId = currentFilters.selectedCantonId,
+                )
+          } catch (error: Throwable) {
+            if (error is CancellationException) {
+              throw error
+            }
 
-        _uiState.value =
-            CourtCatalogUiState(
-                isLoading = false,
-                loadErrorMessage =
-                    "No pudimos cargar el catálogo en este momento. Intentá nuevamente.",
-            )
-      }
-    }
+            _uiState.value =
+                currentFilters.copy(
+                    isLoading = false,
+                    loadErrorMessage =
+                        "No pudimos cargar el catálogo en este momento. Intentá nuevamente.",
+                )
+          }
+        }
   }
 }
 
 private fun buildCourtCatalogState(
     allCourts: List<CourtCatalogItem>,
     searchQuery: String = "",
-    selectedProvince: String? = null,
-    selectedCanton: String? = null,
+    selectedProvinceId: String? = null,
+    selectedCantonId: String? = null,
 ): CourtCatalogUiState {
-  val availableCantons = buildAvailableCantons(allCourts, selectedProvince)
-  val normalizedCanton = selectedCanton?.takeIf(availableCantons::contains)
+  val availableProvinces = buildAvailableProvinces(allCourts)
+  val normalizedProvinceId =
+      selectedProvinceId?.takeIf { provinceId -> availableProvinces.any { it.id == provinceId } }
+  val availableCantons = buildAvailableCantons(allCourts, normalizedProvinceId)
+  val normalizedCantonId =
+      selectedCantonId?.takeIf { cantonId -> availableCantons.any { it.id == cantonId } }
 
   return CourtCatalogUiState(
       isLoading = false,
       searchQuery = searchQuery,
-      selectedProvince = selectedProvince,
-      selectedCanton = normalizedCanton,
-      availableProvinces = buildAvailableProvinces(allCourts),
+      selectedProvinceId = normalizedProvinceId,
+      selectedCantonId = normalizedCantonId,
+      availableProvinces = availableProvinces,
       availableCantons = availableCantons,
-      visibleCourts = filterCourts(allCourts, searchQuery, selectedProvince, normalizedCanton),
+      visibleCourts = allCourts,
       allCourts = allCourts,
   )
 }
 
-private fun filterCourts(
-    allCourts: List<CourtCatalogItem>,
-    searchQuery: String,
-    selectedProvince: String?,
-    selectedCanton: String?,
-): List<CourtCatalogItem> {
-  val normalizedQuery = searchQuery.trim().lowercase()
-
-  return allCourts
-      .asSequence()
-      .filter {
-        normalizedQuery.isBlank() ||
-            it.complexName.lowercase().contains(normalizedQuery) ||
-            it.courtName.lowercase().contains(normalizedQuery)
-      }
-      .filter { selectedProvince == null || it.provinceName == selectedProvince }
-      .filter { selectedCanton == null || it.cantonName == selectedCanton }
-      .toList()
-}
-
-private fun buildAvailableProvinces(allCourts: List<CourtCatalogItem>): List<String> =
-    allCourts.map { it.provinceName }.distinct().sorted()
+private fun buildAvailableProvinces(allCourts: List<CourtCatalogItem>): List<CatalogFilterOption> =
+    allCourts
+        .map { CatalogFilterOption(id = it.provinceId, label = it.provinceName) }
+        .distinctBy(CatalogFilterOption::id)
+        .sortedBy(CatalogFilterOption::label)
 
 private fun buildAvailableCantons(
     allCourts: List<CourtCatalogItem>,
-    selectedProvince: String?,
-): List<String> =
+    selectedProvinceId: String?,
+): List<CatalogFilterOption> =
     allCourts
-        .filter { selectedProvince == null || it.provinceName == selectedProvince }
-        .map { it.cantonName }
-        .distinct()
-        .sorted()
+        .filter { selectedProvinceId == null || it.provinceId == selectedProvinceId }
+        .map { CatalogFilterOption(id = it.cantonId, label = it.cantonName) }
+        .distinctBy(CatalogFilterOption::id)
+        .sortedBy(CatalogFilterOption::label)
