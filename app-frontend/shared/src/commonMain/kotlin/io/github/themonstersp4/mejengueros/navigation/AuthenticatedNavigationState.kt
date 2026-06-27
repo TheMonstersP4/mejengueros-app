@@ -17,28 +17,31 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 fun rememberAuthenticatedNavigationState(
     savedStateConfiguration: SavedStateConfiguration,
 ): AuthenticatedNavigationState {
-  val homeBackStack = rememberNavBackStack(savedStateConfiguration, HomeRoute)
-  val kitBackStack = rememberNavBackStack(savedStateConfiguration, KitRoute)
-  val pokedexBackStack = rememberNavBackStack(savedStateConfiguration, PokedexRoute)
+  val searchBackStack = rememberNavBackStack(savedStateConfiguration, SearchRoute)
+  val reservationsBackStack = rememberNavBackStack(savedStateConfiguration, ReservationsRoute)
+  val notificationsBackStack = rememberNavBackStack(savedStateConfiguration, NotificationsRoute)
+  val myComplexBackStack = rememberNavBackStack(savedStateConfiguration, MyComplexRoute)
 
-  val selectedRoute = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Home) }
+  val selectedRoute = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Search) }
   val ownerCourtAvailabilityEntrypointState =
       rememberSaveable(stateSaver = ownerCourtAvailabilityEntrypointSaver()) {
         mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
       }
 
   return remember(
-      homeBackStack,
-      kitBackStack,
-      pokedexBackStack,
+      searchBackStack,
+      reservationsBackStack,
+      notificationsBackStack,
+      myComplexBackStack,
       selectedRoute,
       ownerCourtAvailabilityEntrypointState,
   ) {
     AuthenticatedNavigationState(
         selectedRoute = selectedRoute,
-        homeBackStack = homeBackStack,
-        kitBackStack = kitBackStack,
-        pokedexBackStack = pokedexBackStack,
+        searchBackStack = searchBackStack,
+        reservationsBackStack = reservationsBackStack,
+        notificationsBackStack = notificationsBackStack,
+        myComplexBackStack = myComplexBackStack,
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
     )
   }
@@ -46,9 +49,10 @@ fun rememberAuthenticatedNavigationState(
 
 class AuthenticatedNavigationState(
     selectedRoute: MutableState<AuthenticatedTopLevelRoute>,
-    private val homeBackStack: NavBackStack<NavKey>,
-    private val kitBackStack: NavBackStack<NavKey>,
-    private val pokedexBackStack: NavBackStack<NavKey>,
+    private val searchBackStack: NavBackStack<NavKey>,
+    private val reservationsBackStack: NavBackStack<NavKey>,
+    private val notificationsBackStack: NavBackStack<NavKey>,
+    private val myComplexBackStack: NavBackStack<NavKey>,
     private val ownerCourtAvailabilityEntrypointState:
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
 ) {
@@ -61,41 +65,39 @@ class AuthenticatedNavigationState(
   val currentBackStack: NavBackStack<NavKey>
     get() =
         when (selectedRoute) {
-          AuthenticatedTopLevelRoute.Home -> homeBackStack
-          AuthenticatedTopLevelRoute.Kit -> kitBackStack
-          AuthenticatedTopLevelRoute.Pokedex -> pokedexBackStack
+          AuthenticatedTopLevelRoute.Search -> searchBackStack
+          AuthenticatedTopLevelRoute.Reservations -> reservationsBackStack
+          AuthenticatedTopLevelRoute.Notifications -> notificationsBackStack
+          AuthenticatedTopLevelRoute.MyComplex -> myComplexBackStack
         }
 
-  fun selectHome() {
-    selectedRoute = AuthenticatedTopLevelRoute.Home
+  fun selectSearch() {
+    selectedRoute = AuthenticatedTopLevelRoute.Search
+  }
+
+  fun selectReservations() {
+    selectedRoute = AuthenticatedTopLevelRoute.Reservations
+  }
+
+  fun selectNotifications() {
+    selectedRoute = AuthenticatedTopLevelRoute.Notifications
+  }
+
+  fun selectMyComplex() {
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
   }
 
   fun openCreateComplex() {
-    selectedRoute = AuthenticatedTopLevelRoute.Home
-    if (homeBackStack.lastOrNull() != CreateComplexRoute) {
-      homeBackStack.add(CreateComplexRoute)
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    if (myComplexBackStack.lastOrNull() != CreateComplexRoute) {
+      myComplexBackStack.add(CreateComplexRoute)
     }
   }
 
-  fun returnToHomeRoot() {
-    selectedRoute = AuthenticatedTopLevelRoute.Home
-    homeBackStack.clear()
-    homeBackStack.add(HomeRoute)
-  }
-
-  fun selectKit() {
-    selectedRoute = AuthenticatedTopLevelRoute.Kit
-  }
-
-  fun selectPokedex() {
-    selectedRoute = AuthenticatedTopLevelRoute.Pokedex
-  }
-
-  fun openAvailabilitySelectors() {
-    selectedRoute = AuthenticatedTopLevelRoute.Kit
-    if (kitBackStack.lastOrNull() != AvailabilitySelectorsRoute) {
-      kitBackStack.add(AvailabilitySelectorsRoute)
-    }
+  fun returnToMyComplexRoot() {
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    myComplexBackStack.clear()
+    myComplexBackStack.add(MyComplexRoute)
   }
 
   fun openCourtAvailability(courtId: String, courtName: String, complexName: String) {
@@ -105,15 +107,15 @@ class AuthenticatedNavigationState(
             courtName = courtName,
             complexName = complexName,
         )
-    selectedRoute = AuthenticatedTopLevelRoute.Home
-    if (homeBackStack.lastOrNull() == CreateComplexRoute) {
-      homeBackStack.removeLastOrNull()
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    if (myComplexBackStack.lastOrNull() == CreateComplexRoute) {
+      myComplexBackStack.removeLastOrNull()
     }
 
     val route =
         CourtAvailabilityRoute(courtId = courtId, courtName = courtName, complexName = complexName)
-    if (homeBackStack.lastOrNull() != route) {
-      homeBackStack.add(route)
+    if (myComplexBackStack.lastOrNull() != route) {
+      myComplexBackStack.add(route)
     }
   }
 
@@ -126,11 +128,6 @@ class AuthenticatedNavigationState(
     )
   }
 
-  fun openPokemonDetail(id: Int) {
-    selectedRoute = AuthenticatedTopLevelRoute.Pokedex
-    pokedexBackStack.add(PokemonDetailRoute(id))
-  }
-
   fun closeCurrentDetail() {
     if (currentBackStack.size > 1) {
       currentBackStack.removeLastOrNull()
@@ -139,11 +136,15 @@ class AuthenticatedNavigationState(
 
   fun reset() {
     ownerCourtAvailabilityEntrypointState.value = null
-    returnToHomeRoot()
-    kitBackStack.clear()
-    kitBackStack.add(KitRoute)
-    pokedexBackStack.clear()
-    pokedexBackStack.add(PokedexRoute)
+    selectedRoute = AuthenticatedTopLevelRoute.Search
+    searchBackStack.clear()
+    searchBackStack.add(SearchRoute)
+    reservationsBackStack.clear()
+    reservationsBackStack.add(ReservationsRoute)
+    notificationsBackStack.clear()
+    notificationsBackStack.add(NotificationsRoute)
+    myComplexBackStack.clear()
+    myComplexBackStack.add(MyComplexRoute)
   }
 }
 
