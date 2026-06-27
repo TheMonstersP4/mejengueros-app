@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.di.modules
 
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
@@ -12,6 +13,9 @@ val presentationModule = module {
   viewModel { AuthViewModel(get(), get()) }
   viewModel { CourtCatalogViewModel(get()) }
   viewModel { CreateComplexViewModel(get()) }
+  viewModel { parameters ->
+    CourtAvailabilityViewModel(parameters.get(), parameters.get(), parameters.get(), get())
+  }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }
 }

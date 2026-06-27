@@ -1,6 +1,7 @@
 import { AuthModule } from '@/modules/auth/auth.module';
 import { ComplexesModule } from '@/modules/complexes/complexes.module';
 import { CourtsModule } from '@/modules/courts/courts.module';
+import { CourtAvailabilityModule } from '@/modules/court-availability/court-availability.module';
 import { FilesModule } from '@/modules/files/files.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { LocationsModule } from '@/modules/locations/locations.module';
@@ -36,6 +37,7 @@ describe('Nest modules', () => {
     expect(AuthModule).toBeDefined();
     expect(ComplexesModule).toBeDefined();
     expect(CourtsModule).toBeDefined();
+    expect(CourtAvailabilityModule).toBeDefined();
     expect(FilesModule).toBeDefined();
     expect(HealthModule).toBeDefined();
     expect(LocationsModule).toBeDefined();

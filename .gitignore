@@ -41,6 +41,7 @@ app-backend/api/.lambda/
 
 # Local agent workspaces
 .atl/
+.codegraph/
 .pi/
 .skills/
 **/.skills/

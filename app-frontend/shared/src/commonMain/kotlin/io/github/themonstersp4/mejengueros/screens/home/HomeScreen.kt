@@ -43,10 +43,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.navigation.OwnerCourtAvailabilityEntrypoint
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
@@ -62,6 +65,8 @@ fun HomeScreen(
     onRetryLoad: () -> Unit,
     onCourtSelected: (String) -> Unit,
     onOpenCreateComplex: () -> Unit,
+    ownerAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint? = null,
+    onOpenOwnerAvailabilityEntrypoint: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   CatalogScaffold(
@@ -71,6 +76,8 @@ fun HomeScreen(
       onProvinceSelected = onProvinceSelected,
       onCantonSelected = onCantonSelected,
       onOpenCreateComplex = onOpenCreateComplex,
+      ownerAvailabilityEntrypoint = ownerAvailabilityEntrypoint,
+      onOpenOwnerAvailabilityEntrypoint = onOpenOwnerAvailabilityEntrypoint,
       modifier = modifier,
   ) {
     when {
@@ -136,6 +143,8 @@ fun HomeScreen(
 fun CourtCatalogDetailPendingScreen(
     courtId: String,
     contentPadding: PaddingValues,
+    ownerAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint? = null,
+    onOpenOwnerAvailabilityEntrypoint: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -148,6 +157,31 @@ fun CourtCatalogDetailPendingScreen(
             "Ya recibimos la cancha $courtId desde el catálogo, pero esta vista previa todavía no muestra el detalle completo.",
         variant = MejenguerosStateVariant.Pending,
     )
+    if (ownerAvailabilityEntrypoint != null) {
+      Spacer(modifier = Modifier.height(16.dp))
+      Text(
+          text = "Última cancha creada",
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.onBackground,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_title"),
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      Text(
+          text =
+              "${ownerAvailabilityEntrypoint.courtName} · ${ownerAvailabilityEntrypoint.complexName}",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onBackground,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_summary"),
+      )
+      Spacer(modifier = Modifier.height(12.dp))
+      MejenguerosFullWidthOutlinedButton(
+          text = "Configurar disponibilidad",
+          onClick = onOpenOwnerAvailabilityEntrypoint,
+          modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_button"),
+      )
+    }
   }
 }
 
@@ -159,6 +193,8 @@ private fun CatalogScaffold(
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
     onOpenCreateComplex: () -> Unit,
+    ownerAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint?,
+    onOpenOwnerAvailabilityEntrypoint: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -175,6 +211,8 @@ private fun CatalogScaffold(
         onProvinceSelected = onProvinceSelected,
         onCantonSelected = onCantonSelected,
         onOpenCreateComplex = onOpenCreateComplex,
+        ownerAvailabilityEntrypoint = ownerAvailabilityEntrypoint,
+        onOpenOwnerAvailabilityEntrypoint = onOpenOwnerAvailabilityEntrypoint,
     )
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -197,6 +235,8 @@ private fun CatalogHeader(
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
     onOpenCreateComplex: () -> Unit,
+    ownerAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint?,
+    onOpenOwnerAvailabilityEntrypoint: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   var provinceMenuExpanded by remember { mutableStateOf(false) }
@@ -338,6 +378,27 @@ private fun CatalogHeader(
                     contentDescription = "Crear complejo"
                   },
               leadingContent = { Icon(Icons.Filled.Add, contentDescription = null) },
+          )
+        }
+        if (ownerAvailabilityEntrypoint != null) {
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          Text(
+              text = "Última cancha creada",
+              style = MaterialTheme.typography.titleMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+              modifier = Modifier.testTag("home_owner_availability_title"),
+          )
+          Text(
+              text =
+                  "${ownerAvailabilityEntrypoint.courtName} · ${ownerAvailabilityEntrypoint.complexName}",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.testTag("home_owner_availability_summary"),
+          )
+          MejenguerosFullWidthOutlinedButton(
+              text = "Configurar disponibilidad",
+              onClick = onOpenOwnerAvailabilityEntrypoint,
+              modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_button"),
           )
         }
       }

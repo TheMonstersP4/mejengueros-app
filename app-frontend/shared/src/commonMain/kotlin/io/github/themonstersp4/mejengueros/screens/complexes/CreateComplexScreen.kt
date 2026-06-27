@@ -36,6 +36,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingTe
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextArea
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextField
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
+import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
 
 data class CreateComplexScreenActions(
     val onRetryCatalogs: () -> Unit,
@@ -73,6 +74,7 @@ fun CreateComplexScreen(
       modifier =
           modifier
               .fillMaxSize()
+              .clearFocusOnTap()
               .padding(contentPadding)
               .padding(horizontal = 20.dp, vertical = 24.dp)
               .verticalScroll(rememberScrollState())

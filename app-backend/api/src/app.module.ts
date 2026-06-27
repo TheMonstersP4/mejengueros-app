@@ -9,6 +9,7 @@ import { loggerConfig } from './config/logger.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { ComplexesModule } from './modules/complexes/complexes.module';
 import { CourtsModule } from './modules/courts/courts.module';
+import { CourtAvailabilityModule } from './modules/court-availability/court-availability.module';
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationsModule } from './modules/locations/locations.module';
@@ -24,6 +25,7 @@ const databaseBackedModules = process.env.DATABASE_URL
       UsersModule,
       ComplexesModule,
       CourtsModule,
+      CourtAvailabilityModule,
       LocationsModule,
       ServiceCatalogModule
     ]

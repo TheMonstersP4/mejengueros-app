@@ -15,6 +15,7 @@ class AuthenticatedShellActions(
     val returnToHomeRoot: () -> Unit,
     val openCourtCatalogDetail: (String) -> Unit,
     val openCreateComplex: () -> Unit,
+    val openCourtAvailability: (String, String, String) -> Unit,
     val selectKit: () -> Unit,
     val openAvailabilitySelectors: () -> Unit,
     val closeCurrentDetail: () -> Unit,
