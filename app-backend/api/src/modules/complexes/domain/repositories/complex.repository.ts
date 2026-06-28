@@ -32,6 +32,15 @@ export interface ICreateFirstCourtInput {
 }
 
 /**
+ * Required additional-court fields for an existing complex.
+ */
+export interface ICreateOwnedComplexCourtCommand {
+  ownerIdentity: IMyComplexHubOwnerIdentity;
+  complexId: string;
+  court: ICreateFirstCourtInput;
+}
+
+/**
  * Repository command for atomic complex creation.
  */
 export interface ICreateComplexWithFirstCourtCommand {
@@ -119,6 +128,8 @@ export interface IComplexRepository {
   createComplexWithFirstCourt(
     command: ICreateComplexWithFirstCourtCommand
   ): Promise<ICreateComplexWithFirstCourtResult>;
+
+  createOwnedComplexCourt(command: ICreateOwnedComplexCourtCommand): Promise<ICreatedCourtSnapshot>;
 
   getMyComplexHub(query: IGetMyComplexHubQuery): Promise<IGetMyComplexHubResult>;
 }

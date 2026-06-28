@@ -6,12 +6,15 @@ import {
   upsertAuthenticatedUserIdentity
 } from '../../../users/infrastructure/provisioning/demo-owner-role-provisioning';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import { ComplexNotFoundForOwnerError } from '../../domain/errors/complex-not-found-for-owner.error';
 import { InvalidComplexLocationError } from '../../domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '../../domain/errors/invalid-service-catalog-selection.error';
 import type {
   IComplexRepository,
+  ICreateOwnedComplexCourtCommand,
   ICreateComplexWithFirstCourtCommand,
   ICreateComplexWithFirstCourtResult,
+  ICreatedCourtSnapshot,
   IGetMyComplexHubQuery,
   IGetMyComplexHubResult,
   IMyComplexHubCourtSnapshot
@@ -36,6 +39,7 @@ interface IComplexPersistenceTransactionClient
     findMany: PrismaService['serviceCatalog']['findMany'];
   };
   complex: {
+    findFirst: PrismaService['complex']['findFirst'];
     create: PrismaService['complex']['create'];
   };
   court: {
@@ -184,6 +188,67 @@ export class PrismaComplexRepository implements IComplexRepository {
     }
 
     throw lastUniqueConstraintError;
+  }
+
+  async createOwnedComplexCourt(
+    command: ICreateOwnedComplexCourtCommand
+  ): Promise<ICreatedCourtSnapshot> {
+    return this.prisma.$transaction(async (transaction) => {
+      const ownedComplex = await transaction.complex.findFirst({
+        where: {
+          id: command.complexId,
+          deletedAt: null,
+          owner: {
+            identities: {
+              some: {
+                provider: command.ownerIdentity.provider ?? COGNITO_NATIVE_PROVIDER,
+                providerSubject: command.ownerIdentity.sub
+              }
+            }
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (ownedComplex == null) {
+        throw new ComplexNotFoundForOwnerError(command.complexId);
+      }
+
+      const courtServiceIds = await this.ensureActiveServicesForScope(
+        transaction,
+        'court',
+        'COURT',
+        command.court.serviceIds
+      );
+
+      const court = await transaction.court.create({
+        data: {
+          complexId: ownedComplex.id,
+          name: command.court.name
+        }
+      });
+
+      if (courtServiceIds.length > 0) {
+        await transaction.courtService.createMany({
+          data: courtServiceIds.map((serviceCatalogId) => ({
+            courtId: court.id,
+            serviceCatalogId
+          }))
+        });
+      }
+
+      return {
+        id: court.id,
+        complexId: court.complexId,
+        name: court.name,
+        serviceIds: courtServiceIds,
+        status: court.status,
+        createdAt: court.createdAt.toISOString(),
+        updatedAt: court.updatedAt.toISOString()
+      };
+    });
   }
 
   async getMyComplexHub(query: IGetMyComplexHubQuery): Promise<IGetMyComplexHubResult> {

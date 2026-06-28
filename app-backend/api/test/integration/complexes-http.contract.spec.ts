@@ -39,6 +39,15 @@ describe('complex wizard HTTP contract', () => {
     }
   };
 
+  const addCourtPayload = {
+    name: 'Court B',
+    serviceIds: [
+      'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7',
+      'f96c0626-e055-4187-a100-c7d465f51f3b'
+    ]
+  };
+  const ownedComplexId = '7b9d0b87-9e3d-4b43-b5a7-50f79d82fd40';
+
   let app: NestFastifyApplication;
   let prismaService: ReturnType<typeof createPrismaMock>;
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
@@ -338,6 +347,192 @@ describe('complex wizard HTTP contract', () => {
     });
   });
 
+  it('creates a court for an owned complex in the standard envelope', async () => {
+    const state = createTransactionalState();
+    const transactionClient = createTransactionClient(state);
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: addCourtPayload
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(transactionClient.complex.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: ownedComplexId,
+        deletedAt: null,
+        owner: {
+          identities: {
+            some: {
+              provider: 'Google',
+              providerSubject: 'owner-sub'
+            }
+          }
+        }
+      },
+      select: { id: true }
+    });
+    expect(state.courtServices).toEqual([
+      { courtId: 'court-id', serviceCatalogId: 'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7' },
+      { courtId: 'court-id', serviceCatalogId: 'f96c0626-e055-4187-a100-c7d465f51f3b' }
+    ]);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: 'court-id',
+          complexId: ownedComplexId,
+          name: 'Court B',
+          serviceIds: [
+            'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7',
+            'f96c0626-e055-4187-a100-c7d465f51f3b'
+          ],
+          status: 'ACTIVE',
+          createdAt: '2026-06-20T00:00:00.000Z',
+          updatedAt: '2026-06-20T00:00:00.000Z'
+        }
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/complexes/${ownedComplexId}/courts`
+      })
+    });
+  });
+
+  it('rejects unauthenticated add court requests with the standard error envelope', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      payload: addCourtPayload
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      success: false,
+      data: null,
+      errors: [
+        {
+          code: APP_ERROR_CODES.AUTH_MISSING_TOKEN,
+          message: 'Authentication token is required.',
+          status: 401,
+          type: 'urn:problem-type:backend:auth-missing-token'
+        }
+      ],
+      meta: {
+        requestId: expect.any(String),
+        path: `/v1/complexes/${ownedComplexId}/courts`,
+        timestamp: expect.any(String)
+      }
+    });
+  });
+
+  it('rejects add court when the complex is not owned by the authenticated user', async () => {
+    const state = createTransactionalState();
+    const transactionClient = createTransactionClient(state, { ownedComplexFound: false });
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: addCourtPayload
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(transactionClient.court.create).not.toHaveBeenCalled();
+    expect(transactionClient.courtService.createMany).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.RESOURCE_NOT_FOUND,
+            status: 404,
+            message: 'Complex not found for the authenticated owner.'
+          })
+        ],
+        meta: expect.objectContaining({
+          path: `/v1/complexes/${ownedComplexId}/courts`
+        })
+      })
+    );
+  });
+
+  it('rejects add court when the selected court services are inactive or from the wrong scope', async () => {
+    const state = createTransactionalState();
+    const transactionClient = createTransactionClient(state, { courtServicesFound: false });
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: addCourtPayload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(transactionClient.court.create).not.toHaveBeenCalled();
+    expect(transactionClient.courtService.createMany).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400,
+            message: 'Selected court services must exist, be active, and belong to scope COURT.'
+          })
+        ],
+        meta: expect.objectContaining({
+          path: `/v1/complexes/${ownedComplexId}/courts`
+        })
+      })
+    );
+  });
+
+  it('rejects add court payloads that fail HTTP validation before opening a transaction', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        ...addCourtPayload,
+        serviceIds: []
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({
+          path: `/v1/complexes/${ownedComplexId}/courts`
+        })
+      })
+    );
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+  });
+
   it('creates the complex, first court, and service associations from the wizard payload', async () => {
     const state = createTransactionalState();
     const transactionClient = createTransactionClient(state);
@@ -596,6 +791,8 @@ describe('complex wizard HTTP contract', () => {
     options?: {
       cantonMatchesProvince?: boolean;
       complexServicesFound?: boolean;
+      courtServicesFound?: boolean;
+      ownedComplexFound?: boolean;
     }
   ) {
     return {
@@ -619,10 +816,12 @@ describe('complex wizard HTTP contract', () => {
                 : [{ id: 'd76a5f20-83f0-4538-a1c8-4f7b60d0f4be' }];
             }
 
-            return [
-              { id: 'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7' },
-              { id: 'f96c0626-e055-4187-a100-c7d465f51f3b' }
-            ];
+            return options?.courtServicesFound === false
+              ? [{ id: 'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7' }]
+              : [
+                  { id: 'aab8a9f0-faf2-4e73-a8cb-6853f48cc9a7' },
+                  { id: 'f96c0626-e055-4187-a100-c7d465f51f3b' }
+                ];
           })
       },
       user: {
@@ -637,6 +836,9 @@ describe('complex wizard HTTP contract', () => {
         upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' })
       },
       complex: {
+        findFirst: jest.fn().mockResolvedValue(
+          options?.ownedComplexFound === false ? null : { id: ownedComplexId }
+        ),
         create: jest.fn().mockResolvedValue({
           id: 'complex-id',
           name: 'North Sports Center',
@@ -651,14 +853,14 @@ describe('complex wizard HTTP contract', () => {
         })
       },
       court: {
-        create: jest.fn().mockResolvedValue({
+        create: jest.fn().mockImplementation(async ({ data }: { data: { complexId: string; name: string } }) => ({
           id: 'court-id',
-          complexId: 'complex-id',
-          name: 'Court A',
+          complexId: data.complexId,
+          name: data.name,
           status: 'ACTIVE',
           createdAt: new Date('2026-06-20T00:00:00.000Z'),
           updatedAt: new Date('2026-06-20T00:00:00.000Z')
-        })
+        }))
       },
       complexService: {
         createMany: jest.fn().mockImplementation(async ({ data }: { data: Array<Record<string, string>> }) => {
