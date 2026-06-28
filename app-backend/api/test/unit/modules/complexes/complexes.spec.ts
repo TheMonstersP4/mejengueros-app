@@ -1,4 +1,6 @@
 import { CreateComplexWithFirstCourtUseCase } from '@/modules/complexes/application/use-cases/create-complex-with-first-court.use-case';
+import { CreateCourtForOwnedComplexUseCase } from '@/modules/complexes/application/use-cases/create-court-for-owned-complex.use-case';
+import { ComplexNotFoundForOwnerError } from '@/modules/complexes/domain/errors/complex-not-found-for-owner.error';
 import { GetMyComplexHubUseCase } from '@/modules/complexes/application/use-cases/get-my-complex-hub.use-case';
 import { InvalidComplexLocationError } from '@/modules/complexes/domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '@/modules/complexes/domain/errors/invalid-service-catalog-selection.error';
@@ -100,9 +102,11 @@ describe('complexes module behavior', () => {
   interface IRepositoryHarnessOptions {
     provinceExists?: boolean;
     cantonMatchesProvince?: boolean;
+    ownedComplexExists?: boolean;
     complexServicesFound?: boolean;
     courtServicesFound?: boolean;
     failComplexCreate?: boolean;
+    failCourtServiceCreate?: boolean;
     failFirstUserCreateWithUniqueConstraint?: boolean;
   }
 
@@ -271,6 +275,13 @@ describe('complexes module behavior', () => {
         })
       },
       complex: {
+        findFirst: jest.fn().mockImplementation(async ({ where }: { where: { id: string } }) => {
+          if (options?.ownedComplexExists === false || where.id !== 'complex-id') {
+            return null;
+          }
+
+          return { id: 'complex-id' };
+        }),
         create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
           if (options?.failComplexCreate === true) {
             throw new Error('complex-create-failed');
@@ -314,6 +325,10 @@ describe('complexes module behavior', () => {
       },
       courtService: {
         createMany: jest.fn().mockImplementation(async ({ data }: { data: Array<Record<string, string>> }) => {
+          if (options?.failCourtServiceCreate === true) {
+            throw new Error('court-service-create-failed');
+          }
+
           draft.courtServices.push(...data);
           return { count: data.length };
         })
@@ -340,6 +355,7 @@ describe('complexes module behavior', () => {
   it('forwards the expanded wizard payload through the repository port', async () => {
     const repository = {
       createComplexWithFirstCourt: jest.fn().mockResolvedValue(created),
+      createOwnedComplexCourt: jest.fn(),
       getMyComplexHub: jest.fn()
     } satisfies IComplexRepository;
     const useCase = new CreateComplexWithFirstCourtUseCase(repository);
@@ -365,6 +381,7 @@ describe('complexes module behavior', () => {
     } as unknown as CreateComplexWithFirstCourtUseCase;
     const controller = new ComplexesController(
       useCase,
+      {} as CreateCourtForOwnedComplexUseCase,
       {} as GetMyComplexHubUseCase
     );
 
@@ -375,6 +392,7 @@ describe('complexes module behavior', () => {
   it('loads the authenticated owner hub through the repository port', async () => {
     const repository = {
       createComplexWithFirstCourt: jest.fn(),
+      createOwnedComplexCourt: jest.fn(),
       getMyComplexHub: jest.fn().mockResolvedValue(myHub)
     } satisfies IComplexRepository;
     const useCase = new GetMyComplexHubUseCase(repository);
@@ -388,17 +406,55 @@ describe('complexes module behavior', () => {
     });
   });
 
+  it('forwards the add-court payload through the repository port', async () => {
+    const repository = {
+      createComplexWithFirstCourt: jest.fn(),
+      createOwnedComplexCourt: jest.fn().mockResolvedValue(created.firstCourt),
+      getMyComplexHub: jest.fn()
+    } satisfies IComplexRepository;
+    const useCase = new CreateCourtForOwnedComplexUseCase(repository);
+
+    await expect(useCase.execute(authenticatedUser, 'complex-id', request.firstCourt)).resolves.toEqual(
+      created.firstCourt
+    );
+    expect(repository.createOwnedComplexCourt).toHaveBeenCalledWith({
+      ownerIdentity: {
+        sub: 'owner-sub',
+        provider: 'Google'
+      },
+      complexId: 'complex-id',
+      court: request.firstCourt
+    });
+  });
+
   it('delegates the my hub endpoint to the query use case', async () => {
     const useCase = {
       execute: jest.fn().mockResolvedValue(myHub)
     } as unknown as GetMyComplexHubUseCase;
     const controller = new ComplexesController(
       {} as CreateComplexWithFirstCourtUseCase,
+      {} as CreateCourtForOwnedComplexUseCase,
       useCase
     );
 
     await expect(controller.getMyHub(authenticatedUser)).resolves.toEqual(myHub);
     expect(useCase.execute).toHaveBeenCalledWith(authenticatedUser);
+  });
+
+  it('delegates the add-court endpoint to the use case', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue(created.firstCourt)
+    } as unknown as CreateCourtForOwnedComplexUseCase;
+    const controller = new ComplexesController(
+      {} as CreateComplexWithFirstCourtUseCase,
+      useCase,
+      {} as GetMyComplexHubUseCase
+    );
+
+    await expect(controller.createCourt(authenticatedUser, 'complex-id', request.firstCourt)).resolves.toEqual({
+      court: created.firstCourt
+    });
+    expect(useCase.execute).toHaveBeenCalledWith(authenticatedUser, 'complex-id', request.firstCourt);
   });
 
   it('creates the complex, first court, owner role, and service associations atomically', async () => {
@@ -543,6 +599,115 @@ describe('complexes module behavior', () => {
     expect(harness.state.users).toEqual([]);
     expect(harness.state.userIdentities).toEqual([]);
     expect(harness.state.ownerRoles).toEqual([]);
+  });
+
+  it('creates a court for an owned complex and persists court services atomically', async () => {
+    const harness = createRepositoryHarness();
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createOwnedComplexCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'complex-id',
+        court: request.firstCourt
+      })
+    ).resolves.toEqual(created.firstCourt);
+
+    expect(harness.prisma.$transaction).toHaveBeenCalledTimes(1);
+    const transactionClient = harness.transactionClients[0];
+    expect(transactionClient.complex.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'complex-id',
+        deletedAt: null,
+        owner: {
+          identities: {
+            some: {
+              provider: 'Google',
+              providerSubject: 'owner-sub'
+            }
+          }
+        }
+      },
+      select: { id: true }
+    });
+    expect(transactionClient.court.create).toHaveBeenCalledWith({
+      data: {
+        complexId: 'complex-id',
+        name: 'Court A'
+      }
+    });
+    expect(transactionClient.courtService.createMany).toHaveBeenCalledWith({
+      data: [
+        { courtId: 'court-id', serviceCatalogId: 'court-service-id' },
+        { courtId: 'court-id', serviceCatalogId: 'grass-service-id' }
+      ]
+    });
+  });
+
+  it('rejects add-court when the complex does not belong to the authenticated owner', async () => {
+    const harness = createRepositoryHarness({ ownedComplexExists: false });
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createOwnedComplexCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'complex-id',
+        court: request.firstCourt
+      })
+    ).rejects.toBeInstanceOf(ComplexNotFoundForOwnerError);
+
+    const transactionClient = harness.transactionClients[0];
+    expect(transactionClient.court.create).not.toHaveBeenCalled();
+    expect(transactionClient.courtService.createMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects add-court when the selected court services are invalid', async () => {
+    const harness = createRepositoryHarness({ courtServicesFound: false });
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createOwnedComplexCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'complex-id',
+        court: request.firstCourt
+      })
+    ).rejects.toBeInstanceOf(InvalidServiceCatalogSelectionError);
+
+    const transactionClient = harness.transactionClients[0];
+    expect(transactionClient.court.create).not.toHaveBeenCalled();
+    expect(transactionClient.courtService.createMany).not.toHaveBeenCalled();
+  });
+
+  it('rolls back add-court writes when court service persistence fails after court creation', async () => {
+    const harness = createRepositoryHarness({ failCourtServiceCreate: true });
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createOwnedComplexCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'complex-id',
+        court: request.firstCourt
+      })
+    ).rejects.toThrow('court-service-create-failed');
+
+    expect(harness.prisma.$transaction).toHaveBeenCalledTimes(1);
+    const transactionClient = harness.transactionClients[0];
+    expect(transactionClient.court.create).toHaveBeenCalledTimes(1);
+    expect(transactionClient.courtService.createMany).toHaveBeenCalledTimes(1);
+    expect(harness.state.courts).toEqual([]);
+    expect(harness.state.courtServices).toEqual([]);
   });
 
   it('rolls back owner role and write state when complex creation fails after validation', async () => {
