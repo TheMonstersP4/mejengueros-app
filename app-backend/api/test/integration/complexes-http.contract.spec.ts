@@ -227,6 +227,117 @@ describe('complex wizard HTTP contract', () => {
     });
   });
 
+  it('returns the authenticated owner my complex hub in the standard envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/complexes/my-hub',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.complex.findMany).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        owner: {
+          identities: {
+            some: {
+              provider: 'Google',
+              providerSubject: 'owner-sub'
+            }
+          }
+        }
+      },
+      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        provinceId: true,
+        cantonId: true,
+        latitude: true,
+        longitude: true,
+        status: true,
+        courts: {
+          where: { deletedAt: null },
+          orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            availability: {
+              select: {
+                id: true
+              }
+            }
+          }
+        }
+      }
+    });
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        complexes: [
+          {
+            id: 'complex-id',
+            name: 'North Sports Center',
+            address: '123 Main Street',
+            provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+            cantonId: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
+            latitude: 9.935,
+            longitude: -84.091,
+            status: 'ACTIVE',
+            courts: [
+              {
+                id: 'court-configured-id',
+                name: 'Court A',
+                status: 'ACTIVE',
+                availabilityStatus: 'CONFIGURED'
+              },
+              {
+                id: 'court-pending-id',
+                name: 'Court B',
+                status: 'ACTIVE',
+                availabilityStatus: 'PENDING'
+              }
+            ]
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: '/v1/complexes/my-hub'
+      })
+    });
+  });
+
+  it('rejects unauthenticated my complex hub requests with the standard error envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/complexes/my-hub'
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      success: false,
+      data: null,
+      errors: [
+        {
+          code: APP_ERROR_CODES.AUTH_MISSING_TOKEN,
+          message: 'Authentication token is required.',
+          status: 401,
+          type: 'urn:problem-type:backend:auth-missing-token'
+        }
+      ],
+      meta: {
+        requestId: expect.any(String),
+        path: '/v1/complexes/my-hub',
+        timestamp: expect.any(String)
+      }
+    });
+  });
+
   it('creates the complex, first court, and service associations from the wizard payload', async () => {
     const state = createTransactionalState();
     const transactionClient = createTransactionClient(state);
@@ -439,6 +550,34 @@ describe('complex wizard HTTP contract', () => {
               }
             ];
           })
+      },
+      complex: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'complex-id',
+            name: 'North Sports Center',
+            address: '123 Main Street',
+            provinceId: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+            cantonId: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
+            latitude: 9.935,
+            longitude: -84.091,
+            status: 'ACTIVE',
+            courts: [
+              {
+                id: 'court-configured-id',
+                name: 'Court A',
+                status: 'ACTIVE',
+                availability: { id: 'availability-id' }
+              },
+              {
+                id: 'court-pending-id',
+                name: 'Court B',
+                status: 'ACTIVE',
+                availability: null
+              }
+            ]
+          }
+        ])
       },
       onModuleInit: jest.fn(),
       onModuleDestroy: jest.fn()

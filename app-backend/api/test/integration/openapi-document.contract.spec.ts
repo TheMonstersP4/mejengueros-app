@@ -58,6 +58,7 @@ describe('OpenAPI document contract', () => {
     ).toBeDefined();
     expect(responseSchema('/v1/services', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/complexes', 'post', '201')).toBeDefined();
+    expect(responseSchema('/v1/complexes/my-hub', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
     expectSuccessEnvelopeSchema(responseSchema('/v1/auth/me', 'get', '200'));
@@ -80,7 +81,12 @@ describe('OpenAPI document contract', () => {
       '#/components/schemas/ServiceCatalogResponse'
     );
     expectSuccessEnvelopeSchema(responseSchema('/v1/complexes', 'post', '201'));
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/complexes/my-hub', 'get', '200'),
+      '#/components/schemas/MyComplexHubResponse'
+    );
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/complexes/my-hub', 'get', '401');
     expectErrorEnvelopeSchema('/v1/services', 'get', '400');
     expectErrorEnvelopeSchema(
       '/v1/locations/provinces/{provinceId}/cantons',
@@ -130,6 +136,18 @@ describe('OpenAPI document contract', () => {
         items: expect.objectContaining({
           $ref: itemRef
         })
+      })
+    );
+  }
+
+  function expectObjectEnvelopeSchema(
+    schema: SchemaRecord,
+    objectRef: string
+  ): void {
+    expectSuccessEnvelopeSchema(schema);
+    expect(dataSchema(schema)).toEqual(
+      expect.objectContaining({
+        $ref: objectRef
       })
     );
   }
