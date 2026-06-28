@@ -22,6 +22,7 @@ private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
       subclass(VerifyAccountRoute::class, VerifyAccountRoute.serializer())
       subclass(ForgotPasswordRoute::class, ForgotPasswordRoute.serializer())
       subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
+      subclass(HomeRoute::class, HomeRoute.serializer())
       subclass(SearchRoute::class, SearchRoute.serializer())
       subclass(ReservationsRoute::class, ReservationsRoute.serializer())
       subclass(NotificationsRoute::class, NotificationsRoute.serializer())

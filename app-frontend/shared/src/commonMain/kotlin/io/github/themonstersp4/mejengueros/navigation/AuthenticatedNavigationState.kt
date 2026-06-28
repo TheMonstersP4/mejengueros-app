@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,7 +23,7 @@ fun rememberAuthenticatedNavigationState(
   val notificationsBackStack = rememberNavBackStack(savedStateConfiguration, NotificationsRoute)
   val myComplexBackStack = rememberNavBackStack(savedStateConfiguration, MyComplexRoute)
 
-  val selectedRoute = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Search) }
+  val selectedRouteState = rememberSavedAuthenticatedTopLevelRouteState()
   val ownerCourtAvailabilityEntrypointState =
       rememberSaveable(stateSaver = ownerCourtAvailabilityEntrypointSaver()) {
         mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
@@ -33,11 +34,20 @@ fun rememberAuthenticatedNavigationState(
       reservationsBackStack,
       notificationsBackStack,
       myComplexBackStack,
-      selectedRoute,
+      selectedRouteState,
       ownerCourtAvailabilityEntrypointState,
   ) {
+    normalizeRestoredAuthenticatedNavigationState(
+        savedSelectedRouteName = selectedRouteState.savedRouteName,
+        selectedRoute = selectedRouteState.route,
+        searchBackStack = searchBackStack,
+        reservationsBackStack = reservationsBackStack,
+        notificationsBackStack = notificationsBackStack,
+        myComplexBackStack = myComplexBackStack,
+    )
+
     AuthenticatedNavigationState(
-        selectedRoute = selectedRoute,
+        selectedRoute = selectedRouteState.route,
         searchBackStack = searchBackStack,
         reservationsBackStack = reservationsBackStack,
         notificationsBackStack = notificationsBackStack,
@@ -46,6 +56,167 @@ fun rememberAuthenticatedNavigationState(
     )
   }
 }
+
+internal data class NormalizedAuthenticatedNavigation(
+    val selectedRoute: AuthenticatedTopLevelRoute,
+    val searchStack: List<AppRoute>,
+    val reservationsStack: List<AppRoute>,
+    val notificationsStack: List<AppRoute>,
+    val myComplexStack: List<AppRoute>,
+)
+
+internal fun normalizeRestoredAuthenticatedNavigation(
+    savedSelectedRouteName: String?,
+    searchStack: List<AppRoute>,
+    reservationsStack: List<AppRoute>,
+    notificationsStack: List<AppRoute>,
+    myComplexStack: List<AppRoute>,
+): NormalizedAuthenticatedNavigation {
+  val legacyOwnerFlow = legacyOwnerFlowFrom(searchStack)
+  val normalizedSearchStack = normalizeSearchStack(searchStack)
+  val normalizedMyComplexStack =
+      normalizeMyComplexStack(myComplexStack).let { currentStack ->
+        when {
+          legacyOwnerFlow == null -> currentStack
+          currentStack == listOf(MyComplexRoute) -> legacyOwnerFlow
+          else -> currentStack
+        }
+      }
+
+  return NormalizedAuthenticatedNavigation(
+      selectedRoute =
+          normalizeAuthenticatedTopLevelRoute(
+              savedSelectedRouteName = savedSelectedRouteName,
+              hasLegacyOwnerFlow = legacyOwnerFlow != null,
+          ),
+      searchStack = normalizedSearchStack,
+      reservationsStack = normalizeReservationsStack(reservationsStack),
+      notificationsStack = normalizeNotificationsStack(notificationsStack),
+      myComplexStack = normalizedMyComplexStack,
+  )
+}
+
+private fun normalizeRestoredAuthenticatedNavigationState(
+    savedSelectedRouteName: State<String>,
+    selectedRoute: MutableState<AuthenticatedTopLevelRoute>,
+    searchBackStack: NavBackStack<NavKey>,
+    reservationsBackStack: NavBackStack<NavKey>,
+    notificationsBackStack: NavBackStack<NavKey>,
+    myComplexBackStack: NavBackStack<NavKey>,
+) {
+  val normalized =
+      normalizeRestoredAuthenticatedNavigation(
+          savedSelectedRouteName = savedSelectedRouteName.value,
+          searchStack = searchBackStack.toAppRoutes(),
+          reservationsStack = reservationsBackStack.toAppRoutes(),
+          notificationsStack = notificationsBackStack.toAppRoutes(),
+          myComplexStack = myComplexBackStack.toAppRoutes(),
+      )
+
+  selectedRoute.value = normalized.selectedRoute
+  searchBackStack.replaceWith(normalized.searchStack)
+  reservationsBackStack.replaceWith(normalized.reservationsStack)
+  notificationsBackStack.replaceWith(normalized.notificationsStack)
+  myComplexBackStack.replaceWith(normalized.myComplexStack)
+}
+
+private fun NavBackStack<NavKey>.toAppRoutes(): List<AppRoute> = map { route ->
+  route as? AppRoute ?: SearchRoute
+}
+
+private fun NavBackStack<NavKey>.replaceWith(routes: List<AppRoute>) {
+  clear()
+  routes.forEach(::add)
+}
+
+@Composable
+private fun rememberSavedAuthenticatedTopLevelRouteState(): SavedAuthenticatedTopLevelRouteState {
+  val savedRouteName = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Search.name) }
+  val routeState =
+      remember(savedRouteName) {
+        object : MutableState<AuthenticatedTopLevelRoute> {
+          override var value: AuthenticatedTopLevelRoute
+            get() = normalizeAuthenticatedTopLevelRoute(savedRouteName.value, false)
+            set(value) {
+              savedRouteName.value = value.name
+            }
+
+          override fun component1(): AuthenticatedTopLevelRoute = value
+
+          override fun component2(): (AuthenticatedTopLevelRoute) -> Unit = { value = it }
+        }
+      }
+  return remember(savedRouteName, routeState) {
+    SavedAuthenticatedTopLevelRouteState(savedRouteName = savedRouteName, route = routeState)
+  }
+}
+
+private data class SavedAuthenticatedTopLevelRouteState(
+    val savedRouteName: MutableState<String>,
+    val route: MutableState<AuthenticatedTopLevelRoute>,
+)
+
+private fun normalizeAuthenticatedTopLevelRoute(
+    savedSelectedRouteName: String?,
+    hasLegacyOwnerFlow: Boolean,
+): AuthenticatedTopLevelRoute =
+    when (savedSelectedRouteName) {
+      AuthenticatedTopLevelRoute.Search.name -> AuthenticatedTopLevelRoute.Search
+      AuthenticatedTopLevelRoute.Reservations.name -> AuthenticatedTopLevelRoute.Reservations
+      AuthenticatedTopLevelRoute.Notifications.name -> AuthenticatedTopLevelRoute.Notifications
+      AuthenticatedTopLevelRoute.MyComplex.name -> AuthenticatedTopLevelRoute.MyComplex
+      "Home" ->
+          if (hasLegacyOwnerFlow) AuthenticatedTopLevelRoute.MyComplex
+          else AuthenticatedTopLevelRoute.Search
+      "Kit",
+      "Pokedex" -> AuthenticatedTopLevelRoute.Search
+      else -> AuthenticatedTopLevelRoute.Search
+    }
+
+private fun normalizeSearchStack(routes: List<AppRoute>): List<AppRoute> =
+    if (legacyOwnerFlowFrom(routes) != null) listOf(SearchRoute)
+    else listOf(routes.firstOrNull()?.normalizeForSearchRoot() ?: SearchRoute)
+
+private fun normalizeReservationsStack(routes: List<AppRoute>): List<AppRoute> =
+    if (routes.firstOrNull() == ReservationsRoute) listOf(ReservationsRoute)
+    else listOf(ReservationsRoute)
+
+private fun normalizeNotificationsStack(routes: List<AppRoute>): List<AppRoute> =
+    if (routes.firstOrNull() == NotificationsRoute) listOf(NotificationsRoute)
+    else listOf(NotificationsRoute)
+
+private fun normalizeMyComplexStack(routes: List<AppRoute>): List<AppRoute> {
+  val details = routes.drop(1).mapNotNull { it.normalizeForMyComplexStack() }
+  return listOf(MyComplexRoute) + details.distinct()
+}
+
+private fun legacyOwnerFlowFrom(routes: List<AppRoute>): List<AppRoute>? {
+  val details = routes.drop(1).mapNotNull { it.normalizeForMyComplexStack() }
+  return if (details.isEmpty()) null else listOf(MyComplexRoute) + details.distinct()
+}
+
+private fun AppRoute.normalizeForSearchRoot(): AppRoute =
+    when (this) {
+      HomeRoute,
+      KitRoute,
+      AvailabilitySelectorsRoute,
+      PokedexRoute,
+      is PokemonDetailRoute,
+      SearchRoute,
+      CreateComplexRoute,
+      is CourtAvailabilityRoute,
+      MyComplexRoute,
+      ReservationsRoute,
+      NotificationsRoute -> SearchRoute
+      else -> SearchRoute
+    }
+
+private fun AppRoute.normalizeForMyComplexStack(): AppRoute? =
+    when (this) {
+      CreateComplexRoute -> CreateComplexRoute
+      is CourtAvailabilityRoute -> this
+      else -> null
+    }
 
 class AuthenticatedNavigationState(
     selectedRoute: MutableState<AuthenticatedTopLevelRoute>,
