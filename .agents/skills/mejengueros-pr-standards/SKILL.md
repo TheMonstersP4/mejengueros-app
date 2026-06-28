@@ -22,6 +22,7 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 - Every PR body must be written in clear English.
 - Every PR comment, review comment, inline review, and maintainer reply must be written in clear English by default.
 - If the user explicitly requests another language for a specific PR comment or review, follow that request for that comment only.
+- When posting GitHub PR comments or reviews from Windows/PowerShell, use real newlines or a body file; do not use inline `\n\n` or Markdown backticks inside double-quoted `gh ... --body "..."` commands.
 - Do not apply PR language rules to GitHub issues; issue titles and bodies remain governed by `mejengueros-issue-standards`.
 - Every PR must use exactly one primary `type:*` label chosen by evaluating the dominant impact of the full change; do not copy a template option mechanically.
 - Every PR must request `@kevinah95` as reviewer.
@@ -43,6 +44,7 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 | PR body | Write it in clear English |
 | PR comments and reviews | Write human review/conversation feedback in clear English by default |
 | Explicit comment language request | Use the requested language for that comment only |
+| Windows/PowerShell GitHub comments | Use real newlines or a body file before calling `gh`; avoid inline `\n\n` and unsafe double-quoted Markdown bodies |
 | PR type | Choose exactly one primary `type:*` based on the dominant impact of the full change |
 | Required reviewer | Request `@kevinah95` |
 | Ownership automation | Rely on `CODEOWNERS` once branch protection requires code owner reviews |
@@ -63,8 +65,9 @@ Use this skill when work includes Mejengueros issues, GitHub Project tracking, p
 6. Write the PR title as `type(scope): English summary`, for example `chore(repo): standardize PR governance`.
 7. Write the PR body in clear English.
 8. Write PR comments, review comments, inline reviews, and maintainer replies in clear English by default.
-9. When opening or editing the PR, request `@kevinah95` as reviewer.
-10. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
+9. When posting PR comments or reviews from Windows/PowerShell, build the body with `[Environment]::NewLine` or a body file before calling `gh`; avoid inline `\n\n` and raw Markdown backticks in double-quoted `--body` strings.
+10. When opening or editing the PR, request `@kevinah95` as reviewer.
+11. When documenting examples, use real repository conventions such as `feat/ddgutierrezc/issue-48-complex-frontend`, `fix/ddgutierrezc/owner-onboarding`, and `chore/ddgutierrezc/readme-contribucion`.
 
 ## Issue Tracking Steps
 
