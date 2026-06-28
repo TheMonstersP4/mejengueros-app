@@ -1,9 +1,11 @@
 import { CreateComplexWithFirstCourtUseCase } from '@/modules/complexes/application/use-cases/create-complex-with-first-court.use-case';
+import { GetMyComplexHubUseCase } from '@/modules/complexes/application/use-cases/get-my-complex-hub.use-case';
 import { InvalidComplexLocationError } from '@/modules/complexes/domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '@/modules/complexes/domain/errors/invalid-service-catalog-selection.error';
 import type {
   IComplexRepository,
-  ICreateComplexWithFirstCourtResult
+  ICreateComplexWithFirstCourtResult,
+  IGetMyComplexHubResult
 } from '@/modules/complexes/domain/repositories/complex.repository';
 import { PrismaComplexRepository } from '@/modules/complexes/infrastructure/persistence/prisma-complex.repository';
 import { ComplexesController } from '@/modules/complexes/interfaces/http/controllers/complexes.controller';
@@ -65,6 +67,35 @@ describe('complexes module behavior', () => {
       updatedAt: '2026-06-20T00:00:00.000Z'
     }
   } satisfies ICreateComplexWithFirstCourtResult;
+
+  const myHub = {
+    complexes: [
+      {
+        id: 'complex-id',
+        name: 'North Sports Center',
+        address: '123 Main Street',
+        provinceId: 'province-id',
+        cantonId: 'canton-id',
+        latitude: 9.935,
+        longitude: -84.091,
+        status: 'ACTIVE',
+        courts: [
+          {
+            id: 'court-configured-id',
+            name: 'Court A',
+            status: 'ACTIVE',
+            availabilityStatus: 'CONFIGURED'
+          },
+          {
+            id: 'court-pending-id',
+            name: 'Court B',
+            status: 'ACTIVE',
+            availabilityStatus: 'PENDING'
+          }
+        ]
+      }
+    ]
+  } satisfies IGetMyComplexHubResult;
 
   interface IRepositoryHarnessOptions {
     provinceExists?: boolean;
@@ -308,7 +339,8 @@ describe('complexes module behavior', () => {
 
   it('forwards the expanded wizard payload through the repository port', async () => {
     const repository = {
-      createComplexWithFirstCourt: jest.fn().mockResolvedValue(created)
+      createComplexWithFirstCourt: jest.fn().mockResolvedValue(created),
+      getMyComplexHub: jest.fn()
     } satisfies IComplexRepository;
     const useCase = new CreateComplexWithFirstCourtUseCase(repository);
 
@@ -331,10 +363,42 @@ describe('complexes module behavior', () => {
     const useCase = {
       execute: jest.fn().mockResolvedValue(created)
     } as unknown as CreateComplexWithFirstCourtUseCase;
-    const controller = new ComplexesController(useCase);
+    const controller = new ComplexesController(
+      useCase,
+      {} as GetMyComplexHubUseCase
+    );
 
     await expect(controller.create(authenticatedUser, request)).resolves.toEqual(created);
     expect(useCase.execute).toHaveBeenCalledWith(authenticatedUser, request);
+  });
+
+  it('loads the authenticated owner hub through the repository port', async () => {
+    const repository = {
+      createComplexWithFirstCourt: jest.fn(),
+      getMyComplexHub: jest.fn().mockResolvedValue(myHub)
+    } satisfies IComplexRepository;
+    const useCase = new GetMyComplexHubUseCase(repository);
+
+    await expect(useCase.execute(authenticatedUser)).resolves.toEqual(myHub);
+    expect(repository.getMyComplexHub).toHaveBeenCalledWith({
+      ownerIdentity: {
+        sub: 'owner-sub',
+        provider: 'Google'
+      }
+    });
+  });
+
+  it('delegates the my hub endpoint to the query use case', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue(myHub)
+    } as unknown as GetMyComplexHubUseCase;
+    const controller = new ComplexesController(
+      {} as CreateComplexWithFirstCourtUseCase,
+      useCase
+    );
+
+    await expect(controller.getMyHub(authenticatedUser)).resolves.toEqual(myHub);
+    expect(useCase.execute).toHaveBeenCalledWith(authenticatedUser);
   });
 
   it('creates the complex, first court, owner role, and service associations atomically', async () => {
@@ -555,4 +619,142 @@ describe('complexes module behavior', () => {
     ]);
     expect(harness.state.ownerRoles).toEqual([{ userId: 'owner-id', role: 'OWNER' }]);
   });
+
+  it('returns only complexes owned by the authenticated identity in my hub', async () => {
+    const harness = createMyHubRepositoryHarness();
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.getMyComplexHub({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        }
+      })
+    ).resolves.toEqual(myHub);
+
+    expect(harness.findMany).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        owner: {
+          identities: {
+            some: {
+              provider: 'Google',
+              providerSubject: 'owner-sub'
+            }
+          }
+        }
+      },
+      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+      select: expect.any(Object)
+    });
+  });
+
+  it('returns an empty my hub when the owner has no complexes and falls back to Cognito provider', async () => {
+    const harness = createMyHubRepositoryHarness();
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.getMyComplexHub({
+        ownerIdentity: {
+          sub: 'owner-sub-without-complexes'
+        }
+      })
+    ).resolves.toEqual({ complexes: [] });
+
+    expect(harness.findMany).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        owner: {
+          identities: {
+            some: {
+              provider: 'Cognito',
+              providerSubject: 'owner-sub-without-complexes'
+            }
+          }
+        }
+      },
+      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+      select: expect.any(Object)
+    });
+  });
 });
+
+function createMyHubRepositoryHarness() {
+  const records = [
+    {
+      ownerProvider: 'Google',
+      ownerSub: 'owner-sub',
+      complex: {
+        id: 'complex-id',
+        name: 'North Sports Center',
+        address: '123 Main Street',
+        provinceId: 'province-id',
+        cantonId: 'canton-id',
+        latitude: 9.935,
+        longitude: -84.091,
+        status: 'ACTIVE',
+        createdAt: new Date('2026-06-20T00:00:00.000Z'),
+        courts: [
+          {
+            id: 'court-configured-id',
+            name: 'Court A',
+            status: 'ACTIVE',
+            availability: { id: 'availability-id' }
+          },
+          {
+            id: 'court-pending-id',
+            name: 'Court B',
+            status: 'ACTIVE',
+            availability: null
+          }
+        ]
+      }
+    },
+    {
+      ownerProvider: 'Google',
+      ownerSub: 'different-owner-sub',
+      complex: {
+        id: 'foreign-complex-id',
+        name: 'Foreign Sports Center',
+        address: '456 Other Street',
+        provinceId: 'province-id',
+        cantonId: 'canton-id',
+        latitude: 10.0,
+        longitude: -84.1,
+        status: 'ACTIVE',
+        createdAt: new Date('2026-06-21T00:00:00.000Z'),
+        courts: [
+          {
+            id: 'foreign-court-id',
+            name: 'Foreign Court',
+            status: 'ACTIVE',
+            availability: { id: 'foreign-availability-id' }
+          }
+        ]
+      }
+    }
+  ];
+
+  const findMany = jest.fn().mockImplementation(async ({ where }: { where: { deletedAt: null; owner: { identities: { some: { provider: string; providerSubject: string } } } } }) => {
+    const ownerFilter = where.owner.identities.some;
+
+    return records
+      .filter(
+        (record) =>
+          record.ownerProvider === ownerFilter.provider &&
+          record.ownerSub === ownerFilter.providerSubject
+      )
+      .map((record) => record.complex);
+  });
+
+  return {
+    findMany,
+    prisma: {
+      $transaction: jest.fn(),
+      complex: {
+        findMany
+      }
+    }
+  };
+}

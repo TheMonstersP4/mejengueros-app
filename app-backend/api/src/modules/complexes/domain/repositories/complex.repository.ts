@@ -78,6 +78,40 @@ export interface ICreateComplexWithFirstCourtResult {
   firstCourt: ICreatedCourtSnapshot;
 }
 
+export interface IMyComplexHubOwnerIdentity {
+  sub: string;
+  provider?: string;
+}
+
+export interface IGetMyComplexHubQuery {
+  ownerIdentity: IMyComplexHubOwnerIdentity;
+}
+
+export type IMyComplexCourtAvailabilityStatus = 'CONFIGURED' | 'PENDING';
+
+export interface IMyComplexHubCourtSnapshot {
+  id: string;
+  name: string;
+  status: string;
+  availabilityStatus: IMyComplexCourtAvailabilityStatus;
+}
+
+export interface IMyComplexHubComplexSnapshot {
+  id: string;
+  name: string;
+  address: string;
+  provinceId?: string;
+  cantonId?: string;
+  latitude?: number;
+  longitude?: number;
+  status: string;
+  courts: IMyComplexHubCourtSnapshot[];
+}
+
+export interface IGetMyComplexHubResult {
+  complexes: IMyComplexHubComplexSnapshot[];
+}
+
 /**
  * Persistence contract for complex creation flows.
  */
@@ -85,6 +119,8 @@ export interface IComplexRepository {
   createComplexWithFirstCourt(
     command: ICreateComplexWithFirstCourtCommand
   ): Promise<ICreateComplexWithFirstCourtResult>;
+
+  getMyComplexHub(query: IGetMyComplexHubQuery): Promise<IGetMyComplexHubResult>;
 }
 
 /**
