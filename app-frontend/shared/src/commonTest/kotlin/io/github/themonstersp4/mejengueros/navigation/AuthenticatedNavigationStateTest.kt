@@ -199,9 +199,11 @@ class AuthenticatedNavigationStateTest {
 
     state.openCreateComplex()
     state.openCourtAvailability(
-        courtId = "court-id",
-        courtName = "Cancha 1",
-        complexName = "Mejengas CR",
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
     )
 
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
@@ -216,9 +218,11 @@ class AuthenticatedNavigationStateTest {
     val state = testNavigationState()
 
     state.openCourtAvailability(
-        courtId = "court-id",
-        courtName = "Cancha 1",
-        complexName = "Mejengas CR",
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
     )
 
     assertEquals(
@@ -236,9 +240,11 @@ class AuthenticatedNavigationStateTest {
     val state = testNavigationState()
 
     state.openCourtAvailability(
-        courtId = "court-id",
-        courtName = "Cancha 1",
-        complexName = "Mejengas CR",
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
     )
     state.returnToMyComplexRoot()
     state.openOwnerCourtAvailabilityEntrypoint()
@@ -254,14 +260,50 @@ class AuthenticatedNavigationStateTest {
     val state = testNavigationState()
 
     state.openCourtAvailability(
-        courtId = "court-id",
-        courtName = "Cancha 1",
-        complexName = "Mejengas CR",
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
     )
     state.returnToMyComplexRoot()
 
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
     assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun returnToMyComplexRootRequestsMyComplexHubReload() {
+    val state = testNavigationState()
+
+    state.openCourtAvailability(
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
+    )
+    state.returnToMyComplexRoot()
+
+    assertEquals(1, state.myComplexHubReloadRequestKey)
+  }
+
+  @Test
+  fun closeCurrentDetailRequestsMyComplexHubReloadWhenLeavingAvailability() {
+    val state = testNavigationState()
+
+    state.openCourtAvailability(
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
+    )
+
+    state.closeCurrentDetail()
+
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+    assertEquals(1, state.myComplexHubReloadRequestKey)
   }
 
   @Test
@@ -311,9 +353,11 @@ class AuthenticatedNavigationStateTest {
     val state = testNavigationState()
 
     state.openCourtAvailability(
-        courtId = "court-id",
-        courtName = "Cancha 1",
-        complexName = "Mejengas CR",
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "court-id",
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+        )
     )
 
     state.reset()
@@ -329,5 +373,6 @@ class AuthenticatedNavigationStateTest {
           notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
           myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
+          myComplexHubReloadRequestKeyState = mutableStateOf(0),
       )
 }

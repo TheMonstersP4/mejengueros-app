@@ -5,6 +5,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -36,14 +37,59 @@ class CourtAvailabilityNavigationIntegrationTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
   @Test
-  fun confirmingAvailabilitySuccessReturnsToMyComplexAndClearsDialogState() = runTest {
-    val coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+  fun backFromAvailabilityReturnsToMyComplexAndRequestsHubReload() = runTest {
+    var myComplexReloadRequests = 0
     val navigationState =
         testNavigationState().apply {
           openCourtAvailability(
-              courtId = "court-id",
-              courtName = "Cancha 1",
-              complexName = "Mejengas CR",
+              OwnerCourtAvailabilityEntrypoint(
+                  courtId = "court-id",
+                  courtName = "Cancha 1",
+                  complexName = "Mejengas CR",
+              )
+          )
+        }
+    val shellActions = shellActions(navigationState)
+    val viewModel =
+        CourtAvailabilityViewModel(
+            courtId = "court-id",
+            initialCourtName = "Cancha 1",
+            initialComplexName = "Mejengas CR",
+            repository = SuccessfulCourtAvailabilityRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+
+    composeRule.setContent {
+      AvailabilityNavigationTestHost(
+          navigationState = navigationState,
+          viewModel = viewModel,
+          shellActions = shellActions,
+          onMyComplexReloadRequested = { myComplexReloadRequests += 1 },
+      )
+    }
+
+    composeRule.onNodeWithContentDescription("Volver").assertExists().performClick()
+
+    composeRule.onNodeWithText("Mi complejo").assertExists()
+    composeRule.runOnIdle {
+      assertEquals(AuthenticatedTopLevelRoute.MyComplex, navigationState.selectedRoute)
+      assertEquals(listOf(MyComplexRoute), navigationState.currentBackStack.toList())
+      assertEquals(1, myComplexReloadRequests)
+    }
+  }
+
+  @Test
+  fun confirmingAvailabilitySuccessReturnsToMyComplexAndClearsDialogState() = runTest {
+    val coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    var myComplexReloadRequests = 0
+    val navigationState =
+        testNavigationState().apply {
+          openCourtAvailability(
+              OwnerCourtAvailabilityEntrypoint(
+                  courtId = "court-id",
+                  courtName = "Cancha 1",
+                  complexName = "Mejengas CR",
+              )
           )
         }
     val shellActions = shellActions(navigationState)
@@ -68,6 +114,7 @@ class CourtAvailabilityNavigationIntegrationTest {
           navigationState = navigationState,
           viewModel = viewModel,
           shellActions = shellActions,
+          onMyComplexReloadRequested = { myComplexReloadRequests += 1 },
       )
     }
 
@@ -79,6 +126,7 @@ class CourtAvailabilityNavigationIntegrationTest {
     composeRule.runOnIdle {
       assertEquals(AuthenticatedTopLevelRoute.MyComplex, navigationState.selectedRoute)
       assertEquals(listOf(MyComplexRoute), navigationState.currentBackStack.toList())
+      assertEquals(1, myComplexReloadRequests)
       assertNull(viewModel.uiState.value.successMessage)
     }
 
@@ -91,8 +139,13 @@ private fun AvailabilityNavigationTestHost(
     navigationState: AuthenticatedNavigationState,
     viewModel: CourtAvailabilityViewModel,
     shellActions: AuthenticatedShellActions,
+    onMyComplexReloadRequested: () -> Unit,
 ) {
   MejenguerosTheme {
+    MyComplexHubReloadEffect(
+        reloadRequestKey = navigationState.myComplexHubReloadRequestKey,
+        onReloadRequested = onMyComplexReloadRequested,
+    )
     when (navigationState.currentBackStack.lastOrNull()) {
       is CourtAvailabilityRoute ->
           CourtAvailabilityEntryContent(viewModel = viewModel, shellActions = shellActions)
@@ -125,6 +178,7 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
         myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
         ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
+        myComplexHubReloadRequestKeyState = mutableStateOf(0),
     )
 
 private class SuccessfulCourtAvailabilityRepository : ICourtAvailabilityRepository {

@@ -12,6 +12,8 @@ import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
+import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.ForgotPasswordScreen
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
@@ -255,7 +257,17 @@ private fun MyComplexEntry(
     authViewModel: AuthViewModel,
     shellActions: AuthenticatedShellActions,
 ) {
-  val state by authViewModel.uiState.collectAsState()
+  val authState by authViewModel.uiState.collectAsState()
+  val myComplexViewModel = koinViewModel<MyComplexViewModel>()
+  val state by myComplexViewModel.uiState.collectAsState()
+  MyComplexInitialRefreshEffect(
+      state = state,
+      onInitialLoadRequested = myComplexViewModel::refresh,
+  )
+  MyComplexHubReloadEffect(
+      reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
+      onReloadRequested = myComplexViewModel::refresh,
+  )
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
@@ -267,13 +279,37 @@ private fun MyComplexEntry(
       title = "Mi complejo",
   ) { contentPadding ->
     MyComplexScreen(
-        username = state.title,
+        state = state,
+        username = authState.title,
         contentPadding = contentPadding,
         onCreateComplex = shellActions.openCreateComplex,
-        ownerAvailabilityEntrypoint = authenticatedNavigationState.ownerCourtAvailabilityEntrypoint,
-        onOpenOwnerAvailabilityEntrypoint =
-            authenticatedNavigationState::openOwnerCourtAvailabilityEntrypoint,
+        onRetry = myComplexViewModel::refresh,
+        onConfigureAvailability = shellActions.openCourtAvailability,
     )
+  }
+}
+
+@Composable
+internal fun MyComplexInitialRefreshEffect(
+    state: MyComplexUiState,
+    onInitialLoadRequested: () -> Unit,
+) {
+  LaunchedEffect(state.isLoading, state.complexes, state.errorMessage) {
+    if (state.isLoading && state.complexes.isEmpty() && state.errorMessage == null) {
+      onInitialLoadRequested()
+    }
+  }
+}
+
+@Composable
+internal fun MyComplexHubReloadEffect(
+    reloadRequestKey: Int,
+    onReloadRequested: () -> Unit,
+) {
+  LaunchedEffect(reloadRequestKey) {
+    if (reloadRequestKey > 0) {
+      onReloadRequested()
+    }
   }
 }
 
@@ -288,9 +324,11 @@ private fun CreateComplexEntry(
     LaunchedEffect(createdComplex.firstCourtId) {
       createComplexViewModel.acknowledgeSuccess()
       shellActions.openCourtAvailability(
-          createdComplex.firstCourtId,
-          createdComplex.firstCourtName,
-          createdComplex.complexName,
+          OwnerCourtAvailabilityEntrypoint(
+              courtId = createdComplex.firstCourtId,
+              courtName = createdComplex.firstCourtName,
+              complexName = createdComplex.complexName,
+          )
       )
     }
     return

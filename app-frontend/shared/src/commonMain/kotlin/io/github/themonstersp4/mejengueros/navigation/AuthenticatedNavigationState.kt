@@ -29,6 +29,7 @@ fun rememberAuthenticatedNavigationState(
       rememberSaveable(stateSaver = ownerCourtAvailabilityEntrypointSaver()) {
         mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
       }
+  val myComplexHubReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
 
   return remember(
       searchBackStack,
@@ -37,6 +38,7 @@ fun rememberAuthenticatedNavigationState(
       myComplexBackStack,
       selectedRouteState,
       ownerCourtAvailabilityEntrypointState,
+      myComplexHubReloadRequestKeyState,
   ) {
     normalizeRestoredAuthenticatedNavigationState(
         savedSelectedRouteName = selectedRouteState.savedRouteName,
@@ -54,6 +56,7 @@ fun rememberAuthenticatedNavigationState(
         notificationsBackStack = notificationsBackStack,
         myComplexBackStack = myComplexBackStack,
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
+        myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
     )
   }
 }
@@ -268,12 +271,16 @@ class AuthenticatedNavigationState(
     private val myComplexBackStack: NavBackStack<NavKey>,
     private val ownerCourtAvailabilityEntrypointState:
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
+    private val myComplexHubReloadRequestKeyState: MutableState<Int>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
 
   val ownerCourtAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint?
     get() = ownerCourtAvailabilityEntrypointState.value
+
+  val myComplexHubReloadRequestKey: Int
+    get() = myComplexHubReloadRequestKeyState.value
 
   val currentBackStack: NavBackStack<NavKey>
     get() =
@@ -311,22 +318,22 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.MyComplex
     myComplexBackStack.clear()
     myComplexBackStack.add(MyComplexRoute)
+    requestMyComplexHubReload()
   }
 
-  fun openCourtAvailability(courtId: String, courtName: String, complexName: String) {
-    ownerCourtAvailabilityEntrypointState.value =
-        OwnerCourtAvailabilityEntrypoint(
-            courtId = courtId,
-            courtName = courtName,
-            complexName = complexName,
-        )
+  fun openCourtAvailability(entrypoint: OwnerCourtAvailabilityEntrypoint) {
+    ownerCourtAvailabilityEntrypointState.value = entrypoint
     selectedRoute = AuthenticatedTopLevelRoute.MyComplex
     if (myComplexBackStack.lastOrNull() == CreateComplexRoute) {
       myComplexBackStack.removeLastOrNull()
     }
 
     val route =
-        CourtAvailabilityRoute(courtId = courtId, courtName = courtName, complexName = complexName)
+        CourtAvailabilityRoute(
+            courtId = entrypoint.courtId,
+            courtName = entrypoint.courtName,
+            complexName = entrypoint.complexName,
+        )
     if (myComplexBackStack.lastOrNull() != route) {
       myComplexBackStack.add(route)
     }
@@ -334,21 +341,24 @@ class AuthenticatedNavigationState(
 
   fun openOwnerCourtAvailabilityEntrypoint() {
     val entrypoint = ownerCourtAvailabilityEntrypointState.value ?: return
-    openCourtAvailability(
-        courtId = entrypoint.courtId,
-        courtName = entrypoint.courtName,
-        complexName = entrypoint.complexName,
-    )
+    openCourtAvailability(entrypoint)
   }
 
   fun closeCurrentDetail() {
+    val currentDetail = currentBackStack.lastOrNull()
     if (currentBackStack.size > 1) {
       currentBackStack.removeLastOrNull()
+      if (
+          currentDetail is CourtAvailabilityRoute && currentBackStack.lastOrNull() == MyComplexRoute
+      ) {
+        requestMyComplexHubReload()
+      }
     }
   }
 
   fun reset() {
     ownerCourtAvailabilityEntrypointState.value = null
+    myComplexHubReloadRequestKeyState.value = 0
     selectedRoute = AuthenticatedTopLevelRoute.Search
     searchBackStack.clear()
     searchBackStack.add(SearchRoute)
@@ -358,6 +368,10 @@ class AuthenticatedNavigationState(
     notificationsBackStack.add(NotificationsRoute)
     myComplexBackStack.clear()
     myComplexBackStack.add(MyComplexRoute)
+  }
+
+  private fun requestMyComplexHubReload() {
+    myComplexHubReloadRequestKeyState.value += 1
   }
 }
 

@@ -8,6 +8,8 @@ import io.github.themonstersp4.mejengueros.data.auth.IRandomStringGenerator
 import io.github.themonstersp4.mejengueros.data.auth.SecureRandomStringGenerator
 import io.github.themonstersp4.mejengueros.data.local.DriverFactory
 import io.github.themonstersp4.mejengueros.data.remote.HttpClientFactory
+import io.github.themonstersp4.mejengueros.monitoring.AndroidLogErrorReporter
+import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -18,4 +20,5 @@ actual fun platformModule(): Module = module {
   single<IAuthSecureStorage> { AndroidAuthSecureStorage(androidContext(), get()) }
   single<IRandomStringGenerator> { SecureRandomStringGenerator() }
   single<IOAuthBrowser> { AndroidOAuthBrowser(androidContext()) }
+  single<ErrorReporter> { AndroidLogErrorReporter() }
 }
