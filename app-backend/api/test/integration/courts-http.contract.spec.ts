@@ -87,6 +87,7 @@ describe('public court catalog HTTP contract', () => {
     });
     expect(prismaService.court.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        take: 50,
         where: expect.objectContaining({
           status: 'ACTIVE',
           isPublished: true
@@ -149,6 +150,25 @@ describe('public court catalog HTTP contract', () => {
         ]
       })
     );
+  });
+
+  it('returns a successful empty response when no catalog courts match', async () => {
+    prismaService.court.findMany.mockResolvedValue([]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?q=no-results'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: [],
+      errors: [],
+      meta: expect.objectContaining({
+        path: '/v1/courts/catalog?q=no-results'
+      })
+    });
   });
 
   function createPrismaMock() {

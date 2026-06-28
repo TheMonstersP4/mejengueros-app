@@ -177,6 +177,7 @@ describe('catalog modules behavior', () => {
             cantonId: 'canton-id'
           })
         }),
+        take: 50,
         orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
         select: expect.objectContaining({
           complex: expect.any(Object),

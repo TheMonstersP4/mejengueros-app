@@ -17,6 +17,8 @@ const WEEKDAY_BY_INDEX = [
   'SATURDAY'
 ] as const;
 
+const PUBLIC_COURT_CATALOG_TAKE = 50;
+
 interface ICourtCatalogPersistenceClient {
   canton: {
     findFirst: PrismaService['canton']['findFirst'];
@@ -120,6 +122,7 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
             }
           : {})
       },
+      take: PUBLIC_COURT_CATALOG_TAKE,
       orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
       select: {
         id: true,
