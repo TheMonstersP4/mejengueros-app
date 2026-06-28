@@ -2,10 +2,14 @@ package io.github.themonstersp4.mejengueros.data.repository
 
 import io.github.themonstersp4.mejengueros.data.remote.IComplexRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.Canton
+import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
@@ -77,9 +81,34 @@ class ComplexRepositoryTest {
     assertEquals(listOf(createComplexRequest), remoteDataSource.createRequests)
   }
 
+  @Test
+  fun getMyComplexHubDelegatesDirectlyToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeComplexRemoteDataSource()
+    val repository = ComplexRepository(remoteDataSource)
+
+    val hub = repository.getMyComplexHub()
+
+    assertEquals(listOf("getMyComplexHub"), remoteDataSource.calls)
+    assertEquals(myComplexHub, hub)
+  }
+
+  @Test
+  fun getMyComplexHubPropagatesRemoteFailures() = runTest {
+    val remoteDataSource =
+        FakeComplexRemoteDataSource(getMyComplexHubFailure = IllegalStateException("hub failed"))
+    val repository = ComplexRepository(remoteDataSource)
+
+    val error = assertFailsWith<IllegalStateException> { repository.getMyComplexHub() }
+
+    assertEquals("hub failed", error.message)
+    assertEquals(listOf("getMyComplexHub"), remoteDataSource.calls)
+  }
+
   private class FakeComplexRemoteDataSource(
       private val createFailure: Throwable? = null,
       private val createResult: CreatedComplex = createdComplex,
+      private val getMyComplexHubFailure: Throwable? = null,
+      private val myComplexHubResult: MyComplexHub = myComplexHub,
   ) : IComplexRemoteDataSource {
     val calls = mutableListOf<String>()
     val cantonRequests = mutableListOf<String>()
@@ -108,6 +137,12 @@ class ComplexRepositoryTest {
       createRequests.add(request)
       createFailure?.let { throw it }
       return createResult
+    }
+
+    override suspend fun getMyComplexHub(): MyComplexHub {
+      calls.add("getMyComplexHub")
+      getMyComplexHubFailure?.let { throw it }
+      return myComplexHubResult
     }
   }
 
@@ -150,6 +185,32 @@ class ComplexRepositoryTest {
             complexAddress = "123 Main Street",
             firstCourtId = "court-id",
             firstCourtName = "Court A",
+        )
+
+    val myComplexHub =
+        MyComplexHub(
+            complexes =
+                listOf(
+                    MyComplexHubComplex(
+                        id = "complex-id",
+                        name = "North Sports Center",
+                        address = "123 Main Street",
+                        provinceId = "province-1",
+                        cantonId = "canton-1",
+                        latitude = 9.935,
+                        longitude = -84.091,
+                        status = "ACTIVE",
+                        courts =
+                            listOf(
+                                MyComplexHubCourt(
+                                    id = "court-id",
+                                    name = "Court A",
+                                    status = "ACTIVE",
+                                    availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
+                                )
+                            ),
+                    )
+                )
         )
   }
 }
