@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateComplexRequestDto
+import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
@@ -293,6 +294,124 @@ class ComplexRemoteDataSourceTest {
 
     assertEquals(500, error.statusCode)
     assertEquals("Backend exploded", error.message)
+  }
+
+  @Test
+  fun getMyComplexHubFetchesOwnerHubAndMapsConfiguredAndPendingCourts() = runTest {
+    var requestedPath = ""
+    var requestedMethod = HttpMethod.Post
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "complexes": [
+                              {
+                                "id": "complex-id",
+                                "name": "North Sports Center",
+                                "address": "123 Main Street",
+                                "provinceId": "province-id",
+                                "cantonId": "canton-id",
+                                "latitude": 9.935,
+                                "longitude": -84.091,
+                                "status": "ACTIVE",
+                                "courts": [
+                                  {
+                                    "id": "court-configured-id",
+                                    "name": "Court A",
+                                    "status": "ACTIVE",
+                                    "availabilityStatus": "CONFIGURED"
+                                  },
+                                  {
+                                    "id": "court-pending-id",
+                                    "name": "Court B",
+                                    "status": "ACTIVE",
+                                    "availabilityStatus": "PENDING"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                        """,
+                    capturePath = { requestedPath = it.orEmpty() },
+                    captureMethod = { requestedMethod = it ?: HttpMethod.Get },
+                ),
+            json = json,
+        )
+
+    val hub = dataSource.getMyComplexHub()
+
+    assertEquals(HttpMethod.Get, requestedMethod)
+    assertEquals("/v1/complexes/my-hub", requestedPath)
+    assertEquals("complex-id", hub.complexes.single().id)
+    assertEquals(2, hub.complexes.single().courts.size)
+    assertEquals(
+        CourtAvailabilitySetupStatus.CONFIGURED,
+        hub.complexes.single().courts.first().availabilityStatus,
+    )
+    assertEquals(
+        CourtAvailabilitySetupStatus.PENDING,
+        hub.complexes.single().courts.last().availabilityStatus,
+    )
+  }
+
+  @Test
+  fun getMyComplexHubMapsEmptyHubEnvelope() = runTest {
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "complexes": []
+                          }
+                        }
+                        """,
+                ),
+            json = json,
+        )
+
+    val hub = dataSource.getMyComplexHub()
+
+    assertEquals(emptyList(), hub.complexes)
+  }
+
+  @Test
+  fun getMyComplexHubMapsUnauthorizedEnvelopeIntoAppApiException() = runTest {
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": false,
+                          "errors": [
+                            {
+                              "code": "UNAUTHORIZED",
+                              "message": "Unauthorized",
+                              "status": 401
+                            }
+                          ]
+                        }
+                        """,
+                    status = HttpStatusCode.Unauthorized,
+                ),
+            json = json,
+        )
+
+    val error = assertFailsWith<AppApiException> { dataSource.getMyComplexHub() }
+
+    assertEquals(401, error.statusCode)
+    assertEquals("Unauthorized", error.message)
   }
 
   private fun mockClient(
