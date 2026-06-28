@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilityWeekday
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
@@ -37,6 +38,7 @@ data class CourtAvailabilityScreenActions(
     val onEndTimeSelected: (String) -> Unit,
     val onRetry: () -> Unit,
     val onSave: () -> Unit,
+    val onSuccessAcknowledged: () -> Unit,
 )
 
 private val availabilityDays =
@@ -167,14 +169,6 @@ fun CourtAvailabilityScreen(
             enabled = !state.isLoading && !state.isSaving,
         )
       }
-
-      state.successMessage?.let { message ->
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-      }
     }
 
     MejenguerosBottomActionBar {
@@ -190,6 +184,16 @@ fun CourtAvailabilityScreen(
           enabled = state.canSave,
       )
     }
+  }
+
+  state.successMessage?.let { message ->
+    MejenguerosConfirmationDialog(
+        title = "Disponibilidad configurada",
+        message = message,
+        confirmText = "Ir a Mi complejo",
+        onConfirm = actions.onSuccessAcknowledged,
+        onDismissRequest = {},
+    )
   }
 }
 

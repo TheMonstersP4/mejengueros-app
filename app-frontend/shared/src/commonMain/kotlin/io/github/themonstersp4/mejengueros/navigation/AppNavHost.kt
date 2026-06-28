@@ -23,6 +23,10 @@ private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
       subclass(ForgotPasswordRoute::class, ForgotPasswordRoute.serializer())
       subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
       subclass(HomeRoute::class, HomeRoute.serializer())
+      subclass(SearchRoute::class, SearchRoute.serializer())
+      subclass(ReservationsRoute::class, ReservationsRoute.serializer())
+      subclass(NotificationsRoute::class, NotificationsRoute.serializer())
+      subclass(MyComplexRoute::class, MyComplexRoute.serializer())
       subclass(CreateComplexRoute::class, CreateComplexRoute.serializer())
       subclass(KitRoute::class, KitRoute.serializer())
       subclass(AvailabilitySelectorsRoute::class, AvailabilitySelectorsRoute.serializer())
@@ -76,25 +80,20 @@ fun AppNavHost() {
       )
   val shellActions =
       AuthenticatedShellActions(
-          selectHome = authenticatedNavigationState::selectHome,
-          returnToHomeRoot = authenticatedNavigationState::returnToHomeRoot,
+          selectSearch = authenticatedNavigationState::selectSearch,
+          selectReservations = authenticatedNavigationState::selectReservations,
+          selectNotifications = authenticatedNavigationState::selectNotifications,
+          selectMyComplex = authenticatedNavigationState::selectMyComplex,
+          returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
           openCreateComplex = authenticatedNavigationState::openCreateComplex,
           openCourtAvailability = authenticatedNavigationState::openCourtAvailability,
-          selectKit = authenticatedNavigationState::selectKit,
-          openAvailabilitySelectors = authenticatedNavigationState::openAvailabilitySelectors,
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,
-          selectPokedex = authenticatedNavigationState::selectPokedex,
           signOut = {
             authViewModel.signOut()
             authenticatedNavigationState.reset()
             loginBackStack.clear()
             loginBackStack.add(LoginRoute)
           },
-      )
-  val pokedexActions =
-      PokedexNavigationActions(
-          openPokemonDetail = authenticatedNavigationState::openPokemonDetail,
-          closeDetail = authenticatedNavigationState::closeCurrentDetail,
       )
 
   NavDisplay(
@@ -115,7 +114,6 @@ fun AppNavHost() {
                 authViewModel = authViewModel,
                 loginActions = loginActions,
                 shellActions = shellActions,
-                pokedexActions = pokedexActions,
             )
           },
   )

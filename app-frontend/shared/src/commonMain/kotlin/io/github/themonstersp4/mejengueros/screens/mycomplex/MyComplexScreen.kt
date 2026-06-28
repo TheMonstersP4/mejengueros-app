@@ -1,4 +1,4 @@
-package io.github.themonstersp4.mejengueros.screens.home
+package io.github.themonstersp4.mejengueros.screens.mycomplex
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,7 +21,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 
 @Composable
-fun HomeScreen(
+fun MyComplexScreen(
     username: String,
     contentPadding: PaddingValues,
     onCreateComplex: () -> Unit,
@@ -35,21 +35,22 @@ fun HomeScreen(
       verticalArrangement = Arrangement.Center,
   ) {
     Text(
-        text = "Home",
+        text = "Mi complejo",
         style = MaterialTheme.typography.headlineLarge,
         color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center,
     )
     Spacer(modifier = Modifier.height(12.dp))
     Text(
-        text = "Continuing as $username",
+        text = "Administrá tu operación como $username",
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center,
     )
     Spacer(modifier = Modifier.height(12.dp))
     Text(
-        text = "This authenticated area will host Mejengueros features.",
+        text =
+            "Desde aquí vas a crear tu complejo y retomar la configuración de disponibilidad de tu última cancha.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onBackground,
         textAlign = TextAlign.Center,
@@ -58,7 +59,7 @@ fun HomeScreen(
     MejenguerosFullWidthPrimaryButton(
         text = "Crear complejo y primera cancha",
         onClick = onCreateComplex,
-        modifier = Modifier.fillMaxWidth().testTag("home_create_complex_button"),
+        modifier = Modifier.fillMaxWidth().testTag("my_complex_create_complex_button"),
     )
     if (ownerAvailabilityEntrypoint != null) {
       Spacer(modifier = Modifier.height(16.dp))
@@ -67,7 +68,7 @@ fun HomeScreen(
           style = MaterialTheme.typography.titleMedium,
           color = MaterialTheme.colorScheme.onBackground,
           textAlign = TextAlign.Center,
-          modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_title"),
+          modifier = Modifier.fillMaxWidth().testTag("my_complex_owner_availability_title"),
       )
       Spacer(modifier = Modifier.height(8.dp))
       Text(
@@ -76,13 +77,13 @@ fun HomeScreen(
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onBackground,
           textAlign = TextAlign.Center,
-          modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_summary"),
+          modifier = Modifier.fillMaxWidth().testTag("my_complex_owner_availability_summary"),
       )
       Spacer(modifier = Modifier.height(12.dp))
       MejenguerosFullWidthOutlinedButton(
           text = "Configurar disponibilidad",
           onClick = onOpenOwnerAvailabilityEntrypoint,
-          modifier = Modifier.fillMaxWidth().testTag("home_owner_availability_button"),
+          modifier = Modifier.fillMaxWidth().testTag("my_complex_owner_availability_button"),
       )
     }
   }

@@ -26,9 +26,10 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTopAppBar
 @Composable
 fun AuthenticatedScaffold(
     selectedRoute: AuthenticatedTopLevelRoute,
-    onHomeSelected: () -> Unit,
-    onKitSelected: () -> Unit,
-    onPokedexSelected: () -> Unit,
+    onSearchSelected: () -> Unit,
+    onReservationsSelected: () -> Unit,
+    onNotificationsSelected: () -> Unit,
+    onMyComplexSelected: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "Mejengueros",
@@ -74,19 +75,24 @@ fun AuthenticatedScaffold(
               items =
                   listOf(
                       MejenguerosBottomNavigationItem(
-                          label = "Home",
-                          selected = selectedRoute == AuthenticatedTopLevelRoute.Home,
-                          onClick = onHomeSelected,
+                          label = "Buscar",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.Search,
+                          onClick = onSearchSelected,
                       ),
                       MejenguerosBottomNavigationItem(
-                          label = "Kit",
-                          selected = selectedRoute == AuthenticatedTopLevelRoute.Kit,
-                          onClick = onKitSelected,
+                          label = "Reservas",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
+                          onClick = onReservationsSelected,
                       ),
                       MejenguerosBottomNavigationItem(
-                          label = "Pokédex",
-                          selected = selectedRoute == AuthenticatedTopLevelRoute.Pokedex,
-                          onClick = onPokedexSelected,
+                          label = "Notificaciones",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
+                          onClick = onNotificationsSelected,
+                      ),
+                      MejenguerosBottomNavigationItem(
+                          label = "Mi complejo",
+                          selected = selectedRoute == AuthenticatedTopLevelRoute.MyComplex,
+                          onClick = onMyComplexSelected,
                       ),
                   )
           )
@@ -115,7 +121,8 @@ fun AuthenticatedScaffold(
 }
 
 enum class AuthenticatedTopLevelRoute {
-  Home,
-  Kit,
-  Pokedex,
+  Search,
+  Reservations,
+  Notifications,
+  MyComplex,
 }

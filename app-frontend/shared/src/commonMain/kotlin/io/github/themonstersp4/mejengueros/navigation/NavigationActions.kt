@@ -11,18 +11,13 @@ class LoginNavigationActions(
 )
 
 class AuthenticatedShellActions(
-    val selectHome: () -> Unit,
-    val returnToHomeRoot: () -> Unit,
+    val selectSearch: () -> Unit,
+    val selectReservations: () -> Unit,
+    val selectNotifications: () -> Unit,
+    val selectMyComplex: () -> Unit,
+    val returnToMyComplexRoot: () -> Unit,
     val openCreateComplex: () -> Unit,
     val openCourtAvailability: (String, String, String) -> Unit,
-    val selectKit: () -> Unit,
-    val openAvailabilitySelectors: () -> Unit,
     val closeCurrentDetail: () -> Unit,
-    val selectPokedex: () -> Unit,
     val signOut: () -> Unit,
-)
-
-class PokedexNavigationActions(
-    val openPokemonDetail: (Int) -> Unit,
-    val closeDetail: () -> Unit,
 )

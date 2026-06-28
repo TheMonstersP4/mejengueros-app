@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -40,10 +41,11 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
-            selectedRoute = AuthenticatedTopLevelRoute.Kit,
-            onHomeSelected = {},
-            onKitSelected = {},
-            onPokedexSelected = {},
+            selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
             onSignOut = {},
             onNavigateBack = { backClicks += 1 },
         ) { contentPadding ->
@@ -65,10 +67,11 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
-            selectedRoute = AuthenticatedTopLevelRoute.Home,
-            onHomeSelected = {},
-            onKitSelected = {},
-            onPokedexSelected = {},
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
             onSignOut = { signOutClicks += 1 },
         ) { contentPadding ->
           Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body"))
@@ -93,10 +96,11 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
-            selectedRoute = AuthenticatedTopLevelRoute.Kit,
-            onHomeSelected = {},
-            onKitSelected = {},
-            onPokedexSelected = {},
+            selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
             onSignOut = {},
             overlayVisible = true,
             overlayContent = {
@@ -139,8 +143,33 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithText("Usar esta ubicación").assertExists()
     composeRule.onNodeWithTag("fake_map").assertExists()
     composeRule.onNodeWithText("Mejengueros").assertDoesNotExist()
-    composeRule.onNodeWithText("Home").assertDoesNotExist()
+    composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
     composeRule.onNodeWithText("Scaffold body").assertDoesNotExist()
+  }
+
+  @Test
+  fun bottomBarShowsProductDestinationsAndMarksSelectedTab() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body")) {
+            Text("Scaffold body")
+          }
+        }
+      }
+    }
+
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Notificaciones").assertExists()
+    composeRule.onNodeWithText("Mi complejo").assertExists().assertIsSelected()
   }
 
   @Test
@@ -150,10 +179,11 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
-            selectedRoute = AuthenticatedTopLevelRoute.Kit,
-            onHomeSelected = {},
-            onKitSelected = {},
-            onPokedexSelected = {},
+            selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
             onSignOut = {},
             overlayVisible = false,
             overlayContent = {
@@ -169,7 +199,7 @@ class AuthenticatedScaffoldBehaviorTest {
     }
 
     composeRule.onNodeWithText("Mejengueros").assertExists()
-    composeRule.onNodeWithText("Home").assertExists()
+    composeRule.onNodeWithText("Mi complejo").assertExists()
     composeRule.onNodeWithText("Scaffold body").assertExists()
     composeRule.onNodeWithTag("hidden_overlay_content").assertDoesNotExist()
     composeRule.onNodeWithText("Unexpected overlay").assertDoesNotExist()

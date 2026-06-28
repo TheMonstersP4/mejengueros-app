@@ -8,78 +8,193 @@ import kotlin.test.assertEquals
 
 class AuthenticatedNavigationStateTest {
 
-  @Test
-  fun startsAtHomeStack() {
-    val state = testNavigationState()
-
-    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
-    assertEquals(listOf(HomeRoute), state.currentBackStack.toList())
+  private enum class LegacySelectedRoute {
+    Home,
+    MyComplex,
   }
 
   @Test
-  fun openPokemonDetailSelectsPokedexAndAppendsDetailRoute() {
-    val state = testNavigationState()
+  fun restoreNormalizationMapsLegacyHomeSelectionToSearchLanding() {
+    val normalized =
+        normalizeRestoredAuthenticatedNavigation(
+            savedSelectedRouteName = "Home",
+            searchStack = listOf(HomeRoute),
+            reservationsStack = listOf(ReservationsRoute),
+            notificationsStack = listOf(NotificationsRoute),
+            myComplexStack = listOf(MyComplexRoute),
+        )
 
-    state.openPokemonDetail(25)
-
-    assertEquals(AuthenticatedTopLevelRoute.Pokedex, state.selectedRoute)
-    assertEquals(listOf(PokedexRoute, PokemonDetailRoute(25)), state.currentBackStack.toList())
+    assertEquals(AuthenticatedTopLevelRoute.Search, normalized.selectedRoute)
+    assertEquals(listOf(SearchRoute), normalized.searchStack)
   }
 
   @Test
-  fun openCreateComplexKeepsHomeSelectedAndAppendsHomeDetailRoute() {
+  fun restoreNormalizationMovesLegacyOwnerFlowFromHomeStackIntoMyComplex() {
+    val availabilityRoute = CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")
+
+    val normalized =
+        normalizeRestoredAuthenticatedNavigation(
+            savedSelectedRouteName = "Home",
+            searchStack = listOf(HomeRoute, availabilityRoute),
+            reservationsStack = listOf(ReservationsRoute),
+            notificationsStack = listOf(NotificationsRoute),
+            myComplexStack = listOf(MyComplexRoute),
+        )
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, normalized.selectedRoute)
+    assertEquals(listOf(SearchRoute), normalized.searchStack)
+    assertEquals(listOf(MyComplexRoute, availabilityRoute), normalized.myComplexStack)
+  }
+
+  @Test
+  fun restoreSavedSelectedRouteNameAcceptsLegacyEnumValues() {
+    assertEquals("Home", restoreSavedAuthenticatedTopLevelRouteName(LegacySelectedRoute.Home))
+    assertEquals(
+        "MyComplex",
+        restoreSavedAuthenticatedTopLevelRouteName(LegacySelectedRoute.MyComplex),
+    )
+  }
+
+  @Test
+  fun restoreSavedSelectedRouteNameAcceptsLegacyObjectRouteValues() {
+    assertEquals("Home", restoreSavedAuthenticatedTopLevelRouteName(HomeRoute))
+    assertEquals("Kit", restoreSavedAuthenticatedTopLevelRouteName(KitRoute))
+    assertEquals("Kit", restoreSavedAuthenticatedTopLevelRouteName(AvailabilitySelectorsRoute))
+    assertEquals("Pokedex", restoreSavedAuthenticatedTopLevelRouteName(PokedexRoute))
+    assertEquals("Pokedex", restoreSavedAuthenticatedTopLevelRouteName(PokemonDetailRoute(25)))
+  }
+
+  @Test
+  fun restoreSavedSelectedRouteNameKeepsCurrentEnumValuesCompatible() {
+    assertEquals(
+        AuthenticatedTopLevelRoute.Reservations.name,
+        restoreSavedAuthenticatedTopLevelRouteName(AuthenticatedTopLevelRoute.Reservations),
+    )
+  }
+
+  @Test
+  fun restoreNormalizationMovesLegacyCreateComplexFlowFromHomeStackIntoMyComplex() {
+    val normalized =
+        normalizeRestoredAuthenticatedNavigation(
+            savedSelectedRouteName = "Home",
+            searchStack = listOf(HomeRoute, CreateComplexRoute),
+            reservationsStack = listOf(ReservationsRoute),
+            notificationsStack = listOf(NotificationsRoute),
+            myComplexStack = listOf(MyComplexRoute),
+        )
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, normalized.selectedRoute)
+    assertEquals(listOf(SearchRoute), normalized.searchStack)
+    assertEquals(listOf(MyComplexRoute, CreateComplexRoute), normalized.myComplexStack)
+  }
+
+  @Test
+  fun restoreNormalizationMovesLegacyOwnerFlowFromHomeObjectSelectionIntoMyComplex() {
+    val availabilityRoute = CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")
+
+    val normalized =
+        normalizeRestoredAuthenticatedNavigation(
+            savedSelectedRouteName = restoreSavedAuthenticatedTopLevelRouteName(HomeRoute),
+            searchStack = listOf(HomeRoute, availabilityRoute),
+            reservationsStack = listOf(ReservationsRoute),
+            notificationsStack = listOf(NotificationsRoute),
+            myComplexStack = listOf(MyComplexRoute),
+        )
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, normalized.selectedRoute)
+    assertEquals(listOf(SearchRoute), normalized.searchStack)
+    assertEquals(listOf(MyComplexRoute, availabilityRoute), normalized.myComplexStack)
+  }
+
+  @Test
+  fun restoreNormalizationResetsLegacyKitAndPokedexStacksToCurrentRoots() {
+    val normalized =
+        normalizeRestoredAuthenticatedNavigation(
+            savedSelectedRouteName = "Kit",
+            searchStack = listOf(SearchRoute),
+            reservationsStack = listOf(KitRoute, AvailabilitySelectorsRoute),
+            notificationsStack = listOf(PokedexRoute, PokemonDetailRoute(25)),
+            myComplexStack = listOf(MyComplexRoute),
+        )
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, normalized.selectedRoute)
+    assertEquals(listOf(ReservationsRoute), normalized.reservationsStack)
+    assertEquals(listOf(NotificationsRoute), normalized.notificationsStack)
+  }
+
+  @Test
+  fun startsAtSearchStack() {
+    val state = testNavigationState()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun selectingReservationsShowsReservationsRoot() {
+    val state = testNavigationState()
+
+    state.selectReservations()
+
+    assertEquals(AuthenticatedTopLevelRoute.Reservations, state.selectedRoute)
+    assertEquals(listOf(ReservationsRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun selectingNotificationsShowsNotificationsRoot() {
+    val state = testNavigationState()
+
+    state.selectNotifications()
+
+    assertEquals(AuthenticatedTopLevelRoute.Notifications, state.selectedRoute)
+    assertEquals(listOf(NotificationsRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun openCreateComplexKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
 
     state.openCreateComplex()
 
-    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
-    assertEquals(listOf(HomeRoute, CreateComplexRoute), state.currentBackStack.toList())
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute, CreateComplexRoute), state.currentBackStack.toList())
   }
 
   @Test
-  fun returnToHomeRootClearsHomeDetailStack() {
+  fun returnToMyComplexRootClearsMyComplexDetailStack() {
     val state = testNavigationState()
 
     state.openCreateComplex()
-    state.returnToHomeRoot()
+    state.returnToMyComplexRoot()
 
-    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
-    assertEquals(listOf(HomeRoute), state.currentBackStack.toList())
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
   }
 
   @Test
-  fun switchingTabsPreservesPokedexDetailStack() {
+  fun switchingTopLevelRoutesPreservesMyComplexDetailStack() {
     val state = testNavigationState()
 
-    state.openPokemonDetail(25)
-    state.selectHome()
-    state.selectPokedex()
+    state.openCreateComplex()
+    state.selectSearch()
+    state.selectMyComplex()
 
-    assertEquals(listOf(PokedexRoute, PokemonDetailRoute(25)), state.currentBackStack.toList())
+    assertEquals(listOf(MyComplexRoute, CreateComplexRoute), state.currentBackStack.toList())
   }
 
   @Test
-  fun selectingKitShowsComponentKitRoot() {
+  fun switchingTopLevelRoutesPreservesSearchSelection() {
     val state = testNavigationState()
 
-    state.selectKit()
+    state.selectReservations()
+    state.selectSearch()
 
-    assertEquals(AuthenticatedTopLevelRoute.Kit, state.selectedRoute)
-    assertEquals(listOf(KitRoute), state.currentBackStack.toList())
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
   }
 
   @Test
-  fun openAvailabilitySelectorsSelectsKitAndAppendsDemoRoute() {
-    val state = testNavigationState()
-
-    state.openAvailabilitySelectors()
-
-    assertEquals(AuthenticatedTopLevelRoute.Kit, state.selectedRoute)
-    assertEquals(listOf(KitRoute, AvailabilitySelectorsRoute), state.currentBackStack.toList())
-  }
-
-  @Test
-  fun openCourtAvailabilityReplacesCreateComplexDetailInsideHomeFlow() {
+  fun openCourtAvailabilityReplacesCreateComplexDetailInsideMyComplexFlow() {
     val state = testNavigationState()
 
     state.openCreateComplex()
@@ -89,9 +204,9 @@ class AuthenticatedNavigationStateTest {
         complexName = "Mejengas CR",
     )
 
-    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
     assertEquals(
-        listOf(HomeRoute, CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")),
+        listOf(MyComplexRoute, CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")),
         state.currentBackStack.toList(),
     )
   }
@@ -117,7 +232,7 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
-  fun reopenOwnerCourtAvailabilityUsesStoredContextFromHomeRoot() {
+  fun reopenOwnerCourtAvailabilityUsesStoredContextFromMyComplexRoot() {
     val state = testNavigationState()
 
     state.openCourtAvailability(
@@ -125,52 +240,70 @@ class AuthenticatedNavigationStateTest {
         courtName = "Cancha 1",
         complexName = "Mejengas CR",
     )
-    state.returnToHomeRoot()
+    state.returnToMyComplexRoot()
     state.openOwnerCourtAvailabilityEntrypoint()
 
     assertEquals(
-        listOf(HomeRoute, CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")),
+        listOf(MyComplexRoute, CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")),
         state.currentBackStack.toList(),
     )
   }
 
   @Test
-  fun closeAvailabilitySelectorsReturnsToKitRoot() {
+  fun returnToMyComplexRootClosesAvailabilityDetailAndKeepsMyComplexSelected() {
     val state = testNavigationState()
 
-    state.openAvailabilitySelectors()
+    state.openCourtAvailability(
+        courtId = "court-id",
+        courtName = "Cancha 1",
+        complexName = "Mejengas CR",
+    )
+    state.returnToMyComplexRoot()
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun closeCurrentDetailReturnsToMyComplexRoot() {
+    val state = testNavigationState()
+
+    state.openCreateComplex()
     state.closeCurrentDetail()
 
-    assertEquals(AuthenticatedTopLevelRoute.Kit, state.selectedRoute)
-    assertEquals(listOf(KitRoute), state.currentBackStack.toList())
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
   }
 
   @Test
   fun closeCurrentDetailDoesNotRemoveRootRoute() {
     val state = testNavigationState()
 
-    state.selectPokedex()
+    state.selectNotifications()
     state.closeCurrentDetail()
 
-    assertEquals(listOf(PokedexRoute), state.currentBackStack.toList())
+    assertEquals(listOf(NotificationsRoute), state.currentBackStack.toList())
   }
 
   @Test
   fun resetRestoresAuthenticatedRootStacks() {
     val state = testNavigationState()
 
-    state.openPokemonDetail(25)
-    state.selectHome()
+    state.openCreateComplex()
+    state.selectReservations()
     state.reset()
 
-    assertEquals(AuthenticatedTopLevelRoute.Home, state.selectedRoute)
-    assertEquals(listOf(HomeRoute), state.currentBackStack.toList())
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
 
-    state.selectKit()
-    assertEquals(listOf(KitRoute), state.currentBackStack.toList())
+    state.selectReservations()
+    assertEquals(listOf(ReservationsRoute), state.currentBackStack.toList())
 
-    state.selectPokedex()
-    assertEquals(listOf(PokedexRoute), state.currentBackStack.toList())
+    state.selectNotifications()
+    assertEquals(listOf(NotificationsRoute), state.currentBackStack.toList())
+
+    state.selectMyComplex()
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
   }
 
   @Test
@@ -190,10 +323,11 @@ class AuthenticatedNavigationStateTest {
 
   private fun testNavigationState(): AuthenticatedNavigationState =
       AuthenticatedNavigationState(
-          selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Home),
-          homeBackStack = NavBackStack<NavKey>(HomeRoute),
-          kitBackStack = NavBackStack<NavKey>(KitRoute),
-          pokedexBackStack = NavBackStack<NavKey>(PokedexRoute),
+          selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
+          searchBackStack = NavBackStack<NavKey>(SearchRoute),
+          reservationsBackStack = NavBackStack<NavKey>(ReservationsRoute),
+          notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
+          myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
       )
 }

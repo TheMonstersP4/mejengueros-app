@@ -68,7 +68,7 @@ class CourtAvailabilityViewModelTest {
   }
 
   @Test
-  fun savePersistsAvailabilityAndShowsSuccess() = runTest {
+  fun savePersistsAvailabilityAndShowsConfirmationMessage() = runTest {
     val repository = FakeCourtAvailabilityRepository(initialAvailability = null)
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
     val viewModel =
@@ -98,9 +98,35 @@ class CourtAvailabilityViewModelTest {
         ),
         repository.savedConfigs,
     )
-    assertEquals("Disponibilidad guardada correctamente.", viewModel.uiState.value.successMessage)
+    assertEquals(
+        "Tu cancha ya tiene una disponibilidad base para recibir reservas.",
+        viewModel.uiState.value.successMessage,
+    )
     assertNull(viewModel.uiState.value.errorMessage)
     assertFalse(viewModel.uiState.value.isSaving)
+    scope.cancel()
+  }
+
+  @Test
+  fun acknowledgeSuccessClearsSuccessMessage() = runTest {
+    val repository = FakeCourtAvailabilityRepository(initialAvailability = null)
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        CourtAvailabilityViewModel(
+            courtId = "court-id",
+            initialCourtName = "Cancha 1",
+            initialComplexName = "Mejengas CR",
+            repository = repository,
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    viewModel.toggleDay(CourtAvailabilityWeekday.MONDAY)
+    viewModel.save()
+    advanceUntilIdle()
+    viewModel.acknowledgeSuccess()
+
+    assertNull(viewModel.uiState.value.successMessage)
     scope.cancel()
   }
 
