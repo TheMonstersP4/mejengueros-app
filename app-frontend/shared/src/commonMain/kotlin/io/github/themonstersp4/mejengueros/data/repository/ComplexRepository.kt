@@ -3,7 +3,9 @@ package io.github.themonstersp4.mejengueros.data.repository
 import io.github.themonstersp4.mejengueros.data.remote.IComplexRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
@@ -26,6 +28,10 @@ class ComplexRepository(private val remoteDataSource: IComplexRemoteDataSource) 
 
   override suspend fun createComplex(request: CreateComplexRequest): CreatedComplex {
     return remoteDataSource.createComplex(request)
+  }
+
+  override suspend fun addCourt(complexId: String, request: CreateCourtRequest): CreatedCourt {
+    return remoteDataSource.addCourt(complexId, request)
   }
 
   override suspend fun getMyComplexHub(): MyComplexHub {

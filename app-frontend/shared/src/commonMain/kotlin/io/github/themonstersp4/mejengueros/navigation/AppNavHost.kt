@@ -14,28 +14,34 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.koin.compose.viewmodel.koinViewModel
 
-private val appNavigationSavedStateConfiguration = SavedStateConfiguration {
-  serializersModule = SerializersModule {
-    polymorphic(NavKey::class) {
-      subclass(LoginRoute::class, LoginRoute.serializer())
-      subclass(RegisterRoute::class, RegisterRoute.serializer())
-      subclass(VerifyAccountRoute::class, VerifyAccountRoute.serializer())
-      subclass(ForgotPasswordRoute::class, ForgotPasswordRoute.serializer())
-      subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
-      subclass(HomeRoute::class, HomeRoute.serializer())
-      subclass(SearchRoute::class, SearchRoute.serializer())
-      subclass(ReservationsRoute::class, ReservationsRoute.serializer())
-      subclass(NotificationsRoute::class, NotificationsRoute.serializer())
-      subclass(MyComplexRoute::class, MyComplexRoute.serializer())
-      subclass(CreateComplexRoute::class, CreateComplexRoute.serializer())
-      subclass(KitRoute::class, KitRoute.serializer())
-      subclass(AvailabilitySelectorsRoute::class, AvailabilitySelectorsRoute.serializer())
-      subclass(CourtAvailabilityRoute::class, CourtAvailabilityRoute.serializer())
-      subclass(PokedexRoute::class, PokedexRoute.serializer())
-      subclass(PokemonDetailRoute::class, PokemonDetailRoute.serializer())
-    }
+internal fun appNavigationSerializersModule(): SerializersModule = SerializersModule {
+  polymorphic(NavKey::class) {
+    subclass(LoginRoute::class, LoginRoute.serializer())
+    subclass(RegisterRoute::class, RegisterRoute.serializer())
+    subclass(VerifyAccountRoute::class, VerifyAccountRoute.serializer())
+    subclass(ForgotPasswordRoute::class, ForgotPasswordRoute.serializer())
+    subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
+    subclass(HomeRoute::class, HomeRoute.serializer())
+    subclass(SearchRoute::class, SearchRoute.serializer())
+    subclass(ReservationsRoute::class, ReservationsRoute.serializer())
+    subclass(NotificationsRoute::class, NotificationsRoute.serializer())
+    subclass(MyComplexRoute::class, MyComplexRoute.serializer())
+    subclass(ComplexDetailRoute::class, ComplexDetailRoute.serializer())
+    subclass(AddCourtRoute::class, AddCourtRoute.serializer())
+    subclass(CreateComplexRoute::class, CreateComplexRoute.serializer())
+    subclass(KitRoute::class, KitRoute.serializer())
+    subclass(AvailabilitySelectorsRoute::class, AvailabilitySelectorsRoute.serializer())
+    subclass(CourtAvailabilityRoute::class, CourtAvailabilityRoute.serializer())
+    subclass(PokedexRoute::class, PokedexRoute.serializer())
+    subclass(PokemonDetailRoute::class, PokemonDetailRoute.serializer())
   }
 }
+
+internal fun createAppNavigationSavedStateConfiguration() = SavedStateConfiguration {
+  serializersModule = appNavigationSerializersModule()
+}
+
+private val appNavigationSavedStateConfiguration = createAppNavigationSavedStateConfiguration()
 
 @Composable
 fun AppNavHost() {
@@ -85,8 +91,11 @@ fun AppNavHost() {
           selectNotifications = authenticatedNavigationState::selectNotifications,
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
+          openComplexDetail = authenticatedNavigationState::openComplexDetail,
+          openAddCourt = authenticatedNavigationState::openAddCourt,
           openCreateComplex = authenticatedNavigationState::openCreateComplex,
           openCourtAvailability = authenticatedNavigationState::openCourtAvailability,
+          closeAddCourtAfterSuccess = authenticatedNavigationState::closeAddCourtAfterSuccess,
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,
           signOut = {
             authViewModel.signOut()

@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -11,6 +12,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
+import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
@@ -21,8 +23,11 @@ import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
 import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreen
 import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreenActions
+import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreen
+import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreenActions
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
+import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
@@ -79,6 +84,14 @@ fun EntryProviderScope<NavKey>.appEntries(
         shellActions = shellActions,
     )
   }
+  entry<ComplexDetailRoute> { route ->
+    ComplexDetailEntry(
+        route = route,
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
+  }
+  entry<AddCourtRoute> { route -> AddCourtEntry(route = route, shellActions = shellActions) }
   entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
   entry<CourtAvailabilityRoute> { route ->
     CourtAvailabilityEntry(route = route, shellActions = shellActions)
@@ -278,13 +291,140 @@ private fun MyComplexEntry(
       onSignOut = shellActions.signOut,
       title = "Mi complejo",
   ) { contentPadding ->
-    MyComplexScreen(
+    MyComplexEntryContent(
         state = state,
         username = authState.title,
         contentPadding = contentPadding,
         onCreateComplex = shellActions.openCreateComplex,
         onRetry = myComplexViewModel::refresh,
+        onOpenComplexDetail = shellActions.openComplexDetail,
+    )
+  }
+}
+
+@Composable
+internal fun MyComplexEntryContent(
+    state: MyComplexUiState,
+    username: String,
+    contentPadding: PaddingValues,
+    onCreateComplex: () -> Unit,
+    onRetry: () -> Unit,
+    onOpenComplexDetail: (String) -> Unit,
+) {
+  MyComplexScreen(
+      state = state,
+      username = username,
+      contentPadding = contentPadding,
+      onCreateComplex = onCreateComplex,
+      onRetry = onRetry,
+      onOpenComplexDetail = onOpenComplexDetail,
+  )
+}
+
+@Composable
+private fun ComplexDetailEntry(
+    route: ComplexDetailRoute,
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
+  val myComplexViewModel = koinViewModel<MyComplexViewModel>()
+  val state by myComplexViewModel.uiState.collectAsState()
+  MyComplexInitialRefreshEffect(state = state, onInitialLoadRequested = myComplexViewModel::refresh)
+  MyComplexHubReloadEffect(
+      reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
+      onReloadRequested = myComplexViewModel::refresh,
+  )
+
+  val complex = state.complexes.firstOrNull { it.id == route.complexId }
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.returnToMyComplexRoot,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = complex?.name ?: "Mi complejo",
+  ) { contentPadding ->
+    ComplexDetailEntryContent(
+        complex = complex,
+        isLoading = state.isLoading,
+        errorMessage = state.errorMessage,
+        contentPadding = contentPadding,
+        onRetry = myComplexViewModel::refresh,
+        onAddCourt = shellActions.openAddCourt,
         onConfigureAvailability = shellActions.openCourtAvailability,
+    )
+  }
+}
+
+@Composable
+internal fun ComplexDetailEntryContent(
+    complex: io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    contentPadding: PaddingValues,
+    onRetry: () -> Unit,
+    onAddCourt: (String, String) -> Unit,
+    onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+) {
+  ComplexDetailScreen(
+      complex = complex,
+      isLoading = isLoading,
+      errorMessage = errorMessage,
+      contentPadding = contentPadding,
+      onRetry = onRetry,
+      onAddCourt = onAddCourt,
+      onConfigureAvailability = onConfigureAvailability,
+  )
+}
+
+@Composable
+private fun AddCourtEntry(route: AddCourtRoute, shellActions: AuthenticatedShellActions) {
+  val viewModel =
+      koinViewModel<AddCourtViewModel>(
+          key = "add-court-${route.complexId}",
+          parameters = { parametersOf(route.complexId, route.complexName) },
+      )
+
+  AddCourtEntryContent(viewModel = viewModel, shellActions = shellActions)
+}
+
+@Composable
+internal fun AddCourtEntryContent(
+    viewModel: AddCourtViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
+  val state by viewModel.uiState.collectAsState()
+
+  state.createdCourt?.let { createdCourt ->
+    LaunchedEffect(createdCourt.id) {
+      viewModel.acknowledgeSuccess()
+      shellActions.closeAddCourtAfterSuccess()
+    }
+  }
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.returnToMyComplexRoot,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = "Agregar cancha",
+  ) { contentPadding ->
+    AddCourtScreen(
+        state = state,
+        contentPadding = contentPadding,
+        actions =
+            AddCourtScreenActions(
+                onRetryServices = viewModel::refreshServices,
+                onCourtNameChange = viewModel::updateCourtName,
+                onToggleService = viewModel::toggleCourtService,
+                onSubmit = viewModel::submit,
+            ),
     )
   }
 }

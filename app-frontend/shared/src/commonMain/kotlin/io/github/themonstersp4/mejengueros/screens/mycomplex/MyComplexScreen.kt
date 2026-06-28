@@ -1,7 +1,5 @@
 package io.github.themonstersp4.mejengueros.screens.mycomplex
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,9 +54,7 @@ fun MyComplexScreen(
     contentPadding: PaddingValues,
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
-    onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
-    onAddCourt: () -> Unit = {},
-    isAddCourtEnabled: Boolean = false,
+    onOpenComplexDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -89,12 +85,43 @@ fun MyComplexScreen(
       state.errorMessage != null -> ErrorState(state.errorMessage, onRetry)
       state.isEmpty -> EmptyState(onCreateComplex)
       else ->
-          LoadedState(
-              complexes = state.complexes,
-              onConfigureAvailability = onConfigureAvailability,
+          ComplexListState(complexes = state.complexes, onOpenComplexDetail = onOpenComplexDetail)
+    }
+  }
+}
+
+@Composable
+fun ComplexDetailScreen(
+    complex: MyComplexHubComplex?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    contentPadding: PaddingValues,
+    onRetry: () -> Unit,
+    onAddCourt: (String, String) -> Unit,
+    onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  Column(
+      modifier =
+          modifier
+              .fillMaxSize()
+              .padding(contentPadding)
+              .padding(horizontal = 20.dp, vertical = 24.dp)
+              .verticalScroll(rememberScrollState())
+              .testTag("complex_detail_root"),
+      verticalArrangement = Arrangement.spacedBy(20.dp),
+  ) {
+    when {
+      complex != null ->
+          ComplexDetailContent(
+              complex = complex,
+              isRefreshing = isLoading,
               onAddCourt = onAddCourt,
-              isAddCourtEnabled = isAddCourtEnabled,
+              onConfigureAvailability = onConfigureAvailability,
           )
+      isLoading -> LoadingState()
+      errorMessage != null -> ErrorState(errorMessage, onRetry)
+      else -> MissingComplexState()
     }
   }
 }
@@ -115,10 +142,7 @@ private fun LoadingState() {
 }
 
 @Composable
-private fun ErrorState(
-    errorMessage: String,
-    onRetry: () -> Unit,
-) {
+private fun ErrorState(errorMessage: String, onRetry: () -> Unit) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     MejenguerosErrorText(text = errorMessage, modifier = Modifier.testTag("my_complex_error"))
     MejenguerosFullWidthOutlinedButton(text = "Reintentar", onClick = onRetry)
@@ -148,23 +172,72 @@ private fun EmptyState(onCreateComplex: () -> Unit) {
 }
 
 @Composable
-private fun LoadedState(
+private fun MissingComplexState() {
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text(
+        text = "No encontramos el complejo seleccionado.",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+    Text(
+        text = "Volvé al listado y elegí otro complejo para continuar.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+  }
+}
+
+@Composable
+private fun ComplexListState(
     complexes: List<MyComplexHubComplex>,
+    onOpenComplexDetail: (String) -> Unit,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    SectionLabel(text = "TUS COMPLEJOS")
+    MejenguerosListGroup {
+      complexes.forEachIndexed { index, complex ->
+        MejenguerosListItem(
+            title = complex.name,
+            supportingText = complex.toListSupportingText(),
+            modifier = Modifier.testTag("my_complex_list_item_${complex.id}"),
+            leading = { CircleEmojiIcon(symbol = "🏟️") },
+            trailing = {
+              Icon(
+                  imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            },
+            onClick = { onOpenComplexDetail(complex.id) },
+            showDivider = index < complexes.lastIndex,
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun ComplexDetailContent(
+    complex: MyComplexHubComplex,
+    isRefreshing: Boolean,
+    onAddCourt: (String, String) -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
-    onAddCourt: () -> Unit,
-    isAddCourtEnabled: Boolean,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-    complexes.forEach { complex ->
-      ComplexHubSection(
-          complex = complex,
-          onConfigureAvailability = onConfigureAvailability,
-          onAddCourt = onAddCourt,
-          isAddCourtEnabled = isAddCourtEnabled,
+    if (isRefreshing) {
+      Text(
+          text = "Actualizando complejo...",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
 
-    ActivitySection()
+    ComplexHubSection(
+        complex = complex,
+        onConfigureAvailability = onConfigureAvailability,
+        onAddCourt = { onAddCourt(complex.id, complex.name) },
+    )
   }
 }
 
@@ -173,7 +246,6 @@ private fun ComplexHubSection(
     complex: MyComplexHubComplex,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onAddCourt: () -> Unit,
-    isAddCourtEnabled: Boolean,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
@@ -181,8 +253,8 @@ private fun ComplexHubSection(
     CourtsGroup(complex = complex, onConfigureAvailability = onConfigureAvailability)
     AddCourtCallToAction(
         onClick = onAddCourt,
-        enabled = isAddCourtEnabled,
-        modifier = Modifier.testTag("my_complex_add_court_button_${complex.id}"),
+        enabled = true,
+        modifier = Modifier.testTag("complex_detail_add_court_button_${complex.id}"),
     )
   }
 }
@@ -295,9 +367,7 @@ private fun AddCourtCallToAction(
     modifier: Modifier = Modifier,
 ) {
   val shape = RoundedCornerShape(20.dp)
-  val borderColor =
-      if (enabled) MaterialTheme.colorScheme.outlineVariant
-      else MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+  val borderColor = MaterialTheme.colorScheme.outlineVariant
   val contentColor =
       if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
   val dashedBorderModifier =
@@ -313,17 +383,16 @@ private fun AddCourtCallToAction(
         }
       }
 
-  Box(
-      modifier =
-          modifier
-              .fillMaxWidth()
-              .then(dashedBorderModifier)
-              .background(color = MaterialTheme.colorScheme.surface, shape = shape)
-              .clickable(enabled = enabled, onClick = onClick)
-              .padding(horizontal = 16.dp, vertical = 14.dp),
+  Surface(
+      onClick = onClick,
+      enabled = enabled,
+      modifier = modifier.fillMaxWidth().then(dashedBorderModifier),
+      shape = shape,
+      color = MaterialTheme.colorScheme.surface,
+      contentColor = contentColor,
   ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -333,71 +402,14 @@ private fun AddCourtCallToAction(
           color = contentColor,
       )
       Spacer(modifier = Modifier.size(8.dp))
-      Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = "Agregar cancha",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            textAlign = TextAlign.Center,
-            color = contentColor,
-        )
-        if (!enabled) {
-          Text(
-              text = "Próximamente disponible",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-      }
-    }
-  }
-}
-
-@Composable
-private fun ActivitySection() {
-  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    SectionLabel(text = "ACTIVIDAD")
-    MejenguerosListGroup(modifier = Modifier.testTag("my_complex_activity_group")) {
-      ActivityRow(
-          title = "Reseñas recibidas",
-          supportingText = "Lo que opinan los mejengueros · Próximamente",
-          emoji = "★",
-          modifier = Modifier.testTag("my_complex_activity_reviews"),
-          showDivider = true,
-      )
-      ActivityRow(
-          title = "Reservas de mis canchas",
-          supportingText = "Próximas y pasadas · Próximamente",
-          emoji = "📅",
-          modifier = Modifier.testTag("my_complex_activity_reservations"),
-          showDivider = false,
+      Text(
+          text = "Agregar cancha",
+          style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+          textAlign = TextAlign.Center,
+          color = contentColor,
       )
     }
   }
-}
-
-@Composable
-private fun ActivityRow(
-    title: String,
-    supportingText: String,
-    emoji: String,
-    modifier: Modifier = Modifier,
-    showDivider: Boolean,
-) {
-  MejenguerosListItem(
-      title = title,
-      supportingText = supportingText,
-      modifier = modifier,
-      leading = { CircleEmojiIcon(symbol = emoji) },
-      trailing = {
-        Text(
-            text = "Próximamente",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      },
-      enabled = false,
-      showDivider = showDivider,
-  )
 }
 
 @Composable
@@ -419,48 +431,42 @@ private fun SectionLabel(text: String) {
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
   }
 }
 
-private fun MyComplexHubComplex.toLocationLabel(): String? {
-  if (latitude == null || longitude == null) {
-    return null
-  }
+private fun MyComplexHubComplex.toLocationLabel(): String? =
+    if (latitude == null || longitude == null) null else "Ubicación: $latitude, $longitude"
 
-  return "Ubicación: $latitude, $longitude"
-}
-
-private fun MyComplexHubComplex.toStatusLabel(): String? = status.toOwnerStatusLabel()
-
-private fun MyComplexHubCourt.toSupportingText(): String =
-    "${status.toOwnerStatusLabel() ?: "Cancha registrada"} · ${availabilityStatus.toSupportingLabel()}"
-
-private fun String.toOwnerStatusLabel(): String? =
-    when (uppercase()) {
+private fun MyComplexHubComplex.toStatusLabel(): String? =
+    when (status.uppercase()) {
       "ACTIVE" -> "Activa"
       "INACTIVE" -> "Inactiva"
-      "PENDING" -> "Pendiente"
       else -> null
     }
 
-private fun CourtAvailabilitySetupStatus.toSupportingLabel(): String =
-    when (this) {
-      CourtAvailabilitySetupStatus.CONFIGURED -> "disponibilidad configurada"
-      CourtAvailabilitySetupStatus.PENDING -> "falta disponibilidad"
+private fun MyComplexHubComplex.toListSupportingText(): String {
+  val courtsLabel = if (courts.size == 1) "1 cancha" else "${courts.size} canchas"
+  return "$address · $courtsLabel"
+}
+
+private fun MyComplexHubCourt.toSupportingText(): String =
+    when (availabilityStatus) {
+      CourtAvailabilitySetupStatus.CONFIGURED -> "Activa · disponibilidad configurada"
+      CourtAvailabilitySetupStatus.PENDING -> "Activa · falta disponibilidad"
     }
 
 private fun CourtAvailabilitySetupStatus.toPillLabel(): String =
     when (this) {
-      CourtAvailabilitySetupStatus.CONFIGURED -> "Activa"
+      CourtAvailabilitySetupStatus.CONFIGURED -> "Configurada"
       CourtAvailabilitySetupStatus.PENDING -> "Pendiente"
     }
 
 private fun CourtAvailabilitySetupStatus.toPillStyle(): MejenguerosStatusPillStyle =
     when (this) {
       CourtAvailabilitySetupStatus.CONFIGURED -> MejenguerosStatusPillStyle.Primary
-      CourtAvailabilitySetupStatus.PENDING -> MejenguerosStatusPillStyle.Subtle
+      CourtAvailabilitySetupStatus.PENDING -> MejenguerosStatusPillStyle.Neutral
     }

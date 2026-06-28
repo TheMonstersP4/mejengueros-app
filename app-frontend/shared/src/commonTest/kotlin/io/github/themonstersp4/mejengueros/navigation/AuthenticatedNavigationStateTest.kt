@@ -161,6 +161,36 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun openComplexDetailKeepsMyComplexSelectedAndAppendsDetailRoute() {
+    val state = testNavigationState()
+
+    state.openComplexDetail("complex-id")
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(
+        listOf(MyComplexRoute, ComplexDetailRoute("complex-id")),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
+  fun openAddCourtKeepsComplexDetailAndAppendsAddCourtRoute() {
+    val state = testNavigationState()
+
+    state.openComplexDetail("complex-id")
+    state.openAddCourt("complex-id", "North Sports Center")
+
+    assertEquals(
+        listOf(
+            MyComplexRoute,
+            ComplexDetailRoute("complex-id"),
+            AddCourtRoute("complex-id", "North Sports Center"),
+        ),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
   fun returnToMyComplexRootClearsMyComplexDetailStack() {
     val state = testNavigationState()
 
@@ -315,6 +345,21 @@ class AuthenticatedNavigationStateTest {
 
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
     assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun closeAddCourtAfterSuccessReturnsToComplexDetailAndRequestsHubReload() {
+    val state = testNavigationState()
+
+    state.openComplexDetail("complex-id")
+    state.openAddCourt("complex-id", "North Sports Center")
+    state.closeAddCourtAfterSuccess()
+
+    assertEquals(
+        listOf(MyComplexRoute, ComplexDetailRoute("complex-id")),
+        state.currentBackStack.toList(),
+    )
+    assertEquals(1, state.myComplexHubReloadRequestKey)
   }
 
   @Test

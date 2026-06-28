@@ -5,8 +5,10 @@ import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
@@ -82,6 +84,34 @@ class ComplexRepositoryTest {
   }
 
   @Test
+  fun addCourtDelegatesDirectlyToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeComplexRemoteDataSource()
+    val repository = ComplexRepository(remoteDataSource)
+
+    val created = repository.addCourt("complex-id", createCourtRequest)
+
+    assertEquals(listOf("addCourt"), remoteDataSource.calls)
+    assertEquals(listOf("complex-id" to createCourtRequest), remoteDataSource.addCourtRequests)
+    assertEquals(createdCourt, created)
+  }
+
+  @Test
+  fun addCourtPropagatesRemoteFailures() = runTest {
+    val remoteDataSource =
+        FakeComplexRemoteDataSource(addCourtFailure = IllegalStateException("add court failed"))
+    val repository = ComplexRepository(remoteDataSource)
+
+    val error =
+        assertFailsWith<IllegalStateException> {
+          repository.addCourt("complex-id", createCourtRequest)
+        }
+
+    assertEquals("add court failed", error.message)
+    assertEquals(listOf("addCourt"), remoteDataSource.calls)
+    assertEquals(listOf("complex-id" to createCourtRequest), remoteDataSource.addCourtRequests)
+  }
+
+  @Test
   fun getMyComplexHubDelegatesDirectlyToRemoteDataSource() = runTest {
     val remoteDataSource = FakeComplexRemoteDataSource()
     val repository = ComplexRepository(remoteDataSource)
@@ -107,6 +137,8 @@ class ComplexRepositoryTest {
   private class FakeComplexRemoteDataSource(
       private val createFailure: Throwable? = null,
       private val createResult: CreatedComplex = createdComplex,
+      private val addCourtFailure: Throwable? = null,
+      private val addCourtResult: CreatedCourt = createdCourt,
       private val getMyComplexHubFailure: Throwable? = null,
       private val myComplexHubResult: MyComplexHub = myComplexHub,
   ) : IComplexRemoteDataSource {
@@ -114,6 +146,7 @@ class ComplexRepositoryTest {
     val cantonRequests = mutableListOf<String>()
     val serviceRequests = mutableListOf<ServiceScope>()
     val createRequests = mutableListOf<CreateComplexRequest>()
+    val addCourtRequests = mutableListOf<Pair<String, CreateCourtRequest>>()
 
     override suspend fun getProvinces(): List<Province> {
       calls.add("getProvinces")
@@ -137,6 +170,13 @@ class ComplexRepositoryTest {
       createRequests.add(request)
       createFailure?.let { throw it }
       return createResult
+    }
+
+    override suspend fun addCourt(complexId: String, request: CreateCourtRequest): CreatedCourt {
+      calls.add("addCourt")
+      addCourtRequests.add(complexId to request)
+      addCourtFailure?.let { throw it }
+      return addCourtResult
     }
 
     override suspend fun getMyComplexHub(): MyComplexHub {
@@ -186,6 +226,14 @@ class ComplexRepositoryTest {
             firstCourtId = "court-id",
             firstCourtName = "Court A",
         )
+
+    val createCourtRequest =
+        CreateCourtRequest(
+            name = "Court B",
+            serviceIds = listOf("court-service-id"),
+        )
+
+    val createdCourt = CreatedCourt(id = "court-id", complexId = "complex-id", name = "Court B")
 
     val myComplexHub =
         MyComplexHub(

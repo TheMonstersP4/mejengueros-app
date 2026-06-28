@@ -19,3 +19,14 @@ data class CreateFirstCourtDetails(
     val name: String,
     val serviceIds: List<String>,
 )
+
+data class CreateCourtRequest(
+    val name: String,
+    val serviceIds: List<String>,
+)
+
+data class CreatedCourt(
+    val id: String,
+    val complexId: String,
+    val name: String,
+)

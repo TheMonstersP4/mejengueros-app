@@ -188,6 +188,8 @@ private fun AppRoute.toLegacyAuthenticatedTopLevelRouteName(): String =
       ReservationsRoute -> AuthenticatedTopLevelRoute.Reservations.name
       NotificationsRoute -> AuthenticatedTopLevelRoute.Notifications.name
       MyComplexRoute,
+      is ComplexDetailRoute,
+      is AddCourtRoute,
       CreateComplexRoute,
       is CourtAvailabilityRoute -> AuthenticatedTopLevelRoute.MyComplex.name
       KitRoute,
@@ -258,6 +260,8 @@ private fun AppRoute.normalizeForSearchRoot(): AppRoute =
 
 private fun AppRoute.normalizeForMyComplexStack(): AppRoute? =
     when (this) {
+      is ComplexDetailRoute -> this
+      is AddCourtRoute -> this
       CreateComplexRoute -> CreateComplexRoute
       is CourtAvailabilityRoute -> this
       else -> null
@@ -314,6 +318,36 @@ class AuthenticatedNavigationState(
     }
   }
 
+  fun openComplexDetail(complexId: String) {
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    while (myComplexBackStack.size > 1) {
+      myComplexBackStack.removeLastOrNull()
+    }
+    val route = ComplexDetailRoute(complexId)
+    if (myComplexBackStack.lastOrNull() != route) {
+      myComplexBackStack.add(route)
+    }
+  }
+
+  fun openAddCourt(complexId: String, complexName: String) {
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    val detailRoute = ComplexDetailRoute(complexId)
+    if (myComplexBackStack.lastOrNull() != detailRoute) {
+      if (myComplexBackStack.none { it == detailRoute }) {
+        myComplexBackStack.add(detailRoute)
+      } else {
+        while (myComplexBackStack.lastOrNull() != detailRoute && myComplexBackStack.size > 1) {
+          myComplexBackStack.removeLastOrNull()
+        }
+      }
+    }
+
+    val route = AddCourtRoute(complexId = complexId, complexName = complexName)
+    if (myComplexBackStack.lastOrNull() != route) {
+      myComplexBackStack.add(route)
+    }
+  }
+
   fun returnToMyComplexRoot() {
     selectedRoute = AuthenticatedTopLevelRoute.MyComplex
     myComplexBackStack.clear()
@@ -336,6 +370,13 @@ class AuthenticatedNavigationState(
         )
     if (myComplexBackStack.lastOrNull() != route) {
       myComplexBackStack.add(route)
+    }
+  }
+
+  fun closeAddCourtAfterSuccess() {
+    if (myComplexBackStack.lastOrNull() is AddCourtRoute) {
+      myComplexBackStack.removeLastOrNull()
+      requestMyComplexHubReload()
     }
   }
 
