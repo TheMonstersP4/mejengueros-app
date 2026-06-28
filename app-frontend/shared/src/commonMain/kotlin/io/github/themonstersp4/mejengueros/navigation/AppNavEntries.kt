@@ -366,6 +366,15 @@ private fun CourtAvailabilityEntry(
           key = "court-availability-${route.courtId}",
           parameters = { parametersOf(route.courtId, route.courtName, route.complexName) },
       )
+
+  CourtAvailabilityEntryContent(viewModel = viewModel, shellActions = shellActions)
+}
+
+@Composable
+internal fun CourtAvailabilityEntryContent(
+    viewModel: CourtAvailabilityViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
   val state by viewModel.uiState.collectAsState()
 
   AuthenticatedScaffold(
@@ -388,13 +397,22 @@ private fun CourtAvailabilityEntry(
                 onEndTimeSelected = viewModel::updateEndTime,
                 onRetry = viewModel::load,
                 onSave = viewModel::save,
-                onSuccessAcknowledged = {
-                  viewModel.acknowledgeSuccess()
-                  shellActions.returnToMyComplexRoot()
-                },
+                onSuccessAcknowledged =
+                    availabilitySuccessAcknowledgedHandler(
+                        viewModel = viewModel,
+                        shellActions = shellActions,
+                    ),
             ),
     )
   }
+}
+
+internal fun availabilitySuccessAcknowledgedHandler(
+    viewModel: CourtAvailabilityViewModel,
+    shellActions: AuthenticatedShellActions,
+): () -> Unit = {
+  viewModel.acknowledgeSuccess()
+  shellActions.returnToMyComplexRoot()
 }
 
 private data class LocationPickerCoordinator(

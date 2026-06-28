@@ -6,6 +6,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -131,7 +132,10 @@ private fun NavBackStack<NavKey>.replaceWith(routes: List<AppRoute>) {
 
 @Composable
 private fun rememberSavedAuthenticatedTopLevelRouteState(): SavedAuthenticatedTopLevelRouteState {
-  val savedRouteName = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Search.name) }
+  val savedRouteName =
+      rememberSaveable(saver = savedAuthenticatedTopLevelRouteNameStateSaver()) {
+        mutableStateOf(AuthenticatedTopLevelRoute.Search.name)
+      }
   val routeState =
       remember(savedRouteName) {
         object : MutableState<AuthenticatedTopLevelRoute> {
@@ -155,6 +159,23 @@ private data class SavedAuthenticatedTopLevelRouteState(
     val savedRouteName: MutableState<String>,
     val route: MutableState<AuthenticatedTopLevelRoute>,
 )
+
+private fun savedAuthenticatedTopLevelRouteNameStateSaver(): Saver<MutableState<String>, Any> =
+    Saver(
+        save = { it.value },
+        restore = { savedValue ->
+          mutableStateOf(restoreSavedAuthenticatedTopLevelRouteName(savedValue))
+        },
+    )
+
+internal fun restoreSavedAuthenticatedTopLevelRouteName(savedValue: Any?): String =
+    when (savedValue) {
+      is String -> savedValue
+      is CharSequence -> savedValue.toString()
+      is AuthenticatedTopLevelRoute -> savedValue.name
+      is Enum<*> -> savedValue.name
+      else -> AuthenticatedTopLevelRoute.Search.name
+    }
 
 private fun normalizeAuthenticatedTopLevelRoute(
     savedSelectedRouteName: String?,

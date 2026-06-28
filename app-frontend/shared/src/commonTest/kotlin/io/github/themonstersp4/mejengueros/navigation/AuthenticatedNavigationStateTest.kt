@@ -8,6 +8,11 @@ import kotlin.test.assertEquals
 
 class AuthenticatedNavigationStateTest {
 
+  private enum class LegacySelectedRoute {
+    Home,
+    MyComplex,
+  }
+
   @Test
   fun restoreNormalizationMapsLegacyHomeSelectionToSearchLanding() {
     val normalized =
@@ -39,6 +44,23 @@ class AuthenticatedNavigationStateTest {
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, normalized.selectedRoute)
     assertEquals(listOf(SearchRoute), normalized.searchStack)
     assertEquals(listOf(MyComplexRoute, availabilityRoute), normalized.myComplexStack)
+  }
+
+  @Test
+  fun restoreSavedSelectedRouteNameAcceptsLegacyEnumValues() {
+    assertEquals("Home", restoreSavedAuthenticatedTopLevelRouteName(LegacySelectedRoute.Home))
+    assertEquals(
+        "MyComplex",
+        restoreSavedAuthenticatedTopLevelRouteName(LegacySelectedRoute.MyComplex),
+    )
+  }
+
+  @Test
+  fun restoreSavedSelectedRouteNameKeepsCurrentEnumValuesCompatible() {
+    assertEquals(
+        AuthenticatedTopLevelRoute.Reservations.name,
+        restoreSavedAuthenticatedTopLevelRouteName(AuthenticatedTopLevelRoute.Reservations),
+    )
   }
 
   @Test
