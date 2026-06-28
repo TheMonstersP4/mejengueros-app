@@ -56,6 +56,15 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun restoreSavedSelectedRouteNameAcceptsLegacyObjectRouteValues() {
+    assertEquals("Home", restoreSavedAuthenticatedTopLevelRouteName(HomeRoute))
+    assertEquals("Kit", restoreSavedAuthenticatedTopLevelRouteName(KitRoute))
+    assertEquals("Kit", restoreSavedAuthenticatedTopLevelRouteName(AvailabilitySelectorsRoute))
+    assertEquals("Pokedex", restoreSavedAuthenticatedTopLevelRouteName(PokedexRoute))
+    assertEquals("Pokedex", restoreSavedAuthenticatedTopLevelRouteName(PokemonDetailRoute(25)))
+  }
+
+  @Test
   fun restoreSavedSelectedRouteNameKeepsCurrentEnumValuesCompatible() {
     assertEquals(
         AuthenticatedTopLevelRoute.Reservations.name,
@@ -77,6 +86,24 @@ class AuthenticatedNavigationStateTest {
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, normalized.selectedRoute)
     assertEquals(listOf(SearchRoute), normalized.searchStack)
     assertEquals(listOf(MyComplexRoute, CreateComplexRoute), normalized.myComplexStack)
+  }
+
+  @Test
+  fun restoreNormalizationMovesLegacyOwnerFlowFromHomeObjectSelectionIntoMyComplex() {
+    val availabilityRoute = CourtAvailabilityRoute("court-id", "Cancha 1", "Mejengas CR")
+
+    val normalized =
+        normalizeRestoredAuthenticatedNavigation(
+            savedSelectedRouteName = restoreSavedAuthenticatedTopLevelRouteName(HomeRoute),
+            searchStack = listOf(HomeRoute, availabilityRoute),
+            reservationsStack = listOf(ReservationsRoute),
+            notificationsStack = listOf(NotificationsRoute),
+            myComplexStack = listOf(MyComplexRoute),
+        )
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, normalized.selectedRoute)
+    assertEquals(listOf(SearchRoute), normalized.searchStack)
+    assertEquals(listOf(MyComplexRoute, availabilityRoute), normalized.myComplexStack)
   }
 
   @Test

@@ -173,8 +173,29 @@ internal fun restoreSavedAuthenticatedTopLevelRouteName(savedValue: Any?): Strin
       is String -> savedValue
       is CharSequence -> savedValue.toString()
       is AuthenticatedTopLevelRoute -> savedValue.name
+      is AppRoute -> savedValue.toLegacyAuthenticatedTopLevelRouteName()
       is Enum<*> -> savedValue.name
       else -> AuthenticatedTopLevelRoute.Search.name
+    }
+
+private fun AppRoute.toLegacyAuthenticatedTopLevelRouteName(): String =
+    when (this) {
+      HomeRoute -> "Home"
+      SearchRoute -> AuthenticatedTopLevelRoute.Search.name
+      ReservationsRoute -> AuthenticatedTopLevelRoute.Reservations.name
+      NotificationsRoute -> AuthenticatedTopLevelRoute.Notifications.name
+      MyComplexRoute,
+      CreateComplexRoute,
+      is CourtAvailabilityRoute -> AuthenticatedTopLevelRoute.MyComplex.name
+      KitRoute,
+      AvailabilitySelectorsRoute -> "Kit"
+      PokedexRoute,
+      is PokemonDetailRoute -> "Pokedex"
+      LoginRoute,
+      RegisterRoute,
+      VerifyAccountRoute,
+      ForgotPasswordRoute,
+      ResetPasswordRoute -> AuthenticatedTopLevelRoute.Search.name
     }
 
 private fun normalizeAuthenticatedTopLevelRoute(
