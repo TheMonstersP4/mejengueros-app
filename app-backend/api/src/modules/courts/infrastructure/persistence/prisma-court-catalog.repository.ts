@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { InvalidCourtCatalogLocationFilterError } from '../../domain/errors/invalid-court-catalog-location-filter.error';
@@ -19,6 +19,62 @@ const WEEKDAY_BY_INDEX = [
 ] as const;
 
 const PUBLIC_COURT_CATALOG_TAKE = 50;
+
+export const COURT_CATALOG_TODAY_PROVIDER = Symbol('COURT_CATALOG_TODAY_PROVIDER');
+
+const PUBLIC_COURT_CATALOG_SELECT = {
+  id: true,
+  name: true,
+  services: {
+    select: {
+      serviceCatalog: {
+        select: {
+          name: true
+        }
+      }
+    }
+  },
+  complex: {
+    select: {
+      id: true,
+      name: true,
+      province: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      canton: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      services: {
+        select: {
+          serviceCatalog: {
+            select: {
+              name: true
+            }
+          }
+        }
+      }
+    }
+  },
+  availability: {
+    select: {
+      days: {
+        select: {
+          day: true
+        }
+      }
+    }
+  }
+} satisfies Prisma.CourtSelect;
+
+type PublicCourtCatalogRow = Prisma.CourtGetPayload<{
+  select: typeof PUBLIC_COURT_CATALOG_SELECT;
+}>;
 
 interface ICourtCatalogPersistenceClient {
   $queryRaw<T = unknown>(
@@ -43,7 +99,10 @@ interface ICourtRatingAggregateRow {
 export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
   constructor(
     @Inject(PrismaService)
-    private readonly prisma: ICourtCatalogPersistenceClient
+    private readonly prisma: ICourtCatalogPersistenceClient,
+    @Optional()
+    @Inject(COURT_CATALOG_TODAY_PROVIDER)
+    private readonly todayProvider: () => Date = () => new Date()
   ) {}
 
   async assertProvinceAndCantonMatch(
@@ -68,8 +127,8 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
 
   async listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogItem[]> {
     const normalizedQuery = filters.q?.trim();
-    const today = WEEKDAY_BY_INDEX[new Date().getDay()];
-    const courts = await this.prisma.court.findMany({
+    const today = WEEKDAY_BY_INDEX[this.todayProvider().getDay()];
+    const courts = (await this.prisma.court.findMany({
       where: {
         status: 'ACTIVE',
         deletedAt: null,
@@ -135,56 +194,8 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
       },
       take: PUBLIC_COURT_CATALOG_TAKE,
       orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        services: {
-          select: {
-            serviceCatalog: {
-              select: {
-                name: true
-              }
-            }
-          }
-        },
-        complex: {
-          select: {
-            id: true,
-            name: true,
-            province: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            canton: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            services: {
-              select: {
-                serviceCatalog: {
-                  select: {
-                    name: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        availability: {
-          select: {
-            days: {
-              select: {
-                day: true
-              }
-            }
-          }
-        }
-      }
-    });
+      select: PUBLIC_COURT_CATALOG_SELECT
+    })) as PublicCourtCatalogRow[];
 
     const catalogCourts = courts.filter(
       (court) => court.complex.province !== null && court.complex.canton !== null

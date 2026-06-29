@@ -2,10 +2,12 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { configureValidation } from '@/bootstrap/validation';
+import { COURT_CATALOG_TODAY_PROVIDER } from '@/modules/courts/infrastructure/persistence/prisma-court-catalog.repository';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
 describe('public court catalog HTTP contract', () => {
+  const fixedMonday = new Date('2026-06-22T12:00:00.000Z');
   const originalEnv = {
     DATABASE_URL: process.env.DATABASE_URL,
     AWS_REGION: process.env.AWS_REGION,
@@ -41,6 +43,8 @@ describe('public court catalog HTTP contract', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
     })
+      .overrideProvider(COURT_CATALOG_TODAY_PROVIDER)
+      .useValue(() => fixedMonday)
       .overrideProvider(PrismaService)
       .useValue(prismaService)
       .compile();
@@ -203,15 +207,7 @@ describe('public court catalog HTTP contract', () => {
             availability: {
               days: [
                 {
-                  day: [
-                    'SUNDAY',
-                    'MONDAY',
-                    'TUESDAY',
-                    'WEDNESDAY',
-                    'THURSDAY',
-                    'FRIDAY',
-                    'SATURDAY'
-                  ][new Date().getDay()]
+                  day: 'MONDAY'
                 }
               ]
             }

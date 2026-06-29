@@ -9,6 +9,8 @@ import { ListActiveServicesUseCase } from '@/modules/service-catalog/application
 import { PrismaServiceCatalogRepository } from '@/modules/service-catalog/infrastructure/persistence/prisma-service-catalog.repository';
 import { ServiceCatalogController } from '@/modules/service-catalog/interfaces/http/controllers/service-catalog.controller';
 
+const FIXED_MONDAY = new Date('2026-06-22T12:00:00.000Z');
+
 describe('catalog modules behavior', () => {
   it('delegates locations controllers and use cases to the repository', async () => {
     const repository = {
@@ -161,13 +163,16 @@ describe('catalog modules behavior', () => {
               services: [{ serviceCatalog: { name: 'Parqueo' } }]
             },
             availability: {
-              days: [{ day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date().getDay()] }]
+              days: [{ day: 'MONDAY' }]
             }
           }
         ])
       }
     };
-    const repository = new PrismaCourtCatalogRepository(prisma as never);
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      () => FIXED_MONDAY
+    );
 
     await repository.assertProvinceAndCantonMatch('province-id', 'canton-id');
     await expect(
@@ -179,7 +184,8 @@ describe('catalog modules behavior', () => {
     ).resolves.toEqual([
       expect.objectContaining({
         courtId: 'court-id',
-        rating: { average: 4.5, count: 2 }
+        rating: { average: 4.5, count: 2 },
+        isReservableToday: true
       })
     ]);
 
@@ -246,7 +252,47 @@ describe('catalog modules behavior', () => {
     await expect(repository.listPublicCatalog({})).resolves.toEqual([
       expect.objectContaining({
         courtId: 'court-id',
-        rating: { average: null, count: 0 }
+        rating: { average: null, count: 0 },
+        isReservableToday: false
+      })
+    ]);
+  });
+
+  it('calculates isReservableToday from the injected date provider', async () => {
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn()
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: []
+            },
+            availability: {
+              days: [{ day: 'TUESDAY' }]
+            }
+          }
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      () => FIXED_MONDAY
+    );
+
+    await expect(repository.listPublicCatalog({})).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        isReservableToday: false
       })
     ]);
   });
