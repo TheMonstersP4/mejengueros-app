@@ -124,7 +124,8 @@ export class PrismaComplexRepository implements IComplexRepository {
               cantonId: command.complex.cantonId,
               address: command.complex.address,
               latitude: command.complex.latitude,
-              longitude: command.complex.longitude
+              longitude: command.complex.longitude,
+              isPublished: true
             }
           });
 
@@ -140,7 +141,8 @@ export class PrismaComplexRepository implements IComplexRepository {
           const firstCourt = await transaction.court.create({
             data: {
               complexId: complex.id,
-              name: command.firstCourt.name
+              name: command.firstCourt.name,
+              isPublished: true
             }
           });
 

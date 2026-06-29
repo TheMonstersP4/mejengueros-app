@@ -339,6 +339,7 @@ export async function seed(prisma: PrismaClient): Promise<void> {
       address: 'Av. Central 1234, San Jose, Costa Rica',
       latitude: 9.9281,
       longitude: -84.0907,
+      isPublished: true,
       services: {
         create: [{ serviceCatalogId: svcParqueo.id }]
       }
@@ -349,6 +350,7 @@ export async function seed(prisma: PrismaClient): Promise<void> {
     data: {
       complexId: complex.id,
       name: 'Cancha 1 — Demo',
+      isPublished: true,
       services: {
         create: [
           { serviceCatalogId: svcIluminacion.id },
