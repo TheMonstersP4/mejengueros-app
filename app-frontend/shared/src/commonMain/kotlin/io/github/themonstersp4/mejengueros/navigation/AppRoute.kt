@@ -19,6 +19,22 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object SearchRoute : AppRoute
 
+@Serializable
+data class CatalogCourtDetailRoute(
+    val courtId: String,
+    val complexId: String,
+    val complexName: String,
+    val courtName: String,
+) : AppRoute
+
+@Serializable
+data class CatalogReservationRoute(
+    val courtId: String,
+    val complexId: String,
+    val complexName: String,
+    val courtName: String,
+) : AppRoute
+
 @Serializable data object ReservationsRoute : AppRoute
 
 @Serializable data object NotificationsRoute : AppRoute

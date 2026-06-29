@@ -164,6 +164,8 @@ private fun shellActions(
         selectNotifications = navigationState::selectNotifications,
         selectMyComplex = navigationState::selectMyComplex,
         returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
+        openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
+        openCatalogReservation = navigationState::openCatalogReservation,
         openComplexDetail = navigationState::openComplexDetail,
         openAddCourt = navigationState::openAddCourt,
         openCreateComplex = navigationState::openCreateComplex,

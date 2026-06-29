@@ -31,6 +31,7 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
+            onOpenCourtDetail = {},
             onOpenCreateComplex = {},
         )
       }
@@ -50,6 +51,7 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
+            onOpenCourtDetail = {},
             onOpenCreateComplex = {},
         )
       }
@@ -69,6 +71,7 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
+            onOpenCourtDetail = {},
             onOpenCreateComplex = {},
         )
       }
@@ -79,7 +82,7 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
-  fun catalogCardsRenderWithoutNavigationClickAction() {
+  fun catalogCardsExposeNavigationClickAction() {
     composeRule.setContent {
       MejenguerosTheme {
         HomeScreen(
@@ -110,14 +113,15 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
+            onOpenCourtDetail = {},
             onOpenCreateComplex = {},
         )
       }
     }
 
     composeRule
-        .onNodeWithText("Mejengas CR · Cancha 1")
+        .onNodeWithTag("catalog_court_card_court-id")
         .assertExists()
-        .assert(SemanticsMatcher("has no click action") { !hasClickAction().matches(it) })
+        .assert(SemanticsMatcher("has click action") { hasClickAction().matches(it) })
   }
 }

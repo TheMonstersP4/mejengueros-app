@@ -16,6 +16,8 @@ class AuthenticatedShellActions(
     val selectNotifications: () -> Unit,
     val selectMyComplex: () -> Unit,
     val returnToMyComplexRoot: () -> Unit,
+    val openCatalogCourtDetail: (CatalogCourtDetailRoute) -> Unit,
+    val openCatalogReservation: (CatalogReservationRoute) -> Unit,
     val openComplexDetail: (String) -> Unit,
     val openAddCourt: (String, String) -> Unit,
     val openCreateComplex: () -> Unit,

@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.screens.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +61,7 @@ fun HomeScreen(
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
+    onOpenCourtDetail: (CourtCatalogItem) -> Unit,
     onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,7 +122,10 @@ fun HomeScreen(
                 imageContentDescription = court.displayName,
                 metadata = buildCourtMetadata(court),
                 statusText = if (court.isReservableToday) "Reservable hoy" else null,
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier =
+                    Modifier.padding(horizontal = 20.dp)
+                        .testTag("catalog_court_card_${court.id}")
+                        .clickable { onOpenCourtDetail(court) },
             )
           }
           item { Spacer(modifier = Modifier.height(4.dp)) }
