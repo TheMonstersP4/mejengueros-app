@@ -16,7 +16,7 @@ data class CourtAvailabilityUiState(
     val successMessage: String? = null,
 ) {
   val appBarTitle: String
-    get() = if (courtName.isBlank()) "Disponibilidad" else "Disponibilidad · $courtName"
+    get() = "Disponibilidad"
 
   val canSave: Boolean
     get() = !isLoading && !isSaving && selectedDays.isNotEmpty() && previewSlots.isNotEmpty()

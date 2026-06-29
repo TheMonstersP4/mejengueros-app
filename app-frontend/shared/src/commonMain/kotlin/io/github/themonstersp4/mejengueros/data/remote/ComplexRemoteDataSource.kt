@@ -5,12 +5,19 @@ import io.github.themonstersp4.mejengueros.data.remote.dto.CantonCatalogEnvelope
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateComplexEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateComplexRequestDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateComplexRequestPayloadDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtRequestPayloadDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.MyComplexHubEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ProvinceCatalogEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ServiceCatalogEnvelopeDto
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
@@ -116,6 +123,73 @@ class ComplexRemoteDataSource(
           complexAddress = data.complex.address,
           firstCourtId = data.firstCourt.id,
           firstCourtName = data.firstCourt.name,
+      )
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
+
+  override suspend fun addCourt(complexId: String, request: CreateCourtRequest): CreatedCourt {
+    try {
+      val response =
+          httpClient
+              .post("/v1/complexes/$complexId/courts") {
+                header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody(
+                    CreateCourtRequestPayloadDto(
+                        name = request.name,
+                        serviceIds = request.serviceIds,
+                    )
+                )
+              }
+              .body<CreateCourtEnvelopeDto>()
+
+      val data =
+          response.data
+              ?: throw AppApiException(
+                  statusCode = 502,
+                  message = "No se recibió la respuesta esperada del API.",
+              )
+
+      return CreatedCourt(id = data.id, complexId = data.complexId, name = data.name)
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
+
+  override suspend fun getMyComplexHub(): MyComplexHub {
+    return try {
+      val response = httpClient.get("/v1/complexes/my-hub").body<MyComplexHubEnvelopeDto>()
+      val data =
+          response.data
+              ?: throw AppApiException(
+                  statusCode = 502,
+                  message = "No se recibió la respuesta esperada del API.",
+              )
+
+      MyComplexHub(
+          complexes =
+              data.complexes.map { complex ->
+                MyComplexHubComplex(
+                    id = complex.id,
+                    name = complex.name,
+                    address = complex.address,
+                    provinceId = complex.provinceId,
+                    cantonId = complex.cantonId,
+                    latitude = complex.latitude,
+                    longitude = complex.longitude,
+                    status = complex.status,
+                    courts =
+                        complex.courts.map { court ->
+                          MyComplexHubCourt(
+                              id = court.id,
+                              name = court.name,
+                              status = court.status,
+                              availabilityStatus = court.availabilityStatus,
+                          )
+                        },
+                )
+              }
       )
     } catch (error: ResponseException) {
       throw error.toAppApiException(json)

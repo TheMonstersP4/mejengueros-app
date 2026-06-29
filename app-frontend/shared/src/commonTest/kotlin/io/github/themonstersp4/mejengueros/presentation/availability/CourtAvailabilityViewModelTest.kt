@@ -36,7 +36,7 @@ class CourtAvailabilityViewModelTest {
     assertEquals(listOf("court-id"), repository.loadedCourtIds)
     assertEquals("Cancha 1", viewModel.uiState.value.courtName)
     assertEquals("Mejengas CR", viewModel.uiState.value.complexName)
-    assertEquals("Disponibilidad · Cancha 1", viewModel.uiState.value.appBarTitle)
+    assertEquals("Disponibilidad", viewModel.uiState.value.appBarTitle)
     assertEquals(
         setOf(CourtAvailabilityWeekday.MONDAY, CourtAvailabilityWeekday.WEDNESDAY),
         viewModel.uiState.value.selectedDays,
@@ -68,7 +68,7 @@ class CourtAvailabilityViewModelTest {
   }
 
   @Test
-  fun savePersistsAvailabilityAndShowsSuccess() = runTest {
+  fun savePersistsAvailabilityAndShowsConfirmationMessage() = runTest {
     val repository = FakeCourtAvailabilityRepository(initialAvailability = null)
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
     val viewModel =
@@ -98,9 +98,35 @@ class CourtAvailabilityViewModelTest {
         ),
         repository.savedConfigs,
     )
-    assertEquals("Disponibilidad guardada correctamente.", viewModel.uiState.value.successMessage)
+    assertEquals(
+        "Tu cancha ya tiene una disponibilidad base para recibir reservas.",
+        viewModel.uiState.value.successMessage,
+    )
     assertNull(viewModel.uiState.value.errorMessage)
     assertFalse(viewModel.uiState.value.isSaving)
+    scope.cancel()
+  }
+
+  @Test
+  fun acknowledgeSuccessClearsSuccessMessage() = runTest {
+    val repository = FakeCourtAvailabilityRepository(initialAvailability = null)
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        CourtAvailabilityViewModel(
+            courtId = "court-id",
+            initialCourtName = "Cancha 1",
+            initialComplexName = "Mejengas CR",
+            repository = repository,
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    viewModel.toggleDay(CourtAvailabilityWeekday.MONDAY)
+    viewModel.save()
+    advanceUntilIdle()
+    viewModel.acknowledgeSuccess()
+
+    assertNull(viewModel.uiState.value.successMessage)
     scope.cancel()
   }
 
@@ -132,6 +158,34 @@ class CourtAvailabilityViewModelTest {
     )
     scope.cancel()
   }
+
+  @Test
+  fun loadMapsUnauthorizedAndForbiddenApiFailuresIntoUserFriendlyMessage() = runTest {
+    listOf(401, 403).forEach { statusCode ->
+      val repository =
+          FakeCourtAvailabilityRepository(
+              loadError = AppApiException(statusCode = statusCode, message = "Forbidden"),
+          )
+      val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+      val viewModel =
+          CourtAvailabilityViewModel(
+              courtId = "court-id",
+              initialCourtName = "Cancha 1",
+              initialComplexName = "Mejengas CR",
+              repository = repository,
+              coroutineScope = scope,
+          )
+
+      advanceUntilIdle()
+
+      assertEquals(
+          "No tenés permisos para ver la disponibilidad de esta cancha.",
+          viewModel.uiState.value.errorMessage,
+      )
+      assertFalse(viewModel.uiState.value.isLoading)
+      scope.cancel()
+    }
+  }
 }
 
 private class FakeCourtAvailabilityRepository(
@@ -141,6 +195,7 @@ private class FakeCourtAvailabilityRepository(
             startTime = "06:00",
             endTime = "09:00",
         ),
+    private val loadError: Throwable? = null,
     private val saveError: Throwable? = null,
 ) : ICourtAvailabilityRepository {
   val loadedCourtIds = mutableListOf<String>()
@@ -155,6 +210,7 @@ private class FakeCourtAvailabilityRepository(
 
   override suspend fun getCourtAvailability(courtId: String): CourtAvailabilityContext {
     loadedCourtIds.add(courtId)
+    loadError?.let { throw it }
     return currentContext
   }
 

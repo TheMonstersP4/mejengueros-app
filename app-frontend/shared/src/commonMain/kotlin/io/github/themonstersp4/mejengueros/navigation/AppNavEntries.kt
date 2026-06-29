@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -12,23 +13,25 @@ import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
+import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
-import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
-import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
+import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
+import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.ForgotPasswordScreen
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
 import io.github.themonstersp4.mejengueros.screens.auth.RegisterScreen
 import io.github.themonstersp4.mejengueros.screens.auth.VerifyAccountScreen
-import io.github.themonstersp4.mejengueros.screens.availability.AvailabilitySelectorsScreen
 import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreen
 import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreenActions
+import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreen
+import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreenActions
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
-import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitScreen
-import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
-import io.github.themonstersp4.mejengueros.screens.pokedex.PokemonDetailScreen
+import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
+import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
+import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
@@ -38,10 +41,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 fun EntryProviderScope<NavKey>.appEntries(
+    authenticatedNavigationState: AuthenticatedNavigationState,
     authViewModel: AuthViewModel,
     loginActions: LoginNavigationActions,
     shellActions: AuthenticatedShellActions,
-    pokedexActions: PokedexNavigationActions,
 ) {
   entry<LoginRoute> {
     LoginEntry(
@@ -73,25 +76,26 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
-  entry<HomeRoute> { HomeEntry(shellActions = shellActions) }
+  entry<SearchRoute> { SearchEntry(shellActions = shellActions) }
+  entry<ReservationsRoute> { ReservationsEntry(shellActions = shellActions) }
+  entry<NotificationsRoute> { NotificationsEntry(shellActions = shellActions) }
+  entry<MyComplexRoute> {
+    MyComplexEntry(
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
+  }
+  entry<ComplexDetailRoute> { route ->
+    ComplexDetailEntry(
+        route = route,
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
+  }
+  entry<AddCourtRoute> { route -> AddCourtEntry(route = route, shellActions = shellActions) }
   entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
-  entry<KitRoute> { ComponentKitEntry(shellActions = shellActions) }
-  entry<AvailabilitySelectorsRoute> { AvailabilitySelectorsEntry(shellActions = shellActions) }
   entry<CourtAvailabilityRoute> { route ->
     CourtAvailabilityEntry(route = route, shellActions = shellActions)
-  }
-  entry<PokedexRoute> {
-    PokedexEntry(
-        shellActions = shellActions,
-        pokedexActions = pokedexActions,
-    )
-  }
-  entry<PokemonDetailRoute> { route ->
-    PokemonDetailEntry(
-        route = route,
-        shellActions = shellActions,
-        pokedexActions = pokedexActions,
-    )
   }
 }
 
@@ -202,18 +206,18 @@ private fun PasswordResetEntry(
 }
 
 @Composable
-private fun HomeEntry(
-    shellActions: AuthenticatedShellActions,
-) {
+private fun SearchEntry(shellActions: AuthenticatedShellActions) {
   val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
   val state by courtCatalogViewModel.uiState.collectAsState()
 
   AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Home,
-      onHomeSelected = shellActions.selectHome,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
+      selectedRoute = AuthenticatedTopLevelRoute.Search,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      title = "Buscar",
   ) { contentPadding ->
     HomeScreen(
         state = state,
@@ -228,6 +232,230 @@ private fun HomeEntry(
 }
 
 @Composable
+private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Reservations,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      title = "Reservas",
+  ) { contentPadding ->
+    ProductPlaceholderScreen(
+        title = "Reservas",
+        description =
+            "Pronto vas a poder revisar tus reservas activas e historial desde aquí. Por ahora esta área es un placeholder controlado.",
+        contentPadding = contentPadding,
+    )
+  }
+}
+
+@Composable
+private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Notifications,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      title = "Notificaciones",
+  ) { contentPadding ->
+    ProductPlaceholderScreen(
+        title = "Notificaciones",
+        description =
+            "Las alertas y recordatorios del producto llegarán a esta sección cuando la funcionalidad esté lista.",
+        contentPadding = contentPadding,
+    )
+  }
+}
+
+@Composable
+private fun MyComplexEntry(
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
+  val myComplexViewModel = koinViewModel<MyComplexViewModel>()
+  val state by myComplexViewModel.uiState.collectAsState()
+  MyComplexInitialRefreshEffect(
+      state = state,
+      onInitialLoadRequested = myComplexViewModel::refresh,
+  )
+  MyComplexHubReloadEffect(
+      reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
+      onReloadRequested = myComplexViewModel::refresh,
+  )
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      title = "Mi complejo",
+  ) { contentPadding ->
+    MyComplexEntryContent(
+        state = state,
+        contentPadding = contentPadding,
+        onCreateComplex = shellActions.openCreateComplex,
+        onRetry = myComplexViewModel::refresh,
+        onOpenComplexDetail = shellActions.openComplexDetail,
+    )
+  }
+}
+
+@Composable
+internal fun MyComplexEntryContent(
+    state: MyComplexUiState,
+    contentPadding: PaddingValues,
+    onCreateComplex: () -> Unit,
+    onRetry: () -> Unit,
+    onOpenComplexDetail: (String) -> Unit,
+) {
+  MyComplexScreen(
+      state = state,
+      contentPadding = contentPadding,
+      onCreateComplex = onCreateComplex,
+      onRetry = onRetry,
+      onOpenComplexDetail = onOpenComplexDetail,
+  )
+}
+
+@Composable
+private fun ComplexDetailEntry(
+    route: ComplexDetailRoute,
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
+  val myComplexViewModel = koinViewModel<MyComplexViewModel>()
+  val state by myComplexViewModel.uiState.collectAsState()
+  MyComplexInitialRefreshEffect(state = state, onInitialLoadRequested = myComplexViewModel::refresh)
+  MyComplexHubReloadEffect(
+      reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
+      onReloadRequested = myComplexViewModel::refresh,
+  )
+
+  val complex = state.complexes.firstOrNull { it.id == route.complexId }
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.returnToMyComplexRoot,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = "Mi complejo",
+  ) { contentPadding ->
+    ComplexDetailEntryContent(
+        complex = complex,
+        isLoading = state.isLoading,
+        errorMessage = state.errorMessage,
+        contentPadding = contentPadding,
+        onRetry = myComplexViewModel::refresh,
+        onAddCourt = shellActions.openAddCourt,
+        onConfigureAvailability = shellActions.openCourtAvailability,
+    )
+  }
+}
+
+@Composable
+internal fun ComplexDetailEntryContent(
+    complex: io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    contentPadding: PaddingValues,
+    onRetry: () -> Unit,
+    onAddCourt: (String, String) -> Unit,
+    onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+) {
+  ComplexDetailScreen(
+      complex = complex,
+      isLoading = isLoading,
+      errorMessage = errorMessage,
+      contentPadding = contentPadding,
+      onRetry = onRetry,
+      onAddCourt = onAddCourt,
+      onConfigureAvailability = onConfigureAvailability,
+  )
+}
+
+@Composable
+private fun AddCourtEntry(route: AddCourtRoute, shellActions: AuthenticatedShellActions) {
+  val viewModel =
+      koinViewModel<AddCourtViewModel>(
+          key = "add-court-${route.complexId}",
+          parameters = { parametersOf(route.complexId, route.complexName) },
+      )
+
+  AddCourtEntryContent(viewModel = viewModel, shellActions = shellActions)
+}
+
+@Composable
+internal fun AddCourtEntryContent(
+    viewModel: AddCourtViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
+  val state by viewModel.uiState.collectAsState()
+
+  state.createdCourt?.let { createdCourt ->
+    LaunchedEffect(createdCourt.id) {
+      viewModel.acknowledgeSuccess()
+      shellActions.closeAddCourtAfterSuccess()
+    }
+  }
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.returnToMyComplexRoot,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = "Agregar cancha",
+  ) { contentPadding ->
+    AddCourtScreen(
+        state = state,
+        contentPadding = contentPadding,
+        actions =
+            AddCourtScreenActions(
+                onRetryServices = viewModel::refreshServices,
+                onCourtNameChange = viewModel::updateCourtName,
+                onToggleService = viewModel::toggleCourtService,
+                onSubmit = viewModel::submit,
+            ),
+    )
+  }
+}
+
+@Composable
+internal fun MyComplexInitialRefreshEffect(
+    state: MyComplexUiState,
+    onInitialLoadRequested: () -> Unit,
+) {
+  LaunchedEffect(state.isLoading, state.complexes, state.errorMessage) {
+    if (state.isLoading && state.complexes.isEmpty() && state.errorMessage == null) {
+      onInitialLoadRequested()
+    }
+  }
+}
+
+@Composable
+internal fun MyComplexHubReloadEffect(
+    reloadRequestKey: Int,
+    onReloadRequested: () -> Unit,
+) {
+  LaunchedEffect(reloadRequestKey) {
+    if (reloadRequestKey > 0) {
+      onReloadRequested()
+    }
+  }
+}
+
+@Composable
 private fun CreateComplexEntry(
     shellActions: AuthenticatedShellActions,
 ) {
@@ -238,9 +466,11 @@ private fun CreateComplexEntry(
     LaunchedEffect(createdComplex.firstCourtId) {
       createComplexViewModel.acknowledgeSuccess()
       shellActions.openCourtAvailability(
-          createdComplex.firstCourtId,
-          createdComplex.firstCourtName,
-          createdComplex.complexName,
+          OwnerCourtAvailabilityEntrypoint(
+              courtId = createdComplex.firstCourtId,
+              courtName = createdComplex.firstCourtName,
+              complexName = createdComplex.complexName,
+          )
       )
     }
     return
@@ -262,12 +492,14 @@ private fun CreateComplexEntry(
       }
 
   AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Home,
-      onHomeSelected = shellActions.returnToHomeRoot,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       onNavigateBack = shellActions.closeCurrentDetail,
+      title = "Mi complejo",
       overlayVisible = locationPickerCoordinator.isOpen,
       overlayContent = {
         LocationPickerOverlayHost(
@@ -297,7 +529,7 @@ private fun CreateComplexEntry(
                 onSubmit = createComplexViewModel::submit,
                 onSuccessAcknowledged = {
                   createComplexViewModel.acknowledgeSuccess()
-                  shellActions.returnToHomeRoot()
+                  shellActions.returnToMyComplexRoot()
                 },
             ),
     )
@@ -314,13 +546,23 @@ private fun CourtAvailabilityEntry(
           key = "court-availability-${route.courtId}",
           parameters = { parametersOf(route.courtId, route.courtName, route.complexName) },
       )
+
+  CourtAvailabilityEntryContent(viewModel = viewModel, shellActions = shellActions)
+}
+
+@Composable
+internal fun CourtAvailabilityEntryContent(
+    viewModel: CourtAvailabilityViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
   val state by viewModel.uiState.collectAsState()
 
   AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Home,
-      onHomeSelected = shellActions.returnToHomeRoot,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
+      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = state.appBarTitle,
@@ -335,50 +577,22 @@ private fun CourtAvailabilityEntry(
                 onEndTimeSelected = viewModel::updateEndTime,
                 onRetry = viewModel::load,
                 onSave = viewModel::save,
+                onSuccessAcknowledged =
+                    availabilitySuccessAcknowledgedHandler(
+                        viewModel = viewModel,
+                        shellActions = shellActions,
+                    ),
             ),
     )
   }
 }
 
-@Composable
-private fun ComponentKitEntry(
+internal fun availabilitySuccessAcknowledgedHandler(
+    viewModel: CourtAvailabilityViewModel,
     shellActions: AuthenticatedShellActions,
-) {
-  var selectedLatitude by rememberSaveable { mutableStateOf<Double?>(null) }
-  var selectedLongitude by rememberSaveable { mutableStateOf<Double?>(null) }
-  val selectedLocation =
-      if (selectedLatitude == null || selectedLongitude == null) {
-        null
-      } else {
-        SelectedLocation(latitude = selectedLatitude!!, longitude = selectedLongitude!!)
-      }
-  val locationPickerCoordinator =
-      rememberLocationPickerCoordinator(selectedLocation = selectedLocation) { confirmedLocation ->
-        selectedLatitude = confirmedLocation.latitude
-        selectedLongitude = confirmedLocation.longitude
-      }
-
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Kit,
-      onHomeSelected = shellActions.selectHome,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
-      onSignOut = shellActions.signOut,
-      overlayVisible = locationPickerCoordinator.isOpen,
-      overlayContent = {
-        LocationPickerOverlayHost(
-            coordinator = locationPickerCoordinator,
-            selectedLocation = selectedLocation,
-        )
-      },
-  ) { contentPadding ->
-    ComponentKitScreen(
-        contentPadding = contentPadding,
-        onOpenAvailabilitySelectors = shellActions.openAvailabilitySelectors,
-        selectedLocation = selectedLocation,
-        onOpenLocationPicker = locationPickerCoordinator.open,
-    )
-  }
+): () -> Unit = {
+  viewModel.acknowledgeSuccess()
+  shellActions.returnToMyComplexRoot()
 }
 
 private data class LocationPickerCoordinator(
@@ -442,80 +656,4 @@ private fun LocationPickerOverlayHost(
           ),
       actions = coordinator.actions,
   )
-}
-
-@Composable
-private fun AvailabilitySelectorsEntry(
-    shellActions: AuthenticatedShellActions,
-) {
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Kit,
-      onHomeSelected = shellActions.selectHome,
-      onKitSelected = shellActions.closeCurrentDetail,
-      onPokedexSelected = shellActions.selectPokedex,
-      onSignOut = shellActions.signOut,
-      onNavigateBack = shellActions.closeCurrentDetail,
-  ) { contentPadding ->
-    AvailabilitySelectorsScreen(contentPadding = contentPadding)
-  }
-}
-
-@Composable
-private fun PokedexEntry(
-    shellActions: AuthenticatedShellActions,
-    pokedexActions: PokedexNavigationActions,
-) {
-  val pokemonListViewModel = koinViewModel<PokemonListViewModel>()
-  val pokemonListState by pokemonListViewModel.uiState.collectAsState()
-
-  LaunchedEffect(Unit) { pokemonListViewModel.syncFavoriteStates() }
-
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Pokedex,
-      onHomeSelected = shellActions.selectHome,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
-      onSignOut = shellActions.signOut,
-  ) { contentPadding ->
-    PokedexScreen(
-        state = pokemonListState,
-        onPokemonClick = pokedexActions.openPokemonDetail,
-        onFavoriteClick = pokemonListViewModel::toggleFavorite,
-        onModeChange = pokemonListViewModel::setMode,
-        onLoadMore = pokemonListViewModel::loadNextPage,
-        onRefresh = pokemonListViewModel::refresh,
-        onSearchQueryChange = pokemonListViewModel::updateSearchQuery,
-        contentPadding = contentPadding,
-    )
-  }
-}
-
-@Composable
-private fun PokemonDetailEntry(
-    route: PokemonDetailRoute,
-    shellActions: AuthenticatedShellActions,
-    pokedexActions: PokedexNavigationActions,
-) {
-  val pokemonDetailViewModel =
-      koinViewModel<PokemonDetailViewModel>(
-          key = "pokemon-detail-${route.id}",
-          parameters = { parametersOf(route.id) },
-      )
-  val pokemonDetailState by pokemonDetailViewModel.uiState.collectAsState()
-
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Pokedex,
-      onHomeSelected = shellActions.selectHome,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
-      onSignOut = shellActions.signOut,
-      onNavigateBack = pokedexActions.closeDetail,
-  ) { contentPadding ->
-    PokemonDetailScreen(
-        state = pokemonDetailState,
-        onFavoriteClick = pokemonDetailViewModel::toggleFavorite,
-        onRetry = pokemonDetailViewModel::loadPokemon,
-        contentPadding = contentPadding,
-    )
-  }
 }

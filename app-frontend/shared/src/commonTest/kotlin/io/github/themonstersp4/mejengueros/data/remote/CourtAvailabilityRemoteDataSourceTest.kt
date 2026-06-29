@@ -7,6 +7,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.header
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -26,6 +27,7 @@ class CourtAvailabilityRemoteDataSourceTest {
   @Test
   fun getCourtAvailabilityFetchesOwnedCourtContext() = runTest {
     var requestedPath = ""
+    var authorizationHeader = ""
     val dataSource =
         CourtAvailabilityRemoteDataSource(
             httpClient =
@@ -51,6 +53,8 @@ class CourtAvailabilityRemoteDataSourceTest {
                         """
                             .trimIndent(),
                     capturePath = { requestedPath = it.orEmpty() },
+                    captureAuthorizationHeader = { authorizationHeader = it.orEmpty() },
+                    authToken = "owner-token",
                 ),
             json = json,
         )
@@ -58,6 +62,7 @@ class CourtAvailabilityRemoteDataSourceTest {
     val context = dataSource.getCourtAvailability("court-id")
 
     assertEquals("/v1/courts/court-id/availability", requestedPath)
+    assertEquals("Bearer owner-token", authorizationHeader)
     assertEquals("Cancha 1", context.courtName)
     assertEquals(
         listOf(CourtAvailabilityWeekday.MONDAY, CourtAvailabilityWeekday.WEDNESDAY),
@@ -172,16 +177,22 @@ private fun mockClient(
     capturePath: (String?) -> Unit = {},
     captureMethod: (HttpMethod?) -> Unit = {},
     captureBody: (String?) -> Unit = {},
+    captureAuthorizationHeader: (String?) -> Unit = {},
+    authToken: String? = null,
 ): HttpClient =
     HttpClient(MockEngine) {
       expectSuccess = true
       install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-      install(DefaultRequest) { url("https://api.mejengueros.test") }
+      install(DefaultRequest) {
+        url("https://api.mejengueros.test")
+        authToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+      }
       engine {
         addHandler { request ->
           capturePath(request.url.encodedPath)
           captureMethod(request.method)
           captureBody(request.body.readText())
+          captureAuthorizationHeader(request.headers[HttpHeaders.Authorization])
           respond(
               content = responseBody,
               status = status,

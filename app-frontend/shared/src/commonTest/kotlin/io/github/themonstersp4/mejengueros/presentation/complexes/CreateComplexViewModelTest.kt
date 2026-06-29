@@ -4,8 +4,10 @@ import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
@@ -574,5 +576,10 @@ class CreateComplexViewModelTest {
           firstCourtName = request.firstCourt.name,
       )
     }
+
+    override suspend fun addCourt(complexId: String, request: CreateCourtRequest) =
+        error("Unused in this test")
+
+    override suspend fun getMyComplexHub(): MyComplexHub = MyComplexHub(complexes = emptyList())
   }
 }

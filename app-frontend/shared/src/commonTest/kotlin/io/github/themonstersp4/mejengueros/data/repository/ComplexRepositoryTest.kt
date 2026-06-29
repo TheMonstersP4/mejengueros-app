@@ -2,10 +2,16 @@ package io.github.themonstersp4.mejengueros.data.repository
 
 import io.github.themonstersp4.mejengueros.data.remote.IComplexRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.Canton
+import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
@@ -77,14 +83,70 @@ class ComplexRepositoryTest {
     assertEquals(listOf(createComplexRequest), remoteDataSource.createRequests)
   }
 
+  @Test
+  fun addCourtDelegatesDirectlyToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeComplexRemoteDataSource()
+    val repository = ComplexRepository(remoteDataSource)
+
+    val created = repository.addCourt("complex-id", createCourtRequest)
+
+    assertEquals(listOf("addCourt"), remoteDataSource.calls)
+    assertEquals(listOf("complex-id" to createCourtRequest), remoteDataSource.addCourtRequests)
+    assertEquals(createdCourt, created)
+  }
+
+  @Test
+  fun addCourtPropagatesRemoteFailures() = runTest {
+    val remoteDataSource =
+        FakeComplexRemoteDataSource(addCourtFailure = IllegalStateException("add court failed"))
+    val repository = ComplexRepository(remoteDataSource)
+
+    val error =
+        assertFailsWith<IllegalStateException> {
+          repository.addCourt("complex-id", createCourtRequest)
+        }
+
+    assertEquals("add court failed", error.message)
+    assertEquals(listOf("addCourt"), remoteDataSource.calls)
+    assertEquals(listOf("complex-id" to createCourtRequest), remoteDataSource.addCourtRequests)
+  }
+
+  @Test
+  fun getMyComplexHubDelegatesDirectlyToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeComplexRemoteDataSource()
+    val repository = ComplexRepository(remoteDataSource)
+
+    val hub = repository.getMyComplexHub()
+
+    assertEquals(listOf("getMyComplexHub"), remoteDataSource.calls)
+    assertEquals(myComplexHub, hub)
+  }
+
+  @Test
+  fun getMyComplexHubPropagatesRemoteFailures() = runTest {
+    val remoteDataSource =
+        FakeComplexRemoteDataSource(getMyComplexHubFailure = IllegalStateException("hub failed"))
+    val repository = ComplexRepository(remoteDataSource)
+
+    val error = assertFailsWith<IllegalStateException> { repository.getMyComplexHub() }
+
+    assertEquals("hub failed", error.message)
+    assertEquals(listOf("getMyComplexHub"), remoteDataSource.calls)
+  }
+
   private class FakeComplexRemoteDataSource(
       private val createFailure: Throwable? = null,
       private val createResult: CreatedComplex = createdComplex,
+      private val addCourtFailure: Throwable? = null,
+      private val addCourtResult: CreatedCourt = createdCourt,
+      private val getMyComplexHubFailure: Throwable? = null,
+      private val myComplexHubResult: MyComplexHub = myComplexHub,
   ) : IComplexRemoteDataSource {
     val calls = mutableListOf<String>()
     val cantonRequests = mutableListOf<String>()
     val serviceRequests = mutableListOf<ServiceScope>()
     val createRequests = mutableListOf<CreateComplexRequest>()
+    val addCourtRequests = mutableListOf<Pair<String, CreateCourtRequest>>()
 
     override suspend fun getProvinces(): List<Province> {
       calls.add("getProvinces")
@@ -108,6 +170,19 @@ class ComplexRepositoryTest {
       createRequests.add(request)
       createFailure?.let { throw it }
       return createResult
+    }
+
+    override suspend fun addCourt(complexId: String, request: CreateCourtRequest): CreatedCourt {
+      calls.add("addCourt")
+      addCourtRequests.add(complexId to request)
+      addCourtFailure?.let { throw it }
+      return addCourtResult
+    }
+
+    override suspend fun getMyComplexHub(): MyComplexHub {
+      calls.add("getMyComplexHub")
+      getMyComplexHubFailure?.let { throw it }
+      return myComplexHubResult
     }
   }
 
@@ -150,6 +225,40 @@ class ComplexRepositoryTest {
             complexAddress = "123 Main Street",
             firstCourtId = "court-id",
             firstCourtName = "Court A",
+        )
+
+    val createCourtRequest =
+        CreateCourtRequest(
+            name = "Court B",
+            serviceIds = listOf("court-service-id"),
+        )
+
+    val createdCourt = CreatedCourt(id = "court-id", complexId = "complex-id", name = "Court B")
+
+    val myComplexHub =
+        MyComplexHub(
+            complexes =
+                listOf(
+                    MyComplexHubComplex(
+                        id = "complex-id",
+                        name = "North Sports Center",
+                        address = "123 Main Street",
+                        provinceId = "province-1",
+                        cantonId = "canton-1",
+                        latitude = 9.935,
+                        longitude = -84.091,
+                        status = "ACTIVE",
+                        courts =
+                            listOf(
+                                MyComplexHubCourt(
+                                    id = "court-id",
+                                    name = "Court A",
+                                    status = "ACTIVE",
+                                    availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
+                                )
+                            ),
+                    )
+                )
         )
   }
 }

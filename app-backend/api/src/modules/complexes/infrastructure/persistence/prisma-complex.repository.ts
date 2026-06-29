@@ -6,15 +6,22 @@ import {
   upsertAuthenticatedUserIdentity
 } from '../../../users/infrastructure/provisioning/demo-owner-role-provisioning';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import { ComplexNotFoundForOwnerError } from '../../domain/errors/complex-not-found-for-owner.error';
 import { InvalidComplexLocationError } from '../../domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '../../domain/errors/invalid-service-catalog-selection.error';
 import type {
   IComplexRepository,
+  ICreateOwnedComplexCourtCommand,
   ICreateComplexWithFirstCourtCommand,
-  ICreateComplexWithFirstCourtResult
+  ICreateComplexWithFirstCourtResult,
+  ICreatedCourtSnapshot,
+  IGetMyComplexHubQuery,
+  IGetMyComplexHubResult,
+  IMyComplexHubCourtSnapshot
 } from '../../domain/repositories/complex.repository';
 
 const MAX_COMPLEX_CREATION_TRANSACTION_ATTEMPTS = 2;
+const COGNITO_NATIVE_PROVIDER = 'Cognito';
 
 type IServiceCatalogScope = 'COMPLEX' | 'COURT';
 type IServiceCatalogTarget = 'complex' | 'court';
@@ -32,6 +39,7 @@ interface IComplexPersistenceTransactionClient
     findMany: PrismaService['serviceCatalog']['findMany'];
   };
   complex: {
+    findFirst: PrismaService['complex']['findFirst'];
     create: PrismaService['complex']['create'];
   };
   court: {
@@ -49,6 +57,9 @@ interface IComplexPersistenceClient {
   $transaction<TResult>(
     callback: (transaction: IComplexPersistenceTransactionClient) => Promise<TResult>
   ): Promise<TResult>;
+  complex: {
+    findMany: PrismaService['complex']['findMany'];
+  };
 }
 
 /**
@@ -181,6 +192,124 @@ export class PrismaComplexRepository implements IComplexRepository {
     throw lastUniqueConstraintError;
   }
 
+  async createOwnedComplexCourt(
+    command: ICreateOwnedComplexCourtCommand
+  ): Promise<ICreatedCourtSnapshot> {
+    return this.prisma.$transaction(async (transaction) => {
+      const ownedComplex = await transaction.complex.findFirst({
+        where: {
+          id: command.complexId,
+          deletedAt: null,
+          owner: {
+            identities: {
+              some: {
+                provider: command.ownerIdentity.provider ?? COGNITO_NATIVE_PROVIDER,
+                providerSubject: command.ownerIdentity.sub
+              }
+            }
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (ownedComplex == null) {
+        throw new ComplexNotFoundForOwnerError(command.complexId);
+      }
+
+      const courtServiceIds = await this.ensureActiveServicesForScope(
+        transaction,
+        'court',
+        'COURT',
+        command.court.serviceIds
+      );
+
+      const court = await transaction.court.create({
+        data: {
+          complexId: ownedComplex.id,
+          name: command.court.name
+        }
+      });
+
+      if (courtServiceIds.length > 0) {
+        await transaction.courtService.createMany({
+          data: courtServiceIds.map((serviceCatalogId) => ({
+            courtId: court.id,
+            serviceCatalogId
+          }))
+        });
+      }
+
+      return {
+        id: court.id,
+        complexId: court.complexId,
+        name: court.name,
+        serviceIds: courtServiceIds,
+        status: court.status,
+        createdAt: court.createdAt.toISOString(),
+        updatedAt: court.updatedAt.toISOString()
+      };
+    });
+  }
+
+  async getMyComplexHub(query: IGetMyComplexHubQuery): Promise<IGetMyComplexHubResult> {
+    const complexes = await this.prisma.complex.findMany({
+      where: {
+        deletedAt: null,
+        owner: {
+          identities: {
+            some: {
+              provider: query.ownerIdentity.provider ?? COGNITO_NATIVE_PROVIDER,
+              providerSubject: query.ownerIdentity.sub
+            }
+          }
+        }
+      },
+      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        provinceId: true,
+        cantonId: true,
+        latitude: true,
+        longitude: true,
+        status: true,
+        courts: {
+          where: {
+            deletedAt: null
+          },
+          orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            availability: {
+              select: {
+                id: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      complexes: complexes.map((complex) => ({
+        id: complex.id,
+        name: complex.name,
+        address: complex.address,
+        provinceId: complex.provinceId ?? undefined,
+        cantonId: complex.cantonId ?? undefined,
+        latitude: complex.latitude ?? undefined,
+        longitude: complex.longitude ?? undefined,
+        status: complex.status,
+        courts: complex.courts.map(this.toHubCourtSnapshot)
+      }))
+    };
+  }
+
   private async ensureProvinceExists(
     transaction: IComplexPersistenceTransactionClient,
     provinceId: string
@@ -252,5 +381,21 @@ export class PrismaComplexRepository implements IComplexRepository {
       'code' in error &&
       error.code === 'P2002'
     );
+  }
+
+  private toHubCourtSnapshot(
+    court: {
+      id: string;
+      name: string;
+      status: string;
+      availability: { id: string } | null;
+    }
+  ): IMyComplexHubCourtSnapshot {
+    return {
+      id: court.id,
+      name: court.name,
+      status: court.status,
+      availabilityStatus: court.availability == null ? 'PENDING' : 'CONFIGURED'
+    };
   }
 }

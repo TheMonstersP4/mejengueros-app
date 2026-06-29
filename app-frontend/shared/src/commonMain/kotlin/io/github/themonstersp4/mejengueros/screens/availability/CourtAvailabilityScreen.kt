@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilityWeekday
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
@@ -37,6 +38,7 @@ data class CourtAvailabilityScreenActions(
     val onEndTimeSelected: (String) -> Unit,
     val onRetry: () -> Unit,
     val onSave: () -> Unit,
+    val onSuccessAcknowledged: () -> Unit,
 )
 
 private val availabilityDays =
@@ -65,17 +67,22 @@ fun CourtAvailabilityScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
       Text(
-          text = "Configurá la disponibilidad reservable",
-          style = MaterialTheme.typography.headlineSmall,
+          text = "Configurá horarios de reserva",
+          style = MaterialTheme.typography.titleLarge,
           color = MaterialTheme.colorScheme.onSurface,
       )
+      if (state.courtName.isNotBlank() || state.complexName.isNotBlank()) {
+        Text(
+            text =
+                listOf(state.courtName, state.complexName)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+      }
       MejenguerosSupportingText(
-          text =
-              if (state.complexName.isBlank()) {
-                "Elegí los días y el rango horario único para generar slots de 1 hora."
-              } else {
-                "${state.courtName} · ${state.complexName}"
-              }
+          text = "Elegí los días y el rango horario único para generar slots de 1 hora.",
       )
 
       if (state.isLoading) {
@@ -167,14 +174,6 @@ fun CourtAvailabilityScreen(
             enabled = !state.isLoading && !state.isSaving,
         )
       }
-
-      state.successMessage?.let { message ->
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-      }
     }
 
     MejenguerosBottomActionBar {
@@ -190,6 +189,16 @@ fun CourtAvailabilityScreen(
           enabled = state.canSave,
       )
     }
+  }
+
+  state.successMessage?.let { message ->
+    MejenguerosConfirmationDialog(
+        title = "Disponibilidad configurada",
+        message = message,
+        confirmText = "Ir a Mi complejo",
+        onConfirm = actions.onSuccessAcknowledged,
+        onDismissRequest = {},
+    )
   }
 }
 

@@ -59,6 +59,8 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema('/v1/services', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/courts/catalog', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/complexes', 'post', '201')).toBeDefined();
+    expect(responseSchema('/v1/complexes/my-hub', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/complexes/{complexId}/courts', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
     expectSuccessEnvelopeSchema(responseSchema('/v1/auth/me', 'get', '200'));
@@ -85,7 +87,19 @@ describe('OpenAPI document contract', () => {
       '#/components/schemas/ServiceCatalogResponse'
     );
     expectSuccessEnvelopeSchema(responseSchema('/v1/complexes', 'post', '201'));
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/complexes/my-hub', 'get', '200'),
+      '#/components/schemas/MyComplexHubResponse'
+    );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/complexes/{complexId}/courts', 'post', '201'),
+      '#/components/schemas/CreateOwnedCourtResponse'
+    );
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/complexes/my-hub', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '400');
+    expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '401');
+    expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '404');
     expectErrorEnvelopeSchema('/v1/services', 'get', '400');
     expectErrorEnvelopeSchema('/v1/courts/catalog', 'get', '400');
     expectErrorEnvelopeSchema(
@@ -93,6 +107,7 @@ describe('OpenAPI document contract', () => {
       'get',
       '400'
     );
+    expectOperationHasPathUuidParameter('/v1/complexes/{complexId}/courts', 'post', 'complexId');
   });
 
   function responseSchema(
@@ -140,6 +155,18 @@ describe('OpenAPI document contract', () => {
     );
   }
 
+  function expectObjectEnvelopeSchema(
+    schema: SchemaRecord,
+    objectRef: string
+  ): void {
+    expectSuccessEnvelopeSchema(schema);
+    expect(dataSchema(schema)).toEqual(
+      expect.objectContaining({
+        $ref: objectRef
+      })
+    );
+  }
+
   function expectErrorEnvelopeSchema(
     path: string,
     method: OpenApiMethod,
@@ -148,6 +175,27 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema(path, method, status)).toEqual({
       $ref: '#/components/schemas/ApiErrorEnvelopeResponse'
     });
+  }
+
+  function expectOperationHasPathUuidParameter(
+    path: string,
+    method: OpenApiMethod,
+    parameterName: string
+  ): void {
+    const operation = document.paths[path]?.[method] as
+      | { parameters?: Array<Record<string, unknown>> }
+      | undefined;
+
+    expect(operation?.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: parameterName,
+          in: 'path',
+          required: true,
+          schema: expect.objectContaining({ format: 'uuid' })
+        })
+      ])
+    );
   }
 
   function dataSchema(schema: SchemaRecord): unknown {

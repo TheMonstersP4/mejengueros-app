@@ -8,6 +8,8 @@ import io.github.themonstersp4.mejengueros.data.auth.InMemoryAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.SecureRandomStringGenerator
 import io.github.themonstersp4.mejengueros.data.local.DriverFactory
 import io.github.themonstersp4.mejengueros.data.remote.HttpClientFactory
+import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
+import io.github.themonstersp4.mejengueros.monitoring.JvmConsoleErrorReporter
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -17,4 +19,5 @@ actual fun platformModule(): Module = module {
   single<IAuthSecureStorage> { InMemoryAuthSecureStorage() }
   single<IRandomStringGenerator> { SecureRandomStringGenerator() }
   single<IOAuthBrowser> { DesktopOAuthBrowser() }
+  single<ErrorReporter> { JvmConsoleErrorReporter() }
 }
