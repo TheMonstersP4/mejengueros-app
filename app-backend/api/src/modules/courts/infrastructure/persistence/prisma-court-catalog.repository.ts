@@ -22,6 +22,10 @@ const PUBLIC_COURT_CATALOG_TAKE = 50;
 
 export const COURT_CATALOG_TODAY_PROVIDER = Symbol('COURT_CATALOG_TODAY_PROVIDER');
 
+function weekdayInUtc(date: Date): (typeof WEEKDAY_BY_INDEX)[number] {
+  return WEEKDAY_BY_INDEX[date.getUTCDay()];
+}
+
 const PUBLIC_COURT_CATALOG_SELECT = {
   id: true,
   name: true,
@@ -127,7 +131,7 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
 
   async listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogItem[]> {
     const normalizedQuery = filters.q?.trim();
-    const today = WEEKDAY_BY_INDEX[this.todayProvider().getDay()];
+    const today = weekdayInUtc(this.todayProvider());
     const courts = (await this.prisma.court.findMany({
       where: {
         status: 'ACTIVE',

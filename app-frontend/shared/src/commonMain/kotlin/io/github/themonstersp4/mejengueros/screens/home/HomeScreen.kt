@@ -2,7 +2,6 @@ package io.github.themonstersp4.mejengueros.screens.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -125,7 +125,13 @@ fun HomeScreen(
                 modifier =
                     Modifier.padding(horizontal = 20.dp)
                         .testTag("catalog_court_card_${court.id}")
-                        .clickable { onOpenCourtDetail(court) },
+                        .semantics {
+                          onClick {
+                            onOpenCourtDetail(court)
+                            true
+                          }
+                        },
+                onClick = { onOpenCourtDetail(court) },
             )
           }
           item { Spacer(modifier = Modifier.height(4.dp)) }

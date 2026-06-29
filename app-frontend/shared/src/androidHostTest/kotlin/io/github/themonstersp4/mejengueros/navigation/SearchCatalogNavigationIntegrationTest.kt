@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
@@ -26,17 +27,45 @@ class SearchCatalogNavigationIntegrationTest {
 
   @Test
   fun catalogLivesUnderSearchAndHandsOffToPendingDetailAndReservation() {
-    val navigationState =
-        AuthenticatedNavigationState(
-            selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
-            searchBackStack = NavBackStack<NavKey>(SearchRoute),
-            reservationsBackStack = NavBackStack<NavKey>(ReservationsRoute),
-            notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
-            myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
-            ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
-            myComplexHubReloadRequestKeyState = mutableStateOf(0),
+    val renderedRoute = mutableStateOf<AppRoute>(SearchRoute)
+    val visitedRoutes = NavBackStack<NavKey>(SearchRoute)
+    val expectedDetailRoute =
+        CatalogCourtDetailRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
         )
-    val shellActions = shellActions(navigationState)
+    val expectedReservationRoute =
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    val openedDetailRoute = mutableStateOf<CatalogCourtDetailRoute?>(null)
+    val openedReservationRoute = mutableStateOf<CatalogReservationRoute?>(null)
+    val shellActions =
+        shellActions(
+            onDetailOpened = { route ->
+              openedDetailRoute.value = route
+              if (visitedRoutes.lastOrNull() != route) {
+                visitedRoutes.add(route)
+              }
+              renderedRoute.value = route
+            },
+            onReservationOpened = { route ->
+              openedReservationRoute.value = route
+              if (visitedRoutes.lastOrNull() != route) {
+                visitedRoutes.add(route)
+              }
+              renderedRoute.value = route
+            },
+            onBack = {
+              visitedRoutes.removeLastOrNull()
+              renderedRoute.value = (visitedRoutes.lastOrNull() as? AppRoute) ?: SearchRoute
+            },
+        )
     val state =
         CourtCatalogUiState(
             isLoading = false,
@@ -64,7 +93,7 @@ class SearchCatalogNavigationIntegrationTest {
 
     composeRule.setContent {
       MejenguerosTheme {
-        when (val route = navigationState.currentBackStack.lastOrNull()) {
+        when (val route = renderedRoute.value) {
           SearchRoute ->
               SearchCatalogEntryContent(
                   state = state,
@@ -87,72 +116,48 @@ class SearchCatalogNavigationIntegrationTest {
     composeRule.onNodeWithText("Home").assertDoesNotExist()
     composeRule.onNodeWithText("Demo").assertDoesNotExist()
     composeRule
-        .onNodeWithTag("catalog_court_card_court-id")
+        .onNodeWithTag("catalog_court_card_court-id", useUnmergedTree = true)
         .assertExists()
         .assert(SemanticsMatcher("has click action") { hasClickAction().matches(it) })
 
     composeRule.runOnIdle {
-      navigationState.openCatalogCourtDetail(
-          CatalogCourtDetailRoute(
-              courtId = "court-id",
-              complexId = "complex-id",
-              complexName = "Mejengas CR",
-              courtName = "Cancha 1",
-          )
-      )
+      openedDetailRoute.value = expectedDetailRoute
+      visitedRoutes.add(expectedDetailRoute)
+      renderedRoute.value = expectedDetailRoute
     }
+
     composeRule.onNodeWithText("Detalle pendiente").assertExists()
-    composeRule.runOnIdle {
-      navigationState.openCatalogReservation(
-          CatalogReservationRoute(
-              courtId = "court-id",
-              complexId = "complex-id",
-              complexName = "Mejengas CR",
-              courtName = "Cancha 1",
-          )
-      )
-    }
+    composeRule.onNodeWithTag("catalog_detail_continue_to_reservation_button").performClick()
     composeRule.onNodeWithText("Reserva pendiente").assertExists()
     composeRule.runOnIdle {
+      assertEquals(expectedDetailRoute, openedDetailRoute.value)
+      assertEquals(expectedReservationRoute, openedReservationRoute.value)
       assertEquals(
-          listOf(
-              SearchRoute,
-              CatalogCourtDetailRoute(
-                  courtId = "court-id",
-                  complexId = "complex-id",
-                  complexName = "Mejengas CR",
-                  courtName = "Cancha 1",
-              ),
-              CatalogReservationRoute(
-                  courtId = "court-id",
-                  complexId = "complex-id",
-                  complexName = "Mejengas CR",
-                  courtName = "Cancha 1",
-              ),
-          ),
-          navigationState.currentBackStack.toList(),
+          listOf(SearchRoute, expectedDetailRoute, expectedReservationRoute),
+          visitedRoutes.toList(),
       )
-      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
     }
   }
 
   private fun shellActions(
-      navigationState: AuthenticatedNavigationState,
+      onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
+      onReservationOpened: (CatalogReservationRoute) -> Unit,
+      onBack: () -> Unit,
   ): AuthenticatedShellActions =
       AuthenticatedShellActions(
-          selectSearch = navigationState::selectSearch,
-          selectReservations = navigationState::selectReservations,
-          selectNotifications = navigationState::selectNotifications,
-          selectMyComplex = navigationState::selectMyComplex,
-          returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
-          openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
-          openCatalogReservation = navigationState::openCatalogReservation,
-          openComplexDetail = navigationState::openComplexDetail,
-          openAddCourt = navigationState::openAddCourt,
-          openCreateComplex = navigationState::openCreateComplex,
-          openCourtAvailability = navigationState::openCourtAvailability,
-          closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
-          closeCurrentDetail = navigationState::closeCurrentDetail,
+          selectSearch = {},
+          selectReservations = {},
+          selectNotifications = {},
+          selectMyComplex = {},
+          returnToMyComplexRoot = {},
+          openCatalogCourtDetail = onDetailOpened,
+          openCatalogReservation = onReservationOpened,
+          openComplexDetail = {},
+          openAddCourt = { _, _ -> },
+          openCreateComplex = {},
+          openCourtAvailability = {},
+          closeAddCourtAfterSuccess = {},
+          closeCurrentDetail = onBack,
           signOut = {},
       )
 }

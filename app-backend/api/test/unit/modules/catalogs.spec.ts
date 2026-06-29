@@ -296,4 +296,43 @@ describe('catalog modules behavior', () => {
       })
     ]);
   });
+
+  it('uses the UTC weekday for isReservableToday near timezone boundaries', async () => {
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn()
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: []
+            },
+            availability: {
+              days: [{ day: 'TUESDAY' }]
+            }
+          }
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      () => new Date('2026-06-22T23:30:00.000-05:00')
+    );
+
+    await expect(repository.listPublicCatalog({})).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        isReservableToday: true
+      })
+    ]);
+  });
 });
