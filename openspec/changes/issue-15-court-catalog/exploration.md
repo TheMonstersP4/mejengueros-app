@@ -1,45 +1,37 @@
 ## Exploration: issue-15-court-catalog
 
 ### Current State
-GitHub issue `#15` defines the catalog as the mejenguero entry point for `search -> detail -> reserve`, with basic text/province/canton filtering and only visible/active courts. The visual references live in `docs/design/mockups/issues-15-16-catalogo-detalle/catalogo.html`, `detalle.html`, and `docs/design/mockups/issue-50-reservar/reservar.html`; they show a dark theme, prominent search field, province/canton filter chips, image-first cards with availability badges, rating/services in downstream detail, and a reservation CTA. In the current KMP app there is no court catalog feature yet: authenticated navigation still uses `Home | Kit | Pokédex`, `HomeScreen` is a placeholder, and the only Mejengueros data seam implemented today is the owner complex-creation flow. Reusable UI pieces already exist for cards, status pills, ratings, slot/date selectors, bottom action bars, and empty/success states, but there is no repository, route, ViewModel, or DTO set for court catalog, court detail, availability lookup, or reservation creation. Backend support is also not ready for this flow from the frontend perspective: the current frontend remote layer only calls `/v1/locations`, `/v1/services`, and authenticated `/v1/complexes`.
+Issue `#15` was explored against a broader product journey (`search -> detail -> reserve`), but the implemented PR slice is narrower: a real public catalog entry point with text/province/canton filtering, published-only courts, aggregate rating, reservable-today signal, fixed capped results, and explicit empty/error/retry handling. The visual references in `docs/design/mockups/issues-15-16-catalogo-detalle/catalogo.html`, `detalle.html`, and `docs/design/mockups/issue-50-reservar/reservar.html` were useful discovery inputs, yet only the catalog-facing portions apply to this PR. Court detail, availability lookup, and reservation entry remain separate follow-up concerns. Before this slice, the KMP app had no court catalog feature: authenticated navigation still used `Home | Kit | Pokédex`, `HomeScreen` was a placeholder, and the only Mejengueros data seam implemented was the owner complex-creation flow. Reusable UI pieces already existed for cards, status pills, ratings, and empty/success states, while the backend/frontend integration for the public catalog had to be added from scratch.
 
 ### Affected Areas
-- `docs/design/mockups/issues-15-16-catalogo-detalle/catalogo.html` — source visual contract for search, filters, card density, availability badge, and bottom-nav intent.
-- `docs/design/mockups/issues-15-16-catalogo-detalle/detalle.html` — source visual contract for downstream detail, rating, services, slots preview, and reserve CTA.
-- `docs/design/mockups/issue-50-reservar/reservar.html` — confirms reservation-entry handoff from detail and reusable date/slot summary patterns.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/navigation/AppRoute.kt` — needs typed routes for catalog/detail/reservation entry if implemented.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/navigation/AuthenticatedNavigationState.kt` — current top-level stacks are `Home`, `Kit`, `Pokedex`; catalog must fit here unless shell IA is changed.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/navigation/AppNavHost.kt` — owns authenticated vs login stack switching and route registration.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/navigation/AppNavEntries.kt` — the right seam to add catalog/detail route entries and keep screens controller-free.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/navigation/AuthenticatedScaffold.kt` — current bottom bar labels conflict with the mockup’s `Buscar | Reservas | Notificaciones` product IA.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/screens/home/HomeScreen.kt` — current placeholder likely becomes the least disruptive catalog host.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/screens/pokedex/PokedexScreen.kt` and `presentation/pokedex/*` — best in-repo example of route entry + ViewModel + list/detail state flow.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/ui/components/MejenguerosContent.kt` — already provides `MejenguerosCourtCard`, thumbnails, pills, and list groups reusable for catalog cards.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/ui/components/MejenguerosReviewComponents.kt` — reusable compact rating/review summary pieces for catalog/detail.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/ui/components/AppDateTimeSelection.kt` and `MejenguerosReservationState.kt` — reusable slot/date/action-bar primitives for detail-to-reservation entry.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/domain/repository/IComplexRepository.kt`, `data/repository/ComplexRepository.kt`, `data/remote/ComplexRemoteDataSource.kt` — current reference seam for remote-first feature data; a new court repository should mirror this structure.
-- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/di/modules/DataModule.kt` and `PresentationModule.kt` — dependency registration points for new catalog/detail ViewModels and repositories.
-- `app-backend/api/src/modules/locations/**`, `service-catalog/**`, `complexes/**` — verified current HTTP surface; no court catalog/detail/reservation endpoint exists yet.
+- `docs/design/mockups/issues-15-16-catalogo-detalle/catalogo.html` — source visual contract for search, filters, card density, and high-level card presentation.
+- `docs/design/mockups/issues-15-16-catalogo-detalle/detalle.html` and `docs/design/mockups/issue-50-reservar/reservar.html` — historical discovery inputs only; they informed future follow-up scope but are not delivered here.
+- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/screens/home/HomeScreen.kt` — least disruptive host for the delivered catalog slice.
+- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/navigation/AuthenticatedNavigationState.kt` and `AuthenticatedScaffold.kt` — shell constraints that explain why the catalog stays inside Home instead of rewriting authenticated IA.
+- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/ui/components/MejenguerosContent.kt` — reusable court card pieces used for the real catalog cards.
+- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/ui/components/MejenguerosReviewComponents.kt` — reusable compact rating summary for aggregate catalog rating.
+- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/domain/repository/IComplexRepository.kt`, `data/repository/ComplexRepository.kt`, `data/remote/ComplexRemoteDataSource.kt` — reference seam for the remote-first data flow mirrored by the catalog implementation.
+- `app-frontend/shared/src/commonMain/kotlin/io/github/themonstersp4/mejengueros/di/modules/DataModule.kt` and `PresentationModule.kt` — dependency registration points for the delivered catalog repository and ViewModel wiring.
+- `app-backend/api/src/modules/courts/**` — new public catalog HTTP surface and persistence logic introduced for this slice.
 
 ### Approaches
-1. **Catalog inside current Home stack** — Replace the placeholder `HomeScreen` experience with a catalog route/content flow, then push court detail and reservation-entry routes inside the existing Home back stack.
-   - Pros: best fit with current Navigation 3 state owner, smallest authenticated-shell churn, aligns with current route/content and ViewModel patterns, easier to keep under the review budget.
-   - Cons: bottom-nav labels remain mismatched with mockups unless a later shell cleanup happens; backend contracts are still missing.
+1. **Catalog inside current Home stack** — Replace the placeholder `HomeScreen` with the real public catalog and keep filtering, cards, aggregate rating, and empty/error/retry states local to that Home experience.
+   - Pros: best fit with current Navigation 3 state owner, smallest authenticated-shell churn, aligns with current route/content and ViewModel patterns, and keeps PR #207 reviewable under issue `#15`.
+   - Cons: bottom-nav labels remain mismatched with mockups unless a later shell cleanup happens.
    - Effort: Medium
 
-2. **Full authenticated-shell IA rewrite now** — Change the top-level shell to product tabs like `Buscar | Reservas | Notificaciones`, then hang catalog/detail/reservation from that new shell.
-   - Pros: closest match to mockups and future product direction.
-   - Cons: mixes issue `#15` with a broader navigation redesign, displaces current `Kit`/`Pokédex` dev/reference flows, increases reviewer load, and still depends on missing backend endpoints.
+2. **Broader flow expansion in the same PR** — Add court detail, availability lookup, reservation entry, or a new authenticated IA together with the catalog.
+   - Pros: closer to the full product journey.
+   - Cons: clear scope creep for PR #207, depends on follow-up issues `#16`, `#49`, and `#50`, and would blur review ownership across unrelated runtime changes.
    - Effort: High
 
 ### Recommendation
-Prefer **Approach 1**. Implement the catalog as the real `Home` experience first, with dedicated typed routes such as a catalog root plus pushed detail/reservation-entry routes, state-hoisted screens, and ViewModels backed by a new remote-first court repository. This respects the current repo DNA, keeps navigation ownership in `AppNavEntries.kt`, lets the UI follow the mockups closely without forcing a premature shell rewrite, and isolates the real blocker: missing backend contract/API support for court listing, detail, availability, and reservation creation.
+Prefer **Approach 1** and treat it as the delivered slice for PR #207: implement the catalog as the real `Home` experience, backed by a new remote-first public catalog repository and backend endpoint, while explicitly deferring court detail, availability lookup, and reservation entry to follow-up issues. This keeps the OpenSpec history useful without pretending that downstream flows shipped here.
 
 ### Risks
-- No verified backend endpoint currently serves court catalog/detail/availability/reservation data, so proposal/spec work must either define the dependency explicitly or split UI-only mock data from real integration.
-- Mockup bottom navigation (`Buscar | Reservas | Notificaciones`) does not match the current authenticated shell (`Home | Kit | Pokédex`), so scope must state whether that mismatch is deferred or absorbed.
-- Issue `#15` acceptance references detail/reservation handoff, but the actual downstream flows belong to `#16`, `#49`, and `#50`; boundaries can blur if proposal scope is not disciplined.
-- If image, rating, and service fields are not normalized in one domain model per card/detail, duplicated mapping logic will spread across list/detail screens.
+- Mockup bottom navigation (`Buscar | Reservas | Notificaciones`) does not match the current authenticated shell (`Home | Kit | Pokédex`), so the spec must record that shell alignment is deferred instead of silently half-implementing it.
+- Issue `#15` discovery material references a broader detail/reservation journey, but the actual downstream implementation belongs to `#16`, `#49`, and `#50`; documentation can create false scope claims if that boundary is not explicit.
+- If aggregate rating, services, and publication filters are not normalized in one catalog model, duplicated mapping logic can spread across backend and frontend seams.
 
 ### Ready for Proposal
-Yes — but the proposal should explicitly state that frontend implementation is only clean if it either (a) pairs with new backend API contracts for court catalog/detail/availability/reservation, or (b) splits a UI-first slice from a later integration slice.
+Historical note only: yes, the proposal was ready once it was narrowed to a catalog-only slice with real backend/frontend integration. Any future work for court detail, availability, or reservation should be proposed separately against `#16`, `#49`, and `#50` rather than documented as part of PR #207 delivery.
