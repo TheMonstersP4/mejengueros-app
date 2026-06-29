@@ -94,6 +94,7 @@ describe('public court catalog HTTP contract', () => {
         })
       })
     );
+    expect(prismaService.$queryRaw).toHaveBeenCalledTimes(1);
     expect(response.json()).toEqual({
       success: true,
       data: [
@@ -173,6 +174,7 @@ describe('public court catalog HTTP contract', () => {
 
   function createPrismaMock() {
     return {
+      $queryRaw: jest.fn().mockResolvedValue([{ courtId: 'court-id', average: 4, count: 2 }]),
       canton: {
         findFirst: jest.fn().mockResolvedValue({ id: '1f6adf24-ea42-4c49-9179-c5f73fef7a41' })
       },
@@ -181,7 +183,10 @@ describe('public court catalog HTTP contract', () => {
           {
             id: 'court-id',
             name: 'Cancha 1',
-            services: [{ serviceCatalog: { name: 'Iluminacion' } }, { serviceCatalog: { name: 'Sintetico' } }],
+            services: [
+              { serviceCatalog: { name: 'Iluminacion' } },
+              { serviceCatalog: { name: 'Sintetico' } }
+            ],
             complex: {
               id: 'complex-id',
               name: 'Complejo Los Nogales',
@@ -196,9 +201,20 @@ describe('public court catalog HTTP contract', () => {
               services: [{ serviceCatalog: { name: 'Parqueo' } }]
             },
             availability: {
-              days: [{ day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date().getDay()] }]
-            },
-            reservations: [{ review: { rating: 5 } }, { review: { rating: 3 } }]
+              days: [
+                {
+                  day: [
+                    'SUNDAY',
+                    'MONDAY',
+                    'TUESDAY',
+                    'WEDNESDAY',
+                    'THURSDAY',
+                    'FRIDAY',
+                    'SATURDAY'
+                  ][new Date().getDay()]
+                }
+              ]
+            }
           }
         ])
       },

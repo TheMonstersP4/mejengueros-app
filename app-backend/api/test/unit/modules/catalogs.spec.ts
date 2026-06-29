@@ -143,21 +143,45 @@ describe('catalog modules behavior', () => {
 
   it('builds Prisma queries for the public court catalog and validates province/canton pairs', async () => {
     const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([{ courtId: 'court-id', average: 4.5, count: 2 }]),
       canton: {
         findFirst: jest.fn().mockResolvedValue({ id: 'canton-id' })
       },
       court: {
-        findMany: jest.fn().mockResolvedValue([])
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [{ serviceCatalog: { name: 'Sintetico' } }],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: [{ serviceCatalog: { name: 'Parqueo' } }]
+            },
+            availability: {
+              days: [{ day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date().getDay()] }]
+            }
+          }
+        ])
       }
     };
     const repository = new PrismaCourtCatalogRepository(prisma as never);
 
     await repository.assertProvinceAndCantonMatch('province-id', 'canton-id');
-    await repository.listPublicCatalog({
-      q: 'north',
-      provinceId: 'province-id',
-      cantonId: 'canton-id'
-    });
+    await expect(
+      repository.listPublicCatalog({
+        q: 'north',
+        provinceId: 'province-id',
+        cantonId: 'canton-id'
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        rating: { average: 4.5, count: 2 }
+      })
+    ]);
 
     expect(prisma.canton.findFirst).toHaveBeenCalledWith({
       where: { id: 'canton-id', provinceId: 'province-id' },
@@ -182,9 +206,48 @@ describe('catalog modules behavior', () => {
         select: expect.objectContaining({
           complex: expect.any(Object),
           services: expect.any(Object),
-          reservations: expect.any(Object)
+          availability: expect.any(Object)
         })
       })
     );
+    expect(prisma.court.findMany.mock.calls[0][0].select).not.toHaveProperty('reservations');
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRaw.mock.calls[0]?.[0]?.strings?.join(' ')).toContain(
+      'AVG(review.rating)::float8 AS average'
+    );
+  });
+
+  it('returns empty rating aggregates when a court has no reviews', async () => {
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'canton-id' })
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: []
+            },
+            availability: null
+          }
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(prisma as never);
+
+    await expect(repository.listPublicCatalog({})).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        rating: { average: null, count: 0 }
+      })
+    ]);
   });
 });

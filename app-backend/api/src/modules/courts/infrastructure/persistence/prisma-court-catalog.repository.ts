@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { InvalidCourtCatalogLocationFilterError } from '../../domain/errors/invalid-court-catalog-location-filter.error';
 import type {
@@ -20,12 +21,22 @@ const WEEKDAY_BY_INDEX = [
 const PUBLIC_COURT_CATALOG_TAKE = 50;
 
 interface ICourtCatalogPersistenceClient {
+  $queryRaw<T = unknown>(
+    query: TemplateStringsArray | Prisma.Sql,
+    ...values: unknown[]
+  ): Promise<T>;
   canton: {
     findFirst: PrismaService['canton']['findFirst'];
   };
   court: {
     findMany: PrismaService['court']['findMany'];
   };
+}
+
+interface ICourtRatingAggregateRow {
+  courtId: string;
+  average: number;
+  count: number;
 }
 
 @Injectable()
@@ -171,57 +182,75 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
               }
             }
           }
-        },
-        reservations: {
-          select: {
-            review: {
-              select: {
-                rating: true
-              }
-            }
-          }
         }
       }
     });
 
-    return courts
-      .filter((court) => court.complex.province !== null && court.complex.canton !== null)
-      .map((court) => {
-        const ratings = court.reservations
-          .map((reservation) => reservation.review?.rating)
-          .filter((rating): rating is number => rating !== null && rating !== undefined);
-        const services = uniqueSortedServices([
-          ...court.services.map((service) => service.serviceCatalog.name),
-          ...court.complex.services.map((service) => service.serviceCatalog.name)
-        ]);
+    const catalogCourts = courts.filter(
+      (court) => court.complex.province !== null && court.complex.canton !== null
+    );
+    const ratingsByCourtId = await this.loadRatingsByCourtId(
+      catalogCourts.map((court) => court.id)
+    );
 
-        return {
-          courtId: court.id,
-          courtName: court.name,
-          complexId: court.complex.id,
-          complexName: court.complex.name,
-          province: {
-            id: court.complex.province!.id,
-            name: court.complex.province!.name
-          },
-          canton: {
-            id: court.complex.canton!.id,
-            name: court.complex.canton!.name
-          },
-          services,
-          rating: {
-            average:
-              ratings.length > 0
-                ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(1))
-                : null,
-            count: ratings.length
-          },
-          isReservableToday:
-            court.availability?.days.some((availabilityDay) => availabilityDay.day === today) ??
-            false,
-          imageUrl: null
-        } satisfies ICourtCatalogItem;
-      });
+    return catalogCourts.map((court) => {
+      const rating = ratingsByCourtId.get(court.id) ?? { average: null, count: 0 };
+      const services = uniqueSortedServices([
+        ...court.services.map((service) => service.serviceCatalog.name),
+        ...court.complex.services.map((service) => service.serviceCatalog.name)
+      ]);
+
+      return {
+        courtId: court.id,
+        courtName: court.name,
+        complexId: court.complex.id,
+        complexName: court.complex.name,
+        province: {
+          id: court.complex.province!.id,
+          name: court.complex.province!.name
+        },
+        canton: {
+          id: court.complex.canton!.id,
+          name: court.complex.canton!.name
+        },
+        services,
+        rating,
+        isReservableToday:
+          court.availability?.days.some((availabilityDay) => availabilityDay.day === today) ??
+          false,
+        imageUrl: null
+      } satisfies ICourtCatalogItem;
+    });
+  }
+
+  private async loadRatingsByCourtId(
+    courtIds: string[]
+  ): Promise<Map<string, ICourtCatalogItem['rating']>> {
+    if (courtIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.prisma.$queryRaw<ICourtRatingAggregateRow[]>(Prisma.sql`
+      SELECT
+        reservation."courtId" AS "courtId",
+        AVG(review.rating)::float8 AS average,
+        COUNT(*)::int AS count
+      FROM mejengueros_dev."Review" review
+      INNER JOIN mejengueros_dev."Reservation" reservation
+        ON reservation.id = review."reservationId"
+      WHERE reservation."courtId" IN (${Prisma.join(courtIds)})
+      GROUP BY reservation."courtId"
+    `);
+
+    return new Map(
+      rows.map((row) => [
+        row.courtId,
+        {
+          average: Number(row.average.toFixed(1)),
+          count: Number(row.count)
+        }
+      ])
+    );
   }
 }
 
