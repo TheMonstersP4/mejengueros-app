@@ -2,23 +2,24 @@ package io.github.themonstersp4.mejengueros.screens.mycomplex
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasTestTag
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
-import io.github.themonstersp4.mejengueros.navigation.OwnerCourtAvailabilityEntrypoint
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,18 +35,21 @@ class MyComplexScreenBehaviorTest {
       MejenguerosTheme {
         MyComplexScreen(
             state = MyComplexUiState(isLoading = true),
-            username = "Owner",
             contentPadding = PaddingValues(),
             onCreateComplex = {},
             onRetry = {},
-            onConfigureAvailability = { _ -> },
+            onOpenComplexDetail = {},
         )
       }
     }
 
     composeRule.onNodeWithTag("my_complex_loading_indicator").assertExists()
     composeRule.onNodeWithText("Cargando tu hub de complejos...").assertExists()
-    composeRule.onNodeWithText("Crear complejo y primera cancha").assertDoesNotExist()
+    composeRule.onNodeWithText("Tus complejos deportivos").assertExists()
+    composeRule
+        .onNodeWithText("Gestioná canchas, disponibilidad y reservas desde un solo lugar.")
+        .assertExists()
+    composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
   }
 
   @Test
@@ -56,11 +60,10 @@ class MyComplexScreenBehaviorTest {
       MejenguerosTheme {
         MyComplexScreen(
             state = MyComplexUiState(complexes = emptyList()),
-            username = "Owner",
             contentPadding = PaddingValues(),
             onCreateComplex = { createClicks += 1 },
             onRetry = {},
-            onConfigureAvailability = { _ -> },
+            onOpenComplexDetail = {},
         )
       }
     }
@@ -72,7 +75,10 @@ class MyComplexScreenBehaviorTest {
   }
 
   @Test
-  fun loadedStateMatchesHubLayoutAndHidesCreateComplexCallToAction() {
+  fun loadedStateShowsOwnerComplexListAndOpensSelectedDetail() {
+    var selectedComplexId: String? = null
+    val longComplexName =
+        "North Sports Center with a very long owner-facing name that must keep wrapping"
 
     composeRule.setContent {
       MejenguerosTheme {
@@ -83,118 +89,12 @@ class MyComplexScreenBehaviorTest {
                         listOf(
                             MyComplexHubComplex(
                                 id = "complex-id",
-                                name = "North Sports Center",
+                                name = longComplexName,
                                 address = "123 Main Street",
                                 provinceId = "province-id",
                                 cantonId = "canton-id",
                                 latitude = 9.935,
                                 longitude = -84.091,
-                                status = "ACTIVE",
-                                courts =
-                                    listOf(
-                                        MyComplexHubCourt(
-                                            id = "court-configured-id",
-                                            name = "Court A",
-                                            status = "ACTIVE",
-                                            availabilityStatus =
-                                                CourtAvailabilitySetupStatus.CONFIGURED,
-                                        ),
-                                        MyComplexHubCourt(
-                                            id = "court-pending-id",
-                                            name = "Court B",
-                                            status = "ACTIVE",
-                                            availabilityStatus =
-                                                CourtAvailabilitySetupStatus.PENDING,
-                                        ),
-                                    ),
-                            )
-                        )
-                ),
-            username = "Owner",
-            contentPadding = PaddingValues(),
-            onCreateComplex = {},
-            onRetry = {},
-            onConfigureAvailability = { _ -> },
-        )
-      }
-    }
-
-    composeRule.onNodeWithText("North Sports Center").assertExists()
-    composeRule.onNodeWithText("123 Main Street").assertExists()
-    composeRule.onNodeWithText("Ubicación: 9.935, -84.091").assertExists()
-    composeRule.onAllNodesWithText("Activa").assertCountEquals(2)
-    composeRule.onNodeWithText("TUS CANCHAS").assertExists()
-    composeRule.onNodeWithText("ACTIVIDAD").assertExists()
-    composeRule.onNodeWithText("Activa · disponibilidad configurada").assertExists()
-    composeRule.onNodeWithText("Activa · falta disponibilidad").assertExists()
-    composeRule.onNodeWithText("Reseñas recibidas").assertExists()
-    composeRule.onNodeWithText("Reservas de mis canchas").assertExists()
-    composeRule.onNodeWithText("Próximamente disponible").assertExists()
-    composeRule.onAllNodesWithText("Próximamente").assertCountEquals(2)
-    composeRule.onNodeWithTag("my_complex_create_complex_button").assertDoesNotExist()
-    composeRule
-        .onNodeWithTag("my_complex_add_court_button_complex-id")
-        .assertExists()
-        .assertIsNotEnabled()
-    composeRule.onNodeWithTag("my_complex_court_row_court-pending-id").assertExists()
-  }
-
-  @Test
-  fun loadedStateWithoutCourtsShowsEmptyCourtsCopy() {
-
-    composeRule.setContent {
-      MejenguerosTheme {
-        MyComplexScreen(
-            state =
-                MyComplexUiState(
-                    complexes =
-                        listOf(
-                            MyComplexHubComplex(
-                                id = "complex-no-courts-id",
-                                name = "North Sports Center",
-                                address = "123 Main Street",
-                                provinceId = null,
-                                cantonId = null,
-                                latitude = null,
-                                longitude = null,
-                                status = "ACTIVE",
-                                courts = emptyList(),
-                            )
-                        )
-                ),
-            username = "Owner",
-            contentPadding = PaddingValues(),
-            onCreateComplex = {},
-            onRetry = {},
-            onConfigureAvailability = { _ -> },
-        )
-      }
-    }
-
-    composeRule.onNodeWithText("Todavía no hay canchas cargadas").assertExists()
-    composeRule.onNodeWithText("Cuando agregues la primera cancha aparecerá aquí.").assertExists()
-    composeRule.onNodeWithText("Próximamente disponible").assertExists()
-  }
-
-  @Test
-  fun configureAvailabilityClickUsesCourtEntrypointWithRealCourtId() {
-    var selectedEntrypoint: OwnerCourtAvailabilityEntrypoint? = null
-
-    composeRule.setContent {
-      MejenguerosTheme {
-        MyComplexScreen(
-            state =
-                MyComplexUiState(
-                    complexes =
-                        listOf(
-                            MyComplexHubComplex(
-                                id = "complex-id",
-                                name = "North Sports Center",
-                                address = "123 Main Street",
-                                provinceId = null,
-                                cantonId = null,
-                                latitude = null,
-                                longitude = null,
                                 status = "ACTIVE",
                                 courts =
                                     listOf(
@@ -206,33 +106,71 @@ class MyComplexScreenBehaviorTest {
                                                 CourtAvailabilitySetupStatus.PENDING,
                                         )
                                     ),
-                            )
+                            ),
+                            MyComplexHubComplex(
+                                id = "complex-id-2",
+                                name = "South Sports Center",
+                                address = "456 Side Street",
+                                provinceId = "province-id",
+                                cantonId = "canton-id",
+                                latitude = 9.9,
+                                longitude = -84.1,
+                                status = "ACTIVE",
+                                courts = emptyList(),
+                            ),
                         )
                 ),
-            username = "Owner",
             contentPadding = PaddingValues(),
             onCreateComplex = {},
             onRetry = {},
-            onConfigureAvailability = { selectedEntrypoint = it },
+            onOpenComplexDetail = { selectedComplexId = it },
+            modifier = Modifier.width(280.dp),
         )
       }
     }
 
+    composeRule.onNodeWithText(longComplexName).assertExists()
+    composeRule.onNodeWithText("123 Main Street · 1 cancha").assertExists()
     composeRule
-        .onNodeWithTag("my_complex_root")
-        .performScrollToNode(hasTestTag("my_complex_court_row_court-pending-id"))
-    composeRule.onNodeWithTag("my_complex_court_row_court-pending-id").performClick()
+        .onNodeWithTag("my_complex_list_icon_complex-id", useUnmergedTree = true)
+        .assertExists()
+    composeRule
+        .onNodeWithTag("my_complex_list_trailing_complex-id", useUnmergedTree = true)
+        .assertExists()
 
-    composeRule.runOnIdle {
-      assertEquals(
-          OwnerCourtAvailabilityEntrypoint(
-              courtId = "court-pending-id",
-              courtName = "Court B",
-              complexName = "North Sports Center",
-          ),
-          selectedEntrypoint,
-      )
-    }
+    val listGroupBounds =
+        composeRule.onNodeWithTag("my_complex_list_group").getUnclippedBoundsInRoot()
+    val dividerBounds =
+        composeRule
+            .onNodeWithTag("my_complex_list_divider_complex-id", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    assertHorizontalEdgesMatch(listGroupBounds, dividerBounds)
+
+    val longItemBounds =
+        composeRule.onNodeWithTag("my_complex_list_item_complex-id").getUnclippedBoundsInRoot()
+    val shortItemBounds =
+        composeRule.onNodeWithTag("my_complex_list_item_complex-id-2").getUnclippedBoundsInRoot()
+    assertTrue(
+        (longItemBounds.bottom - longItemBounds.top) >
+            (shortItemBounds.bottom - shortItemBounds.top),
+        "Expected long-name row to be taller than the short-name row.",
+    )
+
+    val headlineBounds =
+        composeRule
+            .onNodeWithTag("my_complex_list_headline_complex-id", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    val trailingBounds =
+        composeRule
+            .onNodeWithTag("my_complex_list_trailing_complex-id", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    assertTrue(
+        headlineBounds.right < trailingBounds.left,
+        "Expected trailing affordance to occupy its own horizontal slot.",
+    )
+    composeRule.onNodeWithTag("my_complex_list_item_complex-id").assertExists().performClick()
+
+    composeRule.runOnIdle { assertEquals("complex-id", selectedComplexId) }
   }
 
   @Test
@@ -243,11 +181,10 @@ class MyComplexScreenBehaviorTest {
       MejenguerosTheme {
         MyComplexScreen(
             state = MyComplexUiState(errorMessage = "No pudimos cargar tu hub."),
-            username = "Owner",
             contentPadding = PaddingValues(),
             onCreateComplex = {},
             onRetry = { retryClicks += 1 },
-            onConfigureAvailability = { _ -> },
+            onOpenComplexDetail = {},
         )
       }
     }
@@ -256,5 +193,20 @@ class MyComplexScreenBehaviorTest {
     composeRule.onNodeWithText("Reintentar").assertExists().performClick()
 
     composeRule.runOnIdle { assertEquals(1, retryClicks) }
+  }
+
+  private fun assertHorizontalEdgesMatch(
+      containerBounds: DpRect,
+      dividerBounds: DpRect,
+      tolerance: Float = 1f,
+  ) {
+    assertTrue(
+        abs(containerBounds.left.value - dividerBounds.left.value) <= tolerance,
+        "Expected divider left=${dividerBounds.left} to match container left=${containerBounds.left} within $tolerance.",
+    )
+    assertTrue(
+        abs(containerBounds.right.value - dividerBounds.right.value) <= tolerance,
+        "Expected divider right=${dividerBounds.right} to match container right=${containerBounds.right} within $tolerance.",
+    )
   }
 }

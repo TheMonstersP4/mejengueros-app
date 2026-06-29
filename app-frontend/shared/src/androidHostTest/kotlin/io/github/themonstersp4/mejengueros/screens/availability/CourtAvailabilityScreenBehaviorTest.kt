@@ -49,6 +49,8 @@ class CourtAvailabilityScreenBehaviorTest {
       }
     }
 
+    composeRule.onNodeWithText("Configurá horarios de reserva").assertExists()
+    composeRule.onNodeWithText("Cancha 1 · Mejengas CR").assertExists()
     composeRule.onNodeWithText("Disponibilidad configurada").assertExists()
     composeRule
         .onNodeWithText("Tu cancha ya tiene una disponibilidad base para recibir reservas.")
@@ -88,5 +90,6 @@ class CourtAvailabilityScreenBehaviorTest {
 
     composeRule.onNodeWithTag("mejengueros_confirmation_dialog").assertDoesNotExist()
     composeRule.onNodeWithText("Disponibilidad configurada").assertDoesNotExist()
+    composeRule.onNodeWithText("Configurá horarios de reserva").assertExists()
   }
 }

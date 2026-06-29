@@ -21,6 +21,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemColors
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -121,72 +125,161 @@ fun MejenguerosThumbnail(
   }
 }
 
+data class MejenguerosListItemText(
+    val title: String,
+    val supportingText: String? = null,
+    val headlineMaxLines: Int = 1,
+    val headlineOverflow: TextOverflow = TextOverflow.Ellipsis,
+    val supportingMaxLines: Int = 2,
+    val supportingOverflow: TextOverflow = TextOverflow.Ellipsis,
+    val headlineModifier: Modifier = Modifier,
+    val supportingModifier: Modifier = Modifier,
+)
+
+data class MejenguerosListItemCustomContent(
+    val headlineContent: @Composable () -> Unit,
+    val supportingContent: (@Composable () -> Unit)? = null,
+)
+
+data class MejenguerosListItemStyle(
+    val outerPadding: PaddingValues = PaddingValues(0.dp),
+    val showDivider: Boolean = false,
+    val shape: Shape = RectangleShape,
+    val colors: ListItemColors? = null,
+    val dividerModifier: Modifier = Modifier,
+)
+
 @Composable
 fun MejenguerosListItem(
-    title: String,
+    text: MejenguerosListItemText,
     modifier: Modifier = Modifier,
-    supportingText: String? = null,
     leading: (@Composable RowScope.() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-    showDivider: Boolean = false,
+    style: MejenguerosListItemStyle = MejenguerosListItemStyle(),
 ) {
-  Column(modifier = modifier) {
-    val rowContent: @Composable () -> Unit = {
-      Row(
-          modifier = Modifier.fillMaxWidth().padding(contentPadding),
-          horizontalArrangement = Arrangement.spacedBy(12.dp),
-          verticalAlignment = Alignment.CenterVertically,
-      ) {
-        if (leading != null) {
-          leading()
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+  val headlineContent: @Composable () -> Unit = {
+    Text(
+        text = text.title,
+        modifier = text.headlineModifier,
+        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+        maxLines = text.headlineMaxLines,
+        overflow = text.headlineOverflow,
+    )
+  }
+  val supportingContent =
+      if (text.supportingText.isNullOrBlank()) {
+        null
+      } else {
+        @Composable {
           Text(
-              text = title,
-              style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-              color =
-                  if (enabled) MaterialTheme.colorScheme.onSurface
-                  else MaterialTheme.colorScheme.onSurfaceVariant,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
+              text = text.supportingText,
+              modifier = text.supportingModifier,
+              style = MaterialTheme.typography.bodyMedium,
+              maxLines = text.supportingMaxLines,
+              overflow = text.supportingOverflow,
           )
-          if (!supportingText.isNullOrBlank()) {
-            Text(
-                text = supportingText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-          }
-        }
-        if (trailing != null) {
-          trailing()
         }
       }
+
+  MejenguerosListItem(
+      headlineContent = headlineContent,
+      supportingContent = supportingContent,
+      modifier = modifier,
+      leading = leading,
+      trailing = trailing,
+      onClick = onClick,
+      enabled = enabled,
+      style = style,
+  )
+}
+
+@Composable
+fun MejenguerosListItem(
+    content: MejenguerosListItemCustomContent,
+    modifier: Modifier = Modifier,
+    leading: (@Composable RowScope.() -> Unit)? = null,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    style: MejenguerosListItemStyle = MejenguerosListItemStyle(),
+) {
+  MejenguerosListItem(
+      headlineContent = content.headlineContent,
+      supportingContent = content.supportingContent,
+      modifier = modifier,
+      leading = leading,
+      trailing = trailing,
+      onClick = onClick,
+      enabled = enabled,
+      style = style,
+  )
+}
+
+@Composable
+private fun MejenguerosListItem(
+    headlineContent: @Composable () -> Unit,
+    supportingContent: (@Composable () -> Unit)?,
+    modifier: Modifier,
+    leading: (@Composable RowScope.() -> Unit)?,
+    trailing: (@Composable RowScope.() -> Unit)?,
+    onClick: (() -> Unit)?,
+    enabled: Boolean,
+    style: MejenguerosListItemStyle,
+) {
+  val itemShape = style.shape
+  val itemColors = style.colors ?: ListItemDefaults.colors(containerColor = Color.Transparent)
+
+  Column(modifier = modifier) {
+    val leadingContent =
+        if (leading == null) {
+          null
+        } else {
+          @Composable { Row(content = leading) }
+        }
+    val trailingContent =
+        if (trailing == null) {
+          null
+        } else {
+          @Composable { Row(content = trailing) }
+        }
+    val listItemContent: @Composable () -> Unit = {
+      ListItem(
+          headlineContent = headlineContent,
+          supportingContent = supportingContent,
+          leadingContent = leadingContent,
+          trailingContent = trailingContent,
+          modifier = Modifier.fillMaxWidth().padding(style.outerPadding),
+          colors = itemColors,
+          tonalElevation = 0.dp,
+          shadowElevation = 0.dp,
+      )
     }
 
     if (onClick != null) {
       Surface(
           onClick = onClick,
           enabled = enabled,
+          shape = itemShape,
           color = Color.Transparent,
           contentColor = MaterialTheme.colorScheme.onSurface,
       ) {
-        rowContent()
+        listItemContent()
       }
     } else {
-      Surface(color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
-        rowContent()
+      Surface(
+          shape = itemShape,
+          color = Color.Transparent,
+          contentColor = MaterialTheme.colorScheme.onSurface,
+      ) {
+        listItemContent()
       }
     }
 
-    if (showDivider) {
+    if (style.showDivider) {
       HorizontalDivider(
-          modifier = Modifier.padding(start = if (leading != null) 72.dp else 16.dp),
+          modifier = Modifier.fillMaxWidth().then(style.dividerModifier),
           color = MaterialTheme.colorScheme.outlineVariant,
       )
     }
@@ -196,13 +289,16 @@ fun MejenguerosListItem(
 @Composable
 fun MejenguerosListGroup(
     modifier: Modifier = Modifier,
+    shape: Shape = MaterialTheme.shapes.large,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     content: @Composable ColumnScope.() -> Unit,
 ) {
   Surface(
       modifier = modifier.fillMaxWidth(),
-      shape = MaterialTheme.shapes.large,
-      color = MaterialTheme.colorScheme.surfaceContainerHigh,
-      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+      shape = shape,
+      color = containerColor,
+      border = border,
   ) {
     Column(content = content)
   }

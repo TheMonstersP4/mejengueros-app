@@ -16,8 +16,11 @@ class AuthenticatedShellActions(
     val selectNotifications: () -> Unit,
     val selectMyComplex: () -> Unit,
     val returnToMyComplexRoot: () -> Unit,
+    val openComplexDetail: (String) -> Unit,
+    val openAddCourt: (String, String) -> Unit,
     val openCreateComplex: () -> Unit,
     val openCourtAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    val closeAddCourtAfterSuccess: () -> Unit,
     val closeCurrentDetail: () -> Unit,
     val signOut: () -> Unit,
 )

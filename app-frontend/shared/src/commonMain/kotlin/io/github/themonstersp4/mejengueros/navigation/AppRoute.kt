@@ -25,6 +25,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object MyComplexRoute : AppRoute
 
+@Serializable data class ComplexDetailRoute(val complexId: String) : AppRoute
+
+@Serializable data class AddCourtRoute(val complexId: String, val complexName: String) : AppRoute
+
 @Serializable data object CreateComplexRoute : AppRoute
 
 @Serializable data object KitRoute : AppRoute

@@ -164,8 +164,11 @@ private fun shellActions(
         selectNotifications = navigationState::selectNotifications,
         selectMyComplex = navigationState::selectMyComplex,
         returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
+        openComplexDetail = navigationState::openComplexDetail,
+        openAddCourt = navigationState::openAddCourt,
         openCreateComplex = navigationState::openCreateComplex,
         openCourtAvailability = navigationState::openCourtAvailability,
+        closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
         closeCurrentDetail = navigationState::closeCurrentDetail,
         signOut = {},
     )

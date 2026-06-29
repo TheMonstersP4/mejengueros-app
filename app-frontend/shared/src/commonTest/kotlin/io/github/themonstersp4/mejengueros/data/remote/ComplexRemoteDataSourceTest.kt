@@ -4,6 +4,7 @@ import io.github.themonstersp4.mejengueros.data.remote.dto.CreateComplexRequestD
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.ktor.client.HttpClient
@@ -11,6 +12,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.header
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -95,6 +97,7 @@ class ComplexRemoteDataSourceTest {
   fun getServicesFetchesScopeQueryAndMapsItems() = runTest {
     var requestedPath = ""
     var requestedScope = ""
+    var authorizationHeader = ""
     val dataSource =
         ComplexRemoteDataSource(
             httpClient =
@@ -107,9 +110,11 @@ class ComplexRemoteDataSourceTest {
                             { "id": "service-id", "name": "Lighting", "scope": "COURT" }
                           ]
                         }
-                        """,
+                    """,
                     capturePath = { requestedPath = it.orEmpty() },
                     captureScope = { requestedScope = it.orEmpty() },
+                    captureAuthorizationHeader = { authorizationHeader = it.orEmpty() },
+                    authToken = "owner-token",
                 ),
             json = json,
         )
@@ -118,6 +123,7 @@ class ComplexRemoteDataSourceTest {
 
     assertEquals("/v1/services", requestedPath)
     assertEquals("COURT", requestedScope)
+    assertEquals("Bearer owner-token", authorizationHeader)
     assertEquals(ServiceScope.COURT, services.single().scope)
   }
 
@@ -297,6 +303,90 @@ class ComplexRemoteDataSourceTest {
   }
 
   @Test
+  fun addCourtPostsOwnedComplexPayloadAndMapsEnvelope() = runTest {
+    var requestedPath = ""
+    var requestedMethod = HttpMethod.Get
+    var requestBody = ""
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "id": "court-id",
+                            "complexId": "complex-id",
+                            "name": "Court B"
+                          }
+                        }
+                        """,
+                    status = HttpStatusCode.Created,
+                    capturePath = { requestedPath = it.orEmpty() },
+                    captureMethod = { requestedMethod = it ?: HttpMethod.Get },
+                    captureBody = { requestBody = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    val created =
+        dataSource.addCourt(
+            complexId = "complex-id",
+            request = CreateCourtRequest(name = "Court B", serviceIds = listOf("court-service-id")),
+        )
+
+    assertEquals(HttpMethod.Post, requestedMethod)
+    assertEquals("/v1/complexes/complex-id/courts", requestedPath)
+    val requestDto =
+        json.decodeFromString<
+            io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtRequestPayloadDto
+        >(
+            requestBody
+        )
+    assertEquals("Court B", requestDto.name)
+    assertEquals(listOf("court-service-id"), requestDto.serviceIds)
+    assertEquals("court-id", created.id)
+  }
+
+  @Test
+  fun addCourtMapsNotFoundEnvelopeIntoAppApiException() = runTest {
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": false,
+                          "errors": [
+                            {
+                              "code": "RESOURCE_NOT_FOUND",
+                              "message": "Complex not found for the authenticated owner.",
+                              "status": 404
+                            }
+                          ]
+                        }
+                        """,
+                    status = HttpStatusCode.NotFound,
+                ),
+            json = json,
+        )
+
+    val error =
+        assertFailsWith<AppApiException> {
+          dataSource.addCourt(
+              complexId = "complex-id",
+              request =
+                  CreateCourtRequest(name = "Court B", serviceIds = listOf("court-service-id")),
+          )
+        }
+
+    assertEquals(404, error.statusCode)
+    assertEquals("Complex not found for the authenticated owner.", error.message)
+  }
+
+  @Test
   fun getMyComplexHubFetchesOwnerHubAndMapsConfiguredAndPendingCourts() = runTest {
     var requestedPath = ""
     var requestedMethod = HttpMethod.Post
@@ -460,6 +550,8 @@ class ComplexRemoteDataSourceTest {
       captureMethod: (HttpMethod?) -> Unit = {},
       captureScope: (String?) -> Unit = {},
       captureBody: (String?) -> Unit = {},
+      captureAuthorizationHeader: (String?) -> Unit = {},
+      authToken: String? = null,
   ): HttpClient =
       HttpClient(MockEngine) {
         expectSuccess = true
@@ -469,6 +561,7 @@ class ComplexRemoteDataSourceTest {
             captureMethod(request.method)
             captureScope(request.url.parameters["scope"])
             captureBody(request.body.readText())
+            captureAuthorizationHeader(request.headers[HttpHeaders.Authorization])
             respond(
                 content = responseBody.trimIndent(),
                 status = status,
@@ -481,7 +574,10 @@ class ComplexRemoteDataSourceTest {
           }
         }
         install(ContentNegotiation) { json(this@ComplexRemoteDataSourceTest.json) }
-        install(DefaultRequest) { url("https://api.example.test") }
+        install(DefaultRequest) {
+          url("https://api.example.test")
+          authToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+        }
       }
 
   private fun OutgoingContent.readText(): String =

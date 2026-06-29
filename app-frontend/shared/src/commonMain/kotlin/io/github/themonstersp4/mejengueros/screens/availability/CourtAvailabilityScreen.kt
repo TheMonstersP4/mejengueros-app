@@ -67,17 +67,22 @@ fun CourtAvailabilityScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
       Text(
-          text = "Configurá la disponibilidad reservable",
-          style = MaterialTheme.typography.headlineSmall,
+          text = "Configurá horarios de reserva",
+          style = MaterialTheme.typography.titleLarge,
           color = MaterialTheme.colorScheme.onSurface,
       )
+      if (state.courtName.isNotBlank() || state.complexName.isNotBlank()) {
+        Text(
+            text =
+                listOf(state.courtName, state.complexName)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+      }
       MejenguerosSupportingText(
-          text =
-              if (state.complexName.isBlank()) {
-                "Elegí los días y el rango horario único para generar slots de 1 hora."
-              } else {
-                "${state.courtName} · ${state.complexName}"
-              }
+          text = "Elegí los días y el rango horario único para generar slots de 1 hora.",
       )
 
       if (state.isLoading) {

@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.presentation.mycomplex
 
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
@@ -227,6 +228,9 @@ private class DelayedComplexRepository(
   override suspend fun createComplex(
       request: io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
   ) = error("Unused in this test")
+
+  override suspend fun addCourt(complexId: String, request: CreateCourtRequest) =
+      error("Unused in this test")
 }
 
 private class FakeErrorReporter : ErrorReporter {
@@ -297,4 +301,7 @@ private class FakeComplexRepository(
   override suspend fun createComplex(
       request: io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
   ) = error("Unused in this test")
+
+  override suspend fun addCourt(complexId: String, request: CreateCourtRequest) =
+      error("Unused in this test")
 }
