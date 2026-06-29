@@ -2,18 +2,26 @@ package io.github.themonstersp4.mejengueros.screens.mycomplex
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.navigation.OwnerCourtAvailabilityEntrypoint
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -44,6 +52,9 @@ class ComplexDetailScreenBehaviorTest {
       }
     }
 
+    composeRule.onNodeWithText("123 Main Street").assertExists()
+    composeRule.onNodeWithText("Ubicación: 9.935, -84.091").assertExists()
+    composeRule.onNodeWithText("Agregar cancha").assertExists()
     composeRule
         .onNodeWithTag("complex_detail_root")
         .performScrollToNode(hasTestTag("complex_detail_add_court_button_complex-id"))
@@ -69,6 +80,7 @@ class ComplexDetailScreenBehaviorTest {
             onRetry = {},
             onAddCourt = { _, _ -> },
             onConfigureAvailability = { selectedEntrypoint = it },
+            modifier = Modifier.width(280.dp),
         )
       }
     }
@@ -76,13 +88,46 @@ class ComplexDetailScreenBehaviorTest {
     composeRule
         .onNodeWithTag("complex_detail_root")
         .performScrollToNode(hasTestTag("my_complex_court_row_court-pending-id"))
+    composeRule
+        .onNodeWithTag("my_complex_court_icon_court-pending-id", useUnmergedTree = true)
+        .assertExists()
+    composeRule
+        .onNodeWithText("Court B with an intentionally long configuration name that must wrap")
+        .assertExists()
+    composeRule
+        .onNodeWithTag("my_complex_court_trailing_court-pending-id", useUnmergedTree = true)
+        .assertExists()
+    composeRule.onNodeWithText("Pendiente").assertExists()
+
+    val courtsGroupBounds =
+        composeRule
+            .onNodeWithTag("my_complex_courts_group", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    val dividerBounds =
+        composeRule
+            .onNodeWithTag("my_complex_court_divider_court-configured-id", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    assertHorizontalEdgesMatch(courtsGroupBounds, dividerBounds)
+
+    val headlineBounds =
+        composeRule
+            .onNodeWithTag("my_complex_court_headline_court-pending-id", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    val trailingBounds =
+        composeRule
+            .onNodeWithTag("my_complex_court_trailing_court-pending-id", useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+    assertTrue(
+        headlineBounds.right < trailingBounds.left,
+        "Expected trailing court actions to occupy their own horizontal slot.",
+    )
     composeRule.onNodeWithTag("my_complex_court_row_court-pending-id").performClick()
 
     composeRule.runOnIdle {
       assertEquals(
           OwnerCourtAvailabilityEntrypoint(
               courtId = "court-pending-id",
-              courtName = "Court B",
+              courtName = "Court B with an intentionally long configuration name that must wrap",
               complexName = "North Sports Center",
           ),
           selectedEntrypoint,
@@ -110,10 +155,25 @@ class ComplexDetailScreenBehaviorTest {
                   ),
                   MyComplexHubCourt(
                       id = "court-pending-id",
-                      name = "Court B",
+                      name = "Court B with an intentionally long configuration name that must wrap",
                       status = "ACTIVE",
                       availabilityStatus = CourtAvailabilitySetupStatus.PENDING,
                   ),
               ),
       )
+
+  private fun assertHorizontalEdgesMatch(
+      containerBounds: DpRect,
+      dividerBounds: DpRect,
+      tolerance: Float = 1f,
+  ) {
+    assertTrue(
+        abs(containerBounds.left.value - dividerBounds.left.value) <= tolerance,
+        "Expected divider left=${dividerBounds.left} to match container left=${containerBounds.left} within $tolerance.",
+    )
+    assertTrue(
+        abs(containerBounds.right.value - dividerBounds.right.value) <= tolerance,
+        "Expected divider right=${dividerBounds.right} to match container right=${containerBounds.right} within $tolerance.",
+    )
+  }
 }

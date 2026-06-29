@@ -22,6 +22,8 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemStyle
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPill
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPillStyle
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTextField
@@ -118,8 +120,11 @@ private fun CourtServicesSelector(
       services.forEachIndexed { index, service ->
         val selected = selectedServiceIds.contains(service.id)
         MejenguerosListItem(
-            title = service.name,
-            supportingText = if (selected) "Seleccionado" else "Tocá para seleccionar",
+            text =
+                MejenguerosListItemText(
+                    title = service.name,
+                    supportingText = if (selected) "Seleccionado" else "Tocá para seleccionar",
+                ),
             modifier = Modifier.testTag("add_court_service_${service.id}"),
             trailing = {
               if (selected) {
@@ -130,7 +135,7 @@ private fun CourtServicesSelector(
               }
             },
             onClick = { onToggleService(service.id) },
-            showDivider = index < services.lastIndex,
+            style = MejenguerosListItemStyle(showDivider = index < services.lastIndex),
         )
       }
     }

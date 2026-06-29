@@ -12,6 +12,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.header
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -96,6 +97,7 @@ class ComplexRemoteDataSourceTest {
   fun getServicesFetchesScopeQueryAndMapsItems() = runTest {
     var requestedPath = ""
     var requestedScope = ""
+    var authorizationHeader = ""
     val dataSource =
         ComplexRemoteDataSource(
             httpClient =
@@ -108,9 +110,11 @@ class ComplexRemoteDataSourceTest {
                             { "id": "service-id", "name": "Lighting", "scope": "COURT" }
                           ]
                         }
-                        """,
+                    """,
                     capturePath = { requestedPath = it.orEmpty() },
                     captureScope = { requestedScope = it.orEmpty() },
+                    captureAuthorizationHeader = { authorizationHeader = it.orEmpty() },
+                    authToken = "owner-token",
                 ),
             json = json,
         )
@@ -119,6 +123,7 @@ class ComplexRemoteDataSourceTest {
 
     assertEquals("/v1/services", requestedPath)
     assertEquals("COURT", requestedScope)
+    assertEquals("Bearer owner-token", authorizationHeader)
     assertEquals(ServiceScope.COURT, services.single().scope)
   }
 
@@ -545,6 +550,8 @@ class ComplexRemoteDataSourceTest {
       captureMethod: (HttpMethod?) -> Unit = {},
       captureScope: (String?) -> Unit = {},
       captureBody: (String?) -> Unit = {},
+      captureAuthorizationHeader: (String?) -> Unit = {},
+      authToken: String? = null,
   ): HttpClient =
       HttpClient(MockEngine) {
         expectSuccess = true
@@ -554,6 +561,7 @@ class ComplexRemoteDataSourceTest {
             captureMethod(request.method)
             captureScope(request.url.parameters["scope"])
             captureBody(request.body.readText())
+            captureAuthorizationHeader(request.headers[HttpHeaders.Authorization])
             respond(
                 content = responseBody.trimIndent(),
                 status = status,
@@ -566,7 +574,10 @@ class ComplexRemoteDataSourceTest {
           }
         }
         install(ContentNegotiation) { json(this@ComplexRemoteDataSourceTest.json) }
-        install(DefaultRequest) { url("https://api.example.test") }
+        install(DefaultRequest) {
+          url("https://api.example.test")
+          authToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+        }
       }
 
   private fun OutgoingContent.readText(): String =

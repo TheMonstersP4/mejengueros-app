@@ -80,7 +80,6 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<MyComplexRoute> {
     MyComplexEntry(
         authenticatedNavigationState = authenticatedNavigationState,
-        authViewModel = authViewModel,
         shellActions = shellActions,
     )
   }
@@ -267,10 +266,8 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
 @Composable
 private fun MyComplexEntry(
     authenticatedNavigationState: AuthenticatedNavigationState,
-    authViewModel: AuthViewModel,
     shellActions: AuthenticatedShellActions,
 ) {
-  val authState by authViewModel.uiState.collectAsState()
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
   MyComplexInitialRefreshEffect(
@@ -293,7 +290,6 @@ private fun MyComplexEntry(
   ) { contentPadding ->
     MyComplexEntryContent(
         state = state,
-        username = authState.title,
         contentPadding = contentPadding,
         onCreateComplex = shellActions.openCreateComplex,
         onRetry = myComplexViewModel::refresh,
@@ -305,7 +301,6 @@ private fun MyComplexEntry(
 @Composable
 internal fun MyComplexEntryContent(
     state: MyComplexUiState,
-    username: String,
     contentPadding: PaddingValues,
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
@@ -313,7 +308,6 @@ internal fun MyComplexEntryContent(
 ) {
   MyComplexScreen(
       state = state,
-      username = username,
       contentPadding = contentPadding,
       onCreateComplex = onCreateComplex,
       onRetry = onRetry,
@@ -345,7 +339,7 @@ private fun ComplexDetailEntry(
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       onNavigateBack = shellActions.closeCurrentDetail,
-      title = complex?.name ?: "Mi complejo",
+      title = "Mi complejo",
   ) { contentPadding ->
     ComplexDetailEntryContent(
         complex = complex,

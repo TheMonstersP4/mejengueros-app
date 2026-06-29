@@ -205,7 +205,6 @@ private fun AddCourtNavigationTestHost(
       MyComplexRoute ->
           MyComplexEntryContent(
               state = myComplexState,
-              username = "Owner",
               contentPadding = PaddingValues(),
               onCreateComplex = {},
               onRetry = {},

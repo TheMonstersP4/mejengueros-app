@@ -1,38 +1,45 @@
 package io.github.themonstersp4.mejengueros.screens.mycomplex
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
@@ -44,13 +51,15 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemCustomContent
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemStyle
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPill
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStatusPillStyle
 
 @Composable
 fun MyComplexScreen(
     state: MyComplexUiState,
-    username: String,
     contentPadding: PaddingValues,
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
@@ -63,29 +72,36 @@ fun MyComplexScreen(
               .fillMaxSize()
               .padding(contentPadding)
               .padding(horizontal = 20.dp, vertical = 24.dp)
-              .verticalScroll(rememberScrollState())
               .testTag("my_complex_root"),
       verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
       Text(
-          text = "Mi complejo",
-          style = MaterialTheme.typography.headlineMedium,
+          text = "Tus complejos deportivos",
+          style = MaterialTheme.typography.titleLarge,
           color = MaterialTheme.colorScheme.onBackground,
       )
       Text(
-          text = "Administrá tu operación como $username",
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onBackground,
+          text = "Gestioná canchas, disponibilidad y reservas desde un solo lugar.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
 
-    when {
-      state.isLoading -> LoadingState()
-      state.errorMessage != null -> ErrorState(state.errorMessage, onRetry)
-      state.isEmpty -> EmptyState(onCreateComplex)
-      else ->
-          ComplexListState(complexes = state.complexes, onOpenComplexDetail = onOpenComplexDetail)
+    Box(modifier = Modifier.fillMaxSize()) {
+      when {
+        state.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+        state.errorMessage != null ->
+            ScrollableStateContainer { ErrorState(state.errorMessage, onRetry) }
+        state.isEmpty -> ScrollableStateContainer { EmptyState(onCreateComplex) }
+        else ->
+            ScrollableStateContainer {
+              ComplexListState(
+                  complexes = state.complexes,
+                  onOpenComplexDetail = onOpenComplexDetail,
+              )
+            }
+      }
     }
   }
 }
@@ -127,18 +143,39 @@ fun ComplexDetailScreen(
 }
 
 @Composable
-private fun LoadingState() {
+private fun LoadingState(modifier: Modifier = Modifier) {
   Column(
-      modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+      modifier = modifier.fillMaxWidth(),
+      horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
-    CircularProgressIndicator(modifier = Modifier.testTag("my_complex_loading_indicator"))
-    Text(
-        text = "Cargando tu hub de complejos...",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onBackground,
-    )
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+      Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        CircularProgressIndicator(modifier = Modifier.testTag("my_complex_loading_indicator"))
+        Text(
+            text = "Cargando tu hub de complejos...",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+        )
+      }
+    }
   }
+}
+
+@Composable
+private fun ScrollableStateContainer(content: @Composable ColumnScope.() -> Unit) {
+  Column(
+      modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+      content = content,
+  )
 }
 
 @Composable
@@ -193,24 +230,51 @@ private fun ComplexListState(
     onOpenComplexDetail: (String) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    SectionLabel(text = "TUS COMPLEJOS")
-    MejenguerosListGroup {
+    MejenguerosListGroup(
+        modifier = Modifier.testTag("my_complex_list_group"),
+        shape = MaterialTheme.shapes.medium,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
       complexes.forEachIndexed { index, complex ->
         MejenguerosListItem(
-            title = complex.name,
-            supportingText = complex.toListSupportingText(),
+            text =
+                MejenguerosListItemText(
+                    title = complex.name,
+                    supportingText = complex.toListSupportingText(),
+                    headlineMaxLines = 2,
+                    headlineOverflow = TextOverflow.Clip,
+                    supportingMaxLines = 2,
+                    headlineModifier = Modifier.testTag("my_complex_list_headline_${complex.id}"),
+                ),
             modifier = Modifier.testTag("my_complex_list_item_${complex.id}"),
-            leading = { CircleEmojiIcon(symbol = "🏟️") },
+            leading = {
+              Box(modifier = Modifier.testTag("my_complex_list_icon_${complex.id}")) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+              }
+            },
             trailing = {
-              Icon(
-                  imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                  contentDescription = null,
-                  modifier = Modifier.size(18.dp),
-                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
+              Box(modifier = Modifier.testTag("my_complex_list_trailing_${complex.id}")) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
             },
             onClick = { onOpenComplexDetail(complex.id) },
-            showDivider = index < complexes.lastIndex,
+            style =
+                MejenguerosListItemStyle(
+                    showDivider = index < complexes.lastIndex,
+                    shape = RectangleShape,
+                    dividerModifier = Modifier.testTag("my_complex_list_divider_${complex.id}"),
+                ),
         )
       }
     }
@@ -261,30 +325,67 @@ private fun ComplexHubSection(
 
 @Composable
 private fun ComplexSummaryCard(complex: MyComplexHubComplex) {
-  Card(modifier = Modifier.fillMaxWidth().testTag("my_complex_card_${complex.id}")) {
+  Card(
+      modifier = Modifier.fillMaxWidth().testTag("my_complex_card_${complex.id}"),
+      shape = RoundedCornerShape(20.dp),
+      colors =
+          CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+  ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-      Text(
-          text = complex.name,
-          style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-          color = MaterialTheme.colorScheme.onSurface,
-      )
-      Text(
-          text = complex.address,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface,
-      )
-      complex.toLocationLabel()?.let { locationLabel ->
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+      ) {
         Text(
-            text = locationLabel,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = complex.name,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
         )
+        complex.toStatusLabel()?.let { statusLabel ->
+          MejenguerosStatusPill(text = statusLabel, style = MejenguerosStatusPillStyle.Subtle)
+        }
       }
-      complex.toStatusLabel()?.let { statusLabel ->
-        MejenguerosStatusPill(text = statusLabel, style = MejenguerosStatusPillStyle.Subtle)
+      Row(
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+          verticalAlignment = Alignment.Top,
+      ) {
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.primary,
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Filled.LocationOn,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+          }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+          Text(
+              text = complex.address,
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+          )
+          complex.toLocationLabel()?.let { locationLabel ->
+            Text(
+                text = locationLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+        }
       }
     }
   }
@@ -298,15 +399,18 @@ private fun CourtsGroup(
   if (complex.courts.isEmpty()) {
     MejenguerosListGroup {
       MejenguerosListItem(
-          title = "Todavía no hay canchas cargadas",
-          supportingText = "Cuando agregues la primera cancha aparecerá aquí.",
+          text =
+              MejenguerosListItemText(
+                  title = "Todavía no hay canchas cargadas",
+                  supportingText = "Cuando agregues la primera cancha aparecerá aquí.",
+              ),
           enabled = false,
       )
     }
     return
   }
 
-  MejenguerosListGroup {
+  MejenguerosListGroup(modifier = Modifier.testTag("my_complex_courts_group")) {
     complex.courts.forEachIndexed { index, court ->
       CourtRow(
           complexName = complex.name,
@@ -326,25 +430,66 @@ private fun CourtRow(
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
 ) {
   MejenguerosListItem(
-      title = court.name,
-      supportingText = court.toSupportingText(),
+      content =
+          MejenguerosListItemCustomContent(
+              headlineContent = {
+                Text(
+                    text = court.name,
+                    modifier = Modifier.testTag("my_complex_court_headline_${court.id}"),
+                    style =
+                        MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    maxLines = 3,
+                    overflow = TextOverflow.Clip,
+                )
+              },
+              supportingContent = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                  Text(
+                      text = court.toSupportingText(),
+                      modifier = Modifier.weight(1f),
+                      style = MaterialTheme.typography.bodyMedium,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                  Row(
+                      modifier = Modifier.testTag("my_complex_court_trailing_${court.id}"),
+                      horizontalArrangement = Arrangement.spacedBy(10.dp),
+                      verticalAlignment = Alignment.CenterVertically,
+                  ) {
+                    MejenguerosStatusPill(
+                        text = court.availabilityStatus.toPillLabel(),
+                        style = court.availabilityStatus.toPillStyle(),
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                  }
+                }
+              },
+          ),
       modifier = Modifier.testTag("my_complex_court_row_${court.id}"),
-      leading = { CircleEmojiIcon(symbol = "⚽") },
-      trailing = {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          MejenguerosStatusPill(
-              text = court.availabilityStatus.toPillLabel(),
-              style = court.availabilityStatus.toPillStyle(),
-          )
-          Icon(
-              imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-              contentDescription = null,
-              modifier = Modifier.size(18.dp),
-              tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+      leading = {
+        Box(modifier = Modifier.testTag("my_complex_court_icon_${court.id}")) {
+          Surface(
+              modifier = Modifier.size(36.dp),
+              shape = CircleShape,
+              color = MaterialTheme.colorScheme.surfaceContainerHighest,
+              contentColor = MaterialTheme.colorScheme.primary,
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                  imageVector = Icons.Filled.LocationOn,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+              )
+            }
+          }
         }
       },
       onClick = {
@@ -356,7 +501,12 @@ private fun CourtRow(
             )
         )
       },
-      showDivider = showDivider,
+      style =
+          MejenguerosListItemStyle(
+              showDivider = showDivider,
+              shape = RectangleShape,
+              dividerModifier = Modifier.testTag("my_complex_court_divider_${court.id}"),
+          ),
   )
 }
 
@@ -366,63 +516,29 @@ private fun AddCourtCallToAction(
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
-  val shape = RoundedCornerShape(20.dp)
-  val borderColor = MaterialTheme.colorScheme.outlineVariant
-  val contentColor =
-      if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-  val dashedBorderModifier =
-      Modifier.drawWithCache {
-        val strokeWidth = 2.dp.toPx()
-        val dashEffect = PathEffect.dashPathEffect(floatArrayOf(16.dp.toPx(), 12.dp.toPx()))
-        onDrawBehind {
-          drawRoundRect(
-              color = borderColor,
-              style = Stroke(width = strokeWidth, pathEffect = dashEffect),
-              cornerRadius = CornerRadius(20.dp.toPx(), 20.dp.toPx()),
-          )
-        }
-      }
-
-  Surface(
+  OutlinedButton(
       onClick = onClick,
       enabled = enabled,
-      modifier = modifier.fillMaxWidth().then(dashedBorderModifier),
-      shape = shape,
-      color = MaterialTheme.colorScheme.surface,
-      contentColor = contentColor,
+      modifier = modifier.fillMaxWidth().height(56.dp),
+      shape = RoundedCornerShape(20.dp),
+      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+      colors =
+          ButtonDefaults.outlinedButtonColors(
+              contentColor = MaterialTheme.colorScheme.primary,
+              disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+          ),
   ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-      Text(
-          text = "+",
-          style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-          color = contentColor,
-      )
-      Spacer(modifier = Modifier.size(8.dp))
-      Text(
-          text = "Agregar cancha",
-          style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-          textAlign = TextAlign.Center,
-          color = contentColor,
-      )
-    }
-  }
-}
-
-@Composable
-private fun CircleEmojiIcon(symbol: String) {
-  Surface(
-      modifier = Modifier.size(40.dp),
-      shape = CircleShape,
-      color = MaterialTheme.colorScheme.surfaceContainer,
-      contentColor = MaterialTheme.colorScheme.onSurface,
-  ) {
-    Box(contentAlignment = Alignment.Center) {
-      Text(text = symbol, style = MaterialTheme.typography.titleMedium)
-    }
+    Icon(
+        imageVector = Icons.Filled.Add,
+        contentDescription = null,
+        modifier = Modifier.size(18.dp),
+    )
+    Spacer(modifier = Modifier.width(8.dp))
+    Text(
+        text = "Agregar cancha",
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        textAlign = TextAlign.Center,
+    )
   }
 }
 

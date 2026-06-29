@@ -36,6 +36,8 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOut
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemStyle
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosRating
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReceivedReviewCard
@@ -193,8 +195,11 @@ private fun ListItemsSection() {
   ) {
     MejenguerosListGroup {
       MejenguerosListItem(
-          title = "Cancha 5 vs 5",
-          supportingText = "Sintética · Iluminación nocturna",
+          text =
+              MejenguerosListItemText(
+                  title = "Cancha 5 vs 5",
+                  supportingText = "Sintética · Iluminación nocturna",
+              ),
           leading = { ComponentInitialsBadge(text = "C5") },
           trailing = {
             MejenguerosStatusPill(
@@ -202,11 +207,14 @@ private fun ListItemsSection() {
                 style = MejenguerosStatusPillStyle.Primary,
             )
           },
-          showDivider = true,
+          style = MejenguerosListItemStyle(showDivider = true),
       )
       MejenguerosListItem(
-          title = "Reserva de hoy",
-          supportingText = "20:00 · Complejo La Sabana",
+          text =
+              MejenguerosListItemText(
+                  title = "Reserva de hoy",
+                  supportingText = "20:00 · Complejo La Sabana",
+              ),
           leading = { ComponentInitialsBadge(text = "R") },
           trailing = {
             Icon(
@@ -215,11 +223,14 @@ private fun ListItemsSection() {
                 modifier = Modifier.size(18.dp),
             )
           },
-          showDivider = true,
+          style = MejenguerosListItemStyle(showDivider = true),
       )
       MejenguerosListItem(
-          title = "Nueva notificación",
-          supportingText = "Un jugador confirmó asistencia.",
+          text =
+              MejenguerosListItemText(
+                  title = "Nueva notificación",
+                  supportingText = "Un jugador confirmó asistencia.",
+              ),
           leading = { ComponentInitialsBadge(text = "N") },
           trailing = {
             Surface(
