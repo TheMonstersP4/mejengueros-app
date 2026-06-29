@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { createSwaggerConfig } from '@/bootstrap/swagger';
+import { UTC_RESERVATION_STARTS_AT_SCHEMA_PATTERN } from '@/modules/reservations/shared/utc-reservation-starts-at';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
 type OpenApiMethod = 'get' | 'post';
@@ -61,6 +62,8 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema('/v1/complexes', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/complexes/my-hub', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/complexes/{complexId}/courts', 'post', '201')).toBeDefined();
+    expect(responseSchema('/v1/reservations', 'post', '201')).toBeDefined();
+    expect(responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
     expectSuccessEnvelopeSchema(responseSchema('/v1/auth/me', 'get', '200'));
@@ -95,11 +98,26 @@ describe('OpenAPI document contract', () => {
       responseSchema('/v1/complexes/{complexId}/courts', 'post', '201'),
       '#/components/schemas/CreateOwnedCourtResponse'
     );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/reservations', 'post', '201'),
+      '#/components/schemas/CreateReservationResponse'
+    );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200'),
+      '#/components/schemas/ReservableSlotsResponse'
+    );
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
     expectErrorEnvelopeSchema('/v1/complexes/my-hub', 'get', '401');
     expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '400');
     expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '401');
     expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '404');
+    expectErrorEnvelopeSchema('/v1/reservations', 'post', '400');
+    expectErrorEnvelopeSchema('/v1/reservations', 'post', '401');
+    expectErrorEnvelopeSchema('/v1/reservations', 'post', '404');
+    expectErrorEnvelopeSchema('/v1/reservations', 'post', '409');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '400');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '404');
     expectErrorEnvelopeSchema('/v1/services', 'get', '400');
     expectErrorEnvelopeSchema('/v1/courts/catalog', 'get', '400');
     expectErrorEnvelopeSchema(
@@ -108,6 +126,26 @@ describe('OpenAPI document contract', () => {
       '400'
     );
     expectOperationHasPathUuidParameter('/v1/complexes/{complexId}/courts', 'post', 'complexId');
+    expectOperationHasPathUuidParameter(
+      '/v1/courts/{courtId}/reservable-slots',
+      'get',
+      'courtId'
+    );
+  });
+
+  it('documents reservation startsAt as an explicit UTC whole-hour datetime with Z', () => {
+    const requestSchema = componentSchema('CreateReservationRequest');
+    const startsAt = schemaProperty(requestSchema, 'startsAt');
+
+    expect(startsAt).toEqual(
+      expect.objectContaining({
+        description:
+          'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour.',
+        example: '2026-07-01T18:00:00.000Z',
+        format: 'date-time',
+        pattern: UTC_RESERVATION_STARTS_AT_SCHEMA_PATTERN
+      })
+    );
   });
 
   function responseSchema(
@@ -126,6 +164,23 @@ describe('OpenAPI document contract', () => {
     expect(schema).toBeDefined();
 
     return schema as SchemaRecord;
+  }
+
+  function componentSchema(name: string): SchemaRecord {
+    const schema = document.components?.schemas?.[name];
+
+    expect(schema).toBeDefined();
+
+    return schema as SchemaRecord;
+  }
+
+  function schemaProperty(schema: SchemaRecord, propertyName: string): SchemaRecord {
+    const properties = schema.properties as Record<string, unknown> | undefined;
+    const property = properties?.[propertyName];
+
+    expect(property).toBeDefined();
+
+    return property as SchemaRecord;
   }
 
   function expectSuccessEnvelopeSchema(schema: SchemaRecord): void {

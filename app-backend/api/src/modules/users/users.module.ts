@@ -16,6 +16,7 @@ import { UsersController } from './interfaces/http/controllers/users.controller'
       provide: USER_REPOSITORY,
       useClass: PrismaUserRepository
     }
-  ]
+  ],
+  exports: [SyncAuthenticatedUserUseCase]
 })
 export class UsersModule {}
