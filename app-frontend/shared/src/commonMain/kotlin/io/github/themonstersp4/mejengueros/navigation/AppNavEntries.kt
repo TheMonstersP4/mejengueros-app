@@ -25,7 +25,6 @@ import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilit
 import io.github.themonstersp4.mejengueros.screens.availability.CourtAvailabilityScreenActions
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
-import io.github.themonstersp4.mejengueros.screens.home.CourtCatalogDetailPendingScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.kit.ComponentKitScreen
 import io.github.themonstersp4.mejengueros.screens.pokedex.PokedexScreen
@@ -39,7 +38,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 fun EntryProviderScope<NavKey>.appEntries(
-    authenticatedNavigationState: AuthenticatedNavigationState,
     authViewModel: AuthViewModel,
     loginActions: LoginNavigationActions,
     shellActions: AuthenticatedShellActions,
@@ -75,19 +73,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
-  entry<HomeRoute> {
-    HomeEntry(
-        authenticatedNavigationState = authenticatedNavigationState,
-        shellActions = shellActions,
-    )
-  }
-  entry<CourtCatalogDetailRoute> { route ->
-    CourtCatalogDetailEntry(
-        route = route,
-        authenticatedNavigationState = authenticatedNavigationState,
-        shellActions = shellActions,
-    )
-  }
+  entry<HomeRoute> { HomeEntry(shellActions = shellActions) }
   entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
   entry<KitRoute> { ComponentKitEntry(shellActions = shellActions) }
   entry<AvailabilitySelectorsRoute> { AvailabilitySelectorsEntry(shellActions = shellActions) }
@@ -217,7 +203,6 @@ private fun PasswordResetEntry(
 
 @Composable
 private fun HomeEntry(
-    authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
 ) {
   val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
@@ -237,35 +222,7 @@ private fun HomeEntry(
         onProvinceSelected = courtCatalogViewModel::selectProvince,
         onCantonSelected = courtCatalogViewModel::selectCanton,
         onRetryLoad = courtCatalogViewModel::retryLoad,
-        onCourtSelected = shellActions.openCourtCatalogDetail,
         onOpenCreateComplex = shellActions.openCreateComplex,
-        ownerAvailabilityEntrypoint = authenticatedNavigationState.ownerCourtAvailabilityEntrypoint,
-        onOpenOwnerAvailabilityEntrypoint =
-            authenticatedNavigationState::openOwnerCourtAvailabilityEntrypoint,
-    )
-  }
-}
-
-@Composable
-private fun CourtCatalogDetailEntry(
-    route: CourtCatalogDetailRoute,
-    authenticatedNavigationState: AuthenticatedNavigationState,
-    shellActions: AuthenticatedShellActions,
-) {
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.Home,
-      onHomeSelected = shellActions.returnToHomeRoot,
-      onKitSelected = shellActions.selectKit,
-      onPokedexSelected = shellActions.selectPokedex,
-      onSignOut = shellActions.signOut,
-      onNavigateBack = shellActions.closeCurrentDetail,
-  ) { contentPadding ->
-    CourtCatalogDetailPendingScreen(
-        courtId = route.courtId,
-        contentPadding = contentPadding,
-        ownerAvailabilityEntrypoint = authenticatedNavigationState.ownerCourtAvailabilityEntrypoint,
-        onOpenOwnerAvailabilityEntrypoint =
-            authenticatedNavigationState::openOwnerCourtAvailabilityEntrypoint,
     )
   }
 }

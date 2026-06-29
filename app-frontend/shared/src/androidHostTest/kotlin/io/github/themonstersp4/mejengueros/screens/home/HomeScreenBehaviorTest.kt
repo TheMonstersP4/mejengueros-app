@@ -2,16 +2,16 @@ package io.github.themonstersp4.mejengueros.screens.home
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performSemanticsAction
-import io.github.themonstersp4.mejengueros.navigation.OwnerCourtAvailabilityEntrypoint
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -31,7 +31,6 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
-            onCourtSelected = {},
             onOpenCreateComplex = {},
         )
       }
@@ -51,7 +50,6 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
-            onCourtSelected = {},
             onOpenCreateComplex = {},
         )
       }
@@ -61,7 +59,7 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
-  fun ownerAvailabilityEntrypointStaysHiddenWithoutCourtContext() {
+  fun homeScreenDoesNotExposeAvailabilityShortcut() {
     composeRule.setContent {
       MejenguerosTheme {
         HomeScreen(
@@ -71,7 +69,6 @@ class HomeScreenBehaviorTest {
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
-            onCourtSelected = {},
             onOpenCreateComplex = {},
         )
       }
@@ -82,38 +79,45 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
-  fun ownerAvailabilityEntrypointShowsSavedCourtAndNavigatesOnTap() {
-    var reopenClicks = 0
-
+  fun catalogCardsRenderWithoutNavigationClickAction() {
     composeRule.setContent {
       MejenguerosTheme {
         HomeScreen(
-            state = CourtCatalogUiState(isLoading = false),
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    visibleCourts =
+                        listOf(
+                            CourtCatalogItem(
+                                id = "court-id",
+                                complexId = "complex-id",
+                                complexName = "Mejengas CR",
+                                courtName = "Cancha 1",
+                                provinceId = "sj",
+                                provinceName = "San José",
+                                cantonId = "central",
+                                cantonName = "Central",
+                                services = listOf("Parqueo"),
+                                ratingAverage = 4.8,
+                                ratingCount = 12,
+                                imageUrl = null,
+                                isReservableToday = true,
+                            )
+                        ),
+                ),
             contentPadding = PaddingValues(),
             onSearchQueryChange = {},
             onProvinceSelected = {},
             onCantonSelected = {},
             onRetryLoad = {},
-            onCourtSelected = {},
             onOpenCreateComplex = {},
-            ownerAvailabilityEntrypoint =
-                OwnerCourtAvailabilityEntrypoint(
-                    courtId = "court-id",
-                    courtName = "Cancha 1",
-                    complexName = "Mejengas CR",
-                ),
-            onOpenOwnerAvailabilityEntrypoint = { reopenClicks += 1 },
         )
       }
     }
 
-    composeRule.onNodeWithText("Última cancha creada").assertExists()
-    composeRule.onNodeWithText("Cancha 1 · Mejengas CR").assertExists()
     composeRule
-        .onNodeWithTag("home_owner_availability_button", useUnmergedTree = true)
+        .onNodeWithText("Mejengas CR · Cancha 1")
         .assertExists()
-        .performSemanticsAction(SemanticsActions.OnClick)
-
-    composeRule.runOnIdle { assertEquals(1, reopenClicks) }
+        .assert(SemanticsMatcher("has no click action") { !hasClickAction().matches(it) })
   }
 }

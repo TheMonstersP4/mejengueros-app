@@ -5,7 +5,6 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavBackStack
@@ -22,24 +21,13 @@ fun rememberAuthenticatedNavigationState(
   val pokedexBackStack = rememberNavBackStack(savedStateConfiguration, PokedexRoute)
 
   val selectedRoute = rememberSaveable { mutableStateOf(AuthenticatedTopLevelRoute.Home) }
-  val ownerCourtAvailabilityEntrypointState =
-      rememberSaveable(stateSaver = ownerCourtAvailabilityEntrypointSaver()) {
-        mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
-      }
 
-  return remember(
-      homeBackStack,
-      kitBackStack,
-      pokedexBackStack,
-      selectedRoute,
-      ownerCourtAvailabilityEntrypointState,
-  ) {
+  return remember(homeBackStack, kitBackStack, pokedexBackStack, selectedRoute) {
     AuthenticatedNavigationState(
         selectedRoute = selectedRoute,
         homeBackStack = homeBackStack,
         kitBackStack = kitBackStack,
         pokedexBackStack = pokedexBackStack,
-        ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
     )
   }
 }
@@ -49,14 +37,9 @@ class AuthenticatedNavigationState(
     private val homeBackStack: NavBackStack<NavKey>,
     private val kitBackStack: NavBackStack<NavKey>,
     private val pokedexBackStack: NavBackStack<NavKey>,
-    private val ownerCourtAvailabilityEntrypointState:
-        MutableState<OwnerCourtAvailabilityEntrypoint?>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
-
-  val ownerCourtAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint?
-    get() = ownerCourtAvailabilityEntrypointState.value
 
   val currentBackStack: NavBackStack<NavKey>
     get() =
@@ -74,14 +57,6 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.Home
     if (homeBackStack.lastOrNull() != CreateComplexRoute) {
       homeBackStack.add(CreateComplexRoute)
-    }
-  }
-
-  fun openCourtCatalogDetail(courtId: String) {
-    selectedRoute = AuthenticatedTopLevelRoute.Home
-    val route = CourtCatalogDetailRoute(courtId)
-    if (homeBackStack.lastOrNull() != route) {
-      homeBackStack.add(route)
     }
   }
 
@@ -107,12 +82,6 @@ class AuthenticatedNavigationState(
   }
 
   fun openCourtAvailability(courtId: String, courtName: String, complexName: String) {
-    ownerCourtAvailabilityEntrypointState.value =
-        OwnerCourtAvailabilityEntrypoint(
-            courtId = courtId,
-            courtName = courtName,
-            complexName = complexName,
-        )
     selectedRoute = AuthenticatedTopLevelRoute.Home
     if (homeBackStack.lastOrNull() == CreateComplexRoute) {
       homeBackStack.removeLastOrNull()
@@ -123,15 +92,6 @@ class AuthenticatedNavigationState(
     if (homeBackStack.lastOrNull() != route) {
       homeBackStack.add(route)
     }
-  }
-
-  fun openOwnerCourtAvailabilityEntrypoint() {
-    val entrypoint = ownerCourtAvailabilityEntrypointState.value ?: return
-    openCourtAvailability(
-        courtId = entrypoint.courtId,
-        courtName = entrypoint.courtName,
-        complexName = entrypoint.complexName,
-    )
   }
 
   fun openPokemonDetail(id: Int) {
@@ -146,7 +106,6 @@ class AuthenticatedNavigationState(
   }
 
   fun reset() {
-    ownerCourtAvailabilityEntrypointState.value = null
     returnToHomeRoot()
     kitBackStack.clear()
     kitBackStack.add(KitRoute)
@@ -154,23 +113,3 @@ class AuthenticatedNavigationState(
     pokedexBackStack.add(PokedexRoute)
   }
 }
-
-private fun ownerCourtAvailabilityEntrypointSaver() =
-    listSaver<OwnerCourtAvailabilityEntrypoint?, String?>(
-        save = {
-          listOf(
-              it?.courtId,
-              it?.courtName,
-              it?.complexName,
-          )
-        },
-        restore = { values ->
-          values.firstOrNull()?.let { courtId ->
-            OwnerCourtAvailabilityEntrypoint(
-                courtId = courtId,
-                courtName = values.getOrNull(1).orEmpty(),
-                complexName = values.getOrNull(2).orEmpty(),
-            )
-          }
-        },
-    )

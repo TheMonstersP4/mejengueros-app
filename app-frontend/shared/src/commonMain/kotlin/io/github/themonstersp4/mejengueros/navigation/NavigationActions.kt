@@ -13,7 +13,6 @@ class LoginNavigationActions(
 class AuthenticatedShellActions(
     val selectHome: () -> Unit,
     val returnToHomeRoot: () -> Unit,
-    val openCourtCatalogDetail: (String) -> Unit,
     val openCreateComplex: () -> Unit,
     val openCourtAvailability: (String, String, String) -> Unit,
     val selectKit: () -> Unit,
