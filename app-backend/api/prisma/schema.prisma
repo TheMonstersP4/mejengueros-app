@@ -153,6 +153,7 @@ model Complex {
   address     String
   latitude    Float?
   longitude   Float?
+  isPublished Boolean        @default(false)
   status      ComplexStatus  @default(ACTIVE)
   deletedAt   DateTime?
   owner       User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
@@ -167,6 +168,7 @@ model Complex {
   @@index([provinceId])
   @@index([cantonId])
   @@index([provinceId, cantonId])
+  @@index([isPublished])
   @@index([status])
   @@schema("mejengueros_dev")
 }
@@ -203,6 +205,7 @@ model Court {
   id            String            @id @default(uuid())
   complexId     String
   name          String
+  isPublished   Boolean           @default(false)
   status        CourtStatus       @default(ACTIVE)
   deletedAt     DateTime?
   complex       Complex           @relation(fields: [complexId], references: [id], onDelete: Restrict)
@@ -213,6 +216,7 @@ model Court {
   updatedAt     DateTime          @updatedAt
 
   @@index([complexId])
+  @@index([isPublished])
   @@index([complexId, status])
   @@schema("mejengueros_dev")
 }

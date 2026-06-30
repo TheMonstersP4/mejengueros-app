@@ -61,6 +61,25 @@ describe('Prisma relational MVP schema contract', () => {
     );
   });
 
+  it('adds explicit publication flags for complexes and courts used by the public catalog', () => {
+    const contract = loadPrismaRelationalSchemaContract();
+    const complexModel = extractPrismaBlock(contract.schema, 'model', 'Complex');
+    const courtModel = extractPrismaBlock(contract.schema, 'model', 'Court');
+
+    expect(complexModel).toMatch(prismaFieldPattern('isPublished', 'Boolean'));
+    expect(courtModel).toMatch(prismaFieldPattern('isPublished', 'Boolean'));
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ALTER TABLE "mejengueros_dev"."Complex" ADD COLUMN "isPublished" BOOLEAN NOT NULL DEFAULT false;'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ALTER TABLE "mejengueros_dev"."Court" ADD COLUMN "isPublished" BOOLEAN NOT NULL DEFAULT false;'
+      )
+    );
+  });
+
   it('enforces that a complex canton belongs to the same persisted province', () => {
     const contract = loadPrismaRelationalSchemaContract();
 

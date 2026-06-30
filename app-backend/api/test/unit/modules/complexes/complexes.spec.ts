@@ -496,7 +496,8 @@ describe('complexes module behavior', () => {
         cantonId: 'canton-id',
         address: '123 Main Street',
         latitude: 9.935,
-        longitude: -84.091
+        longitude: -84.091,
+        isPublished: true
       }
     });
     expect(transactionClient.complexService.createMany).toHaveBeenCalledWith({
@@ -507,6 +508,13 @@ describe('complexes module behavior', () => {
         { courtId: 'court-id', serviceCatalogId: 'court-service-id' },
         { courtId: 'court-id', serviceCatalogId: 'grass-service-id' }
       ]
+    });
+    expect(transactionClient.court.create).toHaveBeenCalledWith({
+      data: {
+        complexId: 'complex-id',
+        name: 'Court A',
+        isPublished: true
+      }
     });
     expect(harness.state.userIdentities).toEqual([
       {
