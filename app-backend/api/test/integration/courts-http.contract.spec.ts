@@ -176,6 +176,86 @@ describe('public court catalog HTTP contract', () => {
     });
   });
 
+  it('rejects an overlong q query with the global 400 envelope', async () => {
+    const overlongQuery = 'n'.repeat(101);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/catalog?q=${overlongQuery}`
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.canton.findFirst).not.toHaveBeenCalled();
+    expect(prismaService.court.findMany).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({
+          path: `/v1/courts/catalog?q=${overlongQuery}`
+        })
+      })
+    );
+  });
+
+  it('rejects an invalid provinceId query with the global 400 envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?provinceId=not-a-uuid'
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.canton.findFirst).not.toHaveBeenCalled();
+    expect(prismaService.court.findMany).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({
+          path: '/v1/courts/catalog?provinceId=not-a-uuid'
+        })
+      })
+    );
+  });
+
+  it('rejects an invalid cantonId query with the global 400 envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?cantonId=not-a-uuid'
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.canton.findFirst).not.toHaveBeenCalled();
+    expect(prismaService.court.findMany).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({
+          path: '/v1/courts/catalog?cantonId=not-a-uuid'
+        })
+      })
+    );
+  });
+
   function createPrismaMock() {
     return {
       $queryRaw: jest.fn().mockResolvedValue([{ courtId: 'court-id', average: 4, count: 2 }]),
