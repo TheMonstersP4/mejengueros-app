@@ -201,6 +201,7 @@ class CourtCatalogRemoteDataSourceTest {
   ): HttpClient =
       HttpClient(MockEngine) {
         expectSuccess = true
+        install(DefaultRequest) { url("https://api.example.test") }
         engine {
           addHandler { request ->
             capturePath(request.url.encodedPath)
@@ -217,6 +218,5 @@ class CourtCatalogRemoteDataSourceTest {
           }
         }
         install(ContentNegotiation) { json(this@CourtCatalogRemoteDataSourceTest.json) }
-        install(DefaultRequest) { url("https://api.example.test") }
       }
 }

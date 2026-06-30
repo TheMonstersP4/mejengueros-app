@@ -215,7 +215,7 @@ private fun PasswordResetEntry(
 }
 
 @Composable
-private fun SearchEntry(shellActions: AuthenticatedShellActions) {
+internal fun SearchEntry(shellActions: AuthenticatedShellActions) {
   val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
   val state by courtCatalogViewModel.uiState.collectAsState()
 

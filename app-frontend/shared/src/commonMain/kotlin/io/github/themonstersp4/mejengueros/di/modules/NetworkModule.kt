@@ -5,6 +5,7 @@ import io.github.themonstersp4.mejengueros.data.remote.AppApiConfig
 import io.github.themonstersp4.mejengueros.data.remote.AppApiHttpClientQualifier
 import io.github.themonstersp4.mejengueros.data.remote.CognitoJsonContentType
 import io.github.themonstersp4.mejengueros.data.remote.HttpClientFactory
+import io.github.themonstersp4.mejengueros.data.remote.PublicAppApiHttpClientQualifier
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -43,6 +44,15 @@ val networkModule = module {
           }
         }
       }
+    }
+  }
+  single(named(PublicAppApiHttpClientQualifier)) {
+    val appJson = get<Json>()
+    val apiConfig = get<AppApiConfig>()
+    get<HttpClientFactory>().create().config {
+      expectSuccess = true
+      installSharedClientPlugins(appJson)
+      defaultRequest { url(apiConfig.baseUrl) }
     }
   }
 }

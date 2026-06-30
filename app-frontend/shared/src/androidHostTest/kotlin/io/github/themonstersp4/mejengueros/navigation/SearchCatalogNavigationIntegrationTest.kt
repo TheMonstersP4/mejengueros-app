@@ -13,18 +13,30 @@ import androidx.compose.ui.test.performTextInput
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
+import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.junit.After
 import org.junit.Rule
 import org.junit.runner.RunWith
+import org.koin.compose.KoinApplication
+import org.koin.core.context.stopKoin
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class SearchCatalogNavigationIntegrationTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+  @After
+  fun tearDown() {
+    stopKoin()
+  }
 
   @Test
   fun catalogLivesUnderSearchAndHandsOffToPendingDetailAndReservation() {
@@ -183,6 +195,46 @@ class SearchCatalogNavigationIntegrationTest {
     composeRule.runOnIdle { assertEquals("test", typedQueries.last()) }
   }
 
+  @Test
+  fun searchEntryLoadsCatalogFromViewModelAndShowsReturnedCourt() {
+    val repository = RecordingSearchEntryRepository()
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        KoinApplication(
+            application = {
+              modules(
+                  module {
+                    single<ICourtCatalogRepository> { repository }
+                    viewModel { CourtCatalogViewModel(get()) }
+                  }
+              )
+            }
+        ) {
+          SearchEntry(
+              shellActions =
+                  shellActions(
+                      onDetailOpened = {},
+                      onReservationOpened = {},
+                      onBack = {},
+                  )
+          )
+        }
+      }
+    }
+
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("test · test").assertExists()
+    composeRule
+        .onNodeWithTag("catalog_court_card_test-court", useUnmergedTree = true)
+        .assertExists()
+
+    composeRule.runOnIdle {
+      assertEquals(listOf(SearchCatalogRequest("", null, null)), repository.requests)
+    }
+  }
+
   private fun shellActions(
       onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
       onReservationOpened: (CatalogReservationRoute) -> Unit,
@@ -205,3 +257,39 @@ class SearchCatalogNavigationIntegrationTest {
           signOut = {},
       )
 }
+
+private class RecordingSearchEntryRepository : ICourtCatalogRepository {
+  val requests = mutableListOf<SearchCatalogRequest>()
+
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> {
+    requests += SearchCatalogRequest(searchQuery, provinceId, cantonId)
+    return listOf(searchEntryCourt)
+  }
+}
+
+private data class SearchCatalogRequest(
+    val searchQuery: String?,
+    val provinceId: String?,
+    val cantonId: String?,
+)
+
+private val searchEntryCourt =
+    CourtCatalogItem(
+        id = "test-court",
+        complexId = "test-complex",
+        complexName = "test",
+        courtName = "test",
+        provinceId = "province-test",
+        provinceName = "San Jose",
+        cantonId = "canton-test",
+        cantonName = "San Jose",
+        services = listOf("Sintetico"),
+        ratingAverage = null,
+        ratingCount = 0,
+        imageUrl = null,
+        isReservableToday = true,
+    )
