@@ -11,6 +11,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -58,7 +59,7 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
-  fun searchQueryRefetchesCatalogUsingRemoteQueryParameters() =
+  fun searchQueryDebouncesBurstAndRefetchesCatalogUsingLatestRemoteQueryParameters() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
@@ -66,7 +67,18 @@ class CourtCatalogViewModelTest {
           val viewModel = CourtCatalogViewModel(repository, this)
           advanceUntilIdle()
 
+          viewModel.updateSearchQuery("m")
+          viewModel.updateSearchQuery("mo")
+          viewModel.updateSearchQuery("mor")
           viewModel.updateSearchQuery("moravia")
+
+          assertEquals("moravia", viewModel.uiState.value.searchQuery)
+          assertEquals(1, repository.requests.size)
+
+          advanceTimeBy(299)
+          assertEquals(1, repository.requests.size)
+
+          advanceTimeBy(1)
           advanceUntilIdle()
           assertEquals(
               listOf(
@@ -81,6 +93,7 @@ class CourtCatalogViewModelTest {
           )
 
           viewModel.updateSearchQuery("mejengas")
+          advanceTimeBy(300)
           advanceUntilIdle()
           assertEquals(
               CatalogRequest(searchQuery = "mejengas", provinceId = null, cantonId = null),

@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogReposi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,7 @@ class CourtCatalogViewModel(
   private val scope = coroutineScope ?: viewModelScope
   private val _uiState = MutableStateFlow(CourtCatalogUiState())
   private var loadJob: Job? = null
+  private var searchJob: Job? = null
   val uiState: StateFlow<CourtCatalogUiState> = _uiState.asStateFlow()
 
   init {
@@ -26,12 +28,22 @@ class CourtCatalogViewModel(
   }
 
   fun retryLoad() {
+    searchJob?.cancel()
     loadCatalog()
   }
 
   fun updateSearchQuery(value: String) {
+    if (value == _uiState.value.searchQuery) {
+      return
+    }
+
     _uiState.value = _uiState.value.copy(searchQuery = value)
-    loadCatalog()
+    searchJob?.cancel()
+    searchJob =
+        scope.launch {
+          delay(SearchDebounceMillis)
+          loadCatalog()
+        }
   }
 
   fun selectProvince(provinceId: String?) {
@@ -46,6 +58,7 @@ class CourtCatalogViewModel(
     }
 
     _uiState.value = nextState
+    searchJob?.cancel()
     loadCatalog()
   }
 
@@ -56,6 +69,7 @@ class CourtCatalogViewModel(
     }
 
     _uiState.value = currentState.copy(selectedCantonId = cantonId)
+    searchJob?.cancel()
     loadCatalog()
   }
 
@@ -94,6 +108,10 @@ class CourtCatalogViewModel(
                 )
           }
         }
+  }
+
+  companion object {
+    private const val SearchDebounceMillis = 300L
   }
 }
 
