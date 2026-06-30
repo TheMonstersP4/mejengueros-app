@@ -68,6 +68,46 @@ class CourtCatalogRemoteDataSourceTest {
   }
 
   @Test
+  fun getCatalogCourtsMapsNullRatingAverageWithoutDroppingCourt() = runTest {
+    val dataSource =
+        CourtCatalogRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": [
+                            {
+                              "courtId": "2283afcc-3c70-41b5-9300-b741349d5528",
+                              "courtName": "test",
+                              "complexId": "complex-test-id",
+                              "complexName": "test",
+                              "province": { "id": "province-san-jose", "name": "San Jose" },
+                              "canton": { "id": "canton-san-jose", "name": "San Jose" },
+                              "services": ["Sintetico", "Iluminacion"],
+                              "rating": { "average": null, "count": 0 },
+                              "isReservableToday": true,
+                              "imageUrl": null
+                            }
+                          ]
+                        }
+                        """,
+                ),
+            json = json,
+        )
+
+    val courts = dataSource.getCatalogCourts(searchQuery = "test")
+
+    assertEquals(1, courts.size)
+    assertEquals("2283afcc-3c70-41b5-9300-b741349d5528", courts.single().id)
+    assertEquals("test · test", courts.single().displayName)
+    assertEquals(null, courts.single().ratingAverage)
+    assertEquals(0, courts.single().ratingCount)
+    assertEquals(true, courts.single().isReservableToday)
+  }
+
+  @Test
   fun getCatalogCourtsMapsErrorEnvelopeIntoAppApiException() = runTest {
     val dataSource =
         CourtCatalogRemoteDataSource(

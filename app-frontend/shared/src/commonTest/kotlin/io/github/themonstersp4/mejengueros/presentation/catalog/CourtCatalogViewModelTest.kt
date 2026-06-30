@@ -239,6 +239,42 @@ class CourtCatalogViewModelTest {
           Dispatchers.resetMain()
         }
       }
+
+  @Test
+  fun noRatingSearchResponseStillAppearsInVisibleCourts() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              RecordingCourtCatalogRepository(
+                  responses = mutableListOf(allCatalogCourts, listOf(noRatingSearchCourt))
+              )
+          val viewModel = CourtCatalogViewModel(repository, this)
+
+          advanceUntilIdle()
+          viewModel.updateSearchQuery("test")
+          advanceTimeBy(300)
+          advanceUntilIdle()
+
+          assertEquals(
+              listOf(
+                  CatalogRequest("", null, null),
+                  CatalogRequest(searchQuery = "test", provinceId = null, cantonId = null),
+              ),
+              repository.requests,
+          )
+          assertNull(viewModel.uiState.value.loadErrorMessage)
+          assertFalse(viewModel.uiState.value.isLoading)
+          assertEquals(
+              listOf(noRatingSearchCourt.id),
+              viewModel.uiState.value.visibleCourts.map { it.id },
+          )
+          assertEquals(null, viewModel.uiState.value.visibleCourts.single().ratingAverage)
+          assertEquals(0, viewModel.uiState.value.visibleCourts.single().ratingCount)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
 }
 
 private class FakeCourtCatalogRepository : ICourtCatalogRepository {
@@ -340,6 +376,23 @@ private val allCatalogCourts =
             imageUrl = null,
             isReservableToday = false,
         ),
+    )
+
+private val noRatingSearchCourt =
+    CourtCatalogItem(
+        id = "2283afcc-3c70-41b5-9300-b741349d5528",
+        complexId = "complex-test-id",
+        complexName = "test",
+        courtName = "test",
+        provinceId = "province-san-jose",
+        provinceName = "San Jose",
+        cantonId = "canton-san-jose",
+        cantonName = "San Jose",
+        services = listOf("Sintetico", "Iluminacion"),
+        ratingAverage = null,
+        ratingCount = 0,
+        imageUrl = null,
+        isReservableToday = true,
     )
 
 private fun CourtCatalogItem.matchesSearch(searchQuery: String): Boolean {
