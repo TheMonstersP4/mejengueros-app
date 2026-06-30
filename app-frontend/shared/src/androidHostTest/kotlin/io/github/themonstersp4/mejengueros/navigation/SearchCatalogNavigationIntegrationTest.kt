@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
@@ -137,6 +138,49 @@ class SearchCatalogNavigationIntegrationTest {
           visitedRoutes.toList(),
       )
     }
+  }
+
+  @Test
+  fun searchFieldForwardsTypedQueryFromCatalogEntry() {
+    val typedQueries = mutableListOf<String>()
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        SearchCatalogEntryContent(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    visibleCourts =
+                        listOf(
+                            CourtCatalogItem(
+                                id = "court-id",
+                                complexId = "complex-id",
+                                complexName = "test",
+                                courtName = "test",
+                                provinceId = "province-id",
+                                provinceName = "San Jose",
+                                cantonId = "canton-id",
+                                cantonName = "San Jose",
+                                services = listOf("Sintetico"),
+                                ratingAverage = null,
+                                ratingCount = 0,
+                                imageUrl = null,
+                                isReservableToday = true,
+                            )
+                        ),
+                ),
+            shellActions = shellActions(onDetailOpened = {}, onReservationOpened = {}, onBack = {}),
+            onSearchQueryChange = { typedQueries += it },
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("catalog_search_field").performTextInput("test")
+
+    composeRule.runOnIdle { assertEquals("test", typedQueries.last()) }
   }
 
   private fun shellActions(

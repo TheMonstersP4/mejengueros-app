@@ -167,7 +167,7 @@ private fun CatalogScaffold(
         onOpenCreateComplex = onOpenCreateComplex,
     )
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth().weight(1f),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
       Box(
@@ -372,7 +372,7 @@ private fun SearchPill(
   OutlinedTextField(
       value = query,
       onValueChange = onQueryChange,
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth().testTag("catalog_search_field"),
       singleLine = true,
       shape = CircleShape,
       placeholder = { Text("Buscar cancha o complejo") },

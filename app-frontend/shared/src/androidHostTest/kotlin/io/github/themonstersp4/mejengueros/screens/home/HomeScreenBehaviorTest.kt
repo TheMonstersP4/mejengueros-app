@@ -1,13 +1,19 @@
 package io.github.themonstersp4.mejengueros.screens.home
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
@@ -86,28 +92,7 @@ class HomeScreenBehaviorTest {
     composeRule.setContent {
       MejenguerosTheme {
         HomeScreen(
-            state =
-                CourtCatalogUiState(
-                    isLoading = false,
-                    visibleCourts =
-                        listOf(
-                            CourtCatalogItem(
-                                id = "court-id",
-                                complexId = "complex-id",
-                                complexName = "Mejengas CR",
-                                courtName = "Cancha 1",
-                                provinceId = "sj",
-                                provinceName = "San José",
-                                cantonId = "central",
-                                cantonName = "Central",
-                                services = listOf("Parqueo"),
-                                ratingAverage = 4.8,
-                                ratingCount = 12,
-                                imageUrl = null,
-                                isReservableToday = true,
-                            )
-                        ),
-                ),
+            state = populatedCatalogState(),
             contentPadding = PaddingValues(),
             onSearchQueryChange = {},
             onProvinceSelected = {},
@@ -124,4 +109,51 @@ class HomeScreenBehaviorTest {
         .assertExists()
         .assert(SemanticsMatcher("has click action") { hasClickAction().matches(it) })
   }
+
+  @Test
+  fun firstCatalogCardRemainsVisibleWithinPhoneSizedLayout() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        Box(modifier = Modifier.fillMaxWidth().requiredHeight(640.dp)) {
+          HomeScreen(
+              state = populatedCatalogState(),
+              contentPadding = PaddingValues(),
+              onSearchQueryChange = {},
+              onProvinceSelected = {},
+              onCantonSelected = {},
+              onRetryLoad = {},
+              onOpenCourtDetail = {},
+              onOpenCreateComplex = {},
+          )
+        }
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("catalog_court_card_court-id", useUnmergedTree = true)
+        .assertIsDisplayed()
+  }
 }
+
+private fun populatedCatalogState() =
+    CourtCatalogUiState(
+        isLoading = false,
+        visibleCourts =
+            listOf(
+                CourtCatalogItem(
+                    id = "court-id",
+                    complexId = "complex-id",
+                    complexName = "Mejengas CR",
+                    courtName = "Cancha 1",
+                    provinceId = "sj",
+                    provinceName = "San José",
+                    cantonId = "central",
+                    cantonName = "Central",
+                    services = listOf("Parqueo"),
+                    ratingAverage = 4.8,
+                    ratingCount = 12,
+                    imageUrl = null,
+                    isReservableToday = true,
+                )
+            ),
+    )
