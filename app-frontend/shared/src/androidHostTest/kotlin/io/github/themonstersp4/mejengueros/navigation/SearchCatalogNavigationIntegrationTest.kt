@@ -20,6 +20,11 @@ import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogView
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.After
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -30,6 +35,7 @@ import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class SearchCatalogNavigationIntegrationTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
@@ -235,6 +241,99 @@ class SearchCatalogNavigationIntegrationTest {
     }
   }
 
+  @Test
+  fun searchEntryUpdatesResultsAfterTypingQueryThroughProductionViewModel() {
+    val repository = QueryDrivenSearchEntryRepository()
+    val testScope = TestScope(StandardTestDispatcher())
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        KoinApplication(
+            application = {
+              modules(
+                  module {
+                    single<ICourtCatalogRepository> { repository }
+                    viewModel { CourtCatalogViewModel(get(), testScope) }
+                  }
+              )
+            }
+        ) {
+          SearchEntry(
+              shellActions =
+                  shellActions(
+                      onDetailOpened = {},
+                      onReservationOpened = {},
+                      onBack = {},
+                  )
+          )
+        }
+      }
+    }
+
+    composeRule.runOnIdle { testScope.advanceUntilIdle() }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("Sin resultados").assertExists()
+
+    composeRule.onNodeWithTag("catalog_search_field").performTextInput("test")
+
+    composeRule.runOnIdle {
+      testScope.advanceTimeBy(300)
+      testScope.advanceUntilIdle()
+    }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("test · test").assertExists()
+    composeRule.runOnIdle {
+      assertEquals(
+          listOf(
+              SearchCatalogRequest("", null, null),
+              SearchCatalogRequest("test", null, null),
+          ),
+          repository.requests,
+      )
+    }
+  }
+
+  @Test
+  fun searchEntryShowsErrorStateWhenRepositoryFails() {
+    val repository = FailingSearchEntryRepository()
+    val testScope = TestScope(StandardTestDispatcher())
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        KoinApplication(
+            application = {
+              modules(
+                  module {
+                    single<ICourtCatalogRepository> { repository }
+                    viewModel { CourtCatalogViewModel(get(), testScope) }
+                  }
+              )
+            }
+        ) {
+          SearchEntry(
+              shellActions =
+                  shellActions(
+                      onDetailOpened = {},
+                      onReservationOpened = {},
+                      onBack = {},
+                  )
+          )
+        }
+      }
+    }
+
+    composeRule.runOnIdle { testScope.advanceUntilIdle() }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("Catálogo no disponible").assertExists()
+    composeRule
+        .onNodeWithText("No pudimos cargar el catálogo en este momento. Intentá nuevamente.")
+        .assertExists()
+    composeRule.onNodeWithTag("catalog_retry_button").assertExists()
+  }
+
   private fun shellActions(
       onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
       onReservationOpened: (CatalogReservationRoute) -> Unit,
@@ -269,6 +368,27 @@ private class RecordingSearchEntryRepository : ICourtCatalogRepository {
     requests += SearchCatalogRequest(searchQuery, provinceId, cantonId)
     return listOf(searchEntryCourt)
   }
+}
+
+private class QueryDrivenSearchEntryRepository : ICourtCatalogRepository {
+  val requests = mutableListOf<SearchCatalogRequest>()
+
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> {
+    requests += SearchCatalogRequest(searchQuery, provinceId, cantonId)
+    return if (searchQuery == "test") listOf(searchEntryCourt) else emptyList()
+  }
+}
+
+private class FailingSearchEntryRepository : ICourtCatalogRepository {
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> = error("boom")
 }
 
 private data class SearchCatalogRequest(

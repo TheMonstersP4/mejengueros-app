@@ -6,6 +6,7 @@ import io.github.themonstersp4.mejengueros.data.remote.AppApiHttpClientQualifier
 import io.github.themonstersp4.mejengueros.data.remote.CognitoJsonContentType
 import io.github.themonstersp4.mejengueros.data.remote.HttpClientFactory
 import io.github.themonstersp4.mejengueros.data.remote.PublicAppApiHttpClientQualifier
+import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -24,18 +25,34 @@ val networkModule = module {
   single { Json { ignoreUnknownKeys = true } }
   single {
     val appJson = get<Json>()
-    get<HttpClientFactory>().create().config {
-      expectSuccess = true
-      installSharedClientPlugins(appJson)
-    }
+    get<HttpClientFactory>().create().withSharedClientDefaults(appJson)
   }
   single(named(AppApiHttpClientQualifier)) {
     val appJson = get<Json>()
     val apiConfig = get<AppApiConfig>()
     val tokenProvider = get<IAuthTokenProvider>()
-    get<HttpClientFactory>().create().config {
-      expectSuccess = true
-      installSharedClientPlugins(appJson)
+    get<HttpClientFactory>()
+        .create()
+        .withAuthenticatedAppApiDefaults(appJson, apiConfig, tokenProvider)
+  }
+  single(named(PublicAppApiHttpClientQualifier)) {
+    val appJson = get<Json>()
+    val apiConfig = get<AppApiConfig>()
+    get<HttpClientFactory>().create().withPublicAppApiDefaults(appJson, apiConfig)
+  }
+}
+
+internal fun HttpClient.withSharedClientDefaults(appJson: Json): HttpClient = config {
+  expectSuccess = true
+  installSharedClientPlugins(appJson)
+}
+
+internal fun HttpClient.withAuthenticatedAppApiDefaults(
+    appJson: Json,
+    apiConfig: AppApiConfig,
+    tokenProvider: IAuthTokenProvider,
+): HttpClient =
+    withSharedClientDefaults(appJson).config {
       defaultRequest {
         url(apiConfig.baseUrl)
         tokenProvider.getBearerToken()?.let { token ->
@@ -45,17 +62,12 @@ val networkModule = module {
         }
       }
     }
-  }
-  single(named(PublicAppApiHttpClientQualifier)) {
-    val appJson = get<Json>()
-    val apiConfig = get<AppApiConfig>()
-    get<HttpClientFactory>().create().config {
-      expectSuccess = true
-      installSharedClientPlugins(appJson)
-      defaultRequest { url(apiConfig.baseUrl) }
-    }
-  }
-}
+
+internal fun HttpClient.withPublicAppApiDefaults(
+    appJson: Json,
+    apiConfig: AppApiConfig,
+): HttpClient =
+    withSharedClientDefaults(appJson).config { defaultRequest { url(apiConfig.baseUrl) } }
 
 private fun HttpClientConfig<*>.installSharedClientPlugins(appJson: Json) {
   install(ContentNegotiation) {
