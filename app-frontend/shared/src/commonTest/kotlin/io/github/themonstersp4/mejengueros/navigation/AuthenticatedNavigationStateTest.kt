@@ -161,6 +161,68 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun openCatalogCourtDetailKeepsSearchSelectedAndAppendsDetailRoute() {
+    val state = testNavigationState()
+
+    state.openCatalogCourtDetail(
+        CatalogCourtDetailRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(
+        listOf(
+            SearchRoute,
+            CatalogCourtDetailRoute(
+                courtId = "court-id",
+                complexId = "complex-id",
+                complexName = "Mejengas CR",
+                courtName = "Cancha 1",
+            ),
+        ),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
+  fun openCatalogReservationKeepsSearchSelectedAndAppendsReservationRoute() {
+    val state = testNavigationState()
+
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(
+        listOf(
+            SearchRoute,
+            CatalogCourtDetailRoute(
+                courtId = "court-id",
+                complexId = "complex-id",
+                complexName = "Mejengas CR",
+                courtName = "Cancha 1",
+            ),
+            CatalogReservationRoute(
+                courtId = "court-id",
+                complexId = "complex-id",
+                complexName = "Mejengas CR",
+                courtName = "Cancha 1",
+            ),
+        ),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
   fun openComplexDetailKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
 

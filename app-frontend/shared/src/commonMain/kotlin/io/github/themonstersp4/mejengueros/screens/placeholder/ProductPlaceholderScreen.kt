@@ -2,8 +2,10 @@ package io.github.themonstersp4.mejengueros.screens.placeholder
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,6 +21,7 @@ fun ProductPlaceholderScreen(
     description: String,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    actions: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
   Column(
       modifier = modifier.fillMaxSize().padding(contentPadding).padding(24.dp),
@@ -38,5 +41,13 @@ fun ProductPlaceholderScreen(
         textAlign = TextAlign.Center,
         modifier = Modifier.padding(top = 12.dp),
     )
+    if (actions != null) {
+      Column(
+          modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+          content = actions,
+      )
+    }
   }
 }
