@@ -185,6 +185,8 @@ private fun AppRoute.toLegacyAuthenticatedTopLevelRouteName(): String =
     when (this) {
       HomeRoute -> "Home"
       SearchRoute -> AuthenticatedTopLevelRoute.Search.name
+      is CatalogCourtDetailRoute,
+      is CatalogReservationRoute -> AuthenticatedTopLevelRoute.Search.name
       ReservationsRoute -> AuthenticatedTopLevelRoute.Reservations.name
       NotificationsRoute -> AuthenticatedTopLevelRoute.Notifications.name
       MyComplexRoute,
@@ -221,8 +223,12 @@ private fun normalizeAuthenticatedTopLevelRoute(
     }
 
 private fun normalizeSearchStack(routes: List<AppRoute>): List<AppRoute> =
-    if (legacyOwnerFlowFrom(routes) != null) listOf(SearchRoute)
-    else listOf(routes.firstOrNull()?.normalizeForSearchRoot() ?: SearchRoute)
+    if (legacyOwnerFlowFrom(routes) != null) {
+      listOf(SearchRoute)
+    } else {
+      val details = routes.drop(1).mapNotNull { it.normalizeForSearchStack() }
+      listOf(routes.firstOrNull()?.normalizeForSearchRoot() ?: SearchRoute) + details.distinct()
+    }
 
 private fun normalizeReservationsStack(routes: List<AppRoute>): List<AppRoute> =
     if (routes.firstOrNull() == ReservationsRoute) listOf(ReservationsRoute)
@@ -250,12 +256,21 @@ private fun AppRoute.normalizeForSearchRoot(): AppRoute =
       PokedexRoute,
       is PokemonDetailRoute,
       SearchRoute,
+      is CatalogCourtDetailRoute,
+      is CatalogReservationRoute,
       CreateComplexRoute,
       is CourtAvailabilityRoute,
       MyComplexRoute,
       ReservationsRoute,
       NotificationsRoute -> SearchRoute
       else -> SearchRoute
+    }
+
+private fun AppRoute.normalizeForSearchStack(): AppRoute? =
+    when (this) {
+      is CatalogCourtDetailRoute -> this
+      is CatalogReservationRoute -> this
+      else -> null
     }
 
 private fun AppRoute.normalizeForMyComplexStack(): AppRoute? =
@@ -315,6 +330,40 @@ class AuthenticatedNavigationState(
     selectedRoute = AuthenticatedTopLevelRoute.MyComplex
     if (myComplexBackStack.lastOrNull() != CreateComplexRoute) {
       myComplexBackStack.add(CreateComplexRoute)
+    }
+  }
+
+  fun openCatalogCourtDetail(route: CatalogCourtDetailRoute) {
+    selectedRoute = AuthenticatedTopLevelRoute.Search
+    while (searchBackStack.size > 1) {
+      searchBackStack.removeLastOrNull()
+    }
+    if (searchBackStack.lastOrNull() != route) {
+      searchBackStack.add(route)
+    }
+  }
+
+  fun openCatalogReservation(route: CatalogReservationRoute) {
+    selectedRoute = AuthenticatedTopLevelRoute.Search
+    val detailRoute =
+        CatalogCourtDetailRoute(
+            courtId = route.courtId,
+            complexId = route.complexId,
+            complexName = route.complexName,
+            courtName = route.courtName,
+        )
+    if (searchBackStack.none { it == detailRoute }) {
+      while (searchBackStack.size > 1) {
+        searchBackStack.removeLastOrNull()
+      }
+      searchBackStack.add(detailRoute)
+    } else {
+      while (searchBackStack.lastOrNull() != detailRoute && searchBackStack.size > 1) {
+        searchBackStack.removeLastOrNull()
+      }
+    }
+    if (searchBackStack.lastOrNull() != route) {
+      searchBackStack.add(route)
     }
   }
 

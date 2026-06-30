@@ -8,10 +8,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
+import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
@@ -27,6 +30,7 @@ import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreenActions
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
+import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
@@ -34,6 +38,7 @@ import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocat
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -75,6 +80,12 @@ fun EntryProviderScope<NavKey>.appEntries(
     )
   }
   entry<SearchRoute> { SearchEntry(shellActions = shellActions) }
+  entry<CatalogCourtDetailRoute> { route ->
+    CatalogCourtDetailEntry(route = route, shellActions = shellActions)
+  }
+  entry<CatalogReservationRoute> { route ->
+    CatalogReservationEntry(route = route, shellActions = shellActions)
+  }
   entry<ReservationsRoute> { ReservationsEntry(shellActions = shellActions) }
   entry<NotificationsRoute> { NotificationsEntry(shellActions = shellActions) }
   entry<MyComplexRoute> {
@@ -205,6 +216,28 @@ private fun PasswordResetEntry(
 
 @Composable
 private fun SearchEntry(shellActions: AuthenticatedShellActions) {
+  val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
+  val state by courtCatalogViewModel.uiState.collectAsState()
+
+  SearchCatalogEntryContent(
+      state = state,
+      shellActions = shellActions,
+      onSearchQueryChange = courtCatalogViewModel::updateSearchQuery,
+      onProvinceSelected = courtCatalogViewModel::selectProvince,
+      onCantonSelected = courtCatalogViewModel::selectCanton,
+      onRetryLoad = courtCatalogViewModel::retryLoad,
+  )
+}
+
+@Composable
+internal fun SearchCatalogEntryContent(
+    state: io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState,
+    shellActions: AuthenticatedShellActions,
+    onSearchQueryChange: (String) -> Unit,
+    onProvinceSelected: (String?) -> Unit,
+    onCantonSelected: (String?) -> Unit,
+    onRetryLoad: () -> Unit,
+) {
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Search,
       onSearchSelected = shellActions.selectSearch,
@@ -214,10 +247,87 @@ private fun SearchEntry(shellActions: AuthenticatedShellActions) {
       onSignOut = shellActions.signOut,
       title = "Buscar",
   ) { contentPadding ->
+    HomeScreen(
+        state = state,
+        contentPadding = contentPadding,
+        onSearchQueryChange = onSearchQueryChange,
+        onProvinceSelected = onProvinceSelected,
+        onCantonSelected = onCantonSelected,
+        onRetryLoad = onRetryLoad,
+        onOpenCourtDetail = { court ->
+          shellActions.openCatalogCourtDetail(
+              CatalogCourtDetailRoute(
+                  courtId = court.id,
+                  complexId = court.complexId,
+                  complexName = court.complexName,
+                  courtName = court.courtName,
+              )
+          )
+        },
+        onOpenCreateComplex = shellActions.openCreateComplex,
+    )
+  }
+}
+
+@Composable
+internal fun CatalogCourtDetailEntry(
+    route: CatalogCourtDetailRoute,
+    shellActions: AuthenticatedShellActions,
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Search,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = route.complexName,
+  ) { contentPadding ->
     ProductPlaceholderScreen(
-        title = "Buscar",
+        title = "Detalle pendiente",
         description =
-            "Aquí aparecerán los complejos y canchas disponibles para reservar. Esta sección todavía está en construcción.",
+            "El catálogo ya navega desde Buscar hacia el scope de detalle de ${route.courtName}. La pantalla completa de detalle se entrega aparte en #16.",
+        contentPadding = contentPadding,
+        actions = {
+          MejenguerosOutlinedButton(
+              text = "Continuar a reserva",
+              onClick = {
+                shellActions.openCatalogReservation(
+                    CatalogReservationRoute(
+                        courtId = route.courtId,
+                        complexId = route.complexId,
+                        complexName = route.complexName,
+                        courtName = route.courtName,
+                    )
+                )
+              },
+              modifier = Modifier.testTag("catalog_detail_continue_to_reservation_button"),
+          )
+        },
+    )
+  }
+}
+
+@Composable
+internal fun CatalogReservationEntry(
+    route: CatalogReservationRoute,
+    shellActions: AuthenticatedShellActions,
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Search,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      onNavigateBack = shellActions.closeCurrentDetail,
+      title = "Reserva",
+  ) { contentPadding ->
+    ProductPlaceholderScreen(
+        title = "Reserva pendiente",
+        description =
+            "El handoff desde Buscar ya llega hasta el scope de reserva para ${route.courtName}, pero la reserva real se implementa aparte en #50.",
         contentPadding = contentPadding,
     )
   }

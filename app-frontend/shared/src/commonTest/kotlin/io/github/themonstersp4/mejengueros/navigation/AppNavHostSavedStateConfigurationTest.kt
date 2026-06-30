@@ -24,6 +24,30 @@ class AppNavHostSavedStateConfigurationTest {
     )
   }
 
+  @Test
+  fun serializersModuleSupportsCatalogCourtDetailRouteRoundTrip() {
+    assertRoundTrip(
+        CatalogCourtDetailRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+  }
+
+  @Test
+  fun serializersModuleSupportsCatalogReservationRouteRoundTrip() {
+    assertRoundTrip(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+  }
+
   private fun assertRoundTrip(route: AppRoute) {
     val encoded = json.encodeToString(PolymorphicSerializer(NavKey::class), route)
     val decoded = json.decodeFromString(PolymorphicSerializer(NavKey::class), encoded)

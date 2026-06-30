@@ -23,6 +23,8 @@ internal fun appNavigationSerializersModule(): SerializersModule = SerializersMo
     subclass(ResetPasswordRoute::class, ResetPasswordRoute.serializer())
     subclass(HomeRoute::class, HomeRoute.serializer())
     subclass(SearchRoute::class, SearchRoute.serializer())
+    subclass(CatalogCourtDetailRoute::class, CatalogCourtDetailRoute.serializer())
+    subclass(CatalogReservationRoute::class, CatalogReservationRoute.serializer())
     subclass(ReservationsRoute::class, ReservationsRoute.serializer())
     subclass(NotificationsRoute::class, NotificationsRoute.serializer())
     subclass(MyComplexRoute::class, MyComplexRoute.serializer())
@@ -91,6 +93,8 @@ fun AppNavHost() {
           selectNotifications = authenticatedNavigationState::selectNotifications,
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
+          openCatalogCourtDetail = authenticatedNavigationState::openCatalogCourtDetail,
+          openCatalogReservation = authenticatedNavigationState::openCatalogReservation,
           openComplexDetail = authenticatedNavigationState::openComplexDetail,
           openAddCourt = authenticatedNavigationState::openAddCourt,
           openCreateComplex = authenticatedNavigationState::openCreateComplex,
