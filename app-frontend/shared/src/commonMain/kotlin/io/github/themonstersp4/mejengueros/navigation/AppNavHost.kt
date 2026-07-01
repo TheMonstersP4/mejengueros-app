@@ -93,6 +93,7 @@ fun AppNavHost() {
           selectNotifications = authenticatedNavigationState::selectNotifications,
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
+          requestSearchCatalogReload = authenticatedNavigationState::requestSearchCatalogReload,
           openCatalogCourtDetail = authenticatedNavigationState::openCatalogCourtDetail,
           openCatalogReservation = authenticatedNavigationState::openCatalogReservation,
           openComplexDetail = authenticatedNavigationState::openComplexDetail,

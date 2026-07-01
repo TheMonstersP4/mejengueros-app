@@ -235,6 +235,7 @@ private fun shellActions(
         selectNotifications = navigationState::selectNotifications,
         selectMyComplex = navigationState::selectMyComplex,
         returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
+        requestSearchCatalogReload = navigationState::requestSearchCatalogReload,
         openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
         openCatalogReservation = navigationState::openCatalogReservation,
         openComplexDetail = navigationState::openComplexDetail,
@@ -255,6 +256,7 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
         ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
         myComplexHubReloadRequestKeyState = mutableStateOf(0),
+        searchCatalogReloadRequestKeyState = mutableStateOf(0),
     )
 
 private class SuccessfulAddCourtRepository : IComplexRepository {

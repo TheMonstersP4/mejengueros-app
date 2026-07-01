@@ -27,6 +27,7 @@ import io.github.themonstersp4.mejengueros.data.remote.ICourtAvailabilityRemoteD
 import io.github.themonstersp4.mejengueros.data.remote.ICourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.PublicAppApiHttpClientQualifier
 import io.github.themonstersp4.mejengueros.data.remote.defaultAppApiConfig
 import io.github.themonstersp4.mejengueros.data.repository.AuthRepository
 import io.github.themonstersp4.mejengueros.data.repository.ComplexRepository
@@ -65,7 +66,7 @@ val dataModule = module {
   }
   single<IComplexRepository> { ComplexRepository(get()) }
   single<ICourtCatalogRemoteDataSource> {
-    CourtCatalogRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
+    CourtCatalogRemoteDataSource(get(named(PublicAppApiHttpClientQualifier)), get())
   }
   single<ICourtCatalogRepository> { CourtCatalogRepository(get()) }
   single<ICourtAvailabilityRemoteDataSource> {

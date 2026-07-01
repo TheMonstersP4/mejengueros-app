@@ -79,7 +79,12 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
-  entry<SearchRoute> { SearchEntry(shellActions = shellActions) }
+  entry<SearchRoute> {
+    SearchEntry(
+        shellActions = shellActions,
+        reloadRequestKey = authenticatedNavigationState.searchCatalogReloadRequestKey,
+    )
+  }
   entry<CatalogCourtDetailRoute> { route ->
     CatalogCourtDetailEntry(route = route, shellActions = shellActions)
   }
@@ -215,12 +220,16 @@ private fun PasswordResetEntry(
 }
 
 @Composable
-private fun SearchEntry(shellActions: AuthenticatedShellActions) {
+internal fun SearchEntry(
+    shellActions: AuthenticatedShellActions,
+    reloadRequestKey: Int,
+) {
   val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
   val state by courtCatalogViewModel.uiState.collectAsState()
 
   SearchCatalogEntryContent(
       state = state,
+      reloadRequestKey = reloadRequestKey,
       shellActions = shellActions,
       onSearchQueryChange = courtCatalogViewModel::updateSearchQuery,
       onProvinceSelected = courtCatalogViewModel::selectProvince,
@@ -232,12 +241,19 @@ private fun SearchEntry(shellActions: AuthenticatedShellActions) {
 @Composable
 internal fun SearchCatalogEntryContent(
     state: io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState,
+    reloadRequestKey: Int,
     shellActions: AuthenticatedShellActions,
     onSearchQueryChange: (String) -> Unit,
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
 ) {
+  LaunchedEffect(reloadRequestKey) {
+    if (reloadRequestKey > 0) {
+      onRetryLoad()
+    }
+  }
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Search,
       onSearchSelected = shellActions.selectSearch,
@@ -567,6 +583,7 @@ private fun CreateComplexEntry(
   if (createdComplex != null) {
     LaunchedEffect(createdComplex.firstCourtId) {
       createComplexViewModel.acknowledgeSuccess()
+      shellActions.requestSearchCatalogReload()
       shellActions.openCourtAvailability(
           OwnerCourtAvailabilityEntrypoint(
               courtId = createdComplex.firstCourtId,
