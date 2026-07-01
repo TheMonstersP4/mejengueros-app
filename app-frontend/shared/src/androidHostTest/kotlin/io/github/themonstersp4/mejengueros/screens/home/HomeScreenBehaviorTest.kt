@@ -9,10 +9,13 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasTestTag
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -33,6 +36,7 @@ class HomeScreenBehaviorTest {
             onCantonSelected = {},
             onRetryLoad = {},
             onOpenCourtDetail = {},
+            onOpenCreateComplex = {},
         )
       }
     }
@@ -41,7 +45,7 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
-  fun playerCatalogDoesNotContainOwnerCta() {
+  fun playerCatalogDoesNotContainProminentOwnerCtaCard() {
     composeRule.setContent {
       MejenguerosTheme {
         HomeScreen(
@@ -52,6 +56,7 @@ class HomeScreenBehaviorTest {
             onCantonSelected = {},
             onRetryLoad = {},
             onOpenCourtDetail = {},
+            onOpenCreateComplex = {},
         )
       }
     }
@@ -73,6 +78,7 @@ class HomeScreenBehaviorTest {
             onCantonSelected = {},
             onRetryLoad = {},
             onOpenCourtDetail = {},
+            onOpenCreateComplex = {},
         )
       }
     }
@@ -114,6 +120,7 @@ class HomeScreenBehaviorTest {
             onCantonSelected = {},
             onRetryLoad = {},
             onOpenCourtDetail = {},
+            onOpenCreateComplex = {},
         )
       }
     }
@@ -159,6 +166,7 @@ class HomeScreenBehaviorTest {
             onCantonSelected = {},
             onRetryLoad = {},
             onOpenCourtDetail = { court -> openedCourtId = court.id },
+            onOpenCreateComplex = {},
         )
       }
     }
@@ -166,5 +174,97 @@ class HomeScreenBehaviorTest {
     composeRule.onNodeWithTag("catalog_court_card_court-tap-id").performClick()
 
     composeRule.runOnIdle { kotlin.test.assertEquals("court-tap-id", openedCourtId) }
+  }
+
+  @Test
+  fun catalogListShowsCompactOwnerOnrampAtBottom() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    visibleCourts =
+                        listOf(
+                            CourtCatalogItem(
+                                id = "court-id",
+                                complexId = "complex-id",
+                                complexName = "Mejengas CR",
+                                courtName = "Cancha 1",
+                                provinceId = "sj",
+                                provinceName = "San José",
+                                cantonId = "central",
+                                cantonName = "Central",
+                                services = listOf("Parqueo"),
+                                ratingAverage = null,
+                                ratingCount = 0,
+                                imageUrl = null,
+                                isReservableToday = false,
+                            )
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+            onOpenCreateComplex = {},
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("catalog_court_list")
+        .performScrollToNode(hasTestTag("catalog_owner_onramp"))
+    composeRule.onNodeWithTag("catalog_owner_onramp").assertExists()
+    composeRule.onNodeWithText("¿Administrás un complejo? Registralo aquí").assertExists()
+  }
+
+  @Test
+  fun catalogOwnerOnrampTriggersCreateComplexCallback() {
+    var createComplexCalled = 0
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    visibleCourts =
+                        listOf(
+                            CourtCatalogItem(
+                                id = "court-id",
+                                complexId = "complex-id",
+                                complexName = "Mejengas CR",
+                                courtName = "Cancha 1",
+                                provinceId = "sj",
+                                provinceName = "San José",
+                                cantonId = "central",
+                                cantonName = "Central",
+                                services = emptyList(),
+                                ratingAverage = null,
+                                ratingCount = 0,
+                                imageUrl = null,
+                                isReservableToday = false,
+                            )
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+            onOpenCreateComplex = { createComplexCalled++ },
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("catalog_court_list")
+        .performScrollToNode(hasTestTag("catalog_owner_onramp"))
+    composeRule.onNodeWithTag("catalog_owner_onramp").performClick()
+    composeRule.runOnIdle { assertEquals(1, createComplexCalled) }
   }
 }

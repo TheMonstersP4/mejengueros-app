@@ -5,6 +5,8 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignInRequest
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
+import io.github.themonstersp4.mejengueros.domain.model.UserProfile
+import io.github.themonstersp4.mejengueros.domain.model.UserRoleKind
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -311,14 +313,42 @@ class AuthViewModelTest {
     scope.cancel()
   }
 
+  @Test
+  fun refreshProfileAfterOwnerTransitionUpdatesIsOwnerFlag() = runTest {
+    val repository = FakeAuthRepository(currentProfile = null)
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isOwner)
+
+    // Simulate backend granting OWNER role after complex creation
+    repository.currentProfile = UserProfile(id = "user-id", roles = listOf(UserRoleKind.OWNER))
+
+    viewModel.refreshProfileAfterOwnerTransition()
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isOwner)
+    assertEquals(1, repository.refreshUserProfileCount)
+    scope.cancel()
+  }
+
   private class FakeAuthRepository(
       private val existingSession: AuthSession? = null,
       private val passwordResetError: Throwable? = null,
+      var currentProfile: UserProfile? = null,
   ) : IAuthRepository {
     var receivedProvider: AuthProvider? = null
     var receivedCallback: String? = null
     var callbackCount = 0
     var signOutCount = 0
+    var refreshUserProfileCount = 0
     var receivedRegisterFullName: String? = null
     var receivedRegisterEmail: String? = null
     var receivedConfirmEmail: String? = null
@@ -330,7 +360,7 @@ class AuthViewModelTest {
 
     override suspend fun getSession(): AuthSession? = existingSession
 
-    override fun getUserProfile(): io.github.themonstersp4.mejengueros.domain.model.UserProfile? = null
+    override fun getUserProfile(): UserProfile? = currentProfile
 
     override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest {
       receivedProvider = provider
@@ -373,6 +403,10 @@ class AuthViewModelTest {
     override suspend fun signOut(): AuthSignOutRequest {
       signOutCount++
       return AuthSignOutRequest("https://cognito.example/logout")
+    }
+
+    override suspend fun refreshUserProfile() {
+      refreshUserProfileCount++
     }
   }
 

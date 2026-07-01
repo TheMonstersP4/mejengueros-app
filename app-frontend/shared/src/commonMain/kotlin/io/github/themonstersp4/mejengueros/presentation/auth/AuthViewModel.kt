@@ -214,6 +214,17 @@ class AuthViewModel(
     }
   }
 
+  fun refreshProfileAfterOwnerTransition() {
+    coroutineScope.launch {
+      runCatching { authRepository.refreshUserProfile() }
+          .onSuccess {
+            val profile = authRepository.getUserProfile()
+            val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
+            _uiState.value = _uiState.value.copy(isOwner = isOwner)
+          }
+    }
+  }
+
   private fun restoreSession() {
     coroutineScope.launch { authRepository.getSession()?.let(::applyAuthenticatedSession) }
   }

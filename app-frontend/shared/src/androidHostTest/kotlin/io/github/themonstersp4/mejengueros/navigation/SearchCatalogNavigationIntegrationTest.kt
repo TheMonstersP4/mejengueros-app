@@ -188,6 +188,7 @@ class SearchCatalogNavigationIntegrationTest {
           closeAddCourtAfterSuccess = {},
           closeCurrentDetail = onBack,
           signOut = {},
+          refreshOwnerRole = {},
       )
 }
 
