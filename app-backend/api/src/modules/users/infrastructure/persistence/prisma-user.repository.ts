@@ -41,10 +41,18 @@ export class PrismaUserRepository implements IUserRepository {
     );
     await grantDemoOwnerRoleIfEligible(this.prisma, user.id, identity);
 
-    return UserMapper.toDomain(user, {
-      provider: identity.provider ?? COGNITO_NATIVE_PROVIDER,
-      providerSubject: identity.cognitoSub
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId: user.id },
+      select: { role: true }
     });
+
+    return UserMapper.toDomain(
+      { ...user, roles: userRoles },
+      {
+        provider: identity.provider ?? COGNITO_NATIVE_PROVIDER,
+        providerSubject: identity.cognitoSub
+      }
+    );
   }
 
   /**
@@ -59,7 +67,8 @@ export class PrismaUserRepository implements IUserRepository {
       include: {
         user: {
           include: {
-            identities: true
+            identities: true,
+            roles: true
           }
         }
       }
@@ -76,7 +85,8 @@ export class PrismaUserRepository implements IUserRepository {
   async list(): Promise<UserEntity[]> {
     const users = await this.prisma.user.findMany({
       include: {
-        identities: true
+        identities: true,
+        roles: true
       },
       orderBy: { updatedAt: 'desc' }
     });
