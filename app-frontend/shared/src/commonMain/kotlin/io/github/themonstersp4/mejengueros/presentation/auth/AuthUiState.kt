@@ -7,6 +7,7 @@ data class AuthUiState(
     val displayName: String? = null,
     val provider: String? = null,
     val isAuthenticated: Boolean = false,
+    val isOwner: Boolean = false,
     val isLoading: Boolean = false,
     val pendingProvider: AuthProvider? = null,
     val errorMessage: String? = null,

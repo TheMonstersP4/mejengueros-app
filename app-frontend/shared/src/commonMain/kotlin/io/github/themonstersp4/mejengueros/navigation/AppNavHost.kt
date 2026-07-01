@@ -107,6 +107,7 @@ fun AppNavHost() {
             loginBackStack.clear()
             loginBackStack.add(LoginRoute)
           },
+          isOwner = authState.isOwner,
       )
 
   NavDisplay(

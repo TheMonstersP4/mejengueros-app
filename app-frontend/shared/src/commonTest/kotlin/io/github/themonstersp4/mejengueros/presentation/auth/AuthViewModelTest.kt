@@ -330,6 +330,9 @@ class AuthViewModelTest {
 
     override suspend fun getSession(): AuthSession? = existingSession
 
+    override fun getUserProfile(): io.github.themonstersp4.mejengueros.domain.model.UserProfile? =
+        null
+
     override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest {
       receivedProvider = provider
       return AuthSignInRequest("https://cognito.example/authorize")

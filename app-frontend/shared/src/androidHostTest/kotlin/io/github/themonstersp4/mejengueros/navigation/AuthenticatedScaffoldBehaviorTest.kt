@@ -158,6 +158,7 @@ class AuthenticatedScaffoldBehaviorTest {
             onNotificationsSelected = {},
             onMyComplexSelected = {},
             onSignOut = {},
+            isOwner = true,
         ) { contentPadding ->
           Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body")) {
             Text("Scaffold body")
@@ -173,7 +174,7 @@ class AuthenticatedScaffoldBehaviorTest {
   }
 
   @Test
-  fun bottomBarRendersIconsWithAccessibleContentDescriptionsForEachDestination() {
+  fun playerShellHidesMyComplexTab() {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
@@ -183,20 +184,41 @@ class AuthenticatedScaffoldBehaviorTest {
             onNotificationsSelected = {},
             onMyComplexSelected = {},
             onSignOut = {},
+            isOwner = false,
         ) { contentPadding ->
-          Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body")) {
-            Text("Scaffold body")
-          }
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
         }
       }
     }
 
-    composeRule.onNodeWithContentDescription("Buscar", useUnmergedTree = true).assertExists()
-    composeRule.onNodeWithContentDescription("Reservas", useUnmergedTree = true).assertExists()
-    composeRule
-        .onNodeWithContentDescription("Notificaciones", useUnmergedTree = true)
-        .assertExists()
-    composeRule.onNodeWithContentDescription("Mi complejo", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Notificaciones").assertExists()
+    composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
+  }
+
+  @Test
+  fun ownerShellShowsMyComplexTab() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = true,
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Notificaciones").assertExists()
+    composeRule.onNodeWithText("Mi complejo").assertExists()
   }
 
   @Test
@@ -212,6 +234,7 @@ class AuthenticatedScaffoldBehaviorTest {
             onNotificationsSelected = {},
             onMyComplexSelected = {},
             onSignOut = {},
+            isOwner = true,
             overlayVisible = false,
             overlayContent = {
               overlayInvocationCount += 1
