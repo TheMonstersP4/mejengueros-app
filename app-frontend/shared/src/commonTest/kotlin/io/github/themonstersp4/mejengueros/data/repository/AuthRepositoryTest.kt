@@ -17,6 +17,8 @@ import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteD
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
+import io.github.themonstersp4.mejengueros.domain.model.UserProfile
+import io.github.themonstersp4.mejengueros.domain.model.UserRoleKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -345,6 +347,34 @@ class AuthRepositoryTest {
     assertEquals("123456", nativeAuthDataSource.receivedResetCode)
   }
 
+  @Test
+  fun getUserProfileReturnsCachedProfileAfterSuccessfulSync() = runTest {
+    val secureStorage = InMemoryAuthSecureStorage()
+    secureStorage.saveOAuthState(
+        PendingOAuthState(state = "state-value", codeVerifier = CodeVerifier)
+    )
+    val ownerProfile = UserProfile(id = "user-id", roles = listOf(UserRoleKind.OWNER))
+    val repository =
+        createRepository(
+            secureStorage = secureStorage,
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(returnedProfile = ownerProfile),
+        )
+
+    repository.handleCallback(
+        "com.themonsters.mejengueros://auth/callback?code=auth-code&state=state-value"
+    )
+
+    assertEquals(ownerProfile, repository.getUserProfile())
+  }
+
+  @Test
+  fun getUserProfileReturnsNullBeforeFirstSync() = runTest {
+    val repository = createRepository()
+
+    assertNull(repository.getUserProfile())
+  }
+
   private fun createRepository(
       secureStorage: IAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
@@ -389,13 +419,16 @@ class AuthRepositoryTest {
     override fun generate(length: Int): String = if (length == 32) "state-value" else CodeVerifier
   }
 
-  private class FakeAuthenticatedUserRemoteDataSource(private val syncFailure: Throwable? = null) :
-      IAuthenticatedUserRemoteDataSource {
+  private class FakeAuthenticatedUserRemoteDataSource(
+      private val syncFailure: Throwable? = null,
+      private val returnedProfile: UserProfile = UserProfile(id = "user-id", roles = emptyList()),
+  ) : IAuthenticatedUserRemoteDataSource {
     var syncCount = 0
 
-    override suspend fun syncCurrentUser() {
+    override suspend fun syncCurrentUser(): UserProfile {
       syncCount++
       syncFailure?.let { throw it }
+      return returnedProfile
     }
   }
 

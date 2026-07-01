@@ -245,6 +245,7 @@ internal fun SearchCatalogEntryContent(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       title = "Buscar",
   ) { contentPadding ->
     HomeScreen(
@@ -281,6 +282,7 @@ internal fun CatalogCourtDetailEntry(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = route.complexName,
   ) { contentPadding ->
@@ -321,6 +323,7 @@ internal fun CatalogReservationEntry(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Reserva",
   ) { contentPadding ->
@@ -342,6 +345,7 @@ private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       title = "Reservas",
   ) { contentPadding ->
     ProductPlaceholderScreen(
@@ -362,6 +366,7 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       title = "Notificaciones",
   ) { contentPadding ->
     ProductPlaceholderScreen(
@@ -396,6 +401,7 @@ private fun MyComplexEntry(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       title = "Mi complejo",
   ) { contentPadding ->
     MyComplexEntryContent(
@@ -448,6 +454,7 @@ private fun ComplexDetailEntry(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Mi complejo",
   ) { contentPadding ->
@@ -516,6 +523,7 @@ internal fun AddCourtEntryContent(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Agregar cancha",
   ) { contentPadding ->
@@ -600,6 +608,7 @@ private fun CreateComplexEntry(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Mi complejo",
       overlayVisible = locationPickerCoordinator.isOpen,
@@ -666,6 +675,7 @@ internal fun CourtAvailabilityEntryContent(
       onNotificationsSelected = shellActions.selectNotifications,
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = state.appBarTitle,
   ) { contentPadding ->

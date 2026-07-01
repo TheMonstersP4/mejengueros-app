@@ -25,4 +25,5 @@ class AuthenticatedShellActions(
     val closeAddCourtAfterSuccess: () -> Unit,
     val closeCurrentDetail: () -> Unit,
     val signOut: () -> Unit,
+    val isOwner: Boolean = false,
 )
