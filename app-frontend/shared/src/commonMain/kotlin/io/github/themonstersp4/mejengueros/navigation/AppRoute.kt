@@ -25,6 +25,13 @@ data class CatalogCourtDetailRoute(
     val complexId: String,
     val complexName: String,
     val courtName: String,
+    val provinceName: String = "",
+    val cantonName: String = "",
+    val services: List<String> = emptyList(),
+    val ratingAverage: Double? = null,
+    val ratingCount: Int = 0,
+    val imageUrl: String? = null,
+    val isReservableToday: Boolean = false,
 ) : AppRoute
 
 @Serializable

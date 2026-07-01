@@ -12,20 +12,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -62,7 +58,6 @@ fun HomeScreen(
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
     onOpenCourtDetail: (CourtCatalogItem) -> Unit,
-    onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   CatalogScaffold(
@@ -71,7 +66,6 @@ fun HomeScreen(
       onSearchQueryChange = onSearchQueryChange,
       onProvinceSelected = onProvinceSelected,
       onCantonSelected = onCantonSelected,
-      onOpenCreateComplex = onOpenCreateComplex,
       modifier = modifier,
   ) {
     when {
@@ -148,7 +142,6 @@ private fun CatalogScaffold(
     onSearchQueryChange: (String) -> Unit,
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
-    onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -164,7 +157,6 @@ private fun CatalogScaffold(
         onSearchQueryChange = onSearchQueryChange,
         onProvinceSelected = onProvinceSelected,
         onCantonSelected = onCantonSelected,
-        onOpenCreateComplex = onOpenCreateComplex,
     )
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -186,7 +178,6 @@ private fun CatalogHeader(
     onSearchQueryChange: (String) -> Unit,
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
-    onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   var provinceMenuExpanded by remember { mutableStateOf(false) }
@@ -278,57 +269,6 @@ private fun CatalogHeader(
                 },
             )
           }
-        }
-      }
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-      Column(
-          modifier = Modifier.fillMaxWidth().padding(14.dp),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
-      ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          Surface(
-              modifier = Modifier.size(32.dp),
-              shape = CircleShape,
-              color = MaterialTheme.colorScheme.surfaceContainerHigh,
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Icon(
-                  imageVector = Icons.Filled.LocationOn,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.primary,
-              )
-            }
-          }
-          Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = "¿Administrás un complejo?",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "Mantené visible el acceso para registrar un nuevo espacio deportivo.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
-        Box(modifier = Modifier.fillMaxWidth()) {
-          MejenguerosOutlinedButton(
-              text = "Crear complejo",
-              onClick = onOpenCreateComplex,
-              modifier =
-                  Modifier.testTag("catalog_create_complex_button").semantics {
-                    contentDescription = "Crear complejo"
-                  },
-              leadingContent = { Icon(Icons.Filled.Add, contentDescription = null) },
-          )
         }
       }
     }

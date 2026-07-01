@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -12,21 +13,30 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
+import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SearchCatalogNavigationIntegrationTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
   @Test
-  fun catalogLivesUnderSearchAndHandsOffToPendingDetailAndReservation() {
+  fun catalogLivesUnderSearchAndHandsOffToDetailAndReservation() = runTest {
     val renderedRoute = mutableStateOf<AppRoute>(SearchRoute)
     val visitedRoutes = NavBackStack<NavKey>(SearchRoute)
     val expectedDetailRoute =
@@ -35,6 +45,13 @@ class SearchCatalogNavigationIntegrationTest {
             complexId = "complex-id",
             complexName = "Mejengas CR",
             courtName = "Cancha 1",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = listOf("Parqueo"),
+            ratingAverage = 4.8,
+            ratingCount = 12,
+            imageUrl = null,
+            isReservableToday = true,
         )
     val expectedReservationRoute =
         CatalogReservationRoute(
@@ -90,6 +107,13 @@ class SearchCatalogNavigationIntegrationTest {
                     )
                 ),
         )
+    val detailViewModel =
+        CourtDetailViewModel(
+            courtId = "court-id",
+            repository = FakeCourtDetailRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
@@ -104,7 +128,11 @@ class SearchCatalogNavigationIntegrationTest {
                   onRetryLoad = {},
               )
           is CatalogCourtDetailRoute ->
-              CatalogCourtDetailEntry(route = route, shellActions = shellActions)
+              CatalogCourtDetailEntryContent(
+                  route = route,
+                  viewModel = detailViewModel,
+                  shellActions = shellActions,
+              )
           is CatalogReservationRoute ->
               CatalogReservationEntry(route = route, shellActions = shellActions)
           else -> error("Unexpected route $route")
@@ -126,8 +154,9 @@ class SearchCatalogNavigationIntegrationTest {
       renderedRoute.value = expectedDetailRoute
     }
 
-    composeRule.onNodeWithText("Detalle pendiente").assertExists()
-    composeRule.onNodeWithTag("catalog_detail_continue_to_reservation_button").performClick()
+    composeRule.onNodeWithTag("court_detail_title").assertExists()
+    composeRule.onNodeWithTag("court_detail_disponibilidad_section").assertExists()
+    composeRule.onNodeWithTag("court_detail_reserve_button").assertExists().performClick()
     composeRule.onNodeWithText("Reserva pendiente").assertExists()
     composeRule.runOnIdle {
       assertEquals(expectedDetailRoute, openedDetailRoute.value)
@@ -159,5 +188,13 @@ class SearchCatalogNavigationIntegrationTest {
           closeAddCourtAfterSuccess = {},
           closeCurrentDetail = onBack,
           signOut = {},
+      )
+}
+
+private class FakeCourtDetailRepository : ICourtDetailRepository {
+  override suspend fun getReservableSlotsForToday(courtId: String): List<ReservableSlot> =
+      listOf(
+          ReservableSlot(startsAtUtc = "2026-07-01T08:00:00.000Z", endsAtUtc = "2026-07-01T09:00:00.000Z"),
+          ReservableSlot(startsAtUtc = "2026-07-01T09:00:00.000Z", endsAtUtc = "2026-07-01T10:00:00.000Z"),
       )
 }

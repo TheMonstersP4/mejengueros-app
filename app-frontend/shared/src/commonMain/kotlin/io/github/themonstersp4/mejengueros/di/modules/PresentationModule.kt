@@ -5,6 +5,7 @@ import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvaila
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
@@ -14,6 +15,7 @@ import org.koin.dsl.module
 val presentationModule = module {
   viewModel { AuthViewModel(get(), get()) }
   viewModel { CourtCatalogViewModel(get()) }
+  viewModel { parameters -> CourtDetailViewModel(parameters.get(), get()) }
   viewModel { CreateComplexViewModel(get()) }
   viewModel { parameters -> AddCourtViewModel(parameters.get(), parameters.get(), get(), get()) }
   viewModel { MyComplexViewModel(get(), get()) }
