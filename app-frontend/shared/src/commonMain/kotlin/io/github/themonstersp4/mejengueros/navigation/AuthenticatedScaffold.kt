@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -78,21 +82,45 @@ fun AuthenticatedScaffold(
                           label = "Buscar",
                           selected = selectedRoute == AuthenticatedTopLevelRoute.Search,
                           onClick = onSearchSelected,
+                          icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "Buscar",
+                            )
+                          },
                       ),
                       MejenguerosBottomNavigationItem(
                           label = "Reservas",
                           selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
                           onClick = onReservationsSelected,
+                          icon = {
+                            Icon(
+                                imageVector = Icons.Filled.DateRange,
+                                contentDescription = "Reservas",
+                            )
+                          },
                       ),
                       MejenguerosBottomNavigationItem(
                           label = "Notificaciones",
                           selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
                           onClick = onNotificationsSelected,
+                          icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Notifications,
+                                contentDescription = "Notificaciones",
+                            )
+                          },
                       ),
                       MejenguerosBottomNavigationItem(
                           label = "Mi complejo",
                           selected = selectedRoute == AuthenticatedTopLevelRoute.MyComplex,
                           onClick = onMyComplexSelected,
+                          icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Home,
+                                contentDescription = "Mi complejo",
+                            )
+                          },
                       ),
                   )
           )

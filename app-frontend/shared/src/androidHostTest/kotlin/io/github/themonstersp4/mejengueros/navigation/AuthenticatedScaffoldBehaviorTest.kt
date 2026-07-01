@@ -173,6 +173,33 @@ class AuthenticatedScaffoldBehaviorTest {
   }
 
   @Test
+  fun bottomBarRendersIconsWithAccessibleContentDescriptionsForEachDestination() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body")) {
+            Text("Scaffold body")
+          }
+        }
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Buscar", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithContentDescription("Reservas", useUnmergedTree = true).assertExists()
+    composeRule
+        .onNodeWithContentDescription("Notificaciones", useUnmergedTree = true)
+        .assertExists()
+    composeRule.onNodeWithContentDescription("Mi complejo", useUnmergedTree = true).assertExists()
+  }
+
+  @Test
   fun hiddenOverlayKeepsScaffoldVisibleAndDoesNotInvokeOverlayContent() {
     var overlayInvocationCount = 0
 
