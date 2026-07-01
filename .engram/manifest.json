@@ -82,20 +82,12 @@
       "prompts": 2
     },
     {
-      "id": "b7936746",
-      "created_by": "screi",
-      "created_at": "2026-07-01T20:41:29Z",
-      "sessions": 92,
-      "memories": 382,
-      "prompts": 261
-    },
-    {
-      "id": "598f3c09",
-      "created_by": "screi",
-      "created_at": "2026-07-01T20:44:00Z",
-      "sessions": 0,
-      "memories": 0,
-      "prompts": 2
+      "id": "ab0d924c",
+      "created_by": "danielcastro",
+      "created_at": "2026-07-01T01:24:22Z",
+      "sessions": 2,
+      "memories": 6,
+      "prompts": 0
     }
   ]
 }
