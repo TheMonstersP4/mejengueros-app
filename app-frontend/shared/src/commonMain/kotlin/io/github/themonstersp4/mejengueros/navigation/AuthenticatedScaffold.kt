@@ -2,18 +2,27 @@ package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,6 +33,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomNaviga
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosMobileScaffold
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosTopAppBar
+import kotlinx.coroutines.launch
 
 @Composable
 fun AuthenticatedScaffold(
@@ -42,76 +52,139 @@ fun AuthenticatedScaffold(
     content: @Composable (PaddingValues) -> Unit,
 ) {
   var showSignOutConfirmation by rememberSaveable { mutableStateOf(false) }
+  val drawerState = rememberDrawerState(DrawerValue.Closed)
+  val drawerScope = rememberCoroutineScope()
+
+  val scaffoldModifier =
+      Modifier.fillMaxSize()
+          .then(if (overlayVisible) Modifier.clearAndSetSemantics {} else Modifier)
 
   Box(modifier = modifier.fillMaxSize()) {
-    MejenguerosMobileScaffold(
-        modifier =
-            Modifier.fillMaxSize()
-                .then(if (overlayVisible) Modifier.clearAndSetSemantics {} else Modifier),
-        topBar = {
-          MejenguerosTopAppBar(
-              title = title,
-              navigationIcon = {
-                onNavigateBack?.let { navigateBack ->
-                  IconButton(onClick = navigateBack) {
+    if (isOwner) {
+      ModalNavigationDrawer(
+          drawerState = drawerState,
+          modifier = Modifier.fillMaxSize(),
+          drawerContent = {
+            ModalDrawerSheet {
+              Spacer(Modifier.height(12.dp))
+              NavigationDrawerItem(
+                  label = { Text("Mi complejo") },
+                  selected = selectedRoute == AuthenticatedTopLevelRoute.MyComplex,
+                  onClick = {
+                    drawerScope.launch { drawerState.close() }
+                    onMyComplexSelected()
+                  },
+                  modifier = Modifier.padding(horizontal = 12.dp),
+              )
+              NavigationDrawerItem(
+                  label = { Text("Reservas") },
+                  selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
+                  onClick = {
+                    drawerScope.launch { drawerState.close() }
+                    onReservationsSelected()
+                  },
+                  modifier = Modifier.padding(horizontal = 12.dp),
+              )
+              NavigationDrawerItem(
+                  label = { Text("Reseñas") },
+                  selected = false,
+                  onClick = { drawerScope.launch { drawerState.close() } },
+                  modifier = Modifier.padding(horizontal = 12.dp),
+              )
+            }
+          },
+      ) {
+        MejenguerosMobileScaffold(
+            modifier = scaffoldModifier,
+            topBar = {
+              MejenguerosTopAppBar(
+                  title = title,
+                  navigationIcon = {
+                    if (onNavigateBack != null) {
+                      IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            modifier = Modifier.size(20.dp),
+                        )
+                      }
+                    } else {
+                      IconButton(onClick = { drawerScope.launch { drawerState.open() } }) {
+                        Icon(
+                            imageVector = Icons.Filled.Menu,
+                            contentDescription = "Abrir menú",
+                            modifier = Modifier.size(20.dp),
+                        )
+                      }
+                    }
+                  },
+                  actions = {
+                    IconButton(onClick = { showSignOutConfirmation = true }) {
+                      Icon(
+                          imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                          contentDescription = "Cerrar sesión",
+                          modifier = Modifier.size(20.dp),
+                      )
+                    }
+                  },
+              )
+            },
+            content = content,
+        )
+      }
+    } else {
+      MejenguerosMobileScaffold(
+          modifier = scaffoldModifier,
+          topBar = {
+            MejenguerosTopAppBar(
+                title = title,
+                navigationIcon = {
+                  onNavigateBack?.let { navigateBack ->
+                    IconButton(onClick = navigateBack) {
+                      Icon(
+                          imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                          contentDescription = "Volver",
+                          modifier = Modifier.size(20.dp),
+                      )
+                    }
+                  }
+                },
+                actions = {
+                  IconButton(onClick = { showSignOutConfirmation = true }) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver",
+                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = "Cerrar sesión",
                         modifier = Modifier.size(20.dp),
                     )
                   }
-                }
-              },
-              actions = {
-                IconButton(onClick = { showSignOutConfirmation = true }) {
-                  Icon(
-                      imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                      contentDescription = "Cerrar sesión",
-                      modifier = Modifier.size(20.dp),
-                  )
-                }
-              },
-          )
-        },
-        bottomBar = {
-          MejenguerosBottomNavigationBar(
-              items =
-                  buildList {
-                    add(
+                },
+            )
+          },
+          bottomBar = {
+            MejenguerosBottomNavigationBar(
+                items =
+                    listOf(
                         MejenguerosBottomNavigationItem(
                             label = "Buscar",
                             selected = selectedRoute == AuthenticatedTopLevelRoute.Search,
                             onClick = onSearchSelected,
-                        )
-                    )
-                    add(
+                        ),
                         MejenguerosBottomNavigationItem(
                             label = "Reservas",
                             selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
                             onClick = onReservationsSelected,
-                        )
-                    )
-                    add(
+                        ),
                         MejenguerosBottomNavigationItem(
                             label = "Notificaciones",
                             selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
                             onClick = onNotificationsSelected,
-                        )
+                        ),
                     )
-                    if (isOwner) {
-                      add(
-                          MejenguerosBottomNavigationItem(
-                              label = "Mi complejo",
-                              selected = selectedRoute == AuthenticatedTopLevelRoute.MyComplex,
-                              onClick = onMyComplexSelected,
-                          )
-                      )
-                    }
-                  }
-          )
-        },
-        content = content,
-    )
+            )
+          },
+          content = content,
+      )
+    }
 
     if (overlayVisible) {
       overlayContent()
