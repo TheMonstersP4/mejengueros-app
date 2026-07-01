@@ -21,7 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -320,6 +323,8 @@ private fun ComplexHubSection(
         enabled = true,
         modifier = Modifier.testTag("complex_detail_add_court_button_${complex.id}"),
     )
+    Spacer(modifier = Modifier.height(8.dp))
+    ActivitySection()
   }
 }
 
@@ -369,23 +374,12 @@ private fun ComplexSummaryCard(complex: MyComplexHubComplex) {
             )
           }
         }
-        Column(
+        Text(
+            text = complex.address,
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-          Text(
-              text = complex.address,
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface,
-          )
-          complex.toLocationLabel()?.let { locationLabel ->
-            Text(
-                text = locationLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
       }
     }
   }
@@ -554,8 +548,76 @@ private fun SectionLabel(text: String) {
   }
 }
 
-private fun MyComplexHubComplex.toLocationLabel(): String? =
-    if (latitude == null || longitude == null) null else "Ubicación: $latitude, $longitude"
+@Composable
+private fun ActivitySection() {
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    SectionLabel(text = "ACTIVIDAD")
+    MejenguerosListGroup(modifier = Modifier.testTag("activity_section_root")) {
+      ActivityPlaceholderRow(
+          icon = Icons.Filled.Star,
+          iconDescription = "Reseñas",
+          title = "Reseñas recibidas",
+          subtitle = "Lo que opinan los mejengueros",
+          testTag = "activity_resenas_row",
+          showDivider = true,
+      )
+      ActivityPlaceholderRow(
+          icon = Icons.Filled.Check,
+          iconDescription = "Reservas",
+          title = "Reservas de mis canchas",
+          subtitle = "Próximas y pasadas",
+          testTag = "activity_reservas_row",
+          showDivider = false,
+      )
+    }
+  }
+}
+
+@Composable
+private fun ActivityPlaceholderRow(
+    icon: ImageVector,
+    iconDescription: String?,
+    title: String,
+    subtitle: String,
+    testTag: String,
+    showDivider: Boolean,
+) {
+  MejenguerosListItem(
+      text =
+          MejenguerosListItemText(
+              title = title,
+              supportingText = subtitle,
+          ),
+      modifier = Modifier.testTag(testTag),
+      leading = {
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = iconDescription,
+                modifier = Modifier.size(18.dp),
+            )
+          }
+        }
+      },
+      trailing = {
+        MejenguerosStatusPill(
+            text = "Próximamente",
+            style = MejenguerosStatusPillStyle.Neutral,
+        )
+      },
+      style =
+          MejenguerosListItemStyle(
+              showDivider = showDivider,
+              shape = RectangleShape,
+          ),
+  )
+}
 
 private fun MyComplexHubComplex.toStatusLabel(): String? =
     when (status.uppercase()) {
@@ -571,13 +633,13 @@ private fun MyComplexHubComplex.toListSupportingText(): String {
 
 private fun MyComplexHubCourt.toSupportingText(): String =
     when (availabilityStatus) {
-      CourtAvailabilitySetupStatus.CONFIGURED -> "Activa · disponibilidad configurada"
-      CourtAvailabilitySetupStatus.PENDING -> "Activa · falta disponibilidad"
+      CourtAvailabilitySetupStatus.CONFIGURED -> "Disponibilidad configurada"
+      CourtAvailabilitySetupStatus.PENDING -> "Falta disponibilidad"
     }
 
 private fun CourtAvailabilitySetupStatus.toPillLabel(): String =
     when (this) {
-      CourtAvailabilitySetupStatus.CONFIGURED -> "Configurada"
+      CourtAvailabilitySetupStatus.CONFIGURED -> "Activa"
       CourtAvailabilitySetupStatus.PENDING -> "Pendiente"
     }
 
