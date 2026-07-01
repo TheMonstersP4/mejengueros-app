@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasClickAction
@@ -116,6 +117,7 @@ class SearchCatalogNavigationIntegrationTest {
           SearchRoute ->
               SearchCatalogEntryContent(
                   state = state,
+                  reloadRequestKey = 0,
                   shellActions = shellActions,
                   onSearchQueryChange = {},
                   onProvinceSelected = {},
@@ -187,6 +189,7 @@ class SearchCatalogNavigationIntegrationTest {
                             )
                         ),
                 ),
+            reloadRequestKey = 0,
             shellActions = shellActions(onDetailOpened = {}, onReservationOpened = {}, onBack = {}),
             onSearchQueryChange = { typedQueries += it },
             onProvinceSelected = {},
@@ -218,12 +221,13 @@ class SearchCatalogNavigationIntegrationTest {
             }
         ) {
           SearchEntry(
+              reloadRequestKey = 0,
               shellActions =
                   shellActions(
                       onDetailOpened = {},
                       onReservationOpened = {},
                       onBack = {},
-                  )
+                  ),
           )
         }
       }
@@ -259,12 +263,13 @@ class SearchCatalogNavigationIntegrationTest {
             }
         ) {
           SearchEntry(
+              reloadRequestKey = 0,
               shellActions =
                   shellActions(
                       onDetailOpened = {},
                       onReservationOpened = {},
                       onBack = {},
-                  )
+                  ),
           )
         }
       }
@@ -313,12 +318,13 @@ class SearchCatalogNavigationIntegrationTest {
             }
         ) {
           SearchEntry(
+              reloadRequestKey = 0,
               shellActions =
                   shellActions(
                       onDetailOpened = {},
                       onReservationOpened = {},
                       onBack = {},
-                  )
+                  ),
           )
         }
       }
@@ -334,6 +340,73 @@ class SearchCatalogNavigationIntegrationTest {
     composeRule.onNodeWithTag("catalog_retry_button").assertExists()
   }
 
+  @Test
+  fun searchEntryReloadsCatalogAfterAddCourtSuccessRequestsNavigationRefresh() {
+    val navigationState =
+        AuthenticatedNavigationState(
+            selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
+            searchBackStack = NavBackStack<NavKey>(SearchRoute),
+            reservationsBackStack = NavBackStack<NavKey>(ReservationsRoute),
+            notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
+            myComplexBackStack =
+                NavBackStack<NavKey>(
+                    MyComplexRoute,
+                    ComplexDetailRoute("complex-id"),
+                    AddCourtRoute("complex-id", "North Sports Center"),
+                ),
+            ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
+            myComplexHubReloadRequestKeyState = mutableStateOf(0),
+            searchCatalogReloadRequestKeyState = mutableStateOf(0),
+        )
+    val repository = ReloadingSearchEntryRepository()
+    val testScope = TestScope(StandardTestDispatcher())
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        KoinApplication(
+            application = {
+              modules(
+                  module {
+                    single<ICourtCatalogRepository> { repository }
+                    viewModel { CourtCatalogViewModel(get(), testScope) }
+                  }
+              )
+            }
+        ) {
+          val shellActions = remember(navigationState) { navigationShellActions(navigationState) }
+          SearchEntry(
+              shellActions = shellActions,
+              reloadRequestKey = navigationState.searchCatalogReloadRequestKey,
+          )
+        }
+      }
+    }
+
+    composeRule.runOnIdle { testScope.advanceUntilIdle() }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("Sin resultados").assertExists()
+
+    composeRule.runOnIdle {
+      repository.shouldReturnCourt = true
+      navigationState.closeAddCourtAfterSuccess()
+    }
+    composeRule.runOnIdle { testScope.advanceUntilIdle() }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("test · test").assertExists()
+    composeRule.runOnIdle {
+      assertEquals(
+          listOf(
+              SearchCatalogRequest("", null, null),
+              SearchCatalogRequest("", null, null),
+          ),
+          repository.requests,
+      )
+      assertEquals(1, navigationState.searchCatalogReloadRequestKey)
+    }
+  }
+
   private fun shellActions(
       onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
       onReservationOpened: (CatalogReservationRoute) -> Unit,
@@ -345,6 +418,7 @@ class SearchCatalogNavigationIntegrationTest {
           selectNotifications = {},
           selectMyComplex = {},
           returnToMyComplexRoot = {},
+          requestSearchCatalogReload = {},
           openCatalogCourtDetail = onDetailOpened,
           openCatalogReservation = onReservationOpened,
           openComplexDetail = {},
@@ -353,6 +427,27 @@ class SearchCatalogNavigationIntegrationTest {
           openCourtAvailability = {},
           closeAddCourtAfterSuccess = {},
           closeCurrentDetail = onBack,
+          signOut = {},
+      )
+
+  private fun navigationShellActions(
+      navigationState: AuthenticatedNavigationState,
+  ): AuthenticatedShellActions =
+      AuthenticatedShellActions(
+          selectSearch = navigationState::selectSearch,
+          selectReservations = navigationState::selectReservations,
+          selectNotifications = navigationState::selectNotifications,
+          selectMyComplex = navigationState::selectMyComplex,
+          returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
+          requestSearchCatalogReload = navigationState::requestSearchCatalogReload,
+          openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
+          openCatalogReservation = navigationState::openCatalogReservation,
+          openComplexDetail = navigationState::openComplexDetail,
+          openAddCourt = navigationState::openAddCourt,
+          openCreateComplex = navigationState::openCreateComplex,
+          openCourtAvailability = navigationState::openCourtAvailability,
+          closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
+          closeCurrentDetail = navigationState::closeCurrentDetail,
           signOut = {},
       )
 }
@@ -389,6 +484,20 @@ private class FailingSearchEntryRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
   ): List<CourtCatalogItem> = error("boom")
+}
+
+private class ReloadingSearchEntryRepository : ICourtCatalogRepository {
+  var shouldReturnCourt = false
+  val requests = mutableListOf<SearchCatalogRequest>()
+
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+  ): List<CourtCatalogItem> {
+    requests += SearchCatalogRequest(searchQuery, provinceId, cantonId)
+    return if (shouldReturnCourt) listOf(searchEntryCourt) else emptyList()
+  }
 }
 
 private data class SearchCatalogRequest(

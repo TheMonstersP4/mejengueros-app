@@ -30,6 +30,7 @@ fun rememberAuthenticatedNavigationState(
         mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
       }
   val myComplexHubReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
+  val searchCatalogReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
 
   return remember(
       searchBackStack,
@@ -39,6 +40,7 @@ fun rememberAuthenticatedNavigationState(
       selectedRouteState,
       ownerCourtAvailabilityEntrypointState,
       myComplexHubReloadRequestKeyState,
+      searchCatalogReloadRequestKeyState,
   ) {
     normalizeRestoredAuthenticatedNavigationState(
         savedSelectedRouteName = selectedRouteState.savedRouteName,
@@ -57,6 +59,7 @@ fun rememberAuthenticatedNavigationState(
         myComplexBackStack = myComplexBackStack,
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
         myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
+        searchCatalogReloadRequestKeyState = searchCatalogReloadRequestKeyState,
     )
   }
 }
@@ -291,6 +294,7 @@ class AuthenticatedNavigationState(
     private val ownerCourtAvailabilityEntrypointState:
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
     private val myComplexHubReloadRequestKeyState: MutableState<Int>,
+    private val searchCatalogReloadRequestKeyState: MutableState<Int>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
@@ -300,6 +304,9 @@ class AuthenticatedNavigationState(
 
   val myComplexHubReloadRequestKey: Int
     get() = myComplexHubReloadRequestKeyState.value
+
+  val searchCatalogReloadRequestKey: Int
+    get() = searchCatalogReloadRequestKeyState.value
 
   val currentBackStack: NavBackStack<NavKey>
     get() =
@@ -422,10 +429,15 @@ class AuthenticatedNavigationState(
     }
   }
 
+  fun requestSearchCatalogReload() {
+    searchCatalogReloadRequestKeyState.value += 1
+  }
+
   fun closeAddCourtAfterSuccess() {
     if (myComplexBackStack.lastOrNull() is AddCourtRoute) {
       myComplexBackStack.removeLastOrNull()
       requestMyComplexHubReload()
+      requestSearchCatalogReload()
     }
   }
 
@@ -449,6 +461,7 @@ class AuthenticatedNavigationState(
   fun reset() {
     ownerCourtAvailabilityEntrypointState.value = null
     myComplexHubReloadRequestKeyState.value = 0
+    searchCatalogReloadRequestKeyState.value = 0
     selectedRoute = AuthenticatedTopLevelRoute.Search
     searchBackStack.clear()
     searchBackStack.add(SearchRoute)

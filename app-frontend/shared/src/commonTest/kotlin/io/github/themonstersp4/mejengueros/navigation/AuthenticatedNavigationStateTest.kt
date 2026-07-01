@@ -422,6 +422,16 @@ class AuthenticatedNavigationStateTest {
         state.currentBackStack.toList(),
     )
     assertEquals(1, state.myComplexHubReloadRequestKey)
+    assertEquals(1, state.searchCatalogReloadRequestKey)
+  }
+
+  @Test
+  fun requestSearchCatalogReloadIncrementsDedicatedReloadKey() {
+    val state = testNavigationState()
+
+    state.requestSearchCatalogReload()
+
+    assertEquals(1, state.searchCatalogReloadRequestKey)
   }
 
   @Test
@@ -481,5 +491,6 @@ class AuthenticatedNavigationStateTest {
           myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
+          searchCatalogReloadRequestKeyState = mutableStateOf(0),
       )
 }
