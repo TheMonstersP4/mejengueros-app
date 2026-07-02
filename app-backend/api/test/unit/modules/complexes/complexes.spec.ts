@@ -2,8 +2,12 @@ import { CreateComplexWithFirstCourtUseCase } from '@/modules/complexes/applicat
 import { CreateCourtForOwnedComplexUseCase } from '@/modules/complexes/application/use-cases/create-court-for-owned-complex.use-case';
 import { ComplexNotFoundForOwnerError } from '@/modules/complexes/domain/errors/complex-not-found-for-owner.error';
 import { GetMyComplexHubUseCase } from '@/modules/complexes/application/use-cases/get-my-complex-hub.use-case';
+import { InvalidCourtImageUploadError } from '@/modules/complexes/domain/errors/invalid-court-image-upload.error';
 import { InvalidComplexLocationError } from '@/modules/complexes/domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '@/modules/complexes/domain/errors/invalid-service-catalog-selection.error';
+import { ImageUploadEntity } from '@/modules/files/domain/entities/image-upload.entity';
+import { FilePurpose } from '@/modules/files/domain/enums/file-purpose.enum';
+import type { IImageUploadRepository } from '@/modules/files/domain/repositories/image-upload.repository';
 import type {
   IComplexRepository,
   ICreateComplexWithFirstCourtResult,
@@ -13,9 +17,13 @@ import { PrismaComplexRepository } from '@/modules/complexes/infrastructure/pers
 import { ComplexesController } from '@/modules/complexes/interfaces/http/controllers/complexes.controller';
 
 describe('complexes module behavior', () => {
-  function createUniqueConstraintError(): Error & { code: 'P2002' } {
+  function createUniqueConstraintError(target?: string | string[]): Error & {
+    code: 'P2002';
+    meta?: { target?: string | string[] };
+  } {
     return Object.assign(new Error('Unique constraint failed'), {
-      code: 'P2002' as const
+      code: 'P2002' as const,
+      meta: target == null ? undefined : { target }
     });
   }
 
@@ -42,6 +50,14 @@ describe('complexes module behavior', () => {
     firstCourt: {
       name: 'Court A',
       serviceIds: ['court-service-id', 'grass-service-id']
+    }
+  };
+
+  const requestWithCourtImage = {
+    ...request,
+    firstCourt: {
+      ...request.firstCourt,
+      imageUploadId: 'court-image-id'
     }
   };
 
@@ -106,6 +122,7 @@ describe('complexes module behavior', () => {
     complexServicesFound?: boolean;
     courtServicesFound?: boolean;
     failComplexCreate?: boolean;
+    failCourtCreateWithImageUploadUniqueConstraint?: boolean;
     failCourtServiceCreate?: boolean;
     failFirstUserCreateWithUniqueConstraint?: boolean;
   }
@@ -304,7 +321,12 @@ describe('complexes module behavior', () => {
         })
       },
       court: {
+        findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+          if (options?.failCourtCreateWithImageUploadUniqueConstraint === true) {
+            throw createUniqueConstraintError(['imageUploadId']);
+          }
+
           draft.courts.push(data);
 
           return {
@@ -346,7 +368,10 @@ describe('complexes module behavior', () => {
         const result = await callback(transactionClient as never);
         commitDraft(draft);
         return result;
-      })
+      }),
+      court: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      }
     };
 
     return { prisma, state, transactionClients: transactionClients as ITransactionClientMock[] };
@@ -354,11 +379,13 @@ describe('complexes module behavior', () => {
 
   it('forwards the expanded wizard payload through the repository port', async () => {
     const repository = {
+      findCourtIdByImageUploadId: jest.fn().mockResolvedValue(null),
       createComplexWithFirstCourt: jest.fn().mockResolvedValue(created),
       createOwnedComplexCourt: jest.fn(),
       getMyComplexHub: jest.fn()
     } satisfies IComplexRepository;
-    const useCase = new CreateComplexWithFirstCourtUseCase(repository);
+    const imageUploadRepository = createImageUploadRepository();
+    const useCase = new CreateComplexWithFirstCourtUseCase(repository, imageUploadRepository);
 
     await expect(useCase.execute(authenticatedUser, request)).resolves.toEqual(created);
     expect(repository.createComplexWithFirstCourt).toHaveBeenCalledWith({
@@ -373,6 +400,101 @@ describe('complexes module behavior', () => {
       complex: request.complex,
       firstCourt: request.firstCourt
     });
+  });
+
+  it('forwards an optional validated court image upload id through the repository port', async () => {
+    const repository = {
+      findCourtIdByImageUploadId: jest.fn().mockResolvedValue(null),
+      createComplexWithFirstCourt: jest.fn().mockResolvedValue(created),
+      createOwnedComplexCourt: jest.fn(),
+      getMyComplexHub: jest.fn()
+    } satisfies IComplexRepository;
+    const imageUploadRepository = createImageUploadRepository({
+      imageUpload:
+        ImageUploadEntity.fromPersistence({
+          id: 'court-image-id',
+          ownerSub: 'owner-sub',
+          ownerEmail: 'owner@example.test',
+          ownerName: 'Owner User',
+          ownerPictureUrl: 'https://example.test/owner.png',
+          ownerProvider: 'Google',
+          purpose: FilePurpose.CourtImage,
+          objectKey: 'dev/uploads/court-image/owner-sub/2026/06/court-image.png',
+          contentType: 'image/png',
+          sizeBytes: 512,
+          createdAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+    });
+    const useCase = new CreateComplexWithFirstCourtUseCase(repository, imageUploadRepository);
+
+    await expect(useCase.execute(authenticatedUser, requestWithCourtImage)).resolves.toEqual(created);
+    expect(imageUploadRepository.findById).toHaveBeenCalledWith('court-image-id');
+    expect(repository.createComplexWithFirstCourt).toHaveBeenCalledWith({
+      ownerIdentity: {
+        sub: 'owner-sub',
+        email: 'owner@example.test',
+        emailVerified: true,
+        name: 'Owner User',
+        pictureUrl: 'https://example.test/owner.png',
+        provider: 'Google'
+      },
+      complex: request.complex,
+      firstCourt: requestWithCourtImage.firstCourt
+    });
+  });
+
+  it('rejects a first-court image upload owned by another user', async () => {
+    const imageUploadRepository = createImageUploadRepository({
+      imageUpload:
+        ImageUploadEntity.fromPersistence({
+          id: 'court-image-id',
+          ownerSub: 'another-owner',
+          ownerEmail: 'owner@example.test',
+          ownerName: 'Owner User',
+          ownerPictureUrl: 'https://example.test/owner.png',
+          ownerProvider: 'Google',
+          purpose: FilePurpose.CourtImage,
+          objectKey: 'dev/uploads/court-image/another-owner/2026/06/court-image.png',
+          contentType: 'image/png',
+          sizeBytes: 512,
+          createdAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+    });
+    const useCase = new CreateComplexWithFirstCourtUseCase(
+      createComplexRepositoryDouble(),
+      imageUploadRepository
+    );
+
+    await expect(useCase.execute(authenticatedUser, requestWithCourtImage)).rejects.toBeInstanceOf(
+      InvalidCourtImageUploadError
+    );
+  });
+
+  it('rejects a first-court image upload with a non-court purpose', async () => {
+    const imageUploadRepository = createImageUploadRepository({
+      imageUpload:
+        ImageUploadEntity.fromPersistence({
+          id: 'court-image-id',
+          ownerSub: 'owner-sub',
+          ownerEmail: 'owner@example.test',
+          ownerName: 'Owner User',
+          ownerPictureUrl: 'https://example.test/owner.png',
+          ownerProvider: 'Google',
+          purpose: FilePurpose.ProfileImage,
+          objectKey: 'dev/uploads/profile-image/owner-sub/2026/06/profile-image.png',
+          contentType: 'image/png',
+          sizeBytes: 512,
+          createdAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+    });
+    const useCase = new CreateComplexWithFirstCourtUseCase(
+      createComplexRepositoryDouble(),
+      imageUploadRepository
+    );
+
+    await expect(useCase.execute(authenticatedUser, requestWithCourtImage)).rejects.toBeInstanceOf(
+      InvalidCourtImageUploadError
+    );
   });
 
   it('delegates the create endpoint to the use case', async () => {
@@ -391,6 +513,7 @@ describe('complexes module behavior', () => {
 
   it('loads the authenticated owner hub through the repository port', async () => {
     const repository = {
+      findCourtIdByImageUploadId: jest.fn(),
       createComplexWithFirstCourt: jest.fn(),
       createOwnedComplexCourt: jest.fn(),
       getMyComplexHub: jest.fn().mockResolvedValue(myHub)
@@ -408,11 +531,12 @@ describe('complexes module behavior', () => {
 
   it('forwards the add-court payload through the repository port', async () => {
     const repository = {
+      findCourtIdByImageUploadId: jest.fn().mockResolvedValue(null),
       createComplexWithFirstCourt: jest.fn(),
       createOwnedComplexCourt: jest.fn().mockResolvedValue(created.firstCourt),
       getMyComplexHub: jest.fn()
     } satisfies IComplexRepository;
-    const useCase = new CreateCourtForOwnedComplexUseCase(repository);
+    const useCase = new CreateCourtForOwnedComplexUseCase(repository, createImageUploadRepository());
 
     await expect(useCase.execute(authenticatedUser, 'complex-id', request.firstCourt)).resolves.toEqual(
       created.firstCourt
@@ -424,6 +548,45 @@ describe('complexes module behavior', () => {
       },
       complexId: 'complex-id',
       court: request.firstCourt
+    });
+  });
+
+  it('forwards a validated image upload id when adding a court to an owned complex', async () => {
+    const repository = {
+      findCourtIdByImageUploadId: jest.fn().mockResolvedValue(null),
+      createComplexWithFirstCourt: jest.fn(),
+      createOwnedComplexCourt: jest.fn().mockResolvedValue(created.firstCourt),
+      getMyComplexHub: jest.fn()
+    } satisfies IComplexRepository;
+    const imageUploadRepository = createImageUploadRepository({
+      imageUpload:
+        ImageUploadEntity.fromPersistence({
+          id: 'court-image-id',
+          ownerSub: 'owner-sub',
+          ownerEmail: 'owner@example.test',
+          ownerName: 'Owner User',
+          ownerPictureUrl: 'https://example.test/owner.png',
+          ownerProvider: 'Google',
+          purpose: FilePurpose.CourtImage,
+          objectKey: 'dev/uploads/court-image/owner-sub/2026/06/court-image.png',
+          contentType: 'image/png',
+          sizeBytes: 512,
+          createdAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+    });
+    const useCase = new CreateCourtForOwnedComplexUseCase(repository, imageUploadRepository);
+
+    await expect(
+      useCase.execute(authenticatedUser, 'complex-id', requestWithCourtImage.firstCourt)
+    ).resolves.toEqual(created.firstCourt);
+    expect(imageUploadRepository.findById).toHaveBeenCalledWith('court-image-id');
+    expect(repository.createOwnedComplexCourt).toHaveBeenCalledWith({
+      ownerIdentity: {
+        sub: 'owner-sub',
+        provider: 'Google'
+      },
+      complexId: 'complex-id',
+      court: requestWithCourtImage.firstCourt
     });
   });
 
@@ -531,6 +694,66 @@ describe('complexes module behavior', () => {
       { courtId: 'court-id', serviceCatalogId: 'court-service-id' },
       { courtId: 'court-id', serviceCatalogId: 'grass-service-id' }
     ]);
+  });
+
+  it('persists the optional first-court image upload association when present', async () => {
+    const harness = createRepositoryHarness();
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createComplexWithFirstCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          email: 'owner@example.test',
+          emailVerified: true,
+          name: 'Owner User',
+          pictureUrl: 'https://example.test/owner.png',
+          provider: 'Google'
+        },
+        complex: request.complex,
+        firstCourt: requestWithCourtImage.firstCourt
+      })
+    ).resolves.toEqual(created);
+
+    const transactionClient = harness.transactionClients[0];
+    expect(transactionClient.court.create).toHaveBeenCalledWith({
+      data: {
+        complexId: 'complex-id',
+        name: 'Court A',
+        imageUploadId: 'court-image-id'
+      }
+    });
+  });
+
+  it('rejects a first-court image upload already assigned to another court', async () => {
+    const repository = {
+      findCourtIdByImageUploadId: jest.fn().mockResolvedValue('existing-court-id'),
+      createComplexWithFirstCourt: jest.fn(),
+      createOwnedComplexCourt: jest.fn(),
+      getMyComplexHub: jest.fn()
+    } satisfies IComplexRepository;
+    const imageUploadRepository = createImageUploadRepository({
+      imageUpload:
+        ImageUploadEntity.fromPersistence({
+          id: 'court-image-id',
+          ownerSub: 'owner-sub',
+          ownerEmail: 'owner@example.test',
+          ownerName: 'Owner User',
+          ownerPictureUrl: 'https://example.test/owner.png',
+          ownerProvider: 'Google',
+          purpose: FilePurpose.CourtImage,
+          objectKey: 'dev/uploads/court-image/owner-sub/2026/06/court-image.png',
+          contentType: 'image/png',
+          sizeBytes: 512,
+          createdAt: new Date('2026-06-20T00:00:00.000Z')
+        })
+    });
+    const useCase = new CreateComplexWithFirstCourtUseCase(repository, imageUploadRepository);
+
+    await expect(useCase.execute(authenticatedUser, requestWithCourtImage)).rejects.toBeInstanceOf(
+      InvalidCourtImageUploadError
+    );
+    expect(repository.createComplexWithFirstCourt).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown province without creating identity or owner role side effects', async () => {
@@ -652,6 +875,49 @@ describe('complexes module behavior', () => {
         { courtId: 'court-id', serviceCatalogId: 'grass-service-id' }
       ]
     });
+  });
+
+  it('persists the optional image upload association when adding one more court', async () => {
+    const harness = createRepositoryHarness();
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createOwnedComplexCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'complex-id',
+        court: requestWithCourtImage.firstCourt
+      })
+    ).resolves.toEqual(created.firstCourt);
+
+    const transactionClient = harness.transactionClients[0];
+    expect(transactionClient.court.create).toHaveBeenCalledWith({
+      data: {
+        complexId: 'complex-id',
+        name: 'Court A',
+        imageUploadId: 'court-image-id'
+      }
+    });
+  });
+
+  it('maps a reused court image unique constraint to a stable validation error', async () => {
+    const harness = createRepositoryHarness({
+      failCourtCreateWithImageUploadUniqueConstraint: true
+    });
+    const repository = new PrismaComplexRepository(harness.prisma as never);
+
+    await expect(
+      repository.createOwnedComplexCourt({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'complex-id',
+        court: requestWithCourtImage.firstCourt
+      })
+    ).rejects.toBeInstanceOf(InvalidCourtImageUploadError);
   });
 
   it('rejects add-court when the complex does not belong to the authenticated owner', async () => {
@@ -928,5 +1194,24 @@ function createMyHubRepositoryHarness() {
         findMany
       }
     }
+  };
+}
+
+function createComplexRepositoryDouble(): IComplexRepository {
+  return {
+    findCourtIdByImageUploadId: jest.fn().mockResolvedValue(null),
+    createComplexWithFirstCourt: jest.fn(),
+    createOwnedComplexCourt: jest.fn(),
+    getMyComplexHub: jest.fn()
+  };
+}
+
+function createImageUploadRepository(options?: {
+  imageUpload?: ImageUploadEntity | null;
+}): jest.Mocked<IImageUploadRepository> {
+  return {
+    findById: jest.fn().mockResolvedValue(options?.imageUpload ?? null),
+    saveConfirmedUpload: jest.fn(),
+    listRecent: jest.fn()
   };
 }

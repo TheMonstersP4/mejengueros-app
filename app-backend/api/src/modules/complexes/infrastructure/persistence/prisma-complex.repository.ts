@@ -7,6 +7,7 @@ import {
 } from '../../../users/infrastructure/provisioning/demo-owner-role-provisioning';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { ComplexNotFoundForOwnerError } from '../../domain/errors/complex-not-found-for-owner.error';
+import { InvalidCourtImageUploadError } from '../../domain/errors/invalid-court-image-upload.error';
 import { InvalidComplexLocationError } from '../../domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '../../domain/errors/invalid-service-catalog-selection.error';
 import type {
@@ -43,6 +44,7 @@ interface IComplexPersistenceTransactionClient
     create: PrismaService['complex']['create'];
   };
   court: {
+    findFirst: PrismaService['court']['findFirst'];
     create: PrismaService['court']['create'];
   };
   complexService: {
@@ -60,6 +62,9 @@ interface IComplexPersistenceClient {
   complex: {
     findMany: PrismaService['complex']['findMany'];
   };
+  court: {
+    findFirst: PrismaService['court']['findFirst'];
+  };
 }
 
 /**
@@ -71,6 +76,20 @@ export class PrismaComplexRepository implements IComplexRepository {
     @Inject(PrismaService)
     private readonly prisma: IComplexPersistenceClient
   ) {}
+
+  async findCourtIdByImageUploadId(imageUploadId: string): Promise<string | null> {
+    const court = await this.prisma.court.findFirst({
+      where: {
+        imageUploadId,
+        deletedAt: null
+      },
+      select: {
+        id: true
+      }
+    });
+
+    return court?.id ?? null;
+  }
 
   async createComplexWithFirstCourt(
     command: ICreateComplexWithFirstCourtCommand
@@ -138,12 +157,25 @@ export class PrismaComplexRepository implements IComplexRepository {
             });
           }
 
-          const firstCourt = await transaction.court.create({
-            data: {
-              complexId: complex.id,
-              name: command.firstCourt.name
+          let firstCourt;
+
+          try {
+            firstCourt = await transaction.court.create({
+              data: {
+                complexId: complex.id,
+                name: command.firstCourt.name,
+                imageUploadId: command.firstCourt.imageUploadId
+              }
+            });
+          } catch (error) {
+            if (this.isCourtImageUploadUniqueConstraint(error)) {
+              throw InvalidCourtImageUploadError.alreadyAssigned(
+                command.firstCourt.imageUploadId ?? ''
+              );
             }
-          });
+
+            throw error;
+          }
 
           if (courtServiceIds.length > 0) {
             await transaction.courtService.createMany({
@@ -224,12 +256,23 @@ export class PrismaComplexRepository implements IComplexRepository {
         command.court.serviceIds
       );
 
-      const court = await transaction.court.create({
-        data: {
-          complexId: ownedComplex.id,
-          name: command.court.name
+      let court;
+
+      try {
+        court = await transaction.court.create({
+          data: {
+            complexId: ownedComplex.id,
+            name: command.court.name,
+            imageUploadId: command.court.imageUploadId
+          }
+        });
+      } catch (error) {
+        if (this.isCourtImageUploadUniqueConstraint(error)) {
+          throw InvalidCourtImageUploadError.alreadyAssigned(command.court.imageUploadId ?? '');
         }
-      });
+
+        throw error;
+      }
 
       if (courtServiceIds.length > 0) {
         await transaction.courtService.createMany({
@@ -380,6 +423,26 @@ export class PrismaComplexRepository implements IComplexRepository {
       'code' in error &&
       error.code === 'P2002'
     );
+  }
+
+  private isCourtImageUploadUniqueConstraint(
+    error: unknown
+  ): error is { code: 'P2002'; meta?: { target?: string[] | string } } {
+    if (!this.isPrismaUniqueConstraintError(error)) {
+      return false;
+    }
+
+    if (typeof error !== 'object' || error == null || !('meta' in error)) {
+      return false;
+    }
+
+    const target = (error as { meta?: { target?: string[] | string } }).meta?.target;
+
+    if (Array.isArray(target)) {
+      return target.includes('imageUploadId');
+    }
+
+    return target === 'imageUploadId';
   }
 
   private toHubCourtSnapshot(

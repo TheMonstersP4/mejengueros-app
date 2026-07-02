@@ -97,26 +97,26 @@ export class ImageUploadPolicyService {
     contentType: string;
     sizeBytes: number;
   }): IValidatedImageUploadIntent {
-    if (input.purpose !== FilePurpose.ProfileImage) {
-      throw new InvalidFilePurposeError(input.purpose);
-    }
+    const purpose = this.resolveAllowedPurpose(input.purpose);
 
     if (!this.allowedMimeTypes.has(input.contentType)) {
       throw new UnsupportedFileTypeError(input.contentType);
     }
 
-    if (input.sizeBytes > this.options.profileImageMaxBytes) {
+    const maxSizeBytes = this.maxSizeBytesFor();
+
+    if (input.sizeBytes > maxSizeBytes) {
       throw new FileTooLargeError(
         input.sizeBytes,
-        this.options.profileImageMaxBytes
+        maxSizeBytes
       );
     }
 
     return {
-      purpose: FilePurpose.ProfileImage,
+      purpose,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
-      maxSizeBytes: this.options.profileImageMaxBytes
+      maxSizeBytes
     };
   }
 
@@ -172,10 +172,12 @@ export class ImageUploadPolicyService {
       throw new UnsupportedFileTypeError(input.detectedContentType ?? 'unknown');
     }
 
-    if (input.sizeBytes > this.options.profileImageMaxBytes) {
+    const maxSizeBytes = this.maxSizeBytesFor();
+
+    if (input.sizeBytes > maxSizeBytes) {
       throw new FileTooLargeError(
         input.sizeBytes,
-        this.options.profileImageMaxBytes
+        maxSizeBytes
       );
     }
 
@@ -198,17 +200,31 @@ export class ImageUploadPolicyService {
     ownerId: string;
     objectKey: string;
   }): FilePurpose {
-    if (input.purpose !== FilePurpose.ProfileImage) {
-      throw new InvalidFilePurposeError(input.purpose);
-    }
+    const purpose = this.resolveAllowedPurpose(input.purpose);
 
     this.validateObjectKeyOwnership({
-      purpose: FilePurpose.ProfileImage,
+      purpose,
       ownerId: input.ownerId,
       objectKey: input.objectKey
     });
 
-    return FilePurpose.ProfileImage;
+    return purpose;
+  }
+
+  private resolveAllowedPurpose(purpose: string): FilePurpose {
+    if (purpose === FilePurpose.ProfileImage) {
+      return FilePurpose.ProfileImage;
+    }
+
+    if (purpose === FilePurpose.CourtImage) {
+      return FilePurpose.CourtImage;
+    }
+
+    throw new InvalidFilePurposeError(purpose);
+  }
+
+  private maxSizeBytesFor(): number {
+    return this.options.profileImageMaxBytes;
   }
 
   private validateObjectKeyOwnership(input: {

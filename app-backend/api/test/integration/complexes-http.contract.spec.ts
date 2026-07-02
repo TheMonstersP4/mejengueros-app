@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import type { ITokenVerifierPort } from '@/modules/auth/application/ports/token-verifier.port';
 import { TOKEN_VERIFIER_PORT } from '@/modules/auth/application/ports/token-verifier.port';
 import { configureValidation } from '@/bootstrap/validation';
+import { FilePurpose } from '@/modules/files/domain/enums/file-purpose.enum';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
@@ -47,6 +48,12 @@ describe('complex wizard HTTP contract', () => {
     ]
   };
   const ownedComplexId = '7b9d0b87-9e3d-4b43-b5a7-50f79d82fd40';
+  const validCourtImageUploadId = '9f6b4f0f-5f5a-4d8d-8c5e-2b2e7b0f6a3c';
+  const wrongOwnerImageUploadId = '7a4d9ef5-6be0-47b4-a726-2c6df8a64ce4';
+  const wrongPurposeImageUploadId = 'c5d03ef0-8efc-4d06-a8fb-48ae624e28c2';
+  const unknownImageUploadId = '86ea60ec-08c1-48ae-bc64-f63b7a991d9c';
+  const malformedImageUploadId = 'not-a-uuid';
+  const alreadyAssignedImageUploadId = '6f554321-6df0-43c4-b310-f3d7e6bf00a1';
 
   let app: NestFastifyApplication;
   let prismaService: ReturnType<typeof createPrismaMock>;
@@ -362,6 +369,7 @@ describe('complex wizard HTTP contract', () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(prismaService.imageUpload.findUnique).not.toHaveBeenCalled();
     expect(transactionClient.complex.findFirst).toHaveBeenCalledWith({
       where: {
         id: ownedComplexId,
@@ -400,6 +408,36 @@ describe('complex wizard HTTP contract', () => {
       errors: [],
       meta: expect.objectContaining({
         path: `/v1/complexes/${ownedComplexId}/courts`
+      })
+    });
+  });
+
+  it('accepts and forwards a confirmed court image upload when adding a court', async () => {
+    const state = createTransactionalState();
+    const transactionClient = createTransactionClient(state);
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        ...addCourtPayload,
+        imageUploadId: validCourtImageUploadId
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(prismaService.imageUpload.findUnique).toHaveBeenCalledWith({
+      where: { id: validCourtImageUploadId }
+    });
+    expect(transactionClient.court.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        complexId: ownedComplexId,
+        name: addCourtPayload.name,
+        imageUploadId: validCourtImageUploadId
       })
     });
   });
@@ -548,6 +586,7 @@ describe('complex wizard HTTP contract', () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(prismaService.imageUpload.findUnique).not.toHaveBeenCalled();
     expect(state.complexServices).toEqual([
       { complexId: 'complex-id', serviceCatalogId: 'd76a5f20-83f0-4538-a1c8-4f7b60d0f4be' }
     ]);
@@ -589,6 +628,293 @@ describe('complex wizard HTTP contract', () => {
         path: '/v1/complexes'
       })
     });
+  });
+
+  it('accepts and forwards a confirmed court image upload when creating a complex', async () => {
+    const state = createTransactionalState();
+    const transactionClient = createTransactionClient(state);
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/complexes',
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          imageUploadId: validCourtImageUploadId
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(prismaService.imageUpload.findUnique).toHaveBeenCalledWith({
+      where: { id: validCourtImageUploadId }
+    });
+    expect(transactionClient.court.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        complexId: 'complex-id',
+        name: requestPayload.firstCourt.name,
+        imageUploadId: validCourtImageUploadId
+      })
+    });
+  });
+
+  it.each([
+    {
+      name: 'rejects a malformed court image upload id while creating a complex',
+      url: '/v1/complexes',
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          imageUploadId: malformedImageUploadId
+        }
+      },
+      path: '/v1/complexes'
+    },
+    {
+      name: 'rejects a malformed court image upload id while adding a court',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      payload: {
+        ...addCourtPayload,
+        imageUploadId: malformedImageUploadId
+      },
+      path: `/v1/complexes/${ownedComplexId}/courts`
+    }
+  ])('$name', async ({ url, payload, path }) => {
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.imageUpload.findUnique).not.toHaveBeenCalled();
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ],
+        meta: expect.objectContaining({ path })
+      })
+    );
+  });
+
+  it.each([
+    {
+      name: 'rejects an unknown court image upload while creating a complex',
+      url: '/v1/complexes',
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          imageUploadId: unknownImageUploadId
+        }
+      },
+      path: '/v1/complexes'
+    },
+    {
+      name: 'rejects an unknown court image upload while adding a court',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      payload: {
+        ...addCourtPayload,
+        imageUploadId: unknownImageUploadId
+      },
+      path: `/v1/complexes/${ownedComplexId}/courts`
+    }
+  ])('$name', async ({ url, payload, path }) => {
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400,
+            message:
+              'La imagen seleccionada para la cancha debe ser una carga confirmada del usuario autenticado.'
+          })
+        ],
+        meta: expect.objectContaining({ path })
+      })
+    );
+  });
+
+  it.each([
+    {
+      name: 'rejects a reused court image upload while creating a complex',
+      url: '/v1/complexes',
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          imageUploadId: alreadyAssignedImageUploadId
+        }
+      },
+      path: '/v1/complexes'
+    },
+    {
+      name: 'rejects a reused court image upload while adding a court',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      payload: {
+        ...addCourtPayload,
+        imageUploadId: alreadyAssignedImageUploadId
+      },
+      path: `/v1/complexes/${ownedComplexId}/courts`
+    }
+  ])('$name', async ({ url, payload, path }) => {
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400,
+            message:
+              'La imagen seleccionada para la cancha debe ser una carga confirmada del usuario autenticado.'
+          })
+        ],
+        meta: expect.objectContaining({ path })
+      })
+    );
+  });
+
+  it.each([
+    {
+      name: 'rejects another owner court image upload while creating a complex',
+      url: '/v1/complexes',
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          imageUploadId: wrongOwnerImageUploadId
+        }
+      },
+      path: '/v1/complexes'
+    },
+    {
+      name: 'rejects another owner court image upload while adding a court',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      payload: {
+        ...addCourtPayload,
+        imageUploadId: wrongOwnerImageUploadId
+      },
+      path: `/v1/complexes/${ownedComplexId}/courts`
+    }
+  ])('$name', async ({ url, payload, path }) => {
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400,
+            message:
+              'La imagen seleccionada para la cancha debe ser una carga confirmada del usuario autenticado.'
+          })
+        ],
+        meta: expect.objectContaining({ path })
+      })
+    );
+  });
+
+  it.each([
+    {
+      name: 'rejects a non court-image upload while creating a complex',
+      url: '/v1/complexes',
+      payload: {
+        ...requestPayload,
+        firstCourt: {
+          ...requestPayload.firstCourt,
+          imageUploadId: wrongPurposeImageUploadId
+        }
+      },
+      path: '/v1/complexes'
+    },
+    {
+      name: 'rejects a non court-image upload while adding a court',
+      url: `/v1/complexes/${ownedComplexId}/courts`,
+      payload: {
+        ...addCourtPayload,
+        imageUploadId: wrongPurposeImageUploadId
+      },
+      path: `/v1/complexes/${ownedComplexId}/courts`
+    }
+  ])('$name', async ({ url, payload, path }) => {
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.$transaction).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400,
+            message:
+              'La imagen seleccionada para la cancha debe ser una carga confirmada del usuario autenticado.'
+          })
+        ],
+        meta: expect.objectContaining({ path })
+      })
+    );
   });
 
   it('rejects a canton that does not belong to the selected province', async () => {
@@ -774,6 +1100,52 @@ describe('complex wizard HTTP contract', () => {
           }
         ])
       },
+      court: {
+        findFirst: jest.fn().mockImplementation(async ({ where }: { where: { imageUploadId?: string } }) => {
+          if (where.imageUploadId === alreadyAssignedImageUploadId) {
+            return { id: 'existing-court-id' };
+          }
+
+          return null;
+        })
+      },
+      imageUpload: {
+        findUnique: jest.fn().mockImplementation(async ({ where }: { where: { id: string } }) => {
+          if (where.id === validCourtImageUploadId) {
+            return createImageUploadRecord({
+              id: validCourtImageUploadId,
+              ownerSub: 'owner-sub',
+              purpose: FilePurpose.CourtImage
+            });
+          }
+
+          if (where.id === wrongOwnerImageUploadId) {
+            return createImageUploadRecord({
+              id: wrongOwnerImageUploadId,
+              ownerSub: 'other-owner-sub',
+              purpose: FilePurpose.CourtImage
+            });
+          }
+
+          if (where.id === wrongPurposeImageUploadId) {
+            return createImageUploadRecord({
+              id: wrongPurposeImageUploadId,
+              ownerSub: 'owner-sub',
+              purpose: FilePurpose.ProfileImage
+            });
+          }
+
+          if (where.id === alreadyAssignedImageUploadId) {
+            return createImageUploadRecord({
+              id: alreadyAssignedImageUploadId,
+              ownerSub: 'owner-sub',
+              purpose: FilePurpose.CourtImage
+            });
+          }
+
+          return null;
+        })
+      },
       onModuleInit: jest.fn(),
       onModuleDestroy: jest.fn()
     };
@@ -853,6 +1225,13 @@ describe('complex wizard HTTP contract', () => {
         })
       },
       court: {
+        findFirst: jest.fn().mockImplementation(async ({ where }: { where: { imageUploadId?: string } }) => {
+          if (where.imageUploadId === alreadyAssignedImageUploadId) {
+            return { id: 'existing-court-id' };
+          }
+
+          return null;
+        }),
         create: jest.fn().mockImplementation(async ({ data }: { data: { complexId: string; name: string } }) => ({
           id: 'court-id',
           complexId: data.complexId,
@@ -874,6 +1253,26 @@ describe('complex wizard HTTP contract', () => {
           return { count: data.length };
         })
       }
+    };
+  }
+
+  function createImageUploadRecord(input: {
+    id: string;
+    ownerSub: string;
+    purpose: FilePurpose;
+  }) {
+    return {
+      id: input.id,
+      ownerSub: input.ownerSub,
+      ownerEmail: 'owner@example.test',
+      ownerName: 'Owner User',
+      ownerPictureUrl: 'https://example.test/owner.png',
+      ownerProvider: 'Google',
+      purpose: input.purpose,
+      objectKey: `test/uploads/${input.purpose}/${input.ownerSub}/2026/06/file.jpg`,
+      contentType: 'image/jpeg',
+      sizeBytes: 512,
+      createdAt: new Date('2026-06-20T00:00:00.000Z')
     };
   }
 });

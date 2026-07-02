@@ -11,6 +11,11 @@ import { ImageUploadPersistenceUnavailableError } from '../errors/image-upload-p
  */
 @Injectable()
 export class DisabledImageUploadRepository implements IImageUploadRepository {
+  findById(id: string): Promise<ImageUploadEntity | null> {
+    void id;
+    throw new ImageUploadPersistenceUnavailableError();
+  }
+
   /**
    * Fails because confirmed upload metadata requires a database connection.
    *
@@ -32,7 +37,8 @@ export class DisabledImageUploadRepository implements IImageUploadRepository {
    * @returns Never resolves successfully.
    * @throws ImageUploadPersistenceUnavailableError when DB is disabled.
    */
-  listRecent(limit: number): Promise<ImageUploadEntity[]> {
+  listRecent(ownerSub: string, limit: number): Promise<ImageUploadEntity[]> {
+    void ownerSub;
     void limit;
     throw new ImageUploadPersistenceUnavailableError();
   }

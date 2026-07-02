@@ -18,6 +18,14 @@ export class PrismaImageUploadRepository implements IImageUploadRepository {
     private readonly prisma: PrismaService
   ) {}
 
+  async findById(id: string): Promise<ImageUploadEntity | null> {
+    const imageUpload = await this.prisma.imageUpload.findUnique({
+      where: { id }
+    });
+
+    return imageUpload == null ? null : ImageUploadMapper.toDomain(imageUpload);
+  }
+
   /**
    * Creates or updates metadata for a confirmed image upload.
    *
@@ -49,8 +57,9 @@ export class PrismaImageUploadRepository implements IImageUploadRepository {
    * @param limit - Maximum number of images to return.
    * @returns Image upload entities ordered by recent creation.
    */
-  async listRecent(limit: number): Promise<ImageUploadEntity[]> {
+  async listRecent(ownerSub: string, limit: number): Promise<ImageUploadEntity[]> {
     const imageUploads: ImageUpload[] = await this.prisma.imageUpload.findMany({
+      where: { ownerSub },
       orderBy: { createdAt: 'desc' },
       take: limit
     });

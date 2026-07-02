@@ -18,6 +18,7 @@ describe('ConfirmUploadUseCase', () => {
 
   function createRepository(): jest.Mocked<IImageUploadRepository> {
     return {
+      findById: jest.fn(),
       saveConfirmedUpload: jest.fn().mockResolvedValue(
         ImageUploadEntity.fromPersistence({
           id: 'image-id',
@@ -92,6 +93,65 @@ describe('ConfirmUploadUseCase', () => {
       objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg',
       contentType: 'image/jpeg',
       sizeBytes: 512
+    });
+  });
+
+  it('confirms an uploaded court image when storage metadata is valid', async () => {
+    const storage = {
+      createPresignedUploadUrl: jest.fn(),
+      inspectUploadedObject: jest.fn().mockResolvedValue({
+        contentType: 'image/png',
+        sizeBytes: 512,
+        detectedContentType: 'image/png'
+      }),
+      createPresignedReadUrl: jest.fn().mockResolvedValue({
+        readUrl: 'https://read.example.test/court.png'
+      })
+    } satisfies IFileStoragePort;
+    const repository = createRepository();
+    repository.saveConfirmedUpload.mockResolvedValueOnce(
+      ImageUploadEntity.fromPersistence({
+        id: 'court-image-id',
+        ownerSub: 'cognito-sub',
+        ownerEmail: 'user@example.test',
+        ownerName: 'User Name',
+        ownerPictureUrl: 'https://example.test/avatar.png',
+        ownerProvider: 'Google',
+        purpose: FilePurpose.CourtImage,
+        objectKey: 'dev/uploads/court-image/cognito-sub/2026/06/court.png',
+        contentType: 'image/png',
+        sizeBytes: 512,
+        createdAt: new Date('2026-06-11T00:00:00.000Z')
+      })
+    );
+    const useCase = new ConfirmUploadUseCase(storage, createPolicy(), repository, 300);
+
+    await expect(
+      useCase.execute({
+        ownerSub: 'cognito-sub',
+        ownerEmail: 'user@example.test',
+        ownerName: 'User Name',
+        ownerPictureUrl: 'https://example.test/avatar.png',
+        ownerProvider: 'Google',
+        purpose: FilePurpose.CourtImage,
+        objectKey: 'dev/uploads/court-image/cognito-sub/2026/06/court.png'
+      })
+    ).resolves.toEqual({
+      id: 'court-image-id',
+      objectKey: 'dev/uploads/court-image/cognito-sub/2026/06/court.png',
+      purpose: FilePurpose.CourtImage,
+      status: 'ready',
+      contentType: 'image/png',
+      sizeBytes: 512,
+      readUrl: 'https://read.example.test/court.png',
+      createdAt: '2026-06-11T00:00:00.000Z',
+      uploadedBy: {
+        sub: 'cognito-sub',
+        email: 'user@example.test',
+        name: 'User Name',
+        pictureUrl: 'https://example.test/avatar.png',
+        provider: 'Google'
+      }
     });
   });
 
