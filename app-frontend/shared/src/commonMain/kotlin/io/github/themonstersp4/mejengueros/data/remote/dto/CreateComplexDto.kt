@@ -23,7 +23,10 @@ data class CreateComplexRequestPayloadDto(
 @Serializable
 data class CreateCourtRequestPayloadDto(val name: String, val serviceIds: List<String>)
 
-@Serializable data class CreateCourtEnvelopeDto(val success: Boolean, val data: CreatedCourtDto?)
+@Serializable data class CreatedCourtEnvelopeDataDto(val court: CreatedCourtDto)
+
+@Serializable
+data class CreateCourtEnvelopeDto(val success: Boolean, val data: CreatedCourtEnvelopeDataDto?)
 
 @Serializable
 data class ProvinceCatalogEnvelopeDto(
