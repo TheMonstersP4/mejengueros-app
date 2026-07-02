@@ -30,6 +30,7 @@ fun rememberAuthenticatedNavigationState(
         mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
       }
   val myComplexHubReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
+  val viewingAsPlayerState = rememberSaveable { mutableStateOf(false) }
 
   return remember(
       searchBackStack,
@@ -39,6 +40,7 @@ fun rememberAuthenticatedNavigationState(
       selectedRouteState,
       ownerCourtAvailabilityEntrypointState,
       myComplexHubReloadRequestKeyState,
+      viewingAsPlayerState,
   ) {
     normalizeRestoredAuthenticatedNavigationState(
         savedSelectedRouteName = selectedRouteState.savedRouteName,
@@ -57,6 +59,7 @@ fun rememberAuthenticatedNavigationState(
         myComplexBackStack = myComplexBackStack,
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
         myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
+        viewingAsPlayerState = viewingAsPlayerState,
     )
   }
 }
@@ -291,9 +294,15 @@ class AuthenticatedNavigationState(
     private val ownerCourtAvailabilityEntrypointState:
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
     private val myComplexHubReloadRequestKeyState: MutableState<Int>,
+    private val viewingAsPlayerState: MutableState<Boolean>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
+
+  // True when an owner is temporarily viewing the app in mejenguero (player) mode.
+  // Non-owners are unaffected — this flag is only meaningful when isOwner is true.
+  val viewingAsPlayer: Boolean
+    get() = viewingAsPlayerState.value
 
   val ownerCourtAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint?
     get() = ownerCourtAvailabilityEntrypointState.value
@@ -446,9 +455,22 @@ class AuthenticatedNavigationState(
     }
   }
 
+  // Owner switches to the mejenguero (player) shell and lands on Buscar.
+  fun switchToPlayerView() {
+    viewingAsPlayerState.value = true
+    selectedRoute = AuthenticatedTopLevelRoute.Search
+  }
+
+  // Owner returns to the owner shell (drawer) and lands on Mi complejo.
+  fun switchToOwnerView() {
+    viewingAsPlayerState.value = false
+    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+  }
+
   fun reset() {
     ownerCourtAvailabilityEntrypointState.value = null
     myComplexHubReloadRequestKeyState.value = 0
+    viewingAsPlayerState.value = false
     selectedRoute = AuthenticatedTopLevelRoute.Search
     searchBackStack.clear()
     searchBackStack.add(SearchRoute)

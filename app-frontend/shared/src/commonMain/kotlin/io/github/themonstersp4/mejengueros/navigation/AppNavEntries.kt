@@ -245,6 +245,9 @@ internal fun SearchCatalogEntryContent(
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       title = "Buscar",
   ) { contentPadding ->
     HomeScreen(
@@ -305,6 +308,9 @@ internal fun CatalogCourtDetailEntryContent(
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = route.complexName,
   ) { contentPadding ->
@@ -347,6 +353,9 @@ internal fun CatalogReservationEntry(
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Reserva",
   ) { contentPadding ->
@@ -369,6 +378,9 @@ private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       title = "Reservas",
   ) { contentPadding ->
     ProductPlaceholderScreen(
@@ -390,6 +402,9 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       title = "Notificaciones",
   ) { contentPadding ->
     ProductPlaceholderScreen(
@@ -425,6 +440,9 @@ private fun MyComplexEntry(
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       title = "Mi complejo",
   ) { contentPadding ->
     MyComplexEntryContent(
@@ -478,6 +496,9 @@ private fun ComplexDetailEntry(
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Mi complejo",
   ) { contentPadding ->
@@ -547,6 +568,9 @@ internal fun AddCourtEntryContent(
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Agregar cancha",
   ) { contentPadding ->
@@ -633,6 +657,9 @@ private fun CreateComplexEntry(
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Mi complejo",
       overlayVisible = locationPickerCoordinator.isOpen,
@@ -700,6 +727,9 @@ internal fun CourtAvailabilityEntryContent(
       onMyComplexSelected = shellActions.returnToMyComplexRoot,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = state.appBarTitle,
   ) { contentPadding ->
