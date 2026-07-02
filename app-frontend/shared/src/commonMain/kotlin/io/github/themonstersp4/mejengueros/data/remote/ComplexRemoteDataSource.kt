@@ -151,7 +151,11 @@ class ComplexRemoteDataSource(
                   message = "No se recibió la respuesta esperada del API.",
               )
 
-      return CreatedCourt(id = data.id, complexId = data.complexId, name = data.name)
+      return CreatedCourt(
+          id = data.court.id,
+          complexId = data.court.complexId,
+          name = data.court.name,
+      )
     } catch (error: ResponseException) {
       throw error.toAppApiException(json)
     }
