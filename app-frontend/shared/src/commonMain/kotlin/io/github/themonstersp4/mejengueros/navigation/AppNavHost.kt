@@ -1,17 +1,22 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
+import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 internal fun appNavigationSerializersModule(): SerializersModule = SerializersModule {
@@ -51,7 +56,24 @@ fun AppNavHost() {
   val authenticatedNavigationState =
       rememberAuthenticatedNavigationState(appNavigationSavedStateConfiguration)
   val authViewModel = koinViewModel<AuthViewModel>()
+  val secureStorage = koinInject<IAuthSecureStorage>()
   val authState by authViewModel.uiState.collectAsState()
+  val coroutineScope = rememberCoroutineScope()
+  val ownerViewPreferenceCoordinator =
+      remember(authenticatedNavigationState, secureStorage, coroutineScope) {
+        OwnerViewPreferenceCoordinator(
+            navigationState = authenticatedNavigationState,
+            secureStorage = secureStorage,
+            coroutineScope = coroutineScope,
+        )
+      }
+
+  LaunchedEffect(authState.isAuthenticated, authState.isOwner, authState.userId) {
+    ownerViewPreferenceCoordinator.hydrate(authState)
+  }
+
+  val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
+  val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
 
   val loginActions =
       LoginNavigationActions(
@@ -103,13 +125,14 @@ fun AppNavHost() {
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,
           signOut = {
             authViewModel.signOut()
+            authenticatedNavigationState.clearOwnerViewPreferenceHydration()
             authenticatedNavigationState.reset()
             loginBackStack.clear()
             loginBackStack.add(LoginRoute)
           },
           refreshOwnerRole = authViewModel::refreshProfileAfterOwnerTransition,
-          switchToPlayerView = authenticatedNavigationState::switchToPlayerView,
-          switchToOwnerView = authenticatedNavigationState::switchToOwnerView,
+          switchToPlayerView = switchToPlayerView,
+          switchToOwnerView = switchToOwnerView,
           isOwner = authState.isOwner,
           viewingAsPlayer = authenticatedNavigationState.viewingAsPlayer,
       )

@@ -170,8 +170,8 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithText("Mi complejo").assertExists()
     composeRule.onNodeWithText("Reservas").assertExists()
     composeRule.onNodeWithText("Reseñas").assertExists()
-    // View-mode switch item is present in the drawer
-    composeRule.onNodeWithText("Modo mejenguero").assertExists()
+    composeRule.onNodeWithText("Modo mejenguero").assertDoesNotExist()
+    composeRule.onNodeWithContentDescription("Modo mejenguero").assertExists()
     // Owner does NOT have bottom nav tabs
     composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
     composeRule.onNodeWithText("Buscar").assertDoesNotExist()
@@ -251,9 +251,9 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
   }
 
-  // (a) Owner default = drawer, drawer contains "Modo mejenguero"
+  // (a) Owner default = drawer, app bar contains "Modo mejenguero"
   @Test
-  fun ownerDefaultViewShowsDrawerWithModoMejengueroItem() {
+  fun ownerDefaultViewShowsDrawerWithModoMejengueroAppBarAction() {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
@@ -275,10 +275,37 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithText("Mi complejo").assertExists()
     composeRule.onNodeWithText("Reservas").assertExists()
     composeRule.onNodeWithText("Reseñas").assertExists()
-    composeRule.onNodeWithText("Modo mejenguero").assertExists()
+    composeRule.onNodeWithText("Modo mejenguero").assertDoesNotExist()
+    composeRule.onNodeWithContentDescription("Modo mejenguero").assertExists()
     // No bottom nav tabs
     composeRule.onNodeWithText("Buscar").assertDoesNotExist()
     composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
+  }
+
+  @Test
+  fun ownerShellTappingModoMejengueroCallsSwitchToPlayerView() {
+    var switchToPlayerViewCalls = 0
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = true,
+            viewingAsPlayer = false,
+            onSwitchToPlayerView = { switchToPlayerViewCalls += 1 },
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Modo mejenguero").assertExists().performClick()
+    composeRule.runOnIdle { assertEquals(1, switchToPlayerViewCalls) }
   }
 
   // (b) Owner after switchToPlayerView: bottom nav (3 tabs) + top bar shows "Mi complejo" action
@@ -309,7 +336,7 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithContentDescription("Mi complejo").assertExists()
     // Drawer items are not rendered
     composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
-    composeRule.onNodeWithText("Modo mejenguero").assertDoesNotExist()
+    composeRule.onNodeWithContentDescription("Modo mejenguero").assertDoesNotExist()
   }
 
   // (c) Owner in player view tapping "Mi complejo" calls switchToOwnerView
@@ -366,7 +393,7 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithContentDescription("Mi complejo").assertDoesNotExist()
     // No drawer items
     composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
-    composeRule.onNodeWithText("Modo mejenguero").assertDoesNotExist()
+    composeRule.onNodeWithContentDescription("Modo mejenguero").assertDoesNotExist()
   }
 
   @Test

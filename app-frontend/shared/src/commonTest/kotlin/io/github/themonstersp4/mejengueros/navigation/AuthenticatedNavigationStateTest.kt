@@ -3,9 +3,15 @@ package io.github.themonstersp4.mejengueros.navigation
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import io.github.themonstersp4.mejengueros.data.auth.AuthSecureStorageWriteException
+import io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AuthenticatedNavigationStateTest {
 
   private enum class LegacySelectedRoute {
@@ -493,23 +499,25 @@ class AuthenticatedNavigationStateTest {
 
   @Test
   fun switchToPlayerViewSetsViewingAsPlayerAndNavigatesToSearch() {
-    val state = testNavigationState()
+    val state = testNavigationState().apply { openCatalogCourtDetail(sampleCatalogDetailRoute()) }
 
     state.switchToPlayerView()
 
     assertEquals(true, state.viewingAsPlayer)
     assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
   }
 
   @Test
   fun switchToOwnerViewClearsViewingAsPlayerAndNavigatesToMyComplex() {
-    val state = testNavigationState()
+    val state = testNavigationState().apply { openComplexDetail("complex-id") }
 
     state.switchToPlayerView()
     state.switchToOwnerView()
 
     assertEquals(false, state.viewingAsPlayer)
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
   }
 
   @Test
@@ -600,6 +608,80 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun ownerPreferenceOwnerHydratesMyComplexRootOncePerUserSession() {
+    val state = testNavigationState().apply { openCatalogCourtDetail(sampleCatalogDetailRoute()) }
+
+    state.applyOwnerViewPreference(
+        userId = "owner-1",
+        isOwner = true,
+        preference = OwnerViewPreference.OWNER,
+    )
+
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+
+    state.switchToPlayerView()
+    state.applyOwnerViewPreference(
+        userId = "owner-1",
+        isOwner = true,
+        preference = OwnerViewPreference.OWNER,
+    )
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun ownerPreferencePlayerHydratesSearchRoot() {
+    val state = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    state.applyOwnerViewPreference(
+        userId = "owner-1",
+        isOwner = true,
+        preference = OwnerViewPreference.PLAYER,
+    )
+
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun nonOwnerIgnoresOwnerPreferenceAndLeavesSharedRouteOutsideOwnerShell() {
+    val state =
+        testNavigationState().apply {
+          switchToOwnerView()
+          selectReservations()
+        }
+
+    state.applyOwnerViewPreference(
+        userId = "player-1",
+        isOwner = false,
+        preference = OwnerViewPreference.OWNER,
+    )
+
+    assertEquals(AuthenticatedTopLevelRoute.Reservations, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(listOf(ReservationsRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun nonOwnerHydrationRedirectsOwnerShellToSearch() {
+    val state = testNavigationState().apply { switchToOwnerView() }
+
+    state.applyOwnerViewPreference(
+        userId = "player-1",
+        isOwner = false,
+        preference = OwnerViewPreference.OWNER,
+    )
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun switchToPlayerViewBumpsCatalogReloadKey() {
     val state = testNavigationState()
 
@@ -632,6 +714,148 @@ class AuthenticatedNavigationStateTest {
     assertEquals(0, state.catalogReloadRequestKey)
   }
 
+  @Test
+  fun coordinatorHydratesOwnerShellForStoredOwnerPreference() = runTest {
+    val state = testNavigationState().apply { openCatalogCourtDetail(sampleCatalogDetailRoute()) }
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences = mapOf("owner-1" to OwnerViewPreference.OWNER)
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(AuthStateFactory.owner(userId = "owner-1"))
+
+    assertEquals(listOf("owner-1"), storage.readUserIds)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun coordinatorHydratesPlayerShellForStoredPlayerPreference() = runTest {
+    val state = testNavigationState().apply { openComplexDetail("complex-id") }
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences = mapOf("owner-1" to OwnerViewPreference.PLAYER)
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(AuthStateFactory.owner(userId = "owner-1"))
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun coordinatorPersistsExplicitAppBarSwitchesPerAuthenticatedOwner() = runTest {
+    val state = testNavigationState()
+    val storage = RecordingOwnerViewPreferenceStorage()
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+    val ownerState = AuthStateFactory.owner(userId = " owner-1 ")
+
+    coordinator.switchToOwnerView(ownerState)
+    coordinator.switchToPlayerView(ownerState)
+    advanceUntilIdle()
+
+    assertEquals(
+        listOf(
+            SavedOwnerPreference(userId = " owner-1 ", preference = OwnerViewPreference.OWNER),
+            SavedOwnerPreference(userId = " owner-1 ", preference = OwnerViewPreference.PLAYER),
+        ),
+        storage.savedPreferences,
+    )
+    assertEquals(OwnerViewPreference.PLAYER, storage.getOwnerViewPreference("owner-1"))
+  }
+
+  @Test
+  fun coordinatorIgnoresOwnerPreferenceSaveFailuresWithoutCancellingSwitchFlow() = runTest {
+    val state = testNavigationState()
+    val storage = RecordingOwnerViewPreferenceStorage(throwOnSave = true)
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+    val ownerState = AuthStateFactory.owner(userId = "owner-1")
+
+    coordinator.switchToOwnerView(ownerState)
+    advanceUntilIdle()
+
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(false, state.viewingAsPlayer)
+
+    coordinator.switchToPlayerView(ownerState)
+    advanceUntilIdle()
+
+    assertEquals(
+        listOf(
+            SavedOwnerPreference(userId = "owner-1", preference = OwnerViewPreference.OWNER),
+            SavedOwnerPreference(userId = "owner-1", preference = OwnerViewPreference.PLAYER),
+        ),
+        storage.savedPreferences,
+    )
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(1, state.catalogReloadRequestKey)
+  }
+
+  @Test
+  fun coordinatorHydratesEachAuthenticatedUserFromOwnStoredPreference() = runTest {
+    val state = testNavigationState()
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences =
+                mapOf(
+                    "owner-1" to OwnerViewPreference.OWNER,
+                    "owner-2" to OwnerViewPreference.PLAYER,
+                )
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(AuthStateFactory.owner(userId = "owner-1"))
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+
+    coordinator.switchToOwnerView(AuthStateFactory.owner(userId = "owner-1"))
+    advanceUntilIdle()
+    coordinator.hydrate(AuthStateFactory.owner(userId = "owner-2"))
+
+    assertEquals(listOf("owner-1", "owner-2"), storage.readUserIds)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun coordinatorNonOwnerIgnoresStoredOwnerPreference() = runTest {
+    val state = testNavigationState().apply { switchToOwnerView() }
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences = mapOf("player-1" to OwnerViewPreference.OWNER)
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(AuthStateFactory.player(userId = "player-1"))
+
+    assertEquals(emptyList(), storage.readUserIds)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun sharedRouteNavigationDoesNotPersistOrOverwriteOwnerPreference() = runTest {
+    val state = testNavigationState()
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences = mapOf("owner-1" to OwnerViewPreference.PLAYER)
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(AuthStateFactory.owner(userId = "owner-1"))
+    state.selectReservations()
+    advanceUntilIdle()
+
+    assertEquals(emptyList(), storage.savedPreferences)
+    assertEquals(OwnerViewPreference.PLAYER, storage.getOwnerViewPreference("owner-1"))
+    assertEquals(AuthenticatedTopLevelRoute.Reservations, state.selectedRoute)
+    assertEquals(true, state.viewingAsPlayer)
+  }
+
   private fun testNavigationState(): AuthenticatedNavigationState =
       AuthenticatedNavigationState(
           selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
@@ -643,5 +867,77 @@ class AuthenticatedNavigationStateTest {
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
           catalogReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(true),
+          hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
       )
+
+  private fun sampleCatalogDetailRoute() =
+      CatalogCourtDetailRoute(
+          courtId = "court-id",
+          complexId = "complex-id",
+          complexName = "Mejengas CR",
+          courtName = "Cancha 1",
+      )
+
+  private data class SavedOwnerPreference(
+      val userId: String,
+      val preference: OwnerViewPreference,
+  )
+
+  private class RecordingOwnerViewPreferenceStorage(
+      ownerPreferences: Map<String, OwnerViewPreference> = emptyMap(),
+      private val throwOnSave: Boolean = false,
+  ) : io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage {
+    private val ownerViewPreferences = ownerPreferences.toMutableMap()
+    val readUserIds = mutableListOf<String>()
+    val savedPreferences = mutableListOf<SavedOwnerPreference>()
+
+    override suspend fun getSession() = error("Not used in this test")
+
+    override suspend fun saveSession(
+        session: io.github.themonstersp4.mejengueros.domain.model.AuthSession
+    ) = error("Not used in this test")
+
+    override suspend fun clearSession() = error("Not used in this test")
+
+    override suspend fun getOAuthState() = error("Not used in this test")
+
+    override suspend fun saveOAuthState(
+        state: io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
+    ) = error("Not used in this test")
+
+    override suspend fun clearOAuthState() = error("Not used in this test")
+
+    override suspend fun getOwnerViewPreference(userId: String): OwnerViewPreference? {
+      readUserIds += userId
+      return ownerViewPreferences[userId.trim()]
+    }
+
+    override suspend fun saveOwnerViewPreference(userId: String, preference: OwnerViewPreference) {
+      savedPreferences += SavedOwnerPreference(userId = userId, preference = preference)
+      if (throwOnSave) {
+        throw AuthSecureStorageWriteException("Failed to securely persist owner view preference.")
+      }
+      ownerViewPreferences[userId.trim()] = preference
+    }
+
+    override suspend fun clearOwnerViewPreference(userId: String) {
+      ownerViewPreferences.remove(userId.trim())
+    }
+  }
+
+  private object AuthStateFactory {
+    fun owner(userId: String) =
+        io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState(
+            userId = userId,
+            isAuthenticated = true,
+            isOwner = true,
+        )
+
+    fun player(userId: String) =
+        io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState(
+            userId = userId,
+            isAuthenticated = true,
+            isOwner = false,
+        )
+  }
 }

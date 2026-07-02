@@ -132,6 +132,46 @@ class CourtAvailabilityNavigationIntegrationTest {
 
     coroutineScope.cancel()
   }
+
+  @Test
+  fun nonOwnerRestoredCourtAvailabilityRouteRedirectsToSearchWithoutRenderingOwnerScreen() =
+      runTest {
+        val navigationState =
+            testNavigationState().apply {
+              openCourtAvailability(
+                  OwnerCourtAvailabilityEntrypoint(
+                      courtId = "court-id",
+                      courtName = "Cancha 1",
+                      complexName = "Mejengas CR",
+                  )
+              )
+            }
+        val viewModel =
+            CourtAvailabilityViewModel(
+                courtId = "court-id",
+                initialCourtName = "Cancha 1",
+                initialComplexName = "Mejengas CR",
+                repository = SuccessfulCourtAvailabilityRepository(),
+                coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+            )
+
+        composeRule.setContent {
+          AvailabilityNavigationTestHost(
+              navigationState = navigationState,
+              viewModel = viewModel,
+              shellActions = shellActions(navigationState, isOwner = false),
+              onMyComplexReloadRequested = {},
+          )
+        }
+
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Buscar").assertExists()
+        composeRule.onNodeWithText("Disponibilidad").assertDoesNotExist()
+        composeRule.runOnIdle {
+          assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+          assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+        }
+      }
 }
 
 @Composable
@@ -147,6 +187,7 @@ private fun AvailabilityNavigationTestHost(
         onReloadRequested = onMyComplexReloadRequested,
     )
     when (navigationState.currentBackStack.lastOrNull()) {
+      SearchRoute -> Text("Buscar")
       is CourtAvailabilityRoute ->
           CourtAvailabilityEntryContent(viewModel = viewModel, shellActions = shellActions)
       MyComplexRoute -> Text("Mi complejo")
@@ -157,6 +198,7 @@ private fun AvailabilityNavigationTestHost(
 
 private fun shellActions(
     navigationState: AuthenticatedNavigationState,
+    isOwner: Boolean = true,
 ): AuthenticatedShellActions =
     AuthenticatedShellActions(
         selectSearch = navigationState::selectSearch,
@@ -174,6 +216,7 @@ private fun shellActions(
         closeCurrentDetail = navigationState::closeCurrentDetail,
         signOut = {},
         refreshOwnerRole = {},
+        isOwner = isOwner,
     )
 
 private fun testNavigationState(): AuthenticatedNavigationState =
@@ -187,6 +230,7 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         myComplexHubReloadRequestKeyState = mutableStateOf(0),
         catalogReloadRequestKeyState = mutableStateOf(0),
         viewingAsPlayerState = mutableStateOf(false),
+        hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
     )
 
 private class SuccessfulCourtAvailabilityRepository : ICourtAvailabilityRepository {

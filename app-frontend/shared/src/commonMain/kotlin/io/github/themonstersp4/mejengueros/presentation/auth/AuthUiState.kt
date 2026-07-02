@@ -3,6 +3,7 @@ package io.github.themonstersp4.mejengueros.presentation.auth
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 
 data class AuthUiState(
+    val userId: String? = null,
     val email: String = "",
     val displayName: String? = null,
     val provider: String? = null,

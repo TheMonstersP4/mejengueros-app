@@ -1,7 +1,7 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -241,6 +241,76 @@ class AddCourtNavigationIntegrationTest {
     composeRule.onNodeWithTag("complex_detail_root").assertExists()
     composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").assertExists()
   }
+
+  @Test
+  fun nonOwnerRestoredMyComplexRouteRedirectsToSearchWithoutRenderingOwnerHub() {
+    val navigationState = testNavigationState()
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState, isOwner = false),
+          viewModel = unusedAddCourtViewModel(),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithTag("my_complex_root").assertDoesNotExist()
+    composeRule.runOnIdle {
+      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+    }
+  }
+
+  @Test
+  fun nonOwnerRestoredComplexDetailRouteRedirectsToSearchWithoutRenderingOwnerDetail() {
+    val navigationState = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState, isOwner = false),
+          viewModel = unusedAddCourtViewModel(),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithTag("complex_detail_root").assertDoesNotExist()
+    composeRule.runOnIdle {
+      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+    }
+  }
+
+  @Test
+  fun nonOwnerRestoredAddCourtRouteRedirectsToSearchWithoutRenderingOwnerScreen() {
+    val navigationState =
+        testNavigationState().apply {
+          openComplexDetail("complex-id")
+          openAddCourt("complex-id", "North Sports Center")
+        }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState, isOwner = false),
+          viewModel = unusedAddCourtViewModel(),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithTag("add_court_root").assertDoesNotExist()
+    composeRule.runOnIdle {
+      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+    }
+  }
 }
 
 @Composable
@@ -283,13 +353,12 @@ private fun AddCourtNavigationTestHost(
     )
 
     when (val route = navigationState.currentBackStack.lastOrNull()) {
+      SearchRoute -> Text("Buscar")
       MyComplexRoute ->
-          MyComplexEntryContent(
+          MyComplexRouteContent(
               state = currentMyComplexState,
-              contentPadding = PaddingValues(),
-              onCreateComplex = {},
+              shellActions = shellActions,
               onRetry = {},
-              onOpenComplexDetail = shellActions.openComplexDetail,
           )
       is ComplexDetailRoute ->
           ComplexDetailRouteContent(
@@ -340,6 +409,7 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         myComplexHubReloadRequestKeyState = mutableStateOf(0),
         catalogReloadRequestKeyState = mutableStateOf(0),
         viewingAsPlayerState = mutableStateOf(false),
+        hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
     )
 
 private fun defaultComplex() =

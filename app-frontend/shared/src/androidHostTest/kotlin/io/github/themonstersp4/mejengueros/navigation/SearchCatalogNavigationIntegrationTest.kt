@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.SemanticsMatcher
@@ -18,6 +19,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
+import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
@@ -210,6 +212,30 @@ class SearchCatalogNavigationIntegrationTest {
     composeRule.onNodeWithContentDescription("Crear complejo").assertDoesNotExist()
   }
 
+  @Test
+  fun nonOwnerRestoredCreateComplexOwnerRouteRedirectsToSearchWithoutRenderingCreateComplex() {
+    val navigationState =
+        testNavigationState().apply {
+          selectMyComplex()
+          openCreateComplex()
+        }
+
+    composeRule.setContent {
+      SearchCatalogCreateComplexTestHost(
+          navigationState = navigationState,
+          isOwner = false,
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithText("Canchas").assertExists()
+    composeRule.onNodeWithTag("create_complex_root", useUnmergedTree = true).assertDoesNotExist()
+    composeRule.runOnIdle {
+      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+    }
+  }
+
   private fun shellActions(
       onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
       onReservationOpened: (CatalogReservationRoute) -> Unit,
@@ -249,36 +275,70 @@ class SearchCatalogNavigationIntegrationTest {
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
           catalogReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(false),
+          hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
       )
 
   @Composable
-  private fun SearchCatalogCreateComplexTestHost(navigationState: AuthenticatedNavigationState) {
+  private fun SearchCatalogCreateComplexTestHost(
+      navigationState: AuthenticatedNavigationState,
+      isOwner: Boolean = false,
+  ) {
     MejenguerosTheme {
-      SearchCatalogEntryContent(
-          state = CourtCatalogUiState(isLoading = false),
-          shellActions =
-              AuthenticatedShellActions(
-                  selectSearch = navigationState::selectSearch,
-                  selectReservations = navigationState::selectReservations,
-                  selectNotifications = navigationState::selectNotifications,
-                  selectMyComplex = navigationState::selectMyComplex,
-                  returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
-                  openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
-                  openCatalogReservation = navigationState::openCatalogReservation,
-                  openComplexDetail = navigationState::openComplexDetail,
-                  openAddCourt = navigationState::openAddCourt,
-                  openCreateComplex = navigationState::openCreateComplex,
-                  openCourtAvailability = navigationState::openCourtAvailability,
-                  closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
-                  closeCurrentDetail = navigationState::closeCurrentDetail,
-                  signOut = {},
-                  refreshOwnerRole = {},
-              ),
-          onSearchQueryChange = {},
-          onProvinceSelected = {},
-          onCantonSelected = {},
-          onRetryLoad = {},
-      )
+      val shellActions =
+          AuthenticatedShellActions(
+              selectSearch = navigationState::selectSearch,
+              selectReservations = navigationState::selectReservations,
+              selectNotifications = navigationState::selectNotifications,
+              selectMyComplex = navigationState::selectMyComplex,
+              returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
+              openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
+              openCatalogReservation = navigationState::openCatalogReservation,
+              openComplexDetail = navigationState::openComplexDetail,
+              openAddCourt = navigationState::openAddCourt,
+              openCreateComplex = navigationState::openCreateComplex,
+              openCourtAvailability = navigationState::openCourtAvailability,
+              closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
+              closeCurrentDetail = navigationState::closeCurrentDetail,
+              signOut = {},
+              refreshOwnerRole = {},
+              isOwner = isOwner,
+          )
+
+      when (navigationState.currentBackStack.lastOrNull()) {
+        SearchRoute ->
+            SearchCatalogEntryContent(
+                state = CourtCatalogUiState(isLoading = false),
+                shellActions = shellActions,
+                onSearchQueryChange = {},
+                onProvinceSelected = {},
+                onCantonSelected = {},
+                onRetryLoad = {},
+            )
+        CreateComplexRoute ->
+            CreateComplexRouteContent(
+                authenticatedNavigationState = navigationState,
+                shellActions = shellActions,
+                state = CreateComplexUiState(isLoadingCatalogs = false),
+                onRetryCatalogs = {},
+                onRetryCantons = {},
+                onComplexNameChange = {},
+                onProvinceSelected = {},
+                onCantonSelected = {},
+                onComplexAddressChange = {},
+                onOpenLocationPicker = {},
+                onClearLocation = {},
+                onToggleComplexService = {},
+                onFirstCourtNameChange = {},
+                onToggleCourtService = {},
+                onNext = {},
+                onBack = {},
+                onSubmit = {},
+                onSuccessAcknowledged = {},
+                overlayVisible = false,
+                overlayContent = {},
+            )
+        else -> Text("Ruta inesperada")
+      }
     }
   }
 }

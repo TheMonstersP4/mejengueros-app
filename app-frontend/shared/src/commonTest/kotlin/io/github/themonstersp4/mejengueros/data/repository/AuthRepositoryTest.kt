@@ -9,6 +9,7 @@ import io.github.themonstersp4.mejengueros.data.auth.IRandomStringGenerator
 import io.github.themonstersp4.mejengueros.data.auth.InMemoryAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.JwtIdTokenDecoder
 import io.github.themonstersp4.mejengueros.data.auth.OAuthCallbackParser
+import io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference
 import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.data.remote.CognitoTokenResponseDto
@@ -440,6 +441,7 @@ class AuthRepositoryTest {
   ) : IAuthSecureStorage {
     private var session: AuthSession? = initialSession
     private var oauthState: PendingOAuthState? = initialOAuthState
+    private val ownerViewPreferences = mutableMapOf<String, OwnerViewPreference>()
 
     override suspend fun getSession(): AuthSession? = session
 
@@ -461,6 +463,20 @@ class AuthRepositoryTest {
 
     override suspend fun clearOAuthState() {
       oauthState = null
+    }
+
+    override suspend fun getOwnerViewPreference(userId: String): OwnerViewPreference? =
+        ownerViewPreferences[userId]
+
+    override suspend fun saveOwnerViewPreference(
+        userId: String,
+        preference: OwnerViewPreference,
+    ) {
+      ownerViewPreferences[userId] = preference
+    }
+
+    override suspend fun clearOwnerViewPreference(userId: String) {
+      ownerViewPreferences.remove(userId)
     }
   }
 

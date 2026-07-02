@@ -14,6 +14,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.savedstate.serialization.SavedStateConfiguration
+import io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference
 
 @Composable
 fun rememberAuthenticatedNavigationState(
@@ -32,6 +33,7 @@ fun rememberAuthenticatedNavigationState(
   val myComplexHubReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
   val catalogReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
   val viewingAsPlayerState = rememberSaveable { mutableStateOf(true) }
+  val hydratedOwnerPreferenceUserIdState = rememberSaveable { mutableStateOf<String?>(null) }
 
   return remember(
       searchBackStack,
@@ -63,6 +65,7 @@ fun rememberAuthenticatedNavigationState(
         myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
         catalogReloadRequestKeyState = catalogReloadRequestKeyState,
         viewingAsPlayerState = viewingAsPlayerState,
+        hydratedOwnerPreferenceUserIdState = hydratedOwnerPreferenceUserIdState,
     )
   }
 }
@@ -299,6 +302,7 @@ class AuthenticatedNavigationState(
     private val myComplexHubReloadRequestKeyState: MutableState<Int>,
     private val catalogReloadRequestKeyState: MutableState<Int>,
     private val viewingAsPlayerState: MutableState<Boolean>,
+    private val hydratedOwnerPreferenceUserIdState: MutableState<String?>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
@@ -470,13 +474,48 @@ class AuthenticatedNavigationState(
 
   // Owner switches to the mejenguero (player) shell and lands on Buscar.
   fun switchToPlayerView() {
-    navigateTo(AuthenticatedTopLevelRoute.Search)
+    showSearchRoot()
     requestCatalogReload()
   }
 
   // Owner returns to the owner shell (drawer) and lands on Mi complejo.
   fun switchToOwnerView() {
-    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
+    showMyComplexRoot()
+  }
+
+  fun applyOwnerViewPreference(
+      userId: String?,
+      isOwner: Boolean,
+      preference: OwnerViewPreference?,
+  ) {
+    if (!isOwner) {
+      hydratedOwnerPreferenceUserIdState.value = null
+      viewingAsPlayerState.value = true
+      if (selectedRoute == AuthenticatedTopLevelRoute.MyComplex) {
+        showSearchRoot()
+      }
+      return
+    }
+
+    val normalizedUserId = userId?.trim().orEmpty()
+    if (normalizedUserId.isEmpty()) {
+      hydratedOwnerPreferenceUserIdState.value = null
+      return
+    }
+    if (hydratedOwnerPreferenceUserIdState.value == normalizedUserId) {
+      return
+    }
+
+    when (preference) {
+      OwnerViewPreference.OWNER -> showMyComplexRoot()
+      OwnerViewPreference.PLAYER -> showSearchRoot()
+      null -> Unit
+    }
+    hydratedOwnerPreferenceUserIdState.value = normalizedUserId
+  }
+
+  fun clearOwnerViewPreferenceHydration() {
+    hydratedOwnerPreferenceUserIdState.value = null
   }
 
   fun reset() {
@@ -500,6 +539,18 @@ class AuthenticatedNavigationState(
 
   private fun requestCatalogReload() {
     catalogReloadRequestKeyState.value += 1
+  }
+
+  private fun showSearchRoot() {
+    navigateTo(AuthenticatedTopLevelRoute.Search)
+    searchBackStack.clear()
+    searchBackStack.add(SearchRoute)
+  }
+
+  private fun showMyComplexRoot() {
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
+    myComplexBackStack.clear()
+    myComplexBackStack.add(MyComplexRoute)
   }
 
   // Sets the selected route and keeps viewingAsPlayer in sync with the route's domain:

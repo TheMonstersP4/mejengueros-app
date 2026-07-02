@@ -303,6 +303,7 @@ class AuthViewModel(
     val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
     _uiState.value =
         _uiState.value.copy(
+            userId = session.sub,
             email = session.email,
             displayName = session.displayName,
             provider = session.provider,

@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.data.auth.AndroidAuthSecureStorage
 import io.github.themonstersp4.mejengueros.data.auth.AndroidCipherFactory
 import io.github.themonstersp4.mejengueros.data.auth.AndroidCipherPayloadCodec
 import io.github.themonstersp4.mejengueros.data.auth.SecretKeyProvider
+import io.github.themonstersp4.mejengueros.data.auth.ownerViewPreferenceStorageKey
 import io.github.themonstersp4.mejengueros.data.local.PendingOAuthState
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import javax.crypto.Cipher
@@ -68,6 +69,94 @@ class SharedLogicAndroidHostTest {
 
     assertNull(storage.getSession())
     assertFalse(preferences.contains("auth_session"))
+  }
+
+  @Test
+  fun androidSecureStorageOwnerViewPreferenceRoundTripsAndClears() = runTest {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val preferences = testPreferences(context)
+    val storage = AndroidAuthSecureStorage(preferences, Json, testCipher())
+
+    storage.saveOwnerViewPreference(
+        "owner-1",
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.OWNER,
+    )
+    storage.saveOwnerViewPreference(
+        "player-1",
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.PLAYER,
+    )
+
+    assertEquals(
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.OWNER,
+        storage.getOwnerViewPreference("owner-1"),
+    )
+    assertEquals(
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.PLAYER,
+        storage.getOwnerViewPreference("player-1"),
+    )
+
+    storage.clearOwnerViewPreference("owner-1")
+
+    assertNull(storage.getOwnerViewPreference("owner-1"))
+    assertEquals(
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.PLAYER,
+        storage.getOwnerViewPreference("player-1"),
+    )
+  }
+
+  @Test
+  fun androidSecureStorageOwnerViewPreferenceClearsUnknownPayload() = runTest {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val preferences = testPreferences(context)
+    val cipher = testCipher()
+    val storage = AndroidAuthSecureStorage(preferences, Json, cipher)
+    val key = io.github.themonstersp4.mejengueros.data.auth.ownerViewPreferenceStorageKey("owner-1")
+
+    preferences.edit().putString(key, cipher.encrypt("COACH")).commit()
+
+    assertNull(storage.getOwnerViewPreference("owner-1"))
+    assertFalse(preferences.contains(key))
+  }
+
+  @Test
+  fun androidSecureStorageOwnerViewPreferenceTrimmedAndBlankUserIdsAreDeterministic() = runTest {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val preferences = testPreferences(context)
+    val storage = AndroidAuthSecureStorage(preferences, Json, testCipher())
+    val trimmedKey = ownerViewPreferenceStorageKey(" owner-1 ")
+    val blankKey = ownerViewPreferenceStorageKey("   ")
+
+    storage.saveOwnerViewPreference(
+        " owner-1 ",
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.OWNER,
+    )
+    storage.saveOwnerViewPreference(
+        "   ",
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.PLAYER,
+    )
+
+    assertEquals(
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.OWNER,
+        storage.getOwnerViewPreference("owner-1"),
+    )
+    assertEquals(
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.PLAYER,
+        storage.getOwnerViewPreference(""),
+    )
+    assertEquals(trimmedKey, ownerViewPreferenceStorageKey("owner-1"))
+    assertEquals(blankKey, ownerViewPreferenceStorageKey(""))
+    assertFalse(trimmedKey.contains("owner-1"))
+    assertNotEquals("owner_view_preference_", blankKey)
+    assertEncrypted(
+        preferences,
+        trimmedKey,
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.OWNER.name,
+    )
+    assertEncrypted(
+        preferences,
+        blankKey,
+        io.github.themonstersp4.mejengueros.data.auth.OwnerViewPreference.PLAYER.name,
+    )
   }
 
   @Test

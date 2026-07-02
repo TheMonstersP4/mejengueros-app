@@ -54,6 +54,20 @@ internal constructor(
     preferences.edit().remove(OAuthStateKey).apply()
   }
 
+  override suspend fun getOwnerViewPreference(userId: String): OwnerViewPreference? =
+      readValue(ownerViewPreferenceStorageKey(userId)) { payload ->
+        OwnerViewPreference.entries.firstOrNull { it.name == payload }
+            ?: throw IllegalArgumentException("Unknown owner view preference: $payload")
+      }
+
+  override suspend fun saveOwnerViewPreference(userId: String, preference: OwnerViewPreference) {
+    writeValue(ownerViewPreferenceStorageKey(userId), preference.name)
+  }
+
+  override suspend fun clearOwnerViewPreference(userId: String) {
+    preferences.edit().remove(ownerViewPreferenceStorageKey(userId)).apply()
+  }
+
   private fun writeValue(key: String, value: String) {
     preferences.edit().putString(key, cipher.encrypt(value)).apply()
   }

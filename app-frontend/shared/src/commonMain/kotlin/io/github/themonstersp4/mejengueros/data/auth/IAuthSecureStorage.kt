@@ -15,4 +15,10 @@ interface IAuthSecureStorage {
   suspend fun saveOAuthState(state: PendingOAuthState)
 
   suspend fun clearOAuthState()
+
+  suspend fun getOwnerViewPreference(userId: String): OwnerViewPreference?
+
+  suspend fun saveOwnerViewPreference(userId: String, preference: OwnerViewPreference)
+
+  suspend fun clearOwnerViewPreference(userId: String)
 }
