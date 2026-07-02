@@ -11,7 +11,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -148,7 +147,7 @@ class AuthenticatedScaffoldBehaviorTest {
   }
 
   @Test
-  fun bottomBarShowsProductDestinationsAndMarksSelectedTab() {
+  fun ownerShellUsesDrawerWithNavigationItems() {
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
@@ -167,10 +166,38 @@ class AuthenticatedScaffoldBehaviorTest {
       }
     }
 
+    // Owner drawer items are in the composition tree even when drawer is closed
+    composeRule.onNodeWithText("Mi complejo").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Reseñas").assertExists()
+    // Owner does NOT have bottom nav tabs
+    composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
+    composeRule.onNodeWithText("Buscar").assertDoesNotExist()
+  }
+
+  @Test
+  fun playerShellShowsExactlyThreeBottomNavTabs() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = false,
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
     composeRule.onNodeWithText("Buscar").assertExists()
     composeRule.onNodeWithText("Reservas").assertExists()
     composeRule.onNodeWithText("Notificaciones").assertExists()
-    composeRule.onNodeWithText("Mi complejo").assertExists().assertIsSelected()
+    composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
+    composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
   }
 
   @Test
@@ -215,10 +242,11 @@ class AuthenticatedScaffoldBehaviorTest {
       }
     }
 
-    composeRule.onNodeWithText("Buscar").assertExists()
-    composeRule.onNodeWithText("Reservas").assertExists()
-    composeRule.onNodeWithText("Notificaciones").assertExists()
+    // Owner gets drawer navigation — "Mi complejo" lives in the drawer
     composeRule.onNodeWithText("Mi complejo").assertExists()
+    // Bottom nav tabs are not rendered for owners
+    composeRule.onNodeWithText("Buscar").assertDoesNotExist()
+    composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
   }
 
   @Test

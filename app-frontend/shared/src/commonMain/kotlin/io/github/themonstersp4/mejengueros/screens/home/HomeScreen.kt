@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,6 +59,7 @@ fun HomeScreen(
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
     onOpenCourtDetail: (CourtCatalogItem) -> Unit,
+    onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   CatalogScaffold(
@@ -105,7 +107,7 @@ fun HomeScreen(
 
       else -> {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag("catalog_court_list"),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
           items(state.visibleCourts, key = { it.id }) { court ->
@@ -128,9 +130,37 @@ fun HomeScreen(
                 onClick = { onOpenCourtDetail(court) },
             )
           }
+          item {
+            CatalogOwnerOnramp(
+                onClick = onOpenCreateComplex,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
+          }
           item { Spacer(modifier = Modifier.height(4.dp)) }
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun CatalogOwnerOnramp(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  Box(
+      modifier = modifier.fillMaxWidth(),
+      contentAlignment = Alignment.Center,
+  ) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.testTag("catalog_owner_onramp"),
+    ) {
+      Text(
+          text = "¿Administrás un complejo? Registralo aquí",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
     }
   }
 }

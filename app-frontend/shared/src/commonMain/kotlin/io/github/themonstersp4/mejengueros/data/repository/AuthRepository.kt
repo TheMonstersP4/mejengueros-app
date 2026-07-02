@@ -99,6 +99,10 @@ class AuthRepository(
     return requestFactory.createSignOutRequest()
   }
 
+  override suspend fun refreshUserProfile() {
+    syncCurrentUser()
+  }
+
   @OptIn(ExperimentalTime::class)
   private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
 

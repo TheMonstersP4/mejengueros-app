@@ -244,6 +244,7 @@ private fun shellActions(
         closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
         closeCurrentDetail = navigationState::closeCurrentDetail,
         signOut = {},
+        refreshOwnerRole = {},
     )
 
 private fun testNavigationState(): AuthenticatedNavigationState =

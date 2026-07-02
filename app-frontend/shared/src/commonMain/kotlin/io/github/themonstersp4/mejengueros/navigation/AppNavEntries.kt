@@ -254,6 +254,7 @@ internal fun SearchCatalogEntryContent(
         onProvinceSelected = onProvinceSelected,
         onCantonSelected = onCantonSelected,
         onRetryLoad = onRetryLoad,
+        onOpenCreateComplex = shellActions.openCreateComplex,
         onOpenCourtDetail = { court ->
           shellActions.openCatalogCourtDetail(
               CatalogCourtDetailRoute(
@@ -597,6 +598,7 @@ private fun CreateComplexEntry(
   if (createdComplex != null) {
     LaunchedEffect(createdComplex.firstCourtId) {
       createComplexViewModel.acknowledgeSuccess()
+      shellActions.refreshOwnerRole()
       shellActions.openCourtAvailability(
           OwnerCourtAvailabilityEntrypoint(
               courtId = createdComplex.firstCourtId,

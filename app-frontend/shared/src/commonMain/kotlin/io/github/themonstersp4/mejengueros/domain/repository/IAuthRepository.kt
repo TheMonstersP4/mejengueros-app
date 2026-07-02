@@ -28,4 +28,6 @@ interface IAuthRepository {
   suspend fun handleCallback(callbackUrl: String): AuthSession
 
   suspend fun signOut(): AuthSignOutRequest
+
+  suspend fun refreshUserProfile()
 }
