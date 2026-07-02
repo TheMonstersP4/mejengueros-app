@@ -24,12 +24,14 @@ export class ListImageUploadsUseCase {
   ) {}
 
   /**
-   * Returns recent uploaded images ready for private display.
+   * Returns recent uploaded images for one authenticated owner.
    *
+   * @param ownerSub - Stable Cognito subject that owns the uploads.
    * @returns Recent image uploads with read URLs.
    */
-  async execute(): Promise<IListImageUploadsOutput[]> {
+  async execute(ownerSub: string): Promise<IListImageUploadsOutput[]> {
     const imageUploads = await this.imageUploadRepository.listRecent(
+      ownerSub,
       DEFAULT_IMAGE_UPLOAD_LIST_LIMIT
     );
 

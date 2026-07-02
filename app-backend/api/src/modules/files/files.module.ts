@@ -68,6 +68,7 @@ const imageUploadRepositoryClass = process.env.DATABASE_URL
       provide: FILE_STORAGE_PORT,
       useClass: S3FileStorageAdapter
     }
-  ]
+  ],
+  exports: [IMAGE_UPLOAD_REPOSITORY]
 })
 export class FilesModule {}

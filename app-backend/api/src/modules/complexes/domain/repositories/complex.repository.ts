@@ -29,6 +29,7 @@ export interface ICreateComplexInput {
 export interface ICreateFirstCourtInput {
   name: string;
   serviceIds: string[];
+  imageUploadId?: string;
 }
 
 /**
@@ -125,6 +126,8 @@ export interface IGetMyComplexHubResult {
  * Persistence contract for complex creation flows.
  */
 export interface IComplexRepository {
+  findCourtIdByImageUploadId(imageUploadId: string): Promise<string | null>;
+
   createComplexWithFirstCourt(
     command: ICreateComplexWithFirstCourtCommand
   ): Promise<ICreateComplexWithFirstCourtResult>;

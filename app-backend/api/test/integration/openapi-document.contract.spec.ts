@@ -148,6 +148,28 @@ describe('OpenAPI document contract', () => {
     );
   });
 
+  it('documents optional court image uploads and the court-image file purpose', () => {
+    const firstCourtSchema = componentSchema('CreateFirstCourtBodyRequest');
+    const imageUploadId = schemaProperty(firstCourtSchema, 'imageUploadId');
+    const createUploadUrlRequestSchema = componentSchema('CreateUploadUrlRequest');
+    const purpose = schemaProperty(createUploadUrlRequestSchema, 'purpose');
+    const required = (firstCourtSchema.required as string[] | undefined) ?? [];
+
+    expect(imageUploadId).toEqual(
+      expect.objectContaining({
+        description: 'Optional confirmed upload identifier for the court image.',
+        example: '9f6b4f0f-5f5a-4d8d-8c5e-2b2e7b0f6a3c',
+        type: 'string'
+      })
+    );
+    expect(required).not.toContain('imageUploadId');
+    expect(purpose).toEqual(
+      expect.objectContaining({
+        enum: expect.arrayContaining(['profile-image', 'court-image'])
+      })
+    );
+  });
+
   function responseSchema(
     path: string,
     method: OpenApiMethod,

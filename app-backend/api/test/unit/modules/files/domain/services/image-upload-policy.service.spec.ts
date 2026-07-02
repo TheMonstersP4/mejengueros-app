@@ -28,10 +28,25 @@ describe('ImageUploadPolicyService', () => {
     });
   });
 
+  it('validates a court image upload intent', () => {
+    expect(
+      policy.validate({
+        purpose: FilePurpose.CourtImage,
+        contentType: 'image/png',
+        sizeBytes: 256
+      })
+    ).toEqual({
+      purpose: FilePurpose.CourtImage,
+      contentType: 'image/png',
+      sizeBytes: 256,
+      maxSizeBytes: 1024
+    });
+  });
+
   it('rejects unsupported file purposes', () => {
     expect(() =>
       policy.validate({
-        purpose: 'court-image',
+        purpose: 'banner-image',
         contentType: 'image/jpeg',
         sizeBytes: 512
       })
@@ -68,6 +83,18 @@ describe('ImageUploadPolicyService', () => {
         id: 'file-id'
       })
     ).toBe('dev/profile-image/user-sub-123/2026/06/file-id.webp');
+  });
+
+  it('builds stable private object keys for court images', () => {
+    expect(
+      policy.buildObjectKey({
+        purpose: FilePurpose.CourtImage,
+        ownerId: 'user/sub:123',
+        contentType: 'image/png',
+        date: new Date('2026-06-04T00:00:00.000Z'),
+        id: 'file-id'
+      })
+    ).toBe('dev/court-image/user-sub-123/2026/06/file-id.png');
   });
 
   it('validates confirmed uploaded object metadata', () => {
@@ -140,9 +167,9 @@ describe('ImageUploadPolicyService', () => {
   it('rejects confirmed uploads with unsupported purposes', () => {
     expect(() =>
       policy.validateObjectKeyForOwner({
-        purpose: 'court-image',
+        purpose: 'banner-image',
         ownerId: 'current-user',
-        objectKey: 'dev/profile-image/current-user/2026/06/file-id.jpg'
+        objectKey: 'dev/banner-image/current-user/2026/06/file-id.jpg'
       })
     ).toThrow(InvalidFilePurposeError);
   });

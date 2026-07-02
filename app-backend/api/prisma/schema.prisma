@@ -124,6 +124,7 @@ model ImageUpload {
   objectKey       String   @unique
   contentType     String
   sizeBytes       Int
+  courtImageFor   Court?   @relation("CourtImage")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -204,11 +205,13 @@ model Canton {
 model Court {
   id            String            @id @default(uuid())
   complexId     String
+  imageUploadId String?           @unique
   name          String
   isPublished   Boolean           @default(false)
   status        CourtStatus       @default(ACTIVE)
   deletedAt     DateTime?
   complex       Complex           @relation(fields: [complexId], references: [id], onDelete: Restrict)
+  imageUpload   ImageUpload?      @relation("CourtImage", fields: [imageUploadId], references: [id], onDelete: SetNull)
   services      CourtService[]
   availability  CourtAvailability?
   reservations  Reservation[]

@@ -142,6 +142,8 @@ export class ImageUploadEntity {
    * @returns Uploaded image metadata.
    */
   toSnapshot(): IImageUploadSnapshot {
+    const purpose = this.toFilePurpose(this.props.purpose);
+
     return {
       id: this.props.id,
       ownerSub: this.props.ownerSub,
@@ -149,11 +151,19 @@ export class ImageUploadEntity {
       ownerName: this.props.ownerName ?? undefined,
       ownerPictureUrl: this.props.ownerPictureUrl ?? undefined,
       ownerProvider: this.props.ownerProvider ?? undefined,
-      purpose: FilePurpose.ProfileImage,
+      purpose,
       objectKey: this.props.objectKey,
       contentType: this.props.contentType,
       sizeBytes: this.props.sizeBytes,
       createdAt: this.props.createdAt
     };
+  }
+
+  private toFilePurpose(value: string): FilePurpose {
+    if (value === FilePurpose.CourtImage) {
+      return FilePurpose.CourtImage;
+    }
+
+    return FilePurpose.ProfileImage;
   }
 }

@@ -45,22 +45,25 @@ export class FilesController {
   /**
    * Lists confirmed image uploads.
    *
+   * @param user - Current authenticated user.
    * @returns Uploaded image responses.
    */
   @Get('uploads')
   @UseGuards(CognitoAuthGuard)
   @ApiOperation({
-    summary: 'List confirmed image uploads.',
+    summary: 'List the current user confirmed image uploads.',
     description:
-      'Returns confirmed image uploads with short-lived read URLs and uploader snapshots.'
+      'Returns only the authenticated user confirmed image uploads with short-lived read URLs and uploader snapshots.'
   })
   @ApiEnvelopeArrayOk(
     ImageUploadResponse,
     'Confirmed image uploads wrapped in the API response envelope.'
   )
   @ApiEnvelopeErrors(401, 502)
-  async listUploads(): Promise<ImageUploadResponse[]> {
-    return this.listImageUploads.execute();
+  async listUploads(
+    @CurrentUser() user: IAuthenticatedUserOutput
+  ): Promise<ImageUploadResponse[]> {
+    return this.listImageUploads.execute(user.sub);
   }
 
   /**

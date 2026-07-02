@@ -18,7 +18,7 @@ export class CreateUploadUrlRequest {
     enum: FilePurpose,
     example: FilePurpose.ProfileImage
   })
-  @IsIn([FilePurpose.ProfileImage])
+  @IsIn([FilePurpose.ProfileImage, FilePurpose.CourtImage])
   purpose!: FilePurpose;
 
   /**

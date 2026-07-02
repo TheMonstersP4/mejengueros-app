@@ -56,6 +56,14 @@ export interface ISaveImageUploadInput {
  */
 export interface IImageUploadRepository {
   /**
+   * Finds one confirmed upload by its internal identifier.
+   *
+   * @param id - Image upload identifier.
+   * @returns Image upload entity when found.
+   */
+  findById(id: string): Promise<ImageUploadEntity | null>;
+
+  /**
    * Creates or updates metadata for a confirmed image upload.
    *
    * @param input - Confirmed upload metadata.
@@ -64,12 +72,13 @@ export interface IImageUploadRepository {
   saveConfirmedUpload(input: ISaveImageUploadInput): Promise<ImageUploadEntity>;
 
   /**
-   * Lists recently confirmed image uploads.
+   * Lists recently confirmed image uploads for one owner.
    *
+   * @param ownerSub - Stable Cognito subject that owns the images.
    * @param limit - Maximum number of images to return.
    * @returns Image upload entities ordered by recent creation.
    */
-  listRecent(limit: number): Promise<ImageUploadEntity[]>;
+  listRecent(ownerSub: string, limit: number): Promise<ImageUploadEntity[]>;
 }
 
 /**

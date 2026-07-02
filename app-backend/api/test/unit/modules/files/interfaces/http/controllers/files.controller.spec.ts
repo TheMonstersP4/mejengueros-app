@@ -52,6 +52,45 @@ describe('FilesController', () => {
     });
   });
 
+  it('delegates court image upload URL creation to the use case', async () => {
+    const response = {
+      objectKey: 'dev/court-image/sub/2026/06/file.jpg',
+      uploadUrl: 'https://upload.example.test',
+      method: 'POST',
+      fields: {
+        key: 'dev/court-image/sub/file.jpg',
+        policy: 'policy'
+      },
+      expiresInSeconds: 300,
+      maxSizeBytes: 5242880
+    };
+    const useCase = {
+      execute: jest.fn().mockResolvedValue(response)
+    } as unknown as CreateUploadUrlUseCase;
+    const controller = new FilesController(
+      useCase,
+      { execute: jest.fn() } as unknown as ConfirmUploadUseCase,
+      createListUseCase()
+    );
+
+    await expect(
+      controller.createUpload(
+        { sub: 'sub', groups: [] },
+        {
+          purpose: FilePurpose.CourtImage,
+          contentType: 'image/jpeg',
+          sizeBytes: 100
+        }
+      )
+    ).resolves.toEqual(response);
+    expect(useCase.execute).toHaveBeenCalledWith({
+      ownerSub: 'sub',
+      purpose: FilePurpose.CourtImage,
+      contentType: 'image/jpeg',
+      sizeBytes: 100
+    });
+  });
+
   it('propagates unsupported image type errors to the global filter', async () => {
     const useCase = {
       execute: jest
@@ -102,7 +141,7 @@ describe('FilesController', () => {
     const useCase = {
       execute: jest
         .fn()
-        .mockRejectedValue(new InvalidFilePurposeError('court-image'))
+        .mockRejectedValue(new InvalidFilePurposeError('banner-image'))
     } as unknown as CreateUploadUrlUseCase;
     const controller = new FilesController(
       useCase,
@@ -114,7 +153,7 @@ describe('FilesController', () => {
       controller.createUpload(
         { sub: 'sub', groups: [] },
         {
-          purpose: 'court-image' as FilePurpose,
+          purpose: 'banner-image' as FilePurpose,
           contentType: 'image/jpeg',
           sizeBytes: 100
         }
@@ -198,7 +237,7 @@ describe('FilesController', () => {
       listUseCase
     );
 
-    await expect(controller.listUploads()).resolves.toEqual(response);
-    expect(listUseCase.execute).toHaveBeenCalledTimes(1);
+    await expect(controller.listUploads({ sub: 'sub', groups: [] })).resolves.toEqual(response);
+    expect(listUseCase.execute).toHaveBeenCalledWith('sub');
   });
 });

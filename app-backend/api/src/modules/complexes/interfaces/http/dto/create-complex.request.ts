@@ -121,6 +121,14 @@ export class CreateFirstCourtBodyRequest {
   @ArrayUnique()
   @IsUUID(undefined, { each: true })
   serviceIds!: string[];
+
+  @ApiPropertyOptional({
+    description: 'Optional confirmed upload identifier for the court image.',
+    example: '9f6b4f0f-5f5a-4d8d-8c5e-2b2e7b0f6a3c'
+  })
+  @IsOptional()
+  @IsUUID()
+  imageUploadId?: string;
 }
 
 /**

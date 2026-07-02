@@ -11,6 +11,7 @@ import { StorageObjectNotFoundError } from '@/modules/files/infrastructure/error
 import type { IFileStoragePort } from '@/modules/files/application/ports/file-storage.port';
 import { FILE_STORAGE_PORT } from '@/modules/files/application/ports/file-storage.port';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
+import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 import { configureValidation } from '@/bootstrap/validation';
 
 describe('HTTP API response contract', () => {
@@ -54,6 +55,7 @@ describe('HTTP API response contract', () => {
       })
     };
     imageUploadRepository = {
+      findById: jest.fn().mockResolvedValue(null),
       saveConfirmedUpload: jest.fn().mockResolvedValue(
         ImageUploadEntity.fromPersistence({
           id: 'image-id',
@@ -76,6 +78,11 @@ describe('HTTP API response contract', () => {
     })
       .overrideProvider(TOKEN_VERIFIER_PORT)
       .useValue(tokenVerifier)
+      .overrideProvider(PrismaService)
+      .useValue({
+        onModuleInit: jest.fn(),
+        onModuleDestroy: jest.fn()
+      })
       .overrideProvider(FILE_STORAGE_PORT)
       .useValue(fileStorage)
       .overrideProvider(IMAGE_UPLOAD_REPOSITORY)
@@ -181,6 +188,49 @@ describe('HTTP API response contract', () => {
         meta: expect.objectContaining({
           path: '/v1/files/uploads'
         })
+      })
+    );
+  });
+
+  it('lists only the authenticated user uploads through the repository port', async () => {
+    imageUploadRepository.listRecent.mockResolvedValueOnce([
+      ImageUploadEntity.fromPersistence({
+        id: 'image-id',
+        ownerSub: 'cognito-sub',
+        ownerEmail: 'user@example.test',
+        ownerName: null,
+        ownerPictureUrl: null,
+        ownerProvider: null,
+        purpose: FilePurpose.CourtImage,
+        objectKey: 'test/uploads/court-image/cognito-sub/2026/06/file.jpg',
+        contentType: 'image/jpeg',
+        sizeBytes: 512,
+        createdAt: new Date('2026-06-11T00:00:00.000Z')
+      })
+    ]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/files/uploads',
+      headers: {
+        Authorization: 'Bearer token'
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(imageUploadRepository.listRecent).toHaveBeenCalledWith('cognito-sub', 50);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: true,
+        data: [
+          expect.objectContaining({
+            id: 'image-id',
+            purpose: FilePurpose.CourtImage,
+            uploadedBy: expect.objectContaining({
+              sub: 'cognito-sub'
+            })
+          })
+        ]
       })
     );
   });
