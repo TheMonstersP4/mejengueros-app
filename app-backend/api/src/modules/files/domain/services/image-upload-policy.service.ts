@@ -103,7 +103,7 @@ export class ImageUploadPolicyService {
       throw new UnsupportedFileTypeError(input.contentType);
     }
 
-    const maxSizeBytes = this.maxSizeBytesFor(purpose);
+    const maxSizeBytes = this.maxSizeBytesFor();
 
     if (input.sizeBytes > maxSizeBytes) {
       throw new FileTooLargeError(
@@ -172,7 +172,7 @@ export class ImageUploadPolicyService {
       throw new UnsupportedFileTypeError(input.detectedContentType ?? 'unknown');
     }
 
-    const maxSizeBytes = this.maxSizeBytesFor(purpose);
+    const maxSizeBytes = this.maxSizeBytesFor();
 
     if (input.sizeBytes > maxSizeBytes) {
       throw new FileTooLargeError(
@@ -223,7 +223,7 @@ export class ImageUploadPolicyService {
     throw new InvalidFilePurposeError(purpose);
   }
 
-  private maxSizeBytesFor(_purpose: FilePurpose): number {
+  private maxSizeBytesFor(): number {
     return this.options.profileImageMaxBytes;
   }
 
