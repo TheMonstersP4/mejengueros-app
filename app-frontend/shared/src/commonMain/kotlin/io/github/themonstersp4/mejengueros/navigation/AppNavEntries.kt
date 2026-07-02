@@ -78,7 +78,12 @@ fun EntryProviderScope<NavKey>.appEntries(
         loginActions = loginActions,
     )
   }
-  entry<SearchRoute> { SearchEntry(shellActions = shellActions) }
+  entry<SearchRoute> {
+    SearchEntry(
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
+  }
   entry<CatalogCourtDetailRoute> { route ->
     CatalogCourtDetailEntry(route = route, shellActions = shellActions)
   }
@@ -214,9 +219,17 @@ private fun PasswordResetEntry(
 }
 
 @Composable
-private fun SearchEntry(shellActions: AuthenticatedShellActions) {
+private fun SearchEntry(
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
   val courtCatalogViewModel = koinViewModel<CourtCatalogViewModel>()
   val state by courtCatalogViewModel.uiState.collectAsState()
+
+  CatalogReloadEffect(
+      catalogReloadRequestKey = authenticatedNavigationState.catalogReloadRequestKey,
+      onReloadRequested = courtCatalogViewModel::retryLoad,
+  )
 
   SearchCatalogEntryContent(
       state = state,
@@ -607,6 +620,18 @@ internal fun MyComplexHubReloadEffect(
 ) {
   LaunchedEffect(reloadRequestKey) {
     if (reloadRequestKey > 0) {
+      onReloadRequested()
+    }
+  }
+}
+
+@Composable
+internal fun CatalogReloadEffect(
+    catalogReloadRequestKey: Int,
+    onReloadRequested: () -> Unit,
+) {
+  LaunchedEffect(catalogReloadRequestKey) {
+    if (catalogReloadRequestKey > 0) {
       onReloadRequested()
     }
   }
