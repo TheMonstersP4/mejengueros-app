@@ -18,6 +18,7 @@ const COGNITO_NATIVE_PROVIDER = 'Cognito';
 interface ICourtAvailabilityPersistenceClient {
   court: {
     findFirst: PrismaService['court']['findFirst'];
+    update: PrismaService['court']['update'];
   };
   courtAvailability: {
     create: PrismaService['courtAvailability']['create'];
@@ -72,6 +73,12 @@ export class PrismaCourtAvailabilityRepository implements ICourtAvailabilityRepo
         }
       });
     }
+
+    // A court becomes publicly visible once its availability is configured.
+    await this.prisma.court.update({
+      where: { id: command.courtId },
+      data: { isPublished: true }
+    });
 
     return {
       court: {

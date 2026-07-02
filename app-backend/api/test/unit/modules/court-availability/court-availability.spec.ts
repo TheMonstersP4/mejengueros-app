@@ -141,6 +141,7 @@ describe('court availability module behavior', () => {
         days: ['MONDAY', 'WEDNESDAY', 'FRIDAY']
       }
     ]);
+    expect(harness.state.publishedCourtIds).toEqual(['court-id']);
   });
 
   it('updates days and time range when availability already exists', async () => {
@@ -170,6 +171,7 @@ describe('court availability module behavior', () => {
         days: ['TUESDAY', 'THURSDAY']
       }
     ]);
+    expect(harness.state.publishedCourtIds).toEqual(['court-id']);
   });
 
   it('returns null availability when the owned court exists but has not been configured yet', async () => {
@@ -265,7 +267,8 @@ function createRepositoryHarness(options?: IRepositoryHarnessOptions) {
       startTime: string;
       endTime: string;
       days: string[];
-    }>
+    }>,
+    publishedCourtIds: [] as string[]
   };
 
   const findOwnedCourt = jest.fn().mockResolvedValue(
@@ -292,7 +295,11 @@ function createRepositoryHarness(options?: IRepositoryHarnessOptions) {
     state,
     prisma: {
       court: {
-        findFirst: findOwnedCourt
+        findFirst: findOwnedCourt,
+        update: jest.fn().mockImplementation(async ({ where }: { where: { id: string } }) => {
+          state.publishedCourtIds.push(where.id);
+          return { id: where.id };
+        })
       },
       courtAvailability: {
         create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {

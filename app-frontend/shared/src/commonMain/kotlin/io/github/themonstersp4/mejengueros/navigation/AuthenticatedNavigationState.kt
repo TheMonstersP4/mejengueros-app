@@ -30,6 +30,8 @@ fun rememberAuthenticatedNavigationState(
         mutableStateOf<OwnerCourtAvailabilityEntrypoint?>(null)
       }
   val myComplexHubReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
+  val catalogReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
+  val viewingAsPlayerState = rememberSaveable { mutableStateOf(true) }
 
   return remember(
       searchBackStack,
@@ -39,6 +41,8 @@ fun rememberAuthenticatedNavigationState(
       selectedRouteState,
       ownerCourtAvailabilityEntrypointState,
       myComplexHubReloadRequestKeyState,
+      catalogReloadRequestKeyState,
+      viewingAsPlayerState,
   ) {
     normalizeRestoredAuthenticatedNavigationState(
         savedSelectedRouteName = selectedRouteState.savedRouteName,
@@ -57,6 +61,8 @@ fun rememberAuthenticatedNavigationState(
         myComplexBackStack = myComplexBackStack,
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
         myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
+        catalogReloadRequestKeyState = catalogReloadRequestKeyState,
+        viewingAsPlayerState = viewingAsPlayerState,
     )
   }
 }
@@ -291,15 +297,25 @@ class AuthenticatedNavigationState(
     private val ownerCourtAvailabilityEntrypointState:
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
     private val myComplexHubReloadRequestKeyState: MutableState<Int>,
+    private val catalogReloadRequestKeyState: MutableState<Int>,
+    private val viewingAsPlayerState: MutableState<Boolean>,
 ) {
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
+
+  // True when an owner is temporarily viewing the app in mejenguero (player) mode.
+  // Non-owners are unaffected — this flag is only meaningful when isOwner is true.
+  val viewingAsPlayer: Boolean
+    get() = viewingAsPlayerState.value
 
   val ownerCourtAvailabilityEntrypoint: OwnerCourtAvailabilityEntrypoint?
     get() = ownerCourtAvailabilityEntrypointState.value
 
   val myComplexHubReloadRequestKey: Int
     get() = myComplexHubReloadRequestKeyState.value
+
+  val catalogReloadRequestKey: Int
+    get() = catalogReloadRequestKeyState.value
 
   val currentBackStack: NavBackStack<NavKey>
     get() =
@@ -311,30 +327,31 @@ class AuthenticatedNavigationState(
         }
 
   fun selectSearch() {
-    selectedRoute = AuthenticatedTopLevelRoute.Search
+    navigateTo(AuthenticatedTopLevelRoute.Search)
   }
 
   fun selectReservations() {
-    selectedRoute = AuthenticatedTopLevelRoute.Reservations
+    navigateTo(AuthenticatedTopLevelRoute.Reservations)
   }
 
   fun selectNotifications() {
-    selectedRoute = AuthenticatedTopLevelRoute.Notifications
+    navigateTo(AuthenticatedTopLevelRoute.Notifications)
   }
 
   fun selectMyComplex() {
-    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
   }
 
   fun openCreateComplex() {
-    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
-    if (myComplexBackStack.lastOrNull() != CreateComplexRoute) {
-      myComplexBackStack.add(CreateComplexRoute)
+    // Push onto the current stack so "back" returns to where the flow started:
+    // the catalog when a mejenguero taps the on-ramp, the owner hub otherwise.
+    if (currentBackStack.lastOrNull() != CreateComplexRoute) {
+      currentBackStack.add(CreateComplexRoute)
     }
   }
 
   fun openCatalogCourtDetail(route: CatalogCourtDetailRoute) {
-    selectedRoute = AuthenticatedTopLevelRoute.Search
+    navigateTo(AuthenticatedTopLevelRoute.Search)
     while (searchBackStack.size > 1) {
       searchBackStack.removeLastOrNull()
     }
@@ -344,7 +361,7 @@ class AuthenticatedNavigationState(
   }
 
   fun openCatalogReservation(route: CatalogReservationRoute) {
-    selectedRoute = AuthenticatedTopLevelRoute.Search
+    navigateTo(AuthenticatedTopLevelRoute.Search)
     val detailRoute =
         CatalogCourtDetailRoute(
             courtId = route.courtId,
@@ -368,7 +385,7 @@ class AuthenticatedNavigationState(
   }
 
   fun openComplexDetail(complexId: String) {
-    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
     while (myComplexBackStack.size > 1) {
       myComplexBackStack.removeLastOrNull()
     }
@@ -379,7 +396,7 @@ class AuthenticatedNavigationState(
   }
 
   fun openAddCourt(complexId: String, complexName: String) {
-    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
     val detailRoute = ComplexDetailRoute(complexId)
     if (myComplexBackStack.lastOrNull() != detailRoute) {
       if (myComplexBackStack.none { it == detailRoute }) {
@@ -398,7 +415,7 @@ class AuthenticatedNavigationState(
   }
 
   fun returnToMyComplexRoot() {
-    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
     myComplexBackStack.clear()
     myComplexBackStack.add(MyComplexRoute)
     requestMyComplexHubReload()
@@ -406,9 +423,14 @@ class AuthenticatedNavigationState(
 
   fun openCourtAvailability(entrypoint: OwnerCourtAvailabilityEntrypoint) {
     ownerCourtAvailabilityEntrypointState.value = entrypoint
-    selectedRoute = AuthenticatedTopLevelRoute.MyComplex
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
     if (myComplexBackStack.lastOrNull() == CreateComplexRoute) {
       myComplexBackStack.removeLastOrNull()
+    }
+    // The create-complex step may have been opened from the catalog; drop it there too
+    // so it does not linger in the mejenguero search stack after the owner is created.
+    while (searchBackStack.lastOrNull() == CreateComplexRoute) {
+      searchBackStack.removeLastOrNull()
     }
 
     val route =
@@ -446,10 +468,22 @@ class AuthenticatedNavigationState(
     }
   }
 
+  // Owner switches to the mejenguero (player) shell and lands on Buscar.
+  fun switchToPlayerView() {
+    navigateTo(AuthenticatedTopLevelRoute.Search)
+    requestCatalogReload()
+  }
+
+  // Owner returns to the owner shell (drawer) and lands on Mi complejo.
+  fun switchToOwnerView() {
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
+  }
+
   fun reset() {
     ownerCourtAvailabilityEntrypointState.value = null
     myComplexHubReloadRequestKeyState.value = 0
-    selectedRoute = AuthenticatedTopLevelRoute.Search
+    catalogReloadRequestKeyState.value = 0
+    navigateTo(AuthenticatedTopLevelRoute.Search)
     searchBackStack.clear()
     searchBackStack.add(SearchRoute)
     reservationsBackStack.clear()
@@ -462,6 +496,26 @@ class AuthenticatedNavigationState(
 
   private fun requestMyComplexHubReload() {
     myComplexHubReloadRequestKeyState.value += 1
+  }
+
+  private fun requestCatalogReload() {
+    catalogReloadRequestKeyState.value += 1
+  }
+
+  // Sets the selected route and keeps viewingAsPlayer in sync with the route's domain:
+  // - Player routes (Search, Notifications) → viewingAsPlayer = true
+  // - Owner routes (MyComplex) → viewingAsPlayer = false
+  // - Shared routes (Reservations) → viewingAsPlayer unchanged
+  private fun navigateTo(route: AuthenticatedTopLevelRoute) {
+    when (route) {
+      AuthenticatedTopLevelRoute.Search,
+      AuthenticatedTopLevelRoute.Notifications -> viewingAsPlayerState.value = true
+      AuthenticatedTopLevelRoute.MyComplex -> viewingAsPlayerState.value = false
+      AuthenticatedTopLevelRoute.Reservations -> {
+        // Shared route: preserve the current viewingAsPlayer value.
+      }
+    }
+    selectedRoute = route
   }
 }
 

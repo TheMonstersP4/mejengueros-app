@@ -177,7 +177,8 @@ function createPrismaMock() {
         complexId: 'complex-id',
         complex: { name: 'Mejengas CR' },
         availability: null
-      })
+      }),
+      update: jest.fn().mockResolvedValue({ id: ownedCourtId })
     },
     courtAvailability: {
       create: jest.fn().mockResolvedValue({ id: 'availability-id' }),

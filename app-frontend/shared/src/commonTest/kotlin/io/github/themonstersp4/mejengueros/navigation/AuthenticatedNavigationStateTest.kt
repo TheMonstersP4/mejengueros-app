@@ -153,11 +153,27 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun openCreateComplexKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
 
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
     assertEquals(listOf(MyComplexRoute, CreateComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun openCreateComplexFromCatalogReturnsToCatalogOnBack() {
+    val state = testNavigationState()
+
+    state.openCreateComplex()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute, CreateComplexRoute), state.currentBackStack.toList())
+
+    state.closeCurrentDetail()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
   }
 
   @Test
@@ -266,6 +282,7 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun switchingTopLevelRoutesPreservesMyComplexDetailStack() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
     state.selectSearch()
@@ -288,6 +305,7 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun openCourtAvailabilityReplacesCreateComplexDetailInsideMyComplexFlow() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
     state.openCourtAvailability(
@@ -401,6 +419,7 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun closeCurrentDetailReturnsToMyComplexRoot() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
     state.closeCurrentDetail()
@@ -472,6 +491,147 @@ class AuthenticatedNavigationStateTest {
     assertEquals(null, state.ownerCourtAvailabilityEntrypoint)
   }
 
+  @Test
+  fun switchToPlayerViewSetsViewingAsPlayerAndNavigatesToSearch() {
+    val state = testNavigationState()
+
+    state.switchToPlayerView()
+
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+  }
+
+  @Test
+  fun switchToOwnerViewClearsViewingAsPlayerAndNavigatesToMyComplex() {
+    val state = testNavigationState()
+
+    state.switchToPlayerView()
+    state.switchToOwnerView()
+
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+  }
+
+  @Test
+  fun resetSetsViewingAsPlayerTrue() {
+    val state = testNavigationState()
+
+    state.switchToOwnerView()
+    state.reset()
+
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+  }
+
+  @Test
+  fun defaultViewingAsPlayerIsTrue() {
+    val state = testNavigationState()
+
+    assertEquals(true, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun playerRoutesSetViewingAsPlayerTrue() {
+    val state = testNavigationState()
+    state.switchToOwnerView() // start in owner mode
+
+    state.selectSearch()
+    assertEquals(true, state.viewingAsPlayer)
+
+    state.switchToOwnerView()
+    state.selectNotifications()
+    assertEquals(true, state.viewingAsPlayer)
+
+    state.switchToOwnerView()
+    state.openCatalogCourtDetail(
+        CatalogCourtDetailRoute(
+            courtId = "c",
+            complexId = "cx",
+            complexName = "X",
+            courtName = "C",
+        )
+    )
+    assertEquals(true, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun ownerRoutesSetViewingAsPlayerFalse() {
+    val state = testNavigationState()
+    // starts as true (player mode); navigating to owner routes must flip to false
+
+    state.selectMyComplex()
+    assertEquals(false, state.viewingAsPlayer)
+
+    state.switchToPlayerView()
+    state.openComplexDetail("complex-id")
+    assertEquals(false, state.viewingAsPlayer)
+
+    state.switchToPlayerView()
+    state.openAddCourt("complex-id", "North")
+    assertEquals(false, state.viewingAsPlayer)
+
+    state.switchToPlayerView()
+    state.openCourtAvailability(
+        OwnerCourtAvailabilityEntrypoint(
+            courtId = "c",
+            courtName = "Cancha 1",
+            complexName = "X",
+        )
+    )
+    assertEquals(false, state.viewingAsPlayer)
+
+    state.switchToPlayerView()
+    state.returnToMyComplexRoot()
+    assertEquals(false, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun reservationsPreservesViewingAsPlayer() {
+    val state = testNavigationState()
+
+    // While in player mode, Reservations keeps viewingAsPlayer = true
+    state.selectReservations()
+    assertEquals(true, state.viewingAsPlayer)
+
+    // While in owner mode, Reservations keeps viewingAsPlayer = false
+    state.switchToOwnerView()
+    state.selectReservations()
+    assertEquals(false, state.viewingAsPlayer)
+  }
+
+  @Test
+  fun switchToPlayerViewBumpsCatalogReloadKey() {
+    val state = testNavigationState()
+
+    val keyBefore = state.catalogReloadRequestKey
+    state.switchToPlayerView()
+
+    assertEquals(keyBefore + 1, state.catalogReloadRequestKey)
+  }
+
+  @Test
+  fun switchToOwnerViewDoesNotBumpCatalogReloadKey() {
+    val state = testNavigationState()
+
+    val keyBefore = state.catalogReloadRequestKey
+    state.switchToPlayerView() // bumps once
+    val keyAfterPlayer = state.catalogReloadRequestKey
+    state.switchToOwnerView()
+
+    assertEquals(keyAfterPlayer, state.catalogReloadRequestKey)
+    assertEquals(keyBefore + 1, state.catalogReloadRequestKey)
+  }
+
+  @Test
+  fun resetClearsCatalogReloadKey() {
+    val state = testNavigationState()
+
+    state.switchToPlayerView() // bumps key
+    state.reset()
+
+    assertEquals(0, state.catalogReloadRequestKey)
+  }
+
   private fun testNavigationState(): AuthenticatedNavigationState =
       AuthenticatedNavigationState(
           selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
@@ -481,5 +641,7 @@ class AuthenticatedNavigationStateTest {
           myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
+          catalogReloadRequestKeyState = mutableStateOf(0),
+          viewingAsPlayerState = mutableStateOf(true),
       )
 }

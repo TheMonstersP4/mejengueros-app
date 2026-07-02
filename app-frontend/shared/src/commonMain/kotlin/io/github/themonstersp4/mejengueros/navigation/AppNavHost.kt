@@ -108,7 +108,10 @@ fun AppNavHost() {
             loginBackStack.add(LoginRoute)
           },
           refreshOwnerRole = authViewModel::refreshProfileAfterOwnerTransition,
+          switchToPlayerView = authenticatedNavigationState::switchToPlayerView,
+          switchToOwnerView = authenticatedNavigationState::switchToOwnerView,
           isOwner = authState.isOwner,
+          viewingAsPlayer = authenticatedNavigationState.viewingAsPlayer,
       )
 
   NavDisplay(

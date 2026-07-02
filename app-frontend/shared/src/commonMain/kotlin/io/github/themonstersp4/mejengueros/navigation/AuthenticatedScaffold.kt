@@ -10,8 +10,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalDrawerSheet
@@ -45,6 +50,13 @@ fun AuthenticatedScaffold(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     isOwner: Boolean = false,
+    // True when an owner is temporarily viewing the app in player (mejenguero) mode.
+    viewingAsPlayer: Boolean = false,
+    // Called when the owner taps "Modo mejenguero" in the drawer to enter player mode.
+    onSwitchToPlayerView: () -> Unit = {},
+    // Called when an owner-in-player-mode taps "Mi complejo" in the top bar to return to owner
+    // mode.
+    onSwitchToOwnerView: () -> Unit = {},
     title: String = "Mejengueros",
     onNavigateBack: (() -> Unit)? = null,
     overlayVisible: Boolean = false,
@@ -60,7 +72,7 @@ fun AuthenticatedScaffold(
           .then(if (overlayVisible) Modifier.clearAndSetSemantics {} else Modifier)
 
   Box(modifier = modifier.fillMaxSize()) {
-    if (isOwner) {
+    if (isOwner && !viewingAsPlayer) {
       ModalNavigationDrawer(
           drawerState = drawerState,
           modifier = Modifier.fillMaxSize(),
@@ -89,6 +101,16 @@ fun AuthenticatedScaffold(
                   label = { Text("Reseñas") },
                   selected = false,
                   onClick = { drawerScope.launch { drawerState.close() } },
+                  modifier = Modifier.padding(horizontal = 12.dp),
+              )
+              HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+              NavigationDrawerItem(
+                  label = { Text("Modo mejenguero") },
+                  selected = false,
+                  onClick = {
+                    drawerScope.launch { drawerState.close() }
+                    onSwitchToPlayerView()
+                  },
                   modifier = Modifier.padding(horizontal = 12.dp),
               )
             }
@@ -150,6 +172,15 @@ fun AuthenticatedScaffold(
                   }
                 },
                 actions = {
+                  if (isOwner) {
+                    IconButton(onClick = onSwitchToOwnerView) {
+                      Icon(
+                          imageVector = Icons.Filled.Home,
+                          contentDescription = "Mi complejo",
+                          modifier = Modifier.size(20.dp),
+                      )
+                    }
+                  }
                   IconButton(onClick = { showSignOutConfirmation = true }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
@@ -168,16 +199,34 @@ fun AuthenticatedScaffold(
                             label = "Buscar",
                             selected = selectedRoute == AuthenticatedTopLevelRoute.Search,
                             onClick = onSearchSelected,
+                            icon = {
+                              Icon(
+                                  imageVector = Icons.Filled.Search,
+                                  contentDescription = "Buscar",
+                              )
+                            },
                         ),
                         MejenguerosBottomNavigationItem(
                             label = "Reservas",
                             selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
                             onClick = onReservationsSelected,
+                            icon = {
+                              Icon(
+                                  imageVector = Icons.Filled.DateRange,
+                                  contentDescription = "Reservas",
+                              )
+                            },
                         ),
                         MejenguerosBottomNavigationItem(
                             label = "Notificaciones",
                             selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
                             onClick = onNotificationsSelected,
+                            icon = {
+                              Icon(
+                                  imageVector = Icons.Filled.Notifications,
+                                  contentDescription = "Notificaciones",
+                              )
+                            },
                         ),
                     )
             )

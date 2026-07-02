@@ -185,6 +185,8 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
         ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
         myComplexHubReloadRequestKeyState = mutableStateOf(0),
+        catalogReloadRequestKeyState = mutableStateOf(0),
+        viewingAsPlayerState = mutableStateOf(false),
     )
 
 private class SuccessfulCourtAvailabilityRepository : ICourtAvailabilityRepository {

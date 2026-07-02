@@ -26,5 +26,11 @@ class AuthenticatedShellActions(
     val closeCurrentDetail: () -> Unit,
     val signOut: () -> Unit,
     val refreshOwnerRole: () -> Unit,
+    // Switches an owner to the mejenguero (player) bottom-nav shell, landing on Buscar.
+    val switchToPlayerView: () -> Unit = {},
+    // Switches an owner back to the owner drawer shell, landing on Mi complejo.
+    val switchToOwnerView: () -> Unit = {},
     val isOwner: Boolean = false,
+    // True when an owner is temporarily browsing in player mode.
+    val viewingAsPlayer: Boolean = false,
 )

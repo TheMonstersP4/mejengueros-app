@@ -316,9 +316,11 @@ class ComplexRemoteDataSourceTest {
                         {
                           "success": true,
                           "data": {
-                            "id": "court-id",
-                            "complexId": "complex-id",
-                            "name": "Court B"
+                            "court": {
+                              "id": "court-id",
+                              "complexId": "complex-id",
+                              "name": "Court B"
+                            }
                           }
                         }
                         """,

@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -62,81 +62,101 @@ fun HomeScreen(
     onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  CatalogScaffold(
-      state = state,
-      contentPadding = contentPadding,
-      onSearchQueryChange = onSearchQueryChange,
-      onProvinceSelected = onProvinceSelected,
-      onCantonSelected = onCantonSelected,
-      modifier = modifier,
+  val hasCourts =
+      !state.isLoading && state.loadErrorMessage == null && state.visibleCourts.isNotEmpty()
+
+  Column(
+      modifier =
+          modifier
+              .fillMaxSize()
+              .padding(contentPadding)
+              .background(MaterialTheme.colorScheme.surfaceContainerLow),
   ) {
-    when {
-      state.isLoading -> {
-        MejenguerosStateContent(
-            title = "Cargando canchas",
-            description = "Preparando el catálogo disponible.",
-            variant = MejenguerosStateVariant.Pending,
-        )
-      }
-
-      state.loadErrorMessage != null -> {
-        MejenguerosStateContent(
-            title = "Catálogo no disponible",
-            description = state.loadErrorMessage,
-            variant = MejenguerosStateVariant.Error,
-            actions = {
-              MejenguerosOutlinedButton(
-                  text = "Reintentar",
-                  onClick = onRetryLoad,
-                  modifier =
-                      Modifier.testTag("catalog_retry_button").semantics {
-                        contentDescription = "Reintentar catálogo"
+    if (hasCourts) {
+      // The header scrolls together with the court list in a single scroll container.
+      LazyColumn(
+          modifier = Modifier.fillMaxSize().testTag("catalog_court_list"),
+          contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
+          verticalArrangement = Arrangement.spacedBy(16.dp),
+      ) {
+        item {
+          CatalogHeader(
+              state = state,
+              onSearchQueryChange = onSearchQueryChange,
+              onProvinceSelected = onProvinceSelected,
+              onCantonSelected = onCantonSelected,
+          )
+        }
+        items(state.visibleCourts, key = { it.id }) { court ->
+          MejenguerosCourtCard(
+              title = court.displayName,
+              location = "${court.provinceName} · ${court.cantonName}",
+              imageUrl = court.imageUrl,
+              imageContentDescription = court.displayName,
+              metadata = buildCourtMetadata(court),
+              statusText = if (court.isReservableToday) "Reservable hoy" else null,
+              modifier =
+                  Modifier.padding(horizontal = 20.dp)
+                      .testTag("catalog_court_card_${court.id}")
+                      .semantics {
+                        onClick {
+                          onOpenCourtDetail(court)
+                          true
+                        }
                       },
+              onClick = { onOpenCourtDetail(court) },
+          )
+        }
+        item {
+          CatalogOwnerOnramp(
+              onClick = onOpenCreateComplex,
+              modifier = Modifier.padding(horizontal = 20.dp),
+          )
+        }
+      }
+    } else {
+      // Keep the compact search header visible while the state message fills the rest.
+      CatalogHeader(
+          state = state,
+          onSearchQueryChange = onSearchQueryChange,
+          onProvinceSelected = onProvinceSelected,
+          onCantonSelected = onCantonSelected,
+      )
+      Box(
+          modifier = Modifier.fillMaxWidth().weight(1f).padding(20.dp),
+          contentAlignment = Alignment.Center,
+      ) {
+        when {
+          state.isLoading ->
+              MejenguerosStateContent(
+                  title = "Cargando canchas",
+                  description = "Preparando el catálogo disponible.",
+                  variant = MejenguerosStateVariant.Pending,
               )
-            },
-        )
-      }
 
-      state.visibleCourts.isEmpty() -> {
-        MejenguerosStateContent(
-            title = "Sin resultados",
-            description = "Ajustá la búsqueda o los filtros para encontrar otra cancha.",
-            variant = MejenguerosStateVariant.Empty,
-        )
-      }
+          state.loadErrorMessage != null ->
+              MejenguerosStateContent(
+                  title = "Catálogo no disponible",
+                  description = state.loadErrorMessage,
+                  variant = MejenguerosStateVariant.Error,
+                  actions = {
+                    MejenguerosOutlinedButton(
+                        text = "Reintentar",
+                        onClick = onRetryLoad,
+                        modifier =
+                            Modifier.testTag("catalog_retry_button").semantics {
+                              contentDescription = "Reintentar catálogo"
+                            },
+                    )
+                  },
+              )
 
-      else -> {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().testTag("catalog_court_list"),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-          items(state.visibleCourts, key = { it.id }) { court ->
-            MejenguerosCourtCard(
-                title = court.displayName,
-                location = "${court.provinceName} · ${court.cantonName}",
-                imageUrl = court.imageUrl,
-                imageContentDescription = court.displayName,
-                metadata = buildCourtMetadata(court),
-                statusText = if (court.isReservableToday) "Reservable hoy" else null,
-                modifier =
-                    Modifier.padding(horizontal = 20.dp)
-                        .testTag("catalog_court_card_${court.id}")
-                        .semantics {
-                          onClick {
-                            onOpenCourtDetail(court)
-                            true
-                          }
-                        },
-                onClick = { onOpenCourtDetail(court) },
-            )
-          }
-          item {
-            CatalogOwnerOnramp(
-                onClick = onOpenCreateComplex,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-          }
-          item { Spacer(modifier = Modifier.height(4.dp)) }
+          else ->
+              MejenguerosStateContent(
+                  title = "Sin resultados",
+                  description = "Ajustá la búsqueda o los filtros para encontrar otra cancha.",
+                  variant = MejenguerosStateVariant.Empty,
+              )
         }
       }
     }
@@ -166,43 +186,6 @@ private fun CatalogOwnerOnramp(
 }
 
 @Composable
-private fun CatalogScaffold(
-    state: CourtCatalogUiState,
-    contentPadding: PaddingValues,
-    onSearchQueryChange: (String) -> Unit,
-    onProvinceSelected: (String?) -> Unit,
-    onCantonSelected: (String?) -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-  Column(
-      modifier =
-          modifier
-              .fillMaxSize()
-              .padding(contentPadding)
-              .background(MaterialTheme.colorScheme.surface),
-  ) {
-    CatalogHeader(
-        state = state,
-        onSearchQueryChange = onSearchQueryChange,
-        onProvinceSelected = onProvinceSelected,
-        onCantonSelected = onCantonSelected,
-    )
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-      Box(
-          modifier = Modifier.fillMaxSize().padding(vertical = 16.dp),
-          contentAlignment = Alignment.TopCenter,
-      ) {
-        content()
-      }
-    }
-  }
-}
-
-@Composable
 private fun CatalogHeader(
     state: CourtCatalogUiState,
     onSearchQueryChange: (String) -> Unit,
@@ -214,42 +197,32 @@ private fun CatalogHeader(
   var cantonMenuExpanded by remember { mutableStateOf(false) }
 
   Column(
-      modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
+      modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
     Text(
         text = "Canchas",
-        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
         color = MaterialTheme.colorScheme.onSurface,
     )
     Box(
         modifier =
-            Modifier.width(72.dp)
-                .height(6.dp)
+            Modifier.width(40.dp)
+                .height(3.dp)
                 .background(
                     color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(999.dp),
                 )
     )
-    Text(
-        text =
-            "Explorá canchas activas y publicadas del catálogo real por provincia, cantón o nombre.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
     SearchPill(
         query = state.searchQuery,
         onQueryChange = onSearchQueryChange,
     )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       FilterChipSummary(
           label = state.selectedProvince?.label ?: "Provincia",
           selected = state.selectedProvince != null,
           onClick = { provinceMenuExpanded = true },
-          modifier = Modifier.weight(1f),
       ) {
         DropdownMenu(
             expanded = provinceMenuExpanded,
@@ -277,7 +250,6 @@ private fun CatalogHeader(
           label = state.selectedCanton?.label ?: "Cantón",
           selected = state.selectedCanton != null,
           onClick = { cantonMenuExpanded = true },
-          modifier = Modifier.weight(1f),
       ) {
         DropdownMenu(
             expanded = cantonMenuExpanded,
@@ -371,7 +343,6 @@ private fun FilterChipSummary(
   Box(modifier = modifier) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
         shape = CircleShape,
         color =
             if (selected) MaterialTheme.colorScheme.primaryContainer
@@ -387,11 +358,16 @@ private fun FilterChipSummary(
             ),
     ) {
       Row(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
+          modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalAlignment = Alignment.CenterVertically,
       ) {
         Text(text = label, style = MaterialTheme.typography.titleSmall)
-        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
+        Icon(
+            Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
       }
     }
     menuContent()
