@@ -91,7 +91,8 @@ describe('reservations HTTP contract', () => {
     prismaService = Object.assign(prismaService, createPrismaMock());
     syncAuthenticatedUser.execute.mockResolvedValue({
       id: 'user-id',
-      email: 'player@example.test'
+      email: 'player@example.test',
+      roles: []
     });
   });
 
