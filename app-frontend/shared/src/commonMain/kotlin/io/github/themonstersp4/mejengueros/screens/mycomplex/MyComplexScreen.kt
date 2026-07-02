@@ -13,25 +13,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -116,7 +112,6 @@ fun ComplexDetailScreen(
     errorMessage: String?,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
-    onAddCourt: (String, String) -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -135,7 +130,6 @@ fun ComplexDetailScreen(
           ComplexDetailContent(
               complex = complex,
               isRefreshing = isLoading,
-              onAddCourt = onAddCourt,
               onConfigureAvailability = onConfigureAvailability,
           )
       isLoading -> LoadingState()
@@ -288,7 +282,6 @@ private fun ComplexListState(
 private fun ComplexDetailContent(
     complex: MyComplexHubComplex,
     isRefreshing: Boolean,
-    onAddCourt: (String, String) -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -303,7 +296,6 @@ private fun ComplexDetailContent(
     ComplexHubSection(
         complex = complex,
         onConfigureAvailability = onConfigureAvailability,
-        onAddCourt = { onAddCourt(complex.id, complex.name) },
     )
   }
 }
@@ -312,17 +304,11 @@ private fun ComplexDetailContent(
 private fun ComplexHubSection(
     complex: MyComplexHubComplex,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
-    onAddCourt: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
     SectionLabel(text = "TUS CANCHAS")
     CourtsGroup(complex = complex, onConfigureAvailability = onConfigureAvailability)
-    AddCourtCallToAction(
-        onClick = onAddCourt,
-        enabled = true,
-        modifier = Modifier.testTag("complex_detail_add_court_button_${complex.id}"),
-    )
     Spacer(modifier = Modifier.height(8.dp))
     ActivitySection()
   }
@@ -502,38 +488,6 @@ private fun CourtRow(
               dividerModifier = Modifier.testTag("my_complex_court_divider_${court.id}"),
           ),
   )
-}
-
-@Composable
-private fun AddCourtCallToAction(
-    onClick: () -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-  OutlinedButton(
-      onClick = onClick,
-      enabled = enabled,
-      modifier = modifier.fillMaxWidth().height(56.dp),
-      shape = RoundedCornerShape(20.dp),
-      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-      colors =
-          ButtonDefaults.outlinedButtonColors(
-              contentColor = MaterialTheme.colorScheme.primary,
-              disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-          ),
-  ) {
-    Icon(
-        imageVector = Icons.Filled.Add,
-        contentDescription = null,
-        modifier = Modifier.size(18.dp),
-    )
-    Spacer(modifier = Modifier.width(8.dp))
-    Text(
-        text = "Agregar cancha",
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        textAlign = TextAlign.Center,
-    )
-  }
 }
 
 @Composable
