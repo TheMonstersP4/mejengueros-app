@@ -55,7 +55,7 @@ val dataModule = module {
   single<IAuthRemoteDataSource> { CognitoAuthRemoteDataSource(get(), get()) }
   single<ICognitoNativeAuthDataSource> { CognitoNativeAuthDataSource(get(), get(), get()) }
   single<IAuthenticatedUserRemoteDataSource> {
-    AuthenticatedUserRemoteDataSource(get(named(AppApiHttpClientQualifier)))
+    AuthenticatedUserRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
   single<IAuthRepository> {
     AuthRepository(get(), get(), get(), get(), get(), get(), get(), get(), get())

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserIdentityResponse } from '../../../../../shared/interfaces/http/dto/user-identity.response';
+import type { UserRoleKind } from '../../../domain/entities/user.entity';
 
 /**
  * HTTP response body for the authenticated user profile.
@@ -17,4 +18,13 @@ export class UserProfileResponse extends UserIdentityResponse {
   @ApiPropertyOptional({ example: '21dbf550-b071-7037-4dc2-169c7a4b4c28' })
   cognitoSub?: string;
 
+  /**
+   * Application roles assigned to the user.
+   */
+  @ApiProperty({
+    example: ['PLAYER'],
+    enum: ['PLAYER', 'OWNER', 'ADMIN'],
+    isArray: true
+  })
+  roles!: UserRoleKind[];
 }

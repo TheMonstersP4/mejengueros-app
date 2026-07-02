@@ -1,3 +1,5 @@
+import type { UserRoleKind } from '../../domain/entities/user.entity';
+
 /**
  * User profile returned by users application use cases.
  */
@@ -31,4 +33,9 @@ export interface IUserProfileOutput {
    * Upstream identity provider name.
    */
   provider?: string;
+
+  /**
+   * Application roles assigned to the user.
+   */
+  roles: UserRoleKind[];
 }

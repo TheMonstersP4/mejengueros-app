@@ -1,4 +1,9 @@
 /**
+ * Application-level role kinds available on a user profile.
+ */
+export type UserRoleKind = 'PLAYER' | 'OWNER' | 'ADMIN';
+
+/**
  * Properties required to rebuild a user entity from persistence.
  */
 export interface IUserEntityProps {
@@ -26,6 +31,11 @@ export interface IUserEntityProps {
    * Identity used for the current auth context.
    */
   currentIdentity?: IUserEntityIdentityProps | null;
+
+  /**
+   * Application roles assigned to the user.
+   */
+  roles?: UserRoleKind[] | null;
 }
 
 /**
@@ -76,6 +86,11 @@ export interface IUserProfileSnapshot {
    * Upstream identity provider name for the current identity.
    */
   provider?: string;
+
+  /**
+   * Application roles assigned to the user.
+   */
+  roles: UserRoleKind[];
 }
 
 /**
@@ -110,7 +125,8 @@ export class UserEntity {
       email: this.props.email,
       name: this.props.name ?? undefined,
       pictureUrl: this.props.pictureUrl ?? undefined,
-      provider: this.props.currentIdentity?.provider
+      provider: this.props.currentIdentity?.provider,
+      roles: this.props.roles ?? []
     };
   }
 }

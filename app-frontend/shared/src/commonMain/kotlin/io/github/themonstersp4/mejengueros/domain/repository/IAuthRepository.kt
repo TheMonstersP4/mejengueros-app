@@ -4,9 +4,12 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignInRequest
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
+import io.github.themonstersp4.mejengueros.domain.model.UserProfile
 
 interface IAuthRepository {
   suspend fun getSession(): AuthSession?
+
+  fun getUserProfile(): UserProfile?
 
   suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest
 

@@ -6,6 +6,7 @@ import io.github.themonstersp4.mejengueros.data.auth.AuthCallbackBus
 import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
+import io.github.themonstersp4.mejengueros.domain.model.UserRoleKind
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -287,12 +288,15 @@ class AuthViewModel(
   }
 
   private fun applyAuthenticatedSession(session: AuthSession) {
+    val profile = authRepository.getUserProfile()
+    val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
     _uiState.value =
         _uiState.value.copy(
             email = session.email,
             displayName = session.displayName,
             provider = session.provider,
             isAuthenticated = true,
+            isOwner = isOwner,
             isLoading = false,
             pendingProvider = null,
             errorMessage = null,

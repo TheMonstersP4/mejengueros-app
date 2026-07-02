@@ -23,7 +23,8 @@ describe('users module behavior', () => {
     email: 'user@example.test',
     name: 'User Name',
     pictureUrl: 'https://example.test/avatar.png',
-    identities: [googleIdentity]
+    identities: [googleIdentity],
+    roles: [{ role: 'PLAYER' as const }]
   };
   const userProfile = {
     id: 'user-id',
@@ -31,7 +32,8 @@ describe('users module behavior', () => {
     email: 'user@example.test',
     name: 'User Name',
     pictureUrl: 'https://example.test/avatar.png',
-    provider: 'Google'
+    provider: 'Google',
+    roles: ['PLAYER']
   };
 
   it('converts user entities to API-safe profiles', () => {
@@ -39,7 +41,8 @@ describe('users module behavior', () => {
       ...persistenceUser,
       name: null,
       pictureUrl: null,
-      currentIdentity: null
+      currentIdentity: null,
+      roles: ['PLAYER']
     });
 
     expect(entity.toProfile()).toEqual({
@@ -48,8 +51,31 @@ describe('users module behavior', () => {
       email: 'user@example.test',
       name: undefined,
       pictureUrl: undefined,
-      provider: undefined
+      provider: undefined,
+      roles: ['PLAYER']
     });
+  });
+
+  it('exposes an empty roles array when no roles are present on the entity', () => {
+    const entity = UserEntity.fromPersistence({
+      id: 'user-id',
+      email: 'user@example.test',
+      name: null,
+      pictureUrl: null,
+      currentIdentity: null
+    });
+
+    expect(entity.toProfile().roles).toEqual([]);
+  });
+
+  it('exposes OWNER role when the entity carries an OWNER role record', () => {
+    const entity = UserEntity.fromPersistence({
+      id: 'user-id',
+      email: 'user@example.test',
+      roles: ['OWNER']
+    });
+
+    expect(entity.toProfile().roles).toEqual(['OWNER']);
   });
 
   it('maps Prisma users to domain entities', () => {
@@ -59,7 +85,8 @@ describe('users module behavior', () => {
   it('syncs authenticated users through the repository port', async () => {
     const entity = UserEntity.fromPersistence({
       ...persistenceUser,
-      currentIdentity: googleIdentity
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
     });
     const repository = {
       syncAuthenticatedUser: jest.fn().mockResolvedValue(entity),
@@ -89,6 +116,43 @@ describe('users module behavior', () => {
     });
   });
 
+  it('returns roles from userRole records after sync', async () => {
+    const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
+    const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
+    delete process.env.DEMO_OWNER_EMAILS;
+    delete process.env.DEMO_OWNER_SUBS;
+    const prisma = {
+      user: {
+        create: jest.fn().mockResolvedValue(persistenceUser),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+        findMany: jest.fn()
+      },
+      userIdentity: {
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      userRole: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([{ role: 'OWNER' }])
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    const entity = await repository.syncAuthenticatedUser({
+      cognitoSub: 'cognito-sub',
+      name: 'User Name'
+    });
+
+    expect(entity.toProfile().roles).toEqual(['OWNER']);
+    expect(prisma.userRole.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-id' },
+      select: { role: true }
+    });
+    process.env.DEMO_OWNER_EMAILS = originalDemoOwnerEmails;
+    process.env.DEMO_OWNER_SUBS = originalDemoOwnerSubs;
+  });
+
   it('creates authenticated users with a linked identity', async () => {
     const originalDemoOwnerEmails = process.env.DEMO_OWNER_EMAILS;
     const originalDemoOwnerSubs = process.env.DEMO_OWNER_SUBS;
@@ -106,7 +170,8 @@ describe('users module behavior', () => {
       },
       userRole: {
         findUnique: jest.fn(),
-        upsert: jest.fn()
+        upsert: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -181,7 +246,8 @@ describe('users module behavior', () => {
       },
       userRole: {
         findUnique: jest.fn(),
-        upsert: jest.fn()
+        upsert: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -263,7 +329,8 @@ describe('users module behavior', () => {
       userRole: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
-        deleteMany: jest.fn()
+        deleteMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -336,7 +403,8 @@ describe('users module behavior', () => {
       userRole: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
-        deleteMany: jest.fn()
+        deleteMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -395,7 +463,8 @@ describe('users module behavior', () => {
       },
       userRole: {
         findUnique: jest.fn(),
-        upsert: jest.fn()
+        upsert: jest.fn(),
+        findMany: jest.fn()
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -430,7 +499,8 @@ describe('users module behavior', () => {
       userRole: {
         findUnique: jest.fn(),
         upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-        deleteMany: jest.fn()
+        deleteMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([{ role: 'OWNER' }])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -478,7 +548,8 @@ describe('users module behavior', () => {
       userRole: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
-        deleteMany: jest.fn()
+        deleteMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -513,7 +584,8 @@ describe('users module behavior', () => {
       userRole: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
-        deleteMany: jest.fn()
+        deleteMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -547,7 +619,8 @@ describe('users module behavior', () => {
       userRole: {
         findUnique: jest.fn(),
         upsert: jest.fn().mockResolvedValue({ id: 'owner-role-id' }),
-        deleteMany: jest.fn()
+        deleteMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([{ role: 'OWNER' }])
       }
     };
     const repository = new PrismaUserRepository(prisma as never);
@@ -588,7 +661,8 @@ describe('users module behavior', () => {
       include: {
         user: {
           include: {
-            identities: true
+            identities: true,
+            roles: true
           }
         }
       }
@@ -614,7 +688,8 @@ describe('users module behavior', () => {
   it('lists synchronized users through the repository port', async () => {
     const entity = UserEntity.fromPersistence({
       ...persistenceUser,
-      currentIdentity: googleIdentity
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
     });
     const repository = {
       syncAuthenticatedUser: jest.fn(),
@@ -640,7 +715,8 @@ describe('users module behavior', () => {
     await expect(repository.list()).resolves.toHaveLength(1);
     expect(prisma.user.findMany).toHaveBeenCalledWith({
       include: {
-        identities: true
+        identities: true,
+        roles: true
       },
       orderBy: { updatedAt: 'desc' }
     });
