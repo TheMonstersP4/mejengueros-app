@@ -11,18 +11,21 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
@@ -201,12 +204,78 @@ class CreateComplexScreenBehaviorTest {
     composeRule.runOnIdle { assertEquals(1, acknowledgements) }
   }
 
+  @Test
+  fun firstCourtStepShowsOptionalImageActions() {
+    var pickRequests = 0
+    var clearRequests = 0
+
+    composeRule.setCreateComplexScreenContent(
+        initialState =
+            defaultUiState()
+                .copy(
+                    currentStep = CreateComplexStep.FirstCourt,
+                    isCourtImagePickerAvailable = true,
+                    selectedCourtImage =
+                        LocalCourtImage(
+                            fileName = "court.png",
+                            contentType = "image/png",
+                            bytes = byteArrayOf(1, 2, 3),
+                            previewUrl = "content://court.png",
+                        ),
+                ),
+        onPickCourtImage = { pickRequests += 1 },
+        onClearCourtImage = { clearRequests += 1 },
+    )
+
+    composeRule
+        .onNodeWithTag("create_complex_pick_court_image_button")
+        .performScrollTo()
+        .performTouchInput { click() }
+    composeRule
+        .onNodeWithTag("create_complex_clear_court_image_button")
+        .performScrollTo()
+        .performTouchInput { click() }
+
+    composeRule.runOnIdle {
+      assertEquals(1, pickRequests)
+      assertEquals(1, clearRequests)
+    }
+  }
+
+  @Test
+  fun firstCourtStepShowsInitialSelectImageCtaWhenPickerAvailableWithoutSelectedImage() {
+    var pickRequests = 0
+
+    composeRule.setCreateComplexScreenContent(
+        initialState =
+            defaultUiState()
+                .copy(
+                    currentStep = CreateComplexStep.FirstCourt,
+                    isCourtImagePickerAvailable = true,
+                ),
+        onPickCourtImage = { pickRequests += 1 },
+    )
+
+    composeRule.onAllNodesWithTag("create_complex_court_image_preview").assertCountEquals(0)
+    composeRule.onAllNodesWithTag("create_complex_clear_court_image_button").assertCountEquals(0)
+    composeRule
+        .onNodeWithTag("create_complex_pick_court_image_button")
+        .assertTextEquals("Seleccionar imagen")
+        .assertIsEnabled()
+        .performScrollTo()
+        .performTouchInput { click() }
+
+    composeRule.runOnIdle { assertEquals(1, pickRequests) }
+  }
+
   private fun ComposeContentTestRule.setCreateComplexScreenContent(
       initialState: CreateComplexUiState = defaultUiState(),
       onRetryCatalogs: () -> Unit = {},
       onRetryCantons: () -> Unit = {},
       onSubmit: () -> Unit = {},
       onSuccessAcknowledged: () -> Unit = {},
+      onPickCourtImage: () -> Unit = {},
+      onClearCourtImage: () -> Unit = {},
   ): CreateComplexScreenTestHost {
     val host = CreateComplexScreenTestHost()
     setContent {
@@ -252,6 +321,8 @@ class CreateComplexScreenBehaviorTest {
                     },
                     onFirstCourtNameChange = { localState = localState.copy(firstCourtName = it) },
                     onToggleCourtService = host.toggleCourtService,
+                    onPickCourtImage = onPickCourtImage,
+                    onClearCourtImage = onClearCourtImage,
                     onNext = {
                       localState = localState.copy(currentStep = CreateComplexStep.FirstCourt)
                     },

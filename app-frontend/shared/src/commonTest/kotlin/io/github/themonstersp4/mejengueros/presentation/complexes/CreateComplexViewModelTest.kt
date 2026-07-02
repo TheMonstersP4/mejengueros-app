@@ -2,16 +2,19 @@ package io.github.themonstersp4.mejengueros.presentation.complexes
 
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.Canton
+import io.github.themonstersp4.mejengueros.domain.model.ConfirmedCourtImageUpload
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -33,8 +36,10 @@ class CreateComplexViewModelTest {
   @Test
   fun submitCreatesComplexAndExposesSuccessStateUntilAcknowledged() = runTest {
     val repository = FakeComplexRepository()
+    val imageUploadRepository = FakeCourtImageUploadRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, imageUploadRepository, coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.updateComplexName("North Sports Center")
@@ -120,7 +125,8 @@ class CreateComplexViewModelTest {
                 ),
         )
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.selectProvince("province-1")
@@ -141,7 +147,8 @@ class CreateComplexViewModelTest {
   fun submitRequiresAtLeastOneCourtServiceSelection() = runTest {
     val repository = FakeComplexRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.updateComplexName("North Sports Center")
@@ -174,7 +181,8 @@ class CreateComplexViewModelTest {
                 )
         )
     val scope = TestScope(StandardTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     val province1Deferred = CompletableDeferred<List<Canton>>()
@@ -218,7 +226,8 @@ class CreateComplexViewModelTest {
             cantonFailuresByProvince = mutableMapOf("province-1" to 1),
         )
     val scope = TestScope(StandardTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.selectProvince("province-1")
@@ -249,7 +258,8 @@ class CreateComplexViewModelTest {
             cantonFailuresByProvince = mutableMapOf("province-1" to 1),
         )
     val scope = TestScope(StandardTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.selectProvince("province-1")
@@ -283,7 +293,8 @@ class CreateComplexViewModelTest {
     val secondBootstrap = CompletableDeferred<List<Province>>()
     repository.provinceResponses += firstBootstrap
     repository.provinceResponses += secondBootstrap
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     runCurrent()
 
     assertEquals(1, repository.provinceRequests)
@@ -313,7 +324,8 @@ class CreateComplexViewModelTest {
             provinces = listOf(Province(id = "province-1", code = "SJ", name = "San José")),
         )
     val scope = TestScope(StandardTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     assertEquals(
@@ -342,7 +354,8 @@ class CreateComplexViewModelTest {
   fun refreshCatalogsClearsSelectionsThatNoLongerExist() = runTest {
     val repository = FakeComplexRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.selectProvince("province-1")
@@ -373,7 +386,8 @@ class CreateComplexViewModelTest {
   fun refreshCatalogsClearsSelectedCantonWhenItNoLongerExistsInLoadedCantons() = runTest {
     val repository = FakeComplexRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.selectProvince("province-1")
@@ -404,7 +418,8 @@ class CreateComplexViewModelTest {
   fun refreshCatalogsClearsSelectedCantonAndBlocksProgressWhenReloadFails() = runTest {
     val repository = FakeComplexRepository()
     val scope = TestScope(StandardTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.updateComplexName("North Sports Center")
@@ -443,7 +458,8 @@ class CreateComplexViewModelTest {
             createFailure = AppApiException(statusCode = 500, message = "Backend exploded"),
         )
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.updateComplexName("North Sports Center")
@@ -470,7 +486,8 @@ class CreateComplexViewModelTest {
   fun submitCancellationDoesNotExposeErrorMessage() = runTest {
     val repository = FakeComplexRepository(createFailure = CancellationException("cancelled"))
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
-    val viewModel = CreateComplexViewModel(repository, coroutineScope = scope)
+    val viewModel =
+        CreateComplexViewModel(repository, FakeCourtImageUploadRepository(), coroutineScope = scope)
     advanceUntilIdle()
 
     viewModel.updateComplexName("North Sports Center")
@@ -487,6 +504,98 @@ class CreateComplexViewModelTest {
 
     assertNull(viewModel.uiState.value.errorMessage)
     assertFalse(viewModel.uiState.value.isSubmitting)
+    scope.cancel()
+  }
+
+  @Test
+  fun submitUploadsSelectedCourtImageBeforeCreatingComplex() = runTest {
+    val repository = FakeComplexRepository()
+    val imageUploadRepository = FakeCourtImageUploadRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        CreateComplexViewModel(repository, imageUploadRepository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.goToFirstCourtStep()
+    viewModel.updateFirstCourtName("Court A")
+    viewModel.toggleCourtService("court-service-id")
+    viewModel.updateSelectedCourtImage(
+        LocalCourtImage(
+            fileName = "court.png",
+            contentType = "image/png",
+            bytes = byteArrayOf(1, 2, 3),
+            previewUrl = "content://court.png",
+        )
+    )
+
+    viewModel.submit()
+    advanceUntilIdle()
+
+    assertEquals("court.png", imageUploadRepository.receivedImage?.fileName)
+    assertEquals(
+        CreateComplexRequest(
+            complex =
+                CreateComplexDetails(
+                    name = "North Sports Center",
+                    provinceId = "province-1",
+                    cantonId = "canton-1",
+                    address = "123 Main Street",
+                    latitude = null,
+                    longitude = null,
+                    serviceIds = emptyList(),
+                ),
+            firstCourt =
+                CreateFirstCourtDetails(
+                    name = "Court A",
+                    serviceIds = listOf("court-service-id"),
+                    imageUploadId = "court-image-id",
+                ),
+        ),
+        repository.receivedRequest,
+    )
+    scope.cancel()
+  }
+
+  @Test
+  fun submitStopsWhenCourtImageUploadFails() = runTest {
+    val repository = FakeComplexRepository()
+    val imageUploadRepository =
+        FakeCourtImageUploadRepository(uploadFailure = AppApiException(413, "Too large"))
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        CreateComplexViewModel(repository, imageUploadRepository, coroutineScope = scope)
+    advanceUntilIdle()
+
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.goToFirstCourtStep()
+    viewModel.updateFirstCourtName("Court A")
+    viewModel.toggleCourtService("court-service-id")
+    viewModel.updateSelectedCourtImage(
+        LocalCourtImage(
+            fileName = "court.png",
+            contentType = "image/png",
+            bytes = byteArrayOf(1, 2, 3),
+            previewUrl = "content://court.png",
+        )
+    )
+
+    viewModel.submit()
+    advanceUntilIdle()
+
+    assertEquals(
+        "No pudimos subir la imagen de la cancha. Revisá el archivo e intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertNull(repository.receivedRequest)
     scope.cancel()
   }
 
@@ -581,5 +690,21 @@ class CreateComplexViewModelTest {
         error("Unused in this test")
 
     override suspend fun getMyComplexHub(): MyComplexHub = MyComplexHub(complexes = emptyList())
+  }
+
+  private class FakeCourtImageUploadRepository(
+      private val uploadFailure: Throwable? = null,
+  ) : ICourtImageUploadRepository {
+    var receivedImage: LocalCourtImage? = null
+
+    override suspend fun uploadCourtImage(image: LocalCourtImage): ConfirmedCourtImageUpload {
+      receivedImage = image
+      uploadFailure?.let { throw it }
+      return ConfirmedCourtImageUpload(
+          id = "court-image-id",
+          objectKey = "dev/uploads/court-image/owner-sub/2026/06/court.png",
+          readUrl = "https://read.example.test/court.png",
+      )
+    }
   }
 }

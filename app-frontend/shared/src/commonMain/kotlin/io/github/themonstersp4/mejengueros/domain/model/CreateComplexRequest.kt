@@ -18,11 +18,13 @@ data class CreateComplexDetails(
 data class CreateFirstCourtDetails(
     val name: String,
     val serviceIds: List<String>,
+    val imageUploadId: String? = null,
 )
 
 data class CreateCourtRequest(
     val name: String,
     val serviceIds: List<String>,
+    val imageUploadId: String? = null,
 )
 
 data class CreatedCourt(

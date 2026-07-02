@@ -252,6 +252,54 @@ class ComplexRemoteDataSourceTest {
   }
 
   @Test
+  fun createComplexIncludesOptionalCourtImageUploadIdWhenPresent() = runTest {
+    var requestBody = ""
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "complex": { "id": "complex-id", "name": "North Sports Center", "address": "123 Main Street" },
+                            "firstCourt": { "id": "court-id", "complexId": "complex-id", "name": "Court A" }
+                          }
+                        }
+                        """,
+                    status = HttpStatusCode.Created,
+                    captureBody = { requestBody = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    dataSource.createComplex(
+        CreateComplexRequest(
+            complex =
+                CreateComplexDetails(
+                    name = "North Sports Center",
+                    provinceId = "province-id",
+                    cantonId = "canton-id",
+                    address = "123 Main Street",
+                    latitude = null,
+                    longitude = null,
+                    serviceIds = emptyList(),
+                ),
+            firstCourt =
+                CreateFirstCourtDetails(
+                    name = "Court A",
+                    serviceIds = listOf("court-service-id"),
+                    imageUploadId = "court-image-id",
+                ),
+        )
+    )
+
+    val requestDto = json.decodeFromString<CreateComplexRequestDto>(requestBody)
+    assertEquals("court-image-id", requestDto.firstCourt.imageUploadId)
+  }
+
+  @Test
   fun createComplexMapsServerEnvelopeIntoAppApiException() = runTest {
     val dataSource =
         ComplexRemoteDataSource(
@@ -386,6 +434,51 @@ class ComplexRemoteDataSourceTest {
 
     assertEquals(404, error.statusCode)
     assertEquals("Complex not found for the authenticated owner.", error.message)
+  }
+
+  @Test
+  fun addCourtIncludesOptionalImageUploadIdWhenPresent() = runTest {
+    var requestBody = ""
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "court": {
+                              "id": "court-id",
+                              "complexId": "complex-id",
+                              "name": "Court B"
+                            }
+                          }
+                        }
+                        """,
+                    status = HttpStatusCode.Created,
+                    captureBody = { requestBody = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    dataSource.addCourt(
+        complexId = "complex-id",
+        request =
+            CreateCourtRequest(
+                name = "Court B",
+                serviceIds = listOf("court-service-id"),
+                imageUploadId = "court-image-id",
+            ),
+    )
+
+    val requestDto =
+        json.decodeFromString<
+            io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtRequestPayloadDto
+        >(
+            requestBody
+        )
+    assertEquals("court-image-id", requestDto.imageUploadId)
   }
 
   @Test

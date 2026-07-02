@@ -16,8 +16,10 @@ val presentationModule = module {
   viewModel { AuthViewModel(get(), get()) }
   viewModel { CourtCatalogViewModel(get()) }
   viewModel { parameters -> CourtDetailViewModel(parameters.get(), get()) }
-  viewModel { CreateComplexViewModel(get()) }
-  viewModel { parameters -> AddCourtViewModel(parameters.get(), parameters.get(), get(), get()) }
+  viewModel { CreateComplexViewModel(get(), get()) }
+  viewModel { parameters ->
+    AddCourtViewModel(parameters.get(), parameters.get(), get(), get(), get())
+  }
   viewModel { MyComplexViewModel(get(), get()) }
   viewModel { parameters ->
     CourtAvailabilityViewModel(parameters.get(), parameters.get(), parameters.get(), get())

@@ -37,6 +37,7 @@ kotlin {
       implementation(libs.robolectric)
     }
     androidMain.dependencies {
+      implementation(libs.androidx.activity.compose)
       implementation(libs.compose.uiToolingPreview)
       implementation(libs.koin.android)
       implementation(libs.maplibre.android.opengl)

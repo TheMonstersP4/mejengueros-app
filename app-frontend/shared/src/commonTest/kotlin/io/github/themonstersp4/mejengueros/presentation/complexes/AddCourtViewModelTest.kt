@@ -2,15 +2,18 @@ package io.github.themonstersp4.mejengueros.presentation.complexes
 
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.Canton
+import io.github.themonstersp4.mejengueros.domain.model.ConfirmedCourtImageUpload
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,6 +29,7 @@ class AddCourtViewModelTest {
   @Test
   fun initLoadsCourtServices() = runTest {
     val repository = FakeComplexRepository()
+    val imageUploadRepository = FakeCourtImageUploadRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
 
     val viewModel =
@@ -33,6 +37,7 @@ class AddCourtViewModelTest {
             complexId = "complex-id",
             complexName = "North Sports Center",
             repository = repository,
+            imageUploadRepository = imageUploadRepository,
             coroutineScope = scope,
         )
     advanceUntilIdle()
@@ -45,12 +50,14 @@ class AddCourtViewModelTest {
   @Test
   fun submitCreatesCourtAndExposesCreatedCourtUntilAcknowledged() = runTest {
     val repository = FakeComplexRepository()
+    val imageUploadRepository = FakeCourtImageUploadRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
     val viewModel =
         AddCourtViewModel(
             complexId = "complex-id",
             complexName = "North Sports Center",
             repository = repository,
+            imageUploadRepository = imageUploadRepository,
             coroutineScope = scope,
         )
     advanceUntilIdle()
@@ -75,12 +82,14 @@ class AddCourtViewModelTest {
   @Test
   fun submitRequiresCourtNameAndAtLeastOneService() = runTest {
     val repository = FakeComplexRepository()
+    val imageUploadRepository = FakeCourtImageUploadRepository()
     val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
     val viewModel =
         AddCourtViewModel(
             complexId = "complex-id",
             complexName = "North Sports Center",
             repository = repository,
+            imageUploadRepository = imageUploadRepository,
             coroutineScope = scope,
         )
     advanceUntilIdle()
@@ -107,6 +116,7 @@ class AddCourtViewModelTest {
             complexId = "complex-id",
             complexName = "North Sports Center",
             repository = repository,
+            imageUploadRepository = FakeCourtImageUploadRepository(),
             coroutineScope = scope,
         )
     advanceUntilIdle()
@@ -136,6 +146,7 @@ class AddCourtViewModelTest {
             complexId = "complex-id",
             complexName = "North Sports Center",
             repository = repository,
+            imageUploadRepository = FakeCourtImageUploadRepository(),
             errorReporter = errorReporter,
             coroutineScope = scope,
         )
@@ -178,6 +189,7 @@ class AddCourtViewModelTest {
             complexId = "complex-id",
             complexName = "North Sports Center",
             repository = repository,
+            imageUploadRepository = FakeCourtImageUploadRepository(),
             errorReporter = errorReporter,
             coroutineScope = scope,
         )
@@ -209,6 +221,85 @@ class AddCourtViewModelTest {
     assertEquals(2, repository.addCourtAttempts)
     assertEquals("court-id", viewModel.uiState.value.createdCourt?.id)
     assertNull(viewModel.uiState.value.formErrorMessage)
+  }
+
+  @Test
+  fun submitUploadsSelectedCourtImageBeforeCreatingCourt() = runTest {
+    val repository = FakeComplexRepository()
+    val imageUploadRepository = FakeCourtImageUploadRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AddCourtViewModel(
+            complexId = "complex-id",
+            complexName = "North Sports Center",
+            repository = repository,
+            imageUploadRepository = imageUploadRepository,
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    viewModel.updateCourtName("Court B")
+    viewModel.toggleCourtService("court-service-id")
+    viewModel.updateSelectedCourtImage(
+        LocalCourtImage(
+            fileName = "court.png",
+            contentType = "image/png",
+            bytes = byteArrayOf(1, 2, 3),
+            previewUrl = "content://court.png",
+        )
+    )
+
+    viewModel.submit()
+    advanceUntilIdle()
+
+    assertEquals("court.png", imageUploadRepository.receivedImage?.fileName)
+    assertEquals(
+        CreateCourtRequest(
+            name = "Court B",
+            serviceIds = listOf("court-service-id"),
+            imageUploadId = "court-image-id",
+        ),
+        repository.addCourtRequest,
+    )
+  }
+
+  @Test
+  fun submitStopsWhenCourtImageUploadFails() = runTest {
+    val repository = FakeComplexRepository()
+    val imageUploadRepository =
+        FakeCourtImageUploadRepository(
+            uploadFailure = AppApiException(415, "Unsupported media type")
+        )
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AddCourtViewModel(
+            complexId = "complex-id",
+            complexName = "North Sports Center",
+            repository = repository,
+            imageUploadRepository = imageUploadRepository,
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    viewModel.updateCourtName("Court B")
+    viewModel.toggleCourtService("court-service-id")
+    viewModel.updateSelectedCourtImage(
+        LocalCourtImage(
+            fileName = "court.png",
+            contentType = "image/png",
+            bytes = byteArrayOf(1, 2, 3),
+            previewUrl = "content://court.png",
+        )
+    )
+
+    viewModel.submit()
+    advanceUntilIdle()
+
+    assertEquals(
+        "No pudimos subir la imagen de la cancha. Revisá el archivo e intentá de nuevo.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertNull(repository.addCourtRequest)
   }
 
   private class FakeComplexRepository(
@@ -249,6 +340,22 @@ class AddCourtViewModelTest {
 
     override fun reportRecoverableFailure(name: String, attributes: Map<String, String>) {
       events += ReportedFailure(name = name, attributes = attributes)
+    }
+  }
+
+  private class FakeCourtImageUploadRepository(
+      private val uploadFailure: Throwable? = null,
+  ) : ICourtImageUploadRepository {
+    var receivedImage: LocalCourtImage? = null
+
+    override suspend fun uploadCourtImage(image: LocalCourtImage): ConfirmedCourtImageUpload {
+      receivedImage = image
+      uploadFailure?.let { throw it }
+      return ConfirmedCourtImageUpload(
+          id = "court-image-id",
+          objectKey = "dev/uploads/court-image/owner-sub/2026/06/court.png",
+          readUrl = "https://read.example.test/court.png",
+      )
     }
   }
 

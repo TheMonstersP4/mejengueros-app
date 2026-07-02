@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.presentation.complexes
 
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 
 data class AddCourtUiState(
@@ -8,6 +9,8 @@ data class AddCourtUiState(
     val courtName: String = "",
     val courtServices: List<ServiceCatalogItem> = emptyList(),
     val selectedCourtServiceIds: List<String> = emptyList(),
+    val selectedCourtImage: LocalCourtImage? = null,
+    val isCourtImagePickerAvailable: Boolean = false,
     val isLoadingServices: Boolean = true,
     val isSubmitting: Boolean = false,
     val loadErrorMessage: String? = null,

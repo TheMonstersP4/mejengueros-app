@@ -1,12 +1,16 @@
 package io.github.themonstersp4.mejengueros.screens.complexes
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
@@ -32,6 +38,8 @@ class AddCourtScreenActions(
     val onRetryServices: () -> Unit,
     val onCourtNameChange: (String) -> Unit,
     val onToggleService: (String) -> Unit,
+    val onPickCourtImage: () -> Unit,
+    val onClearCourtImage: () -> Unit,
     val onSubmit: () -> Unit,
 )
 
@@ -90,6 +98,14 @@ fun AddCourtScreen(
           )
     }
 
+    AddCourtImageSection(
+        isPickerAvailable = state.isCourtImagePickerAvailable,
+        selectedCourtImage = state.selectedCourtImage,
+        onPickCourtImage = actions.onPickCourtImage,
+        onClearCourtImage = actions.onClearCourtImage,
+        enabled = !state.isSubmitting,
+    )
+
     val submitError = state.errorMessage
     if (submitError != null && !state.hasCatalogLoadFailure && state.courtName.isNotBlank()) {
       MejenguerosErrorText(text = submitError)
@@ -101,6 +117,66 @@ fun AddCourtScreen(
         enabled = !state.isSubmitting,
         modifier = Modifier.testTag("add_court_submit_button"),
     )
+  }
+}
+
+@Composable
+private fun AddCourtImageSection(
+    isPickerAvailable: Boolean,
+    selectedCourtImage: LocalCourtImage?,
+    onPickCourtImage: () -> Unit,
+    onClearCourtImage: () -> Unit,
+    enabled: Boolean,
+) {
+  if (!isPickerAvailable && selectedCourtImage == null) {
+    return
+  }
+
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text(
+        text = "IMAGEN DE LA CANCHA",
+        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        text = "Opcional. Podés agregar una imagen ahora o dejarla para más adelante.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+
+    selectedCourtImage?.let { courtImage ->
+      Card(modifier = Modifier.fillMaxWidth().testTag("add_court_image_preview")) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+            AsyncImage(
+                model = courtImage.previewUrl,
+                contentDescription = "Vista previa de la imagen de la cancha",
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+            )
+          }
+          Text(text = courtImage.fileName, style = MaterialTheme.typography.bodyMedium)
+        }
+      }
+    }
+
+    MejenguerosFullWidthOutlinedButton(
+        text = if (selectedCourtImage == null) "Seleccionar imagen" else "Cambiar imagen",
+        onClick = onPickCourtImage,
+        enabled = enabled && isPickerAvailable,
+        modifier = Modifier.testTag("add_court_pick_image_button"),
+    )
+
+    if (selectedCourtImage != null) {
+      MejenguerosFullWidthOutlinedButton(
+          text = "Quitar imagen",
+          onClick = onClearCourtImage,
+          enabled = enabled,
+          modifier = Modifier.testTag("add_court_clear_image_button"),
+      )
+    }
   }
 }
 

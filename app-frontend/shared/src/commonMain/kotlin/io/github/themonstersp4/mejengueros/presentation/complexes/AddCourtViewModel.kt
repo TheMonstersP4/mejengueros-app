@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
+import io.github.themonstersp4.mejengueros.domain.repository.NoOpCourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
 import io.github.themonstersp4.mejengueros.monitoring.NoOpErrorReporter
 import kotlinx.coroutines.CancellationException
@@ -19,6 +22,8 @@ class AddCourtViewModel(
     private val complexId: String,
     private val complexName: String,
     private val repository: IComplexRepository,
+    private val imageUploadRepository: ICourtImageUploadRepository =
+        NoOpCourtImageUploadRepository(),
     private val errorReporter: ErrorReporter = NoOpErrorReporter(),
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
@@ -44,6 +49,19 @@ class AddCourtViewModel(
             formErrorMessage = null,
             createdCourt = null,
         )
+  }
+
+  fun updateSelectedCourtImage(image: LocalCourtImage?) {
+    _uiState.value =
+        _uiState.value.copy(
+            selectedCourtImage = image,
+            formErrorMessage = null,
+            createdCourt = null,
+        )
+  }
+
+  fun updateCourtImagePickerAvailability(isAvailable: Boolean) {
+    _uiState.value = _uiState.value.copy(isCourtImagePickerAvailable = isAvailable)
   }
 
   fun refreshServices() {
@@ -102,12 +120,22 @@ class AddCourtViewModel(
           currentState.copy(isSubmitting = true, formErrorMessage = null, loadErrorMessage = null)
 
       runCatching {
+            val imageUploadId =
+                currentState.selectedCourtImage?.let { selectedCourtImage ->
+                  try {
+                    imageUploadRepository.uploadCourtImage(selectedCourtImage).id
+                  } catch (error: Throwable) {
+                    throw AddCourtImageUploadFailed(error)
+                  }
+                }
+
             repository.addCourt(
                 complexId = complexId,
                 request =
                     CreateCourtRequest(
                         name = currentState.courtName.trim(),
                         serviceIds = currentState.selectedCourtServiceIds,
+                        imageUploadId = imageUploadId,
                     ),
             )
           }
@@ -126,6 +154,8 @@ class AddCourtViewModel(
               return@onFailure
             }
 
+            val reportingError = error.unwrapCourtImageUploadFailure()
+
             _uiState.value =
                 currentState.copy(
                     isSubmitting = false,
@@ -135,7 +165,7 @@ class AddCourtViewModel(
 
             errorReporter.reportRecoverableFailure(
                 name = "add_court_submit_failed",
-                attributes = error.toReportAttributes(operation = "submit"),
+                attributes = reportingError.toReportAttributes(operation = "submit"),
             )
           }
     }
@@ -151,6 +181,8 @@ private fun Throwable.toCatalogLoadUserMessage(): String =
 
 private fun Throwable.toSubmitUserMessage(): String =
     when (this) {
+      is AddCourtImageUploadFailed ->
+          "No pudimos subir la imagen de la cancha. Revisá el archivo e intentá de nuevo."
       is AppApiException ->
           when (statusCode) {
             401,
@@ -159,6 +191,13 @@ private fun Throwable.toSubmitUserMessage(): String =
             else -> "No pudimos guardar la cancha. Intentá de nuevo."
           }
       else -> "No pudimos guardar la cancha. Intentá de nuevo."
+    }
+
+private fun Throwable.unwrapCourtImageUploadFailure(): Throwable =
+    if (this is AddCourtImageUploadFailed) {
+      cause ?: this
+    } else {
+      this
     }
 
 private fun Throwable.toReportAttributes(operation: String): Map<String, String> {
@@ -174,3 +213,5 @@ private fun Throwable.toReportAttributes(operation: String): Map<String, String>
     else -> baseAttributes + mapOf("error_source" to "unexpected")
   }
 }
+
+private class AddCourtImageUploadFailed(cause: Throwable) : Exception(cause)

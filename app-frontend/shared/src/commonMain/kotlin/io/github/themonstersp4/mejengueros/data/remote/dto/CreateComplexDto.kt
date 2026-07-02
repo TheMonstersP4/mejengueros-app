@@ -21,7 +21,11 @@ data class CreateComplexRequestPayloadDto(
 )
 
 @Serializable
-data class CreateCourtRequestPayloadDto(val name: String, val serviceIds: List<String>)
+data class CreateCourtRequestPayloadDto(
+    val name: String,
+    val serviceIds: List<String>,
+    val imageUploadId: String? = null,
+)
 
 @Serializable data class CreatedCourtEnvelopeDataDto(val court: CreatedCourtDto)
 

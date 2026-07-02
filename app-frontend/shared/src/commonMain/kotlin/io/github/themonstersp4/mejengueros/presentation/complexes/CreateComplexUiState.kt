@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.presentation.complexes
 
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 
@@ -20,6 +21,8 @@ data class CreateComplexUiState(
     val firstCourtName: String = "",
     val courtServices: List<ServiceCatalogItem> = emptyList(),
     val selectedCourtServiceIds: List<String> = emptyList(),
+    val selectedCourtImage: LocalCourtImage? = null,
+    val isCourtImagePickerAvailable: Boolean = false,
     val isLoadingCatalogs: Boolean = true,
     val isLoadingCantons: Boolean = false,
     val isSubmitting: Boolean = false,
