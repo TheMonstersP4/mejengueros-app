@@ -1,6 +1,10 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -8,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
@@ -262,6 +268,13 @@ internal fun SearchCatalogEntryContent(
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
       title = "Buscar",
+      topBarActions = {
+        if (!shellActions.isOwner) {
+          IconButton(onClick = shellActions.openCreateComplex) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = "Crear complejo")
+          }
+        }
+      },
   ) { contentPadding ->
     HomeScreen(
         state = state,
@@ -270,7 +283,6 @@ internal fun SearchCatalogEntryContent(
         onProvinceSelected = onProvinceSelected,
         onCantonSelected = onCantonSelected,
         onRetryLoad = onRetryLoad,
-        onOpenCreateComplex = shellActions.openCreateComplex,
         onOpenCourtDetail = { court ->
           shellActions.openCatalogCourtDetail(
               CatalogCourtDetailRoute(
@@ -499,6 +511,21 @@ private fun ComplexDetailEntry(
       onReloadRequested = myComplexViewModel::refresh,
   )
 
+  ComplexDetailRouteContent(
+      route = route,
+      state = state,
+      shellActions = shellActions,
+      onRetry = myComplexViewModel::refresh,
+  )
+}
+
+@Composable
+internal fun ComplexDetailRouteContent(
+    route: ComplexDetailRoute,
+    state: MyComplexUiState,
+    shellActions: AuthenticatedShellActions,
+    onRetry: () -> Unit,
+) {
   val complex = state.complexes.firstOrNull { it.id == route.complexId }
 
   AuthenticatedScaffold(
@@ -514,14 +541,30 @@ private fun ComplexDetailEntry(
       onSwitchToOwnerView = shellActions.switchToOwnerView,
       onNavigateBack = shellActions.closeCurrentDetail,
       title = "Mi complejo",
+      topBarActions = {
+        if (
+            complex != null &&
+                shellActions.isOwner &&
+                !shellActions.viewingAsPlayer &&
+                !state.isLoading &&
+                state.errorMessage == null
+        ) {
+          val selectedComplex = complex
+          IconButton(
+              onClick = { shellActions.openAddCourt(selectedComplex.id, selectedComplex.name) },
+              modifier = Modifier.testTag("complex_detail_add_court_button_${selectedComplex.id}"),
+          ) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = "Agregar cancha")
+          }
+        }
+      },
   ) { contentPadding ->
     ComplexDetailEntryContent(
         complex = complex,
         isLoading = state.isLoading,
         errorMessage = state.errorMessage,
         contentPadding = contentPadding,
-        onRetry = myComplexViewModel::refresh,
-        onAddCourt = shellActions.openAddCourt,
+        onRetry = onRetry,
         onConfigureAvailability = shellActions.openCourtAvailability,
     )
   }
@@ -534,7 +577,6 @@ internal fun ComplexDetailEntryContent(
     errorMessage: String?,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
-    onAddCourt: (String, String) -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
 ) {
   ComplexDetailScreen(
@@ -543,7 +585,6 @@ internal fun ComplexDetailEntryContent(
       errorMessage = errorMessage,
       contentPadding = contentPadding,
       onRetry = onRetry,
-      onAddCourt = onAddCourt,
       onConfigureAvailability = onConfigureAvailability,
   )
 }

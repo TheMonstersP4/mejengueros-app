@@ -8,6 +8,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -32,10 +33,7 @@ class ComplexDetailScreenBehaviorTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
   @Test
-  fun detailShowsAddCourtCallToActionAndPassesSelectedComplex() {
-    var selectedComplexId: String? = null
-    var selectedComplexName: String? = null
-
+  fun detailDoesNotShowAddCourtCallToActionInScrollableContent() {
     composeRule.setContent {
       MejenguerosTheme {
         ComplexDetailScreen(
@@ -44,26 +42,14 @@ class ComplexDetailScreenBehaviorTest {
             errorMessage = null,
             contentPadding = PaddingValues(),
             onRetry = {},
-            onAddCourt = { complexId, complexName ->
-              selectedComplexId = complexId
-              selectedComplexName = complexName
-            },
             onConfigureAvailability = {},
         )
       }
     }
 
     composeRule.onNodeWithText("123 Main Street").assertExists()
-    composeRule.onNodeWithText("Agregar cancha").assertExists()
-    composeRule
-        .onNodeWithTag("complex_detail_root")
-        .performScrollToNode(hasTestTag("complex_detail_add_court_button_complex-id"))
-    composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").performClick()
-
-    composeRule.runOnIdle {
-      assertEquals("complex-id", selectedComplexId)
-      assertEquals("North Sports Center", selectedComplexName)
-    }
+    composeRule.onNodeWithContentDescription("Agregar cancha").assertDoesNotExist()
+    composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").assertDoesNotExist()
   }
 
   @Test
@@ -78,7 +64,6 @@ class ComplexDetailScreenBehaviorTest {
             errorMessage = null,
             contentPadding = PaddingValues(),
             onRetry = {},
-            onAddCourt = { _, _ -> },
             onConfigureAvailability = { selectedEntrypoint = it },
             modifier = Modifier.width(280.dp),
         )
@@ -145,7 +130,6 @@ class ComplexDetailScreenBehaviorTest {
             errorMessage = null,
             contentPadding = PaddingValues(),
             onRetry = {},
-            onAddCourt = { _, _ -> },
             onConfigureAvailability = {},
         )
       }
@@ -174,7 +158,6 @@ class ComplexDetailScreenBehaviorTest {
             errorMessage = null,
             contentPadding = PaddingValues(),
             onRetry = {},
-            onAddCourt = { _, _ -> },
             onConfigureAvailability = {},
             modifier = Modifier.width(280.dp),
         )

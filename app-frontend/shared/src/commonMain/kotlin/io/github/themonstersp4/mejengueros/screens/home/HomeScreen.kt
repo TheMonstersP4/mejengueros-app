@@ -27,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,7 +58,6 @@ fun HomeScreen(
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
     onOpenCourtDetail: (CourtCatalogItem) -> Unit,
-    onOpenCreateComplex: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val hasCourts =
@@ -105,12 +103,6 @@ fun HomeScreen(
                         }
                       },
               onClick = { onOpenCourtDetail(court) },
-          )
-        }
-        item {
-          CatalogOwnerOnramp(
-              onClick = onOpenCreateComplex,
-              modifier = Modifier.padding(horizontal = 20.dp),
           )
         }
       }
@@ -159,28 +151,6 @@ fun HomeScreen(
               )
         }
       }
-    }
-  }
-}
-
-@Composable
-private fun CatalogOwnerOnramp(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-  Box(
-      modifier = modifier.fillMaxWidth(),
-      contentAlignment = Alignment.Center,
-  ) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.testTag("catalog_owner_onramp"),
-    ) {
-      Text(
-          text = "¿Administrás un complejo? Registralo aquí",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
     }
   }
 }

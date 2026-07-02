@@ -7,9 +7,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -75,10 +78,8 @@ class AddCourtNavigationIntegrationTest {
     }
 
     composeRule.onNodeWithTag("my_complex_list_item_complex-id").assertExists().performClick()
-    composeRule
-        .onNodeWithTag("complex_detail_add_court_button_complex-id")
-        .assertExists()
-        .performClick()
+    composeRule.onAllNodesWithContentDescription("Agregar cancha").assertCountEquals(1)
+    composeRule.onNodeWithContentDescription("Agregar cancha").assertExists().performClick()
     composeRule.onNodeWithTag("add_court_root").assertExists()
     composeRule.inputField("Nombre de la cancha").performTextInput("Court B")
     composeRule.onNodeWithTag("add_court_service_court-service-id").performScrollTo().performClick()
@@ -142,6 +143,104 @@ class AddCourtNavigationIntegrationTest {
       )
     }
   }
+
+  @Test
+  fun complexDetailRouteHidesAddCourtActionWhileLoading() {
+    val navigationState = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = unusedAddCourtViewModel(),
+          myComplexState = MyComplexUiState(isLoading = true, complexes = listOf(defaultComplex())),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithTag("complex_detail_root").assertExists()
+    composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").assertDoesNotExist()
+  }
+
+  @Test
+  fun complexDetailRouteHidesAddCourtActionWhileShowingError() {
+    val navigationState = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = unusedAddCourtViewModel(),
+          myComplexState =
+              MyComplexUiState(
+                  complexes = listOf(defaultComplex()),
+                  errorMessage = "No pudimos cargar tu hub de complejos. Intentá de nuevo.",
+              ),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithTag("complex_detail_root").assertExists()
+    composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").assertDoesNotExist()
+  }
+
+  @Test
+  fun complexDetailRouteHidesAddCourtActionWhenComplexIsMissing() {
+    val navigationState = testNavigationState().apply { openComplexDetail("missing-complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = unusedAddCourtViewModel(),
+          myComplexState = MyComplexUiState(complexes = listOf(defaultComplex())),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.onNodeWithText("No encontramos el complejo seleccionado.").assertExists()
+    composeRule.onNodeWithContentDescription("Agregar cancha").assertDoesNotExist()
+  }
+
+  @Test
+  fun complexDetailRouteHidesAddCourtActionInOwnerPlayerShell() {
+    val navigationState = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState, isOwner = true, viewingAsPlayer = true),
+          viewModel = unusedAddCourtViewModel(),
+          myComplexState = MyComplexUiState(complexes = listOf(defaultComplex())),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithTag("complex_detail_root").assertExists()
+    composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").assertDoesNotExist()
+  }
+
+  @Test
+  fun complexDetailRouteShowsAddCourtActionOnlyForOwnerShellWithCleanState() {
+    val navigationState = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState, isOwner = true, viewingAsPlayer = false),
+          viewModel = unusedAddCourtViewModel(),
+          myComplexState = MyComplexUiState(complexes = listOf(defaultComplex())),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.waitForIdle()
+    composeRule.onNodeWithTag("complex_detail_root").assertExists()
+    composeRule.onNodeWithTag("complex_detail_add_court_button_complex-id").assertExists()
+  }
 }
 
 @Composable
@@ -149,38 +248,20 @@ private fun AddCourtNavigationTestHost(
     navigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
     viewModel: AddCourtViewModel,
+    myComplexState: MyComplexUiState = MyComplexUiState(complexes = listOf(defaultComplex())),
     onMyComplexReloadRequested: () -> Unit,
 ) {
   MejenguerosTheme {
-    var myComplexState by remember {
-      mutableStateOf(
-          MyComplexUiState(
-              complexes =
-                  listOf(
-                      MyComplexHubComplex(
-                          id = "complex-id",
-                          name = "North Sports Center",
-                          address = "123 Main Street",
-                          provinceId = "province-id",
-                          cantonId = "canton-id",
-                          latitude = 9.935,
-                          longitude = -84.091,
-                          status = "ACTIVE",
-                          courts = emptyList(),
-                      )
-                  )
-          )
-      )
-    }
+    var currentMyComplexState by remember { mutableStateOf(myComplexState) }
 
     MyComplexHubReloadEffect(
         reloadRequestKey = navigationState.myComplexHubReloadRequestKey,
         onReloadRequested = {
           onMyComplexReloadRequested()
-          myComplexState =
-              myComplexState.copy(
+          currentMyComplexState =
+              currentMyComplexState.copy(
                   complexes =
-                      myComplexState.complexes.map { complex ->
+                      currentMyComplexState.complexes.map { complex ->
                         if (complex.id != "complex-id") {
                           complex
                         } else {
@@ -204,21 +285,18 @@ private fun AddCourtNavigationTestHost(
     when (val route = navigationState.currentBackStack.lastOrNull()) {
       MyComplexRoute ->
           MyComplexEntryContent(
-              state = myComplexState,
+              state = currentMyComplexState,
               contentPadding = PaddingValues(),
               onCreateComplex = {},
               onRetry = {},
               onOpenComplexDetail = shellActions.openComplexDetail,
           )
       is ComplexDetailRoute ->
-          ComplexDetailEntryContent(
-              complex = myComplexState.complexes.firstOrNull { it.id == route.complexId },
-              isLoading = false,
-              errorMessage = null,
-              contentPadding = PaddingValues(),
+          ComplexDetailRouteContent(
+              route = route,
+              state = currentMyComplexState,
+              shellActions = shellActions,
               onRetry = {},
-              onAddCourt = shellActions.openAddCourt,
-              onConfigureAvailability = {},
           )
       is AddCourtRoute -> AddCourtEntryContent(viewModel = viewModel, shellActions = shellActions)
       else -> error("Unexpected route $route")
@@ -228,6 +306,8 @@ private fun AddCourtNavigationTestHost(
 
 private fun shellActions(
     navigationState: AuthenticatedNavigationState,
+    isOwner: Boolean = true,
+    viewingAsPlayer: Boolean = false,
 ): AuthenticatedShellActions =
     AuthenticatedShellActions(
         selectSearch = navigationState::selectSearch,
@@ -245,6 +325,8 @@ private fun shellActions(
         closeCurrentDetail = navigationState::closeCurrentDetail,
         signOut = {},
         refreshOwnerRole = {},
+        isOwner = isOwner,
+        viewingAsPlayer = viewingAsPlayer,
     )
 
 private fun testNavigationState(): AuthenticatedNavigationState =
@@ -258,6 +340,28 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         myComplexHubReloadRequestKeyState = mutableStateOf(0),
         catalogReloadRequestKeyState = mutableStateOf(0),
         viewingAsPlayerState = mutableStateOf(false),
+    )
+
+private fun defaultComplex() =
+    MyComplexHubComplex(
+        id = "complex-id",
+        name = "North Sports Center",
+        address = "123 Main Street",
+        provinceId = "province-id",
+        cantonId = "canton-id",
+        latitude = 9.935,
+        longitude = -84.091,
+        status = "ACTIVE",
+        courts = emptyList(),
+    )
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun unusedAddCourtViewModel() =
+    AddCourtViewModel(
+        complexId = "complex-id",
+        complexName = "North Sports Center",
+        repository = SuccessfulAddCourtRepository(),
+        coroutineScope = TestScope(UnconfinedTestDispatcher()),
     )
 
 private class SuccessfulAddCourtRepository : IComplexRepository {

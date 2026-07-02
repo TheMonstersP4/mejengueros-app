@@ -1,11 +1,13 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -167,10 +169,54 @@ class SearchCatalogNavigationIntegrationTest {
     }
   }
 
+  @Test
+  fun nonOwnerSearchShowsCreateComplexAppBarActionAndPushesCreateComplexRoute() {
+    val navigationState = testNavigationState()
+
+    composeRule.setContent { SearchCatalogCreateComplexTestHost(navigationState = navigationState) }
+
+    composeRule.onNodeWithContentDescription("Crear complejo").assertExists().performClick()
+    composeRule.runOnIdle {
+      assertEquals(CreateComplexRoute, navigationState.currentBackStack.lastOrNull())
+      assertEquals(
+          listOf(SearchRoute, CreateComplexRoute),
+          navigationState.currentBackStack.toList(),
+      )
+    }
+  }
+
+  @Test
+  fun ownerSearchDoesNotShowCreateComplexAppBarAction() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        SearchCatalogEntryContent(
+            state = CourtCatalogUiState(isLoading = false),
+            shellActions =
+                shellActions(
+                    onDetailOpened = {},
+                    onReservationOpened = {},
+                    onBack = {},
+                    isOwner = true,
+                    viewingAsPlayer = true,
+                ),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Crear complejo").assertDoesNotExist()
+  }
+
   private fun shellActions(
       onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
       onReservationOpened: (CatalogReservationRoute) -> Unit,
       onBack: () -> Unit,
+      onCreateComplexOpened: () -> Unit = {},
+      isOwner: Boolean = false,
+      viewingAsPlayer: Boolean = false,
   ): AuthenticatedShellActions =
       AuthenticatedShellActions(
           selectSearch = {},
@@ -182,13 +228,59 @@ class SearchCatalogNavigationIntegrationTest {
           openCatalogReservation = onReservationOpened,
           openComplexDetail = {},
           openAddCourt = { _, _ -> },
-          openCreateComplex = {},
+          openCreateComplex = onCreateComplexOpened,
           openCourtAvailability = {},
           closeAddCourtAfterSuccess = {},
           closeCurrentDetail = onBack,
           signOut = {},
           refreshOwnerRole = {},
+          isOwner = isOwner,
+          viewingAsPlayer = viewingAsPlayer,
       )
+
+  private fun testNavigationState(): AuthenticatedNavigationState =
+      AuthenticatedNavigationState(
+          selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
+          searchBackStack = NavBackStack<NavKey>(SearchRoute),
+          reservationsBackStack = NavBackStack<NavKey>(ReservationsRoute),
+          notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
+          myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
+          ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
+          myComplexHubReloadRequestKeyState = mutableStateOf(0),
+          catalogReloadRequestKeyState = mutableStateOf(0),
+          viewingAsPlayerState = mutableStateOf(false),
+      )
+
+  @Composable
+  private fun SearchCatalogCreateComplexTestHost(navigationState: AuthenticatedNavigationState) {
+    MejenguerosTheme {
+      SearchCatalogEntryContent(
+          state = CourtCatalogUiState(isLoading = false),
+          shellActions =
+              AuthenticatedShellActions(
+                  selectSearch = navigationState::selectSearch,
+                  selectReservations = navigationState::selectReservations,
+                  selectNotifications = navigationState::selectNotifications,
+                  selectMyComplex = navigationState::selectMyComplex,
+                  returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
+                  openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
+                  openCatalogReservation = navigationState::openCatalogReservation,
+                  openComplexDetail = navigationState::openComplexDetail,
+                  openAddCourt = navigationState::openAddCourt,
+                  openCreateComplex = navigationState::openCreateComplex,
+                  openCourtAvailability = navigationState::openCourtAvailability,
+                  closeAddCourtAfterSuccess = navigationState::closeAddCourtAfterSuccess,
+                  closeCurrentDetail = navigationState::closeCurrentDetail,
+                  signOut = {},
+                  refreshOwnerRole = {},
+              ),
+          onSearchQueryChange = {},
+          onProvinceSelected = {},
+          onCantonSelected = {},
+          onRetryLoad = {},
+      )
+    }
+  }
 }
 
 private class FakeCourtDetailRepository : ICourtDetailRepository {

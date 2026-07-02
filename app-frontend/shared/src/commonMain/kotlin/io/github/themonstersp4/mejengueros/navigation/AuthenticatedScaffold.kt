@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -59,6 +60,7 @@ fun AuthenticatedScaffold(
     onSwitchToOwnerView: () -> Unit = {},
     title: String = "Mejengueros",
     onNavigateBack: (() -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
     overlayVisible: Boolean = false,
     overlayContent: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
@@ -141,6 +143,7 @@ fun AuthenticatedScaffold(
                     }
                   },
                   actions = {
+                    topBarActions()
                     IconButton(onClick = { showSignOutConfirmation = true }) {
                       Icon(
                           imageVector = Icons.AutoMirrored.Filled.ExitToApp,
@@ -181,6 +184,7 @@ fun AuthenticatedScaffold(
                       )
                     }
                   }
+                  topBarActions()
                   IconButton(onClick = { showSignOutConfirmation = true }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
