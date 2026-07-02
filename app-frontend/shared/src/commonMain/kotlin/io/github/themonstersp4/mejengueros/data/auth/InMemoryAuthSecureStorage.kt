@@ -6,6 +6,7 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 class InMemoryAuthSecureStorage : IAuthSecureStorage {
   private var session: AuthSession? = null
   private var oauthState: PendingOAuthState? = null
+  private val ownerViewPreferences = mutableMapOf<String, OwnerViewPreference>()
 
   override suspend fun getSession(): AuthSession? = session
 
@@ -25,5 +26,16 @@ class InMemoryAuthSecureStorage : IAuthSecureStorage {
 
   override suspend fun clearOAuthState() {
     oauthState = null
+  }
+
+  override suspend fun getOwnerViewPreference(userId: String): OwnerViewPreference? =
+      ownerViewPreferences[userId.trim()]
+
+  override suspend fun saveOwnerViewPreference(userId: String, preference: OwnerViewPreference) {
+    ownerViewPreferences[userId.trim()] = preference
+  }
+
+  override suspend fun clearOwnerViewPreference(userId: String) {
+    ownerViewPreferences.remove(userId.trim())
   }
 }

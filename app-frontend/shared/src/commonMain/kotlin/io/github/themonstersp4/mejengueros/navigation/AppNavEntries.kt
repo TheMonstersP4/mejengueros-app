@@ -17,9 +17,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityUiState
 import io.github.themonstersp4.mejengueros.presentation.availability.CourtAvailabilityViewModel
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
+import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
@@ -112,7 +114,12 @@ fun EntryProviderScope<NavKey>.appEntries(
     )
   }
   entry<AddCourtRoute> { route -> AddCourtEntry(route = route, shellActions = shellActions) }
-  entry<CreateComplexRoute> { CreateComplexEntry(shellActions = shellActions) }
+  entry<CreateComplexRoute> {
+    CreateComplexEntry(
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
+  }
   entry<CourtAvailabilityRoute> { route ->
     CourtAvailabilityEntry(route = route, shellActions = shellActions)
   }
@@ -457,26 +464,41 @@ private fun MyComplexEntry(
       onReloadRequested = myComplexViewModel::refresh,
   )
 
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
-      onSearchSelected = shellActions.selectSearch,
-      onReservationsSelected = shellActions.selectReservations,
-      onNotificationsSelected = shellActions.selectNotifications,
-      onMyComplexSelected = shellActions.selectMyComplex,
-      onSignOut = shellActions.signOut,
-      isOwner = shellActions.isOwner,
-      viewingAsPlayer = shellActions.viewingAsPlayer,
-      onSwitchToPlayerView = shellActions.switchToPlayerView,
-      onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Mi complejo",
-  ) { contentPadding ->
-    MyComplexEntryContent(
-        state = state,
-        contentPadding = contentPadding,
-        onCreateComplex = shellActions.openCreateComplex,
-        onRetry = myComplexViewModel::refresh,
-        onOpenComplexDetail = shellActions.openComplexDetail,
-    )
+  MyComplexRouteContent(
+      state = state,
+      shellActions = shellActions,
+      onRetry = myComplexViewModel::refresh,
+  )
+}
+
+@Composable
+internal fun MyComplexRouteContent(
+    state: MyComplexUiState,
+    shellActions: AuthenticatedShellActions,
+    onRetry: () -> Unit,
+) {
+  OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
+    AuthenticatedScaffold(
+        selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+        onSearchSelected = shellActions.selectSearch,
+        onReservationsSelected = shellActions.selectReservations,
+        onNotificationsSelected = shellActions.selectNotifications,
+        onMyComplexSelected = shellActions.selectMyComplex,
+        onSignOut = shellActions.signOut,
+        isOwner = shellActions.isOwner,
+        viewingAsPlayer = shellActions.viewingAsPlayer,
+        onSwitchToPlayerView = shellActions.switchToPlayerView,
+        onSwitchToOwnerView = shellActions.switchToOwnerView,
+        title = "Mi complejo",
+    ) { contentPadding ->
+      MyComplexEntryContent(
+          state = state,
+          contentPadding = contentPadding,
+          onCreateComplex = shellActions.openCreateComplex,
+          onRetry = onRetry,
+          onOpenComplexDetail = shellActions.openComplexDetail,
+      )
+    }
   }
 }
 
@@ -526,47 +548,50 @@ internal fun ComplexDetailRouteContent(
     shellActions: AuthenticatedShellActions,
     onRetry: () -> Unit,
 ) {
-  val complex = state.complexes.firstOrNull { it.id == route.complexId }
+  OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
+    val complex = state.complexes.firstOrNull { it.id == route.complexId }
 
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
-      onSearchSelected = shellActions.selectSearch,
-      onReservationsSelected = shellActions.selectReservations,
-      onNotificationsSelected = shellActions.selectNotifications,
-      onMyComplexSelected = shellActions.returnToMyComplexRoot,
-      onSignOut = shellActions.signOut,
-      isOwner = shellActions.isOwner,
-      viewingAsPlayer = shellActions.viewingAsPlayer,
-      onSwitchToPlayerView = shellActions.switchToPlayerView,
-      onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = "Mi complejo",
-      topBarActions = {
-        if (
-            complex != null &&
-                shellActions.isOwner &&
-                !shellActions.viewingAsPlayer &&
-                !state.isLoading &&
-                state.errorMessage == null
-        ) {
-          val selectedComplex = complex
-          IconButton(
-              onClick = { shellActions.openAddCourt(selectedComplex.id, selectedComplex.name) },
-              modifier = Modifier.testTag("complex_detail_add_court_button_${selectedComplex.id}"),
+    AuthenticatedScaffold(
+        selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+        onSearchSelected = shellActions.selectSearch,
+        onReservationsSelected = shellActions.selectReservations,
+        onNotificationsSelected = shellActions.selectNotifications,
+        onMyComplexSelected = shellActions.returnToMyComplexRoot,
+        onSignOut = shellActions.signOut,
+        isOwner = shellActions.isOwner,
+        viewingAsPlayer = shellActions.viewingAsPlayer,
+        onSwitchToPlayerView = shellActions.switchToPlayerView,
+        onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onNavigateBack = shellActions.closeCurrentDetail,
+        title = "Mi complejo",
+        topBarActions = {
+          if (
+              complex != null &&
+                  shellActions.isOwner &&
+                  !shellActions.viewingAsPlayer &&
+                  !state.isLoading &&
+                  state.errorMessage == null
           ) {
-            Icon(imageVector = Icons.Filled.Add, contentDescription = "Agregar cancha")
+            val selectedComplex = complex
+            IconButton(
+                onClick = { shellActions.openAddCourt(selectedComplex.id, selectedComplex.name) },
+                modifier =
+                    Modifier.testTag("complex_detail_add_court_button_${selectedComplex.id}"),
+            ) {
+              Icon(imageVector = Icons.Filled.Add, contentDescription = "Agregar cancha")
+            }
           }
-        }
-      },
-  ) { contentPadding ->
-    ComplexDetailEntryContent(
-        complex = complex,
-        isLoading = state.isLoading,
-        errorMessage = state.errorMessage,
-        contentPadding = contentPadding,
-        onRetry = onRetry,
-        onConfigureAvailability = shellActions.openCourtAvailability,
-    )
+        },
+    ) { contentPadding ->
+      ComplexDetailEntryContent(
+          complex = complex,
+          isLoading = state.isLoading,
+          errorMessage = state.errorMessage,
+          contentPadding = contentPadding,
+          onRetry = onRetry,
+          onConfigureAvailability = shellActions.openCourtAvailability,
+      )
+    }
   }
 }
 
@@ -614,31 +639,33 @@ internal fun AddCourtEntryContent(
     }
   }
 
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
-      onSearchSelected = shellActions.selectSearch,
-      onReservationsSelected = shellActions.selectReservations,
-      onNotificationsSelected = shellActions.selectNotifications,
-      onMyComplexSelected = shellActions.returnToMyComplexRoot,
-      onSignOut = shellActions.signOut,
-      isOwner = shellActions.isOwner,
-      viewingAsPlayer = shellActions.viewingAsPlayer,
-      onSwitchToPlayerView = shellActions.switchToPlayerView,
-      onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = "Agregar cancha",
-  ) { contentPadding ->
-    AddCourtScreen(
-        state = state,
-        contentPadding = contentPadding,
-        actions =
-            AddCourtScreenActions(
-                onRetryServices = viewModel::refreshServices,
-                onCourtNameChange = viewModel::updateCourtName,
-                onToggleService = viewModel::toggleCourtService,
-                onSubmit = viewModel::submit,
-            ),
-    )
+  OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
+    AuthenticatedScaffold(
+        selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+        onSearchSelected = shellActions.selectSearch,
+        onReservationsSelected = shellActions.selectReservations,
+        onNotificationsSelected = shellActions.selectNotifications,
+        onMyComplexSelected = shellActions.returnToMyComplexRoot,
+        onSignOut = shellActions.signOut,
+        isOwner = shellActions.isOwner,
+        viewingAsPlayer = shellActions.viewingAsPlayer,
+        onSwitchToPlayerView = shellActions.switchToPlayerView,
+        onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onNavigateBack = shellActions.closeCurrentDetail,
+        title = "Agregar cancha",
+    ) { contentPadding ->
+      AddCourtScreen(
+          state = state,
+          contentPadding = contentPadding,
+          actions =
+              AddCourtScreenActions(
+                  onRetryServices = viewModel::refreshServices,
+                  onCourtNameChange = viewModel::updateCourtName,
+                  onToggleService = viewModel::toggleCourtService,
+                  onSubmit = viewModel::submit,
+              ),
+      )
+    }
   }
 }
 
@@ -680,6 +707,7 @@ internal fun CatalogReloadEffect(
 
 @Composable
 private fun CreateComplexEntry(
+    authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
 ) {
   val createComplexViewModel = koinViewModel<CreateComplexViewModel>()
@@ -715,19 +743,28 @@ private fun CreateComplexEntry(
         )
       }
 
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
-      onSearchSelected = shellActions.selectSearch,
-      onReservationsSelected = shellActions.selectReservations,
-      onNotificationsSelected = shellActions.selectNotifications,
-      onMyComplexSelected = shellActions.returnToMyComplexRoot,
-      onSignOut = shellActions.signOut,
-      isOwner = shellActions.isOwner,
-      viewingAsPlayer = shellActions.viewingAsPlayer,
-      onSwitchToPlayerView = shellActions.switchToPlayerView,
-      onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = "Mi complejo",
+  CreateComplexRouteContent(
+      authenticatedNavigationState = authenticatedNavigationState,
+      shellActions = shellActions,
+      state = state,
+      onRetryCatalogs = createComplexViewModel::refreshCatalogs,
+      onRetryCantons = createComplexViewModel::retrySelectedProvinceCantons,
+      onComplexNameChange = createComplexViewModel::updateComplexName,
+      onProvinceSelected = createComplexViewModel::selectProvince,
+      onCantonSelected = createComplexViewModel::selectCanton,
+      onComplexAddressChange = createComplexViewModel::updateComplexAddress,
+      onOpenLocationPicker = locationPickerCoordinator.open,
+      onClearLocation = createComplexViewModel::clearSelectedLocation,
+      onToggleComplexService = createComplexViewModel::toggleComplexService,
+      onFirstCourtNameChange = createComplexViewModel::updateFirstCourtName,
+      onToggleCourtService = createComplexViewModel::toggleCourtService,
+      onNext = createComplexViewModel::goToFirstCourtStep,
+      onBack = createComplexViewModel::goToComplexStep,
+      onSubmit = createComplexViewModel::submit,
+      onSuccessAcknowledged = {
+        createComplexViewModel.acknowledgeSuccess()
+        shellActions.returnToMyComplexRoot()
+      },
       overlayVisible = locationPickerCoordinator.isOpen,
       overlayContent = {
         LocationPickerOverlayHost(
@@ -735,32 +772,75 @@ private fun CreateComplexEntry(
             selectedLocation = selectedLocation,
         )
       },
-  ) { contentPadding ->
-    CreateComplexScreen(
-        state = state,
-        contentPadding = contentPadding,
-        actions =
-            CreateComplexScreenActions(
-                onRetryCatalogs = createComplexViewModel::refreshCatalogs,
-                onRetryCantons = createComplexViewModel::retrySelectedProvinceCantons,
-                onComplexNameChange = createComplexViewModel::updateComplexName,
-                onProvinceSelected = createComplexViewModel::selectProvince,
-                onCantonSelected = createComplexViewModel::selectCanton,
-                onComplexAddressChange = createComplexViewModel::updateComplexAddress,
-                onOpenLocationPicker = locationPickerCoordinator.open,
-                onClearLocation = createComplexViewModel::clearSelectedLocation,
-                onToggleComplexService = createComplexViewModel::toggleComplexService,
-                onFirstCourtNameChange = createComplexViewModel::updateFirstCourtName,
-                onToggleCourtService = createComplexViewModel::toggleCourtService,
-                onNext = createComplexViewModel::goToFirstCourtStep,
-                onBack = createComplexViewModel::goToComplexStep,
-                onSubmit = createComplexViewModel::submit,
-                onSuccessAcknowledged = {
-                  createComplexViewModel.acknowledgeSuccess()
-                  shellActions.returnToMyComplexRoot()
-                },
-            ),
-    )
+  )
+}
+
+@Composable
+internal fun CreateComplexRouteContent(
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+    state: CreateComplexUiState,
+    onRetryCatalogs: () -> Unit,
+    onRetryCantons: () -> Unit,
+    onComplexNameChange: (String) -> Unit,
+    onProvinceSelected: (String) -> Unit,
+    onCantonSelected: (String) -> Unit,
+    onComplexAddressChange: (String) -> Unit,
+    onOpenLocationPicker: () -> Unit,
+    onClearLocation: () -> Unit,
+    onToggleComplexService: (String) -> Unit,
+    onFirstCourtNameChange: (String) -> Unit,
+    onToggleCourtService: (String) -> Unit,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+    onSubmit: () -> Unit,
+    onSuccessAcknowledged: () -> Unit,
+    overlayVisible: Boolean,
+    overlayContent: @Composable () -> Unit,
+) {
+  OwnerRouteGuard(
+      canRender = canRenderCreateComplexRoute(authenticatedNavigationState, shellActions),
+      onUnauthorized = shellActions.selectSearch,
+  ) {
+    AuthenticatedScaffold(
+        selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+        onSearchSelected = shellActions.selectSearch,
+        onReservationsSelected = shellActions.selectReservations,
+        onNotificationsSelected = shellActions.selectNotifications,
+        onMyComplexSelected = shellActions.returnToMyComplexRoot,
+        onSignOut = shellActions.signOut,
+        isOwner = shellActions.isOwner,
+        viewingAsPlayer = shellActions.viewingAsPlayer,
+        onSwitchToPlayerView = shellActions.switchToPlayerView,
+        onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onNavigateBack = shellActions.closeCurrentDetail,
+        title = "Mi complejo",
+        overlayVisible = overlayVisible,
+        overlayContent = overlayContent,
+    ) { contentPadding ->
+      CreateComplexScreen(
+          state = state,
+          contentPadding = contentPadding,
+          actions =
+              CreateComplexScreenActions(
+                  onRetryCatalogs = onRetryCatalogs,
+                  onRetryCantons = onRetryCantons,
+                  onComplexNameChange = onComplexNameChange,
+                  onProvinceSelected = onProvinceSelected,
+                  onCantonSelected = onCantonSelected,
+                  onComplexAddressChange = onComplexAddressChange,
+                  onOpenLocationPicker = onOpenLocationPicker,
+                  onClearLocation = onClearLocation,
+                  onToggleComplexService = onToggleComplexService,
+                  onFirstCourtNameChange = onFirstCourtNameChange,
+                  onToggleCourtService = onToggleCourtService,
+                  onNext = onNext,
+                  onBack = onBack,
+                  onSubmit = onSubmit,
+                  onSuccessAcknowledged = onSuccessAcknowledged,
+              ),
+      )
+    }
   }
 }
 
@@ -785,39 +865,71 @@ internal fun CourtAvailabilityEntryContent(
 ) {
   val state by viewModel.uiState.collectAsState()
 
-  AuthenticatedScaffold(
-      selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
-      onSearchSelected = shellActions.selectSearch,
-      onReservationsSelected = shellActions.selectReservations,
-      onNotificationsSelected = shellActions.selectNotifications,
-      onMyComplexSelected = shellActions.returnToMyComplexRoot,
-      onSignOut = shellActions.signOut,
-      isOwner = shellActions.isOwner,
-      viewingAsPlayer = shellActions.viewingAsPlayer,
-      onSwitchToPlayerView = shellActions.switchToPlayerView,
-      onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = state.appBarTitle,
-  ) { contentPadding ->
-    CourtAvailabilityScreen(
-        state = state,
-        contentPadding = contentPadding,
-        actions =
-            CourtAvailabilityScreenActions(
-                onToggleDay = viewModel::toggleDay,
-                onStartTimeSelected = viewModel::updateStartTime,
-                onEndTimeSelected = viewModel::updateEndTime,
-                onRetry = viewModel::load,
-                onSave = viewModel::save,
-                onSuccessAcknowledged =
-                    availabilitySuccessAcknowledgedHandler(
-                        viewModel = viewModel,
-                        shellActions = shellActions,
-                    ),
-            ),
-    )
+  CourtAvailabilityRouteContent(state = state, viewModel = viewModel, shellActions = shellActions)
+}
+
+@Composable
+internal fun CourtAvailabilityRouteContent(
+    state: CourtAvailabilityUiState,
+    viewModel: CourtAvailabilityViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
+  OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
+    AuthenticatedScaffold(
+        selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+        onSearchSelected = shellActions.selectSearch,
+        onReservationsSelected = shellActions.selectReservations,
+        onNotificationsSelected = shellActions.selectNotifications,
+        onMyComplexSelected = shellActions.returnToMyComplexRoot,
+        onSignOut = shellActions.signOut,
+        isOwner = shellActions.isOwner,
+        viewingAsPlayer = shellActions.viewingAsPlayer,
+        onSwitchToPlayerView = shellActions.switchToPlayerView,
+        onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onNavigateBack = shellActions.closeCurrentDetail,
+        title = state.appBarTitle,
+    ) { contentPadding ->
+      CourtAvailabilityScreen(
+          state = state,
+          contentPadding = contentPadding,
+          actions =
+              CourtAvailabilityScreenActions(
+                  onToggleDay = viewModel::toggleDay,
+                  onStartTimeSelected = viewModel::updateStartTime,
+                  onEndTimeSelected = viewModel::updateEndTime,
+                  onRetry = viewModel::load,
+                  onSave = viewModel::save,
+                  onSuccessAcknowledged =
+                      availabilitySuccessAcknowledgedHandler(
+                          viewModel = viewModel,
+                          shellActions = shellActions,
+                      ),
+              ),
+      )
+    }
   }
 }
+
+@Composable
+private fun OwnerRouteGuard(
+    canRender: Boolean,
+    onUnauthorized: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+  if (!canRender) {
+    LaunchedEffect(onUnauthorized) { onUnauthorized() }
+    return
+  }
+
+  content()
+}
+
+internal fun canRenderCreateComplexRoute(
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+): Boolean =
+    shellActions.isOwner ||
+        authenticatedNavigationState.selectedRoute == AuthenticatedTopLevelRoute.Search
 
 internal fun availabilitySuccessAcknowledgedHandler(
     viewModel: CourtAvailabilityViewModel,

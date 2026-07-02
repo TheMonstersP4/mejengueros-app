@@ -15,9 +15,9 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalDrawerSheet
@@ -53,7 +53,7 @@ fun AuthenticatedScaffold(
     isOwner: Boolean = false,
     // True when an owner is temporarily viewing the app in player (mejenguero) mode.
     viewingAsPlayer: Boolean = false,
-    // Called when the owner taps "Modo mejenguero" in the drawer to enter player mode.
+    // Called when the owner taps the top-bar mejenguero action to enter player mode.
     onSwitchToPlayerView: () -> Unit = {},
     // Called when an owner-in-player-mode taps "Mi complejo" in the top bar to return to owner
     // mode.
@@ -105,16 +105,6 @@ fun AuthenticatedScaffold(
                   onClick = { drawerScope.launch { drawerState.close() } },
                   modifier = Modifier.padding(horizontal = 12.dp),
               )
-              HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-              NavigationDrawerItem(
-                  label = { Text("Modo mejenguero") },
-                  selected = false,
-                  onClick = {
-                    drawerScope.launch { drawerState.close() }
-                    onSwitchToPlayerView()
-                  },
-                  modifier = Modifier.padding(horizontal = 12.dp),
-              )
             }
           },
       ) {
@@ -143,6 +133,13 @@ fun AuthenticatedScaffold(
                     }
                   },
                   actions = {
+                    IconButton(onClick = onSwitchToPlayerView) {
+                      Icon(
+                          imageVector = Icons.Filled.Person,
+                          contentDescription = "Modo mejenguero",
+                          modifier = Modifier.size(20.dp),
+                      )
+                    }
                     topBarActions()
                     IconButton(onClick = { showSignOutConfirmation = true }) {
                       Icon(

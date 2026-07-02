@@ -5,6 +5,8 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -166,6 +168,92 @@ class JsonBackedAuthSecureStorageTest {
     assertEquals(
         AuthSecureStringReadResult.Value(sampleSessionPayload()),
         store.readWithoutFailures(JsonBackedAuthSecureStorage.SessionKey),
+    )
+  }
+
+  @Test
+  fun ownerViewPreferenceSaveReadRoundTrips() = runTest {
+    val store = FakeAuthSecureStringStore()
+    val storage = JsonBackedAuthSecureStorage(Json, store)
+
+    storage.saveOwnerViewPreference("owner-1", OwnerViewPreference.OWNER)
+    storage.saveOwnerViewPreference("player-1", OwnerViewPreference.PLAYER)
+
+    assertEquals(OwnerViewPreference.OWNER, storage.getOwnerViewPreference("owner-1"))
+    assertEquals(OwnerViewPreference.PLAYER, storage.getOwnerViewPreference("player-1"))
+  }
+
+  @Test
+  fun clearOwnerViewPreferenceDeletesStoredValue() = runTest {
+    val store = FakeAuthSecureStringStore()
+    val storage = JsonBackedAuthSecureStorage(Json, store)
+
+    storage.saveOwnerViewPreference("owner-1", OwnerViewPreference.OWNER)
+    storage.clearOwnerViewPreference("owner-1")
+
+    assertNull(storage.getOwnerViewPreference("owner-1"))
+    assertEquals(1, store.deleteCounts[ownerViewPreferenceStorageKey("owner-1")])
+  }
+
+  @Test
+  fun unknownOwnerViewPreferencePayloadReturnsNullAndDeletesStoredEntry() = runTest {
+    val key = ownerViewPreferenceStorageKey("owner-1")
+    val store = FakeAuthSecureStringStore(mutableMapOf(key to "COACH"))
+    val storage = JsonBackedAuthSecureStorage(Json, store)
+
+    assertNull(storage.getOwnerViewPreference("owner-1"))
+    assertEquals(1, store.deleteCounts[key])
+    assertEquals(AuthSecureStringReadResult.Missing, store.readWithoutFailures(key))
+  }
+
+  @Test
+  fun ownerViewPreferencePerUserKeysDoNotCollide() = runTest {
+    val store = FakeAuthSecureStringStore()
+    val storage = JsonBackedAuthSecureStorage(Json, store)
+    val ownerOneKey = ownerViewPreferenceStorageKey("owner-1")
+    val ownerTwoKey = ownerViewPreferenceStorageKey("owner-2")
+
+    storage.saveOwnerViewPreference("owner-1", OwnerViewPreference.OWNER)
+    storage.saveOwnerViewPreference("owner-2", OwnerViewPreference.PLAYER)
+
+    assertEquals(OwnerViewPreference.OWNER, storage.getOwnerViewPreference("owner-1"))
+    assertEquals(OwnerViewPreference.PLAYER, storage.getOwnerViewPreference("owner-2"))
+    assertNotEquals(ownerOneKey, ownerTwoKey)
+    assertFalse(ownerOneKey.contains("owner-1"))
+    assertFalse(ownerTwoKey.contains("owner-2"))
+    assertEquals(
+        AuthSecureStringReadResult.Value(OwnerViewPreference.OWNER.name),
+        store.readWithoutFailures(ownerOneKey),
+    )
+    assertEquals(
+        AuthSecureStringReadResult.Value(OwnerViewPreference.PLAYER.name),
+        store.readWithoutFailures(ownerTwoKey),
+    )
+  }
+
+  @Test
+  fun ownerViewPreferenceTrimmedAndBlankUserIdsUseDeterministicKeys() = runTest {
+    val store = FakeAuthSecureStringStore()
+    val storage = JsonBackedAuthSecureStorage(Json, store)
+    val trimmedKey = ownerViewPreferenceStorageKey(" owner-1 ")
+    val blankKey = ownerViewPreferenceStorageKey("   ")
+
+    storage.saveOwnerViewPreference(" owner-1 ", OwnerViewPreference.OWNER)
+    storage.saveOwnerViewPreference("   ", OwnerViewPreference.PLAYER)
+
+    assertEquals(OwnerViewPreference.OWNER, storage.getOwnerViewPreference("owner-1"))
+    assertEquals(OwnerViewPreference.PLAYER, storage.getOwnerViewPreference(""))
+    assertEquals(trimmedKey, ownerViewPreferenceStorageKey("owner-1"))
+    assertEquals(blankKey, ownerViewPreferenceStorageKey(""))
+    assertFalse(trimmedKey.contains("owner-1"))
+    assertNotEquals("owner_view_preference_", blankKey)
+    assertEquals(
+        AuthSecureStringReadResult.Value(OwnerViewPreference.OWNER.name),
+        store.readWithoutFailures(trimmedKey),
+    )
+    assertEquals(
+        AuthSecureStringReadResult.Value(OwnerViewPreference.PLAYER.name),
+        store.readWithoutFailures(blankKey),
     )
   }
 

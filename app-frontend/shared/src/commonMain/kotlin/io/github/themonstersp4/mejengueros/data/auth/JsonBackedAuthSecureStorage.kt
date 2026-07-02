@@ -31,13 +31,30 @@ internal class JsonBackedAuthSecureStorage(
     store.delete(OAuthStateKey)
   }
 
-  private inline fun <T> readDecoded(key: String, decode: (String) -> T): T? {
-    val payload =
-        when (val result = store.read(key)) {
-          AuthSecureStringReadResult.Missing -> return null
-          is AuthSecureStringReadResult.Failure -> return null
-          is AuthSecureStringReadResult.Value -> result.payload
+  override suspend fun getOwnerViewPreference(userId: String): OwnerViewPreference? {
+    val key = ownerViewPreferenceStorageKey(userId)
+    val payload = readRaw(key) ?: return null
+    return OwnerViewPreference.entries.firstOrNull { it.name == payload }
+        ?: run {
+          store.delete(key)
+          null
         }
+  }
+
+  override suspend fun saveOwnerViewPreference(userId: String, preference: OwnerViewPreference) {
+    writeEncoded(
+        ownerViewPreferenceStorageKey(userId),
+        preference.name,
+        "owner view preference",
+    )
+  }
+
+  override suspend fun clearOwnerViewPreference(userId: String) {
+    store.delete(ownerViewPreferenceStorageKey(userId))
+  }
+
+  private inline fun <T> readDecoded(key: String, decode: (String) -> T): T? {
+    val payload = readRaw(key) ?: return null
 
     return try {
       decode(payload)
@@ -58,6 +75,13 @@ internal class JsonBackedAuthSecureStorage(
       }
     }
   }
+
+  private fun readRaw(key: String): String? =
+      when (val result = store.read(key)) {
+        AuthSecureStringReadResult.Missing -> null
+        is AuthSecureStringReadResult.Failure -> null
+        is AuthSecureStringReadResult.Value -> result.payload
+      }
 
   internal companion object {
     const val SessionKey = "auth_session"
