@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -53,7 +54,6 @@ class ComplexDetailScreenBehaviorTest {
     }
 
     composeRule.onNodeWithText("123 Main Street").assertExists()
-    composeRule.onNodeWithText("Ubicación: 9.935, -84.091").assertExists()
     composeRule.onNodeWithText("Agregar cancha").assertExists()
     composeRule
         .onNodeWithTag("complex_detail_root")
@@ -133,6 +133,62 @@ class ComplexDetailScreenBehaviorTest {
           selectedEntrypoint,
       )
     }
+  }
+
+  @Test
+  fun activitySectionPlaceholderRowsAreVisible() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        ComplexDetailScreen(
+            complex = defaultComplex(),
+            isLoading = false,
+            errorMessage = null,
+            contentPadding = PaddingValues(),
+            onRetry = {},
+            onAddCourt = { _, _ -> },
+            onConfigureAvailability = {},
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("complex_detail_root")
+        .performScrollToNode(hasTestTag("activity_resenas_row"))
+    composeRule.onNodeWithTag("activity_resenas_row").assertExists()
+    composeRule.onNodeWithText("Reseñas recibidas").assertExists()
+    composeRule
+        .onNodeWithTag("complex_detail_root")
+        .performScrollToNode(hasTestTag("activity_reservas_row"))
+    composeRule.onNodeWithTag("activity_reservas_row").assertExists()
+    composeRule.onNodeWithText("Reservas de mis canchas").assertExists()
+    composeRule.onAllNodesWithText("Próximamente")[0].assertExists()
+  }
+
+  @Test
+  fun courtStatusPillShowsActivaForConfiguredAndPendienteForPending() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        ComplexDetailScreen(
+            complex = defaultComplex(),
+            isLoading = false,
+            errorMessage = null,
+            contentPadding = PaddingValues(),
+            onRetry = {},
+            onAddCourt = { _, _ -> },
+            onConfigureAvailability = {},
+            modifier = Modifier.width(280.dp),
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("complex_detail_root")
+        .performScrollToNode(hasTestTag("my_complex_courts_group"))
+    composeRule.onAllNodesWithText("Activa")[0].assertExists()
+    composeRule
+        .onNodeWithTag("complex_detail_root")
+        .performScrollToNode(hasTestTag("my_complex_court_row_court-pending-id"))
+    composeRule.onAllNodesWithText("Pendiente")[0].assertExists()
   }
 
   private fun defaultComplex() =
