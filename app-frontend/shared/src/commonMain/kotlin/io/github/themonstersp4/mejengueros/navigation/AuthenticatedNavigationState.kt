@@ -343,9 +343,10 @@ class AuthenticatedNavigationState(
   }
 
   fun openCreateComplex() {
-    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
-    if (myComplexBackStack.lastOrNull() != CreateComplexRoute) {
-      myComplexBackStack.add(CreateComplexRoute)
+    // Push onto the current stack so "back" returns to where the flow started:
+    // the catalog when a mejenguero taps the on-ramp, the owner hub otherwise.
+    if (currentBackStack.lastOrNull() != CreateComplexRoute) {
+      currentBackStack.add(CreateComplexRoute)
     }
   }
 
@@ -425,6 +426,11 @@ class AuthenticatedNavigationState(
     navigateTo(AuthenticatedTopLevelRoute.MyComplex)
     if (myComplexBackStack.lastOrNull() == CreateComplexRoute) {
       myComplexBackStack.removeLastOrNull()
+    }
+    // The create-complex step may have been opened from the catalog; drop it there too
+    // so it does not linger in the mejenguero search stack after the owner is created.
+    while (searchBackStack.lastOrNull() == CreateComplexRoute) {
+      searchBackStack.removeLastOrNull()
     }
 
     val route =
