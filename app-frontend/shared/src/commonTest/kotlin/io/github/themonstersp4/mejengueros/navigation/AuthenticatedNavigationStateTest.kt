@@ -153,11 +153,27 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun openCreateComplexKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
 
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
     assertEquals(listOf(MyComplexRoute, CreateComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun openCreateComplexFromCatalogReturnsToCatalogOnBack() {
+    val state = testNavigationState()
+
+    state.openCreateComplex()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute, CreateComplexRoute), state.currentBackStack.toList())
+
+    state.closeCurrentDetail()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
   }
 
   @Test
@@ -266,6 +282,7 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun switchingTopLevelRoutesPreservesMyComplexDetailStack() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
     state.selectSearch()
@@ -288,6 +305,7 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun openCourtAvailabilityReplacesCreateComplexDetailInsideMyComplexFlow() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
     state.openCourtAvailability(
@@ -401,6 +419,7 @@ class AuthenticatedNavigationStateTest {
   @Test
   fun closeCurrentDetailReturnsToMyComplexRoot() {
     val state = testNavigationState()
+    state.selectMyComplex()
 
     state.openCreateComplex()
     state.closeCurrentDetail()
@@ -541,10 +560,6 @@ class AuthenticatedNavigationStateTest {
     // starts as true (player mode); navigating to owner routes must flip to false
 
     state.selectMyComplex()
-    assertEquals(false, state.viewingAsPlayer)
-
-    state.switchToPlayerView()
-    state.openCreateComplex()
     assertEquals(false, state.viewingAsPlayer)
 
     state.switchToPlayerView()
