@@ -141,8 +141,7 @@ export class PrismaComplexRepository implements IComplexRepository {
           const firstCourt = await transaction.court.create({
             data: {
               complexId: complex.id,
-              name: command.firstCourt.name,
-              isPublished: true
+              name: command.firstCourt.name
             }
           });
 

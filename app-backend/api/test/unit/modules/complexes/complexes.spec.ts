@@ -512,8 +512,7 @@ describe('complexes module behavior', () => {
     expect(transactionClient.court.create).toHaveBeenCalledWith({
       data: {
         complexId: 'complex-id',
-        name: 'Court A',
-        isPublished: true
+        name: 'Court A'
       }
     });
     expect(harness.state.userIdentities).toEqual([
