@@ -58,7 +58,8 @@ describe('reservations HTTP contract', () => {
     syncAuthenticatedUser = {
       execute: jest.fn().mockResolvedValue({
         id: 'user-id',
-        email: 'player@example.test'
+        email: 'player@example.test',
+        roles: []
       })
     } as unknown as jest.Mocked<SyncAuthenticatedUserUseCase>;
     const clock: IClock = {
@@ -91,7 +92,8 @@ describe('reservations HTTP contract', () => {
     prismaService = Object.assign(prismaService, createPrismaMock());
     syncAuthenticatedUser.execute.mockResolvedValue({
       id: 'user-id',
-      email: 'player@example.test'
+      email: 'player@example.test',
+      roles: []
     });
   });
 
