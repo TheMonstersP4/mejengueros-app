@@ -472,6 +472,38 @@ class AuthenticatedNavigationStateTest {
     assertEquals(null, state.ownerCourtAvailabilityEntrypoint)
   }
 
+  @Test
+  fun switchToPlayerViewSetsViewingAsPlayerAndNavigatesToSearch() {
+    val state = testNavigationState()
+
+    state.switchToPlayerView()
+
+    assertEquals(true, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+  }
+
+  @Test
+  fun switchToOwnerViewClearsViewingAsPlayerAndNavigatesToMyComplex() {
+    val state = testNavigationState()
+
+    state.switchToPlayerView()
+    state.switchToOwnerView()
+
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+  }
+
+  @Test
+  fun resetClearsViewingAsPlayer() {
+    val state = testNavigationState()
+
+    state.switchToPlayerView()
+    state.reset()
+
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+  }
+
   private fun testNavigationState(): AuthenticatedNavigationState =
       AuthenticatedNavigationState(
           selectedRoute = mutableStateOf(AuthenticatedTopLevelRoute.Search),
@@ -481,5 +513,6 @@ class AuthenticatedNavigationStateTest {
           myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
+          viewingAsPlayerState = mutableStateOf(false),
       )
 }

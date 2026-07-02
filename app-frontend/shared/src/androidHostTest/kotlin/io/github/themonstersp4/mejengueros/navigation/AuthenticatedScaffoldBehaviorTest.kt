@@ -170,6 +170,8 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithText("Mi complejo").assertExists()
     composeRule.onNodeWithText("Reservas").assertExists()
     composeRule.onNodeWithText("Reseñas").assertExists()
+    // View-mode switch item is present in the drawer
+    composeRule.onNodeWithText("Modo mejenguero").assertExists()
     // Owner does NOT have bottom nav tabs
     composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
     composeRule.onNodeWithText("Buscar").assertDoesNotExist()
@@ -247,6 +249,124 @@ class AuthenticatedScaffoldBehaviorTest {
     // Bottom nav tabs are not rendered for owners
     composeRule.onNodeWithText("Buscar").assertDoesNotExist()
     composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
+  }
+
+  // (a) Owner default = drawer, drawer contains "Modo mejenguero"
+  @Test
+  fun ownerDefaultViewShowsDrawerWithModoMejengueroItem() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = true,
+            viewingAsPlayer = false,
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
+    // Drawer is shown (owner, not viewing as player)
+    composeRule.onNodeWithText("Mi complejo").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Reseñas").assertExists()
+    composeRule.onNodeWithText("Modo mejenguero").assertExists()
+    // No bottom nav tabs
+    composeRule.onNodeWithText("Buscar").assertDoesNotExist()
+    composeRule.onNodeWithText("Notificaciones").assertDoesNotExist()
+  }
+
+  // (b) Owner after switchToPlayerView: bottom nav (3 tabs) + top bar shows "Mi complejo" action
+  @Test
+  fun ownerInPlayerViewShowsBottomNavAndMyComplexTopBarAction() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = true,
+            viewingAsPlayer = true,
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
+    // Bottom nav 3 tabs are shown
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Notificaciones").assertExists()
+    // "Mi complejo" top-bar action is shown (owners only, in player mode)
+    composeRule.onNodeWithContentDescription("Mi complejo").assertExists()
+    // Drawer items are not rendered
+    composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
+    composeRule.onNodeWithText("Modo mejenguero").assertDoesNotExist()
+  }
+
+  // (c) Owner in player view tapping "Mi complejo" calls switchToOwnerView
+  @Test
+  fun ownerInPlayerViewTappingMyComplejoCallsSwitchToOwnerView() {
+    var switchToOwnerViewCalls = 0
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = true,
+            viewingAsPlayer = true,
+            onSwitchToOwnerView = { switchToOwnerViewCalls += 1 },
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Mi complejo").assertExists().performClick()
+    composeRule.runOnIdle { assertEquals(1, switchToOwnerViewCalls) }
+  }
+
+  // (d) Non-owner has NO "Mi complejo" top-bar action and no drawer
+  @Test
+  fun nonOwnerHasNoMyComplexTopBarActionAndNoDrawer() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        AuthenticatedScaffold(
+            selectedRoute = AuthenticatedTopLevelRoute.Search,
+            onSearchSelected = {},
+            onReservationsSelected = {},
+            onNotificationsSelected = {},
+            onMyComplexSelected = {},
+            onSignOut = {},
+            isOwner = false,
+        ) { contentPadding ->
+          Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+        }
+      }
+    }
+
+    // Bottom nav tabs are present
+    composeRule.onNodeWithText("Buscar").assertExists()
+    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Notificaciones").assertExists()
+    // No "Mi complejo" top-bar action (owners-only feature)
+    composeRule.onNodeWithContentDescription("Mi complejo").assertDoesNotExist()
+    // No drawer items
+    composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
+    composeRule.onNodeWithText("Modo mejenguero").assertDoesNotExist()
   }
 
   @Test
