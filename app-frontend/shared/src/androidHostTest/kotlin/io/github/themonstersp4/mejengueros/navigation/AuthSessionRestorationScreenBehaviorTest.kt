@@ -125,6 +125,53 @@ class AuthSessionRestorationScreenBehaviorTest {
       stopKoin()
     }
   }
+
+  @Test
+  fun appNavHostKeepsStartupGateVisibleWhileRestoredProfileRefreshIsPending() = runTest {
+    stopKoin()
+
+    val refreshGate = CompletableDeferred<Unit>()
+    val profileRefreshStarted = CompletableDeferred<Unit>()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val authViewModel =
+        AuthViewModel(
+            authRepository =
+                RestoredSessionPendingProfileRefreshAuthRepository(
+                    refreshGate = refreshGate,
+                    profileRefreshStarted = profileRefreshStarted,
+                ),
+            oauthBrowser = FakeOAuthBrowser(),
+            callbackUrls = MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+
+    startKoin {
+      modules(
+          module {
+            viewModel { authViewModel }
+            single<IAuthSecureStorage> { InMemoryHostAuthSecureStorage() }
+          }
+      )
+    }
+
+    try {
+      composeRule.setContent { MejenguerosTheme { AppNavHost() } }
+
+      advanceUntilIdle()
+      composeRule.waitForIdle()
+
+      kotlin.test.assertTrue(profileRefreshStarted.isCompleted)
+      kotlin.test.assertTrue(authViewModel.uiState.value.isAuthenticated)
+      kotlin.test.assertTrue(authViewModel.uiState.value.isResolvingAuthenticatedStartup)
+      composeRule.onNodeWithTag("auth_session_restore_root", useUnmergedTree = true).assertExists()
+      composeRule.onNodeWithTag("login_root", useUnmergedTree = true).assertDoesNotExist()
+
+      refreshGate.complete(Unit)
+    } finally {
+      scope.cancel()
+      stopKoin()
+    }
+  }
 }
 
 private class PendingRestoreAuthRepository(
@@ -194,6 +241,56 @@ private class CancelledRestoreAuthRepository : IAuthRepository {
   override suspend fun signOut(): AuthSignOutRequest = error("Unused in this test")
 
   override suspend fun refreshUserProfile() = error("Unused in this test")
+}
+
+private class RestoredSessionPendingProfileRefreshAuthRepository(
+    private val refreshGate: CompletableDeferred<Unit>,
+    private val profileRefreshStarted: CompletableDeferred<Unit>,
+) : IAuthRepository {
+  private var currentProfile: UserProfile? = null
+
+  override suspend fun getSession(): AuthSession? =
+      AuthSession(
+          sub = "owner-sub",
+          email = "owner@example.com",
+          displayName = "Owner",
+          provider = "Google",
+          idToken = "id-token",
+          accessToken = "access-token",
+          refreshToken = "refresh-token",
+          expiresAtEpochSeconds = 4102444800,
+      )
+
+  override fun getUserProfile(): UserProfile? = currentProfile
+
+  override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest =
+      error("Unused in this test")
+
+  override suspend fun registerWithEmail(fullName: String, email: String, password: String) =
+      error("Unused in this test")
+
+  override suspend fun confirmRegistration(email: String, code: String) =
+      error("Unused in this test")
+
+  override suspend fun resendRegistrationCode(email: String) = error("Unused in this test")
+
+  override suspend fun signInWithEmail(email: String, password: String): AuthSession =
+      error("Unused in this test")
+
+  override suspend fun requestPasswordReset(email: String) = error("Unused in this test")
+
+  override suspend fun confirmPasswordReset(email: String, code: String, newPassword: String) =
+      error("Unused in this test")
+
+  override suspend fun handleCallback(callbackUrl: String): AuthSession =
+      error("Unused in this test")
+
+  override suspend fun signOut(): AuthSignOutRequest = error("Unused in this test")
+
+  override suspend fun refreshUserProfile() {
+    profileRefreshStarted.complete(Unit)
+    refreshGate.await()
+  }
 }
 
 private class InMemoryHostAuthSecureStorage : IAuthSecureStorage {

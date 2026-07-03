@@ -81,14 +81,22 @@ fun AppNavHost() {
         )
       }
 
-  LaunchedEffect(authState.isAuthenticated, authState.isOwner, authState.userId) {
+  LaunchedEffect(
+      authState.isAuthenticated,
+      authState.isOwner,
+      authState.userId,
+      authState.isResolvingAuthenticatedStartup,
+  ) {
+    if (authState.isAuthenticated && authState.isResolvingAuthenticatedStartup) {
+      return@LaunchedEffect
+    }
     ownerViewPreferenceCoordinator.hydrate(authState)
   }
 
   val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
   val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
 
-  if (authState.isRestoringSession) {
+  if (authState.isRestoringSession || authState.isResolvingAuthenticatedStartup) {
     AuthSessionRestorationScreen()
     return
   }

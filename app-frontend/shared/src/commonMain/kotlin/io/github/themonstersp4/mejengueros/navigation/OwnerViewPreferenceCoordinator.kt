@@ -18,6 +18,10 @@ internal class OwnerViewPreferenceCoordinator(
       return
     }
 
+    if (authState.isResolvingAuthenticatedStartup) {
+      return
+    }
+
     if (!authState.isOwner) {
       navigationState.applyOwnerViewPreference(
           userId = authState.userId,
