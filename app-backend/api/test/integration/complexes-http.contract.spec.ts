@@ -282,6 +282,11 @@ describe('complex wizard HTTP contract', () => {
             id: true,
             name: true,
             status: true,
+            imageUpload: {
+              select: {
+                objectKey: true
+              }
+            },
             availability: {
               select: {
                 id: true
@@ -309,13 +314,15 @@ describe('complex wizard HTTP contract', () => {
                 id: 'court-configured-id',
                 name: 'Court A',
                 status: 'ACTIVE',
-                availabilityStatus: 'CONFIGURED'
+                availabilityStatus: 'CONFIGURED',
+                imageUrl: null
               },
               {
                 id: 'court-pending-id',
                 name: 'Court B',
                 status: 'ACTIVE',
-                availabilityStatus: 'PENDING'
+                availabilityStatus: 'PENDING',
+                imageUrl: null
               }
             ]
           }

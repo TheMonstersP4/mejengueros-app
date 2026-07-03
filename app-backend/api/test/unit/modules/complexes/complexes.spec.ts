@@ -332,7 +332,7 @@ describe('complexes module behavior', () => {
       },
       court: {
         findFirst: jest.fn().mockImplementation(async ({ where }: { where: { id?: string; complexId?: string } }) => {
-          if (where.id === 'court-id' && where.complexId === 'complex-id') {
+          if (where.id === 'court-id') {
             return options?.ownedCourtExists === false ? null : { id: 'court-id' };
           }
 
@@ -1111,7 +1111,6 @@ describe('complexes module behavior', () => {
     expect(transactionClient.court.findFirst).toHaveBeenCalledWith({
       where: {
         id: 'court-id',
-        complexId: 'complex-id',
         deletedAt: null,
         complex: {
           deletedAt: null,
@@ -1135,6 +1134,36 @@ describe('complexes module behavior', () => {
     expect(fileReadUrl.createReadUrl).toHaveBeenCalledWith(
       'dev/uploads/court-image/owner-sub/2026/06/court-image.png'
     );
+  });
+
+  it('updates one owned court image even when the provided complex id is stale', async () => {
+    const harness = createRepositoryHarness();
+    const fileReadUrl = createFileReadUrlPort();
+    const repository = new PrismaComplexRepository(harness.prisma as never, fileReadUrl);
+
+    await expect(
+      repository.updateOwnedCourtImage({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Google'
+        },
+        complexId: 'stale-complex-id',
+        courtId: 'court-id',
+        imageUploadId: 'court-image-id'
+      })
+    ).resolves.toEqual({
+      id: 'court-id',
+      name: 'Court A',
+      status: 'ACTIVE',
+      availabilityStatus: 'CONFIGURED',
+      imageUrl: 'https://signed.example.test/court-image.png'
+    });
+
+    expect(harness.transactionClients[0].court.update).toHaveBeenCalledWith({
+      where: { id: 'court-id' },
+      data: { imageUploadId: 'court-image-id' },
+      select: expect.any(Object)
+    });
   });
 
   it('updates one owned court image and degrades imageUrl to null when read url signing fails', async () => {

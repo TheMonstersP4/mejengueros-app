@@ -311,7 +311,6 @@ export class PrismaComplexRepository implements IComplexRepository {
       const ownedCourt = await transaction.court.findFirst({
         where: {
           id: command.courtId,
-          complexId: command.complexId,
           deletedAt: null,
           complex: {
             deletedAt: null,
