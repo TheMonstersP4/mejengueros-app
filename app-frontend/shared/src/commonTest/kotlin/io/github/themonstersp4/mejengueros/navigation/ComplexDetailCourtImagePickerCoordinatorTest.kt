@@ -45,6 +45,19 @@ class ComplexDetailCourtImagePickerCoordinatorTest {
   }
 
   @Test
+  fun onImagePickedConsumesPendingCourtIdOnlyOnce() {
+    var updates = 0
+    val coordinator =
+        ComplexDetailCourtImagePickerCoordinator("complex-id") { _, _, _ -> updates += 1 }
+
+    coordinator.onPickCourtImage("court-id") {}
+    coordinator.onImagePicked(localCourtImage())
+    coordinator.onImagePicked(localCourtImage())
+
+    assertEquals(1, updates)
+  }
+
+  @Test
   fun onImagePickedWithoutPendingCourtDoesNothing() {
     var launchedUpdate = false
     val coordinator =

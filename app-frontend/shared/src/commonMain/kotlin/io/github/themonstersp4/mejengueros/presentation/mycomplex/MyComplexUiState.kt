@@ -9,6 +9,7 @@ data class MyComplexUiState(
     val isCourtImagePickerAvailable: Boolean = false,
     val isUpdatingCourtImage: Boolean = false,
     val courtImageErrorMessage: String? = null,
+    val courtImageSuccessMessage: String? = null,
 ) {
   val isEmpty: Boolean
     get() = !isLoading && errorMessage == null && complexes.isEmpty()

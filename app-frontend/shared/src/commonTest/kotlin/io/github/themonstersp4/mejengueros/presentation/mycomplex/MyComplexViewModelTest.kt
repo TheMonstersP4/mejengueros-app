@@ -188,8 +188,29 @@ class MyComplexViewModelTest {
         "https://signed.example.test/court-a.png",
         viewModel.uiState.value.complexes.single().courts.first().imageUrl,
     )
+    assertEquals(
+        "La imagen de la cancha se actualizó correctamente.",
+        viewModel.uiState.value.courtImageSuccessMessage,
+    )
     assertFalse(viewModel.uiState.value.isUpdatingCourtImage)
     assertNull(viewModel.uiState.value.courtImageErrorMessage)
+  }
+
+  @Test
+  fun acknowledgeCourtImageSuccessClearsSuccessMessage() = runTest {
+    val repository = FakeComplexRepository()
+    val imageRepository = FakeCourtImageUploadRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, imageRepository, coroutineScope = scope)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+    viewModel.updateCourtImage("complex-id", "court-configured-id", localCourtImage())
+    advanceUntilIdle()
+
+    viewModel.acknowledgeCourtImageSuccess()
+
+    assertNull(viewModel.uiState.value.courtImageSuccessMessage)
   }
 
   @Test
@@ -217,6 +238,7 @@ class MyComplexViewModelTest {
         "No encontramos la cancha seleccionada.",
         viewModel.uiState.value.courtImageErrorMessage,
     )
+    assertNull(viewModel.uiState.value.courtImageSuccessMessage)
     assertNull(viewModel.uiState.value.complexes.single().courts.first().imageUrl)
     assertFalse(viewModel.uiState.value.isUpdatingCourtImage)
     assertEquals("my_complex_court_image_update_failed", errorReporter.events.last().name)
@@ -256,6 +278,7 @@ class MyComplexViewModelTest {
         "https://signed.example.test/existing-court-image.png",
         viewModel.uiState.value.complexes.single().courts.first().imageUrl,
     )
+    assertNull(viewModel.uiState.value.courtImageSuccessMessage)
     assertFalse(viewModel.uiState.value.isUpdatingCourtImage)
     assertEquals("my_complex_court_image_update_failed", errorReporter.events.last().name)
     assertEquals(

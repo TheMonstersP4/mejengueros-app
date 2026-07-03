@@ -14,6 +14,8 @@ internal class ComplexDetailCourtImagePickerCoordinator(
   }
 
   fun onImagePicked(image: LocalCourtImage) {
-    pickedCourtId?.let { courtId -> updateCourtImage(complexId, courtId, image) }
+    val courtId = pickedCourtId ?: return
+    pickedCourtId = null
+    updateCourtImage(complexId, courtId, image)
   }
 }

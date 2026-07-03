@@ -74,6 +74,10 @@ class MyComplexViewModel(
     _uiState.value = _uiState.value.copy(isCourtImagePickerAvailable = isAvailable)
   }
 
+  fun acknowledgeCourtImageSuccess() {
+    _uiState.value = _uiState.value.copy(courtImageSuccessMessage = null)
+  }
+
   fun updateCourtImage(complexId: String, courtId: String, image: LocalCourtImage) {
     if (_uiState.value.isUpdatingCourtImage) return
 
@@ -82,6 +86,7 @@ class MyComplexViewModel(
           _uiState.value.copy(
               isUpdatingCourtImage = true,
               courtImageErrorMessage = null,
+              courtImageSuccessMessage = null,
           )
 
       runCatching {
@@ -100,6 +105,7 @@ class MyComplexViewModel(
                     complexes = _uiState.value.complexes.replaceCourt(complexId, court),
                     isUpdatingCourtImage = false,
                     courtImageErrorMessage = null,
+                    courtImageSuccessMessage = "La imagen de la cancha se actualizó correctamente.",
                 )
           }
           .onFailure { error ->
@@ -116,6 +122,7 @@ class MyComplexViewModel(
                 _uiState.value.copy(
                     isUpdatingCourtImage = false,
                     courtImageErrorMessage = error.toCourtImageUserMessage(),
+                    courtImageSuccessMessage = null,
                 )
 
             errorReporter.reportRecoverableFailure(

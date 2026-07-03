@@ -45,6 +45,7 @@ import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
@@ -554,6 +555,7 @@ private fun ComplexDetailEntry(
       state = state,
       shellActions = shellActions,
       onRetry = myComplexViewModel::refresh,
+      onAcknowledgeCourtImageSuccess = myComplexViewModel::acknowledgeCourtImageSuccess,
       onPickCourtImage = { courtId ->
         pickerCoordinator.onPickCourtImage(courtId, courtImagePicker.launch)
       },
@@ -566,6 +568,7 @@ internal fun ComplexDetailRouteContent(
     state: MyComplexUiState,
     shellActions: AuthenticatedShellActions,
     onRetry: () -> Unit,
+    onAcknowledgeCourtImageSuccess: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
 ) {
   OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
@@ -621,6 +624,17 @@ internal fun ComplexDetailRouteContent(
           title = "Actualizando imagen",
           message = "Estamos subiendo y asociando la imagen de la cancha.",
       )
+
+      state.courtImageSuccessMessage?.let { message ->
+        MejenguerosConfirmationDialog(
+            title = "Imagen actualizada",
+            message = message,
+            confirmText = "Aceptar",
+            onConfirm = onAcknowledgeCourtImageSuccess,
+            onDismissRequest = {},
+            modifier = Modifier.testTag("complex_detail_image_success_dialog"),
+        )
+      }
     }
   }
 }

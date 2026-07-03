@@ -74,7 +74,7 @@ class ComplexDetailScreenBehaviorTest {
         .onNodeWithTag("complex_detail_root")
         .performScrollToNode(hasTestTag("my_complex_court_row_court-pending-id"))
     composeRule
-        .onNodeWithTag("my_complex_court_icon_court-pending-id", useUnmergedTree = true)
+        .onNodeWithTag("my_complex_court_image_container_court-pending-id", useUnmergedTree = true)
         .assertExists()
     composeRule
         .onNodeWithText("Court B with an intentionally long configuration name that must wrap")
@@ -99,7 +99,9 @@ class ComplexDetailScreenBehaviorTest {
             .onNodeWithTag("my_complex_court_trailing_court-pending-id", useUnmergedTree = true)
             .getUnclippedBoundsInRoot()
     assertTrue(trailingBounds.left.value > 0f, "Expected trailing court actions to be laid out.")
-    composeRule.onNodeWithTag("my_complex_court_row_court-pending-id").performClick()
+    composeRule
+        .onNodeWithTag("my_complex_court_availability_button_court-pending-id")
+        .performClick()
 
     composeRule.runOnIdle {
       assertEquals(
@@ -170,14 +172,18 @@ class ComplexDetailScreenBehaviorTest {
     composeRule
         .onNodeWithTag("my_complex_court_image_court-configured-id", useUnmergedTree = true)
         .assertExists()
+    composeRule
+        .onNodeWithTag(
+            "my_complex_court_image_container_court-configured-id",
+            useUnmergedTree = true,
+        )
+        .assertExists()
     composeRule.onNodeWithTag("my_complex_court_image_button_court-configured-id").assertExists()
     composeRule.onNodeWithText("Cambiar imagen").assertExists()
   }
 
   @Test
-  fun courtImageActionUsesRealCourtId() {
-    var selectedCourtId: String? = null
-
+  fun courtWithoutImageShowsPlaceholderAndAddImageCallToAction() {
     composeRule.setContent {
       MejenguerosTheme {
         ComplexDetailScreen(
@@ -188,14 +194,47 @@ class ComplexDetailScreenBehaviorTest {
             contentPadding = PaddingValues(),
             onRetry = {},
             onConfigureAvailability = {},
-            onPickCourtImage = { selectedCourtId = it },
         )
       }
     }
 
-    composeRule.onNodeWithTag("my_complex_court_image_button_court-configured-id").performClick()
+    composeRule
+        .onNodeWithTag(
+            "my_complex_court_image_container_court-configured-id",
+            useUnmergedTree = true,
+        )
+        .assertExists()
+    composeRule.onAllNodesWithText("Sin imagen", useUnmergedTree = true)[0].assertExists()
+    composeRule
+        .onNodeWithTag("my_complex_court_image_button_court-configured-id", useUnmergedTree = true)
+        .assertExists()
+  }
 
-    composeRule.runOnIdle { assertEquals("court-configured-id", selectedCourtId) }
+  @Test
+  fun courtImageActionHasDedicatedButtonSeparateFromAvailabilityAction() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        ComplexDetailScreen(
+            complex = defaultComplex(),
+            isLoading = false,
+            errorMessage = null,
+            isCourtImagePickerAvailable = true,
+            contentPadding = PaddingValues(),
+            onRetry = {},
+            onConfigureAvailability = {},
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("my_complex_court_image_button_court-configured-id", useUnmergedTree = true)
+        .assertExists()
+    composeRule
+        .onNodeWithTag(
+            "my_complex_court_availability_button_court-configured-id",
+            useUnmergedTree = true,
+        )
+        .assertExists()
   }
 
   @Test

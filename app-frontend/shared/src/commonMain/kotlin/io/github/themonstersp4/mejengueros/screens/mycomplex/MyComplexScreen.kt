@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -313,7 +314,6 @@ private fun ComplexDetailContent(
           modifier = Modifier.testTag("complex_detail_image_error"),
       )
     }
-
     ComplexHubSection(
         complex = complex,
         isCourtImagePickerAvailable = isCourtImagePickerAvailable,
@@ -465,11 +465,17 @@ private fun CourtRow(
                 )
               },
               supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                   Text(
                       text = court.toSupportingText(),
                       style = MaterialTheme.typography.bodyMedium,
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                  CourtImageManagementSection(
+                      court = court,
+                      isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+                      isUpdatingCourtImage = isUpdatingCourtImage,
+                      onPickCourtImage = onPickCourtImage,
                   )
                   Row(
                       modifier = Modifier.testTag("my_complex_court_trailing_${court.id}"),
@@ -480,40 +486,26 @@ private fun CourtRow(
                         text = court.availabilityStatus.toPillLabel(),
                         style = court.availabilityStatus.toPillStyle(),
                     )
-                    if (isCourtImagePickerAvailable) {
-                      TextButton(
-                          onClick = { onPickCourtImage(court.id) },
-                          enabled = !isUpdatingCourtImage,
-                          modifier = Modifier.testTag("my_complex_court_image_button_${court.id}"),
-                      ) {
-                        Text(
-                            text =
-                                if (court.imageUrl.isNullOrBlank()) "Agregar imagen"
-                                else "Cambiar imagen"
-                        )
-                      }
+                    TextButton(
+                        onClick = {
+                          onConfigureAvailability(
+                              OwnerCourtAvailabilityEntrypoint(
+                                  courtId = court.id,
+                                  courtName = court.name,
+                                  complexName = complexName,
+                              )
+                          )
+                        },
+                        modifier =
+                            Modifier.testTag("my_complex_court_availability_button_${court.id}"),
+                    ) {
+                      Text(text = "Disponibilidad")
                     }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                   }
                 }
               },
           ),
       modifier = Modifier.testTag("my_complex_court_row_${court.id}"),
-      leading = { CourtImageLeading(court = court) },
-      onClick = {
-        onConfigureAvailability(
-            OwnerCourtAvailabilityEntrypoint(
-                courtId = court.id,
-                courtName = court.name,
-                complexName = complexName,
-            )
-        )
-      },
       style =
           MejenguerosListItemStyle(
               showDivider = showDivider,
@@ -524,28 +516,62 @@ private fun CourtRow(
 }
 
 @Composable
-private fun CourtImageLeading(court: MyComplexHubCourt) {
-  Box(modifier = Modifier.testTag("my_complex_court_icon_${court.id}")) {
-    if (court.imageUrl.isNullOrBlank()) {
-      Surface(
-          modifier = Modifier.size(36.dp),
-          shape = CircleShape,
-          color = MaterialTheme.colorScheme.surfaceContainerHighest,
-          contentColor = MaterialTheme.colorScheme.primary,
+private fun CourtImageManagementSection(
+    court: MyComplexHubCourt,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
+    onPickCourtImage: (String) -> Unit,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    CourtImagePreview(court = court)
+
+    if (isCourtImagePickerAvailable) {
+      TextButton(
+          onClick = { onPickCourtImage(court.id) },
+          enabled = !isUpdatingCourtImage,
+          modifier = Modifier.testTag("my_complex_court_image_button_${court.id}"),
       ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-              imageVector = Icons.Filled.LocationOn,
-              contentDescription = null,
-              modifier = Modifier.size(18.dp),
-          )
-        }
+        Text(text = if (court.imageUrl.isNullOrBlank()) "Agregar imagen" else "Cambiar imagen")
+      }
+    }
+  }
+}
+
+@Composable
+private fun CourtImagePreview(court: MyComplexHubCourt) {
+  Surface(
+      modifier =
+          Modifier.fillMaxWidth()
+              .aspectRatio(16f / 9f)
+              .testTag("my_complex_court_image_container_${court.id}"),
+      shape = RoundedCornerShape(16.dp),
+      color = MaterialTheme.colorScheme.surfaceContainerHighest,
+      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+  ) {
+    if (court.imageUrl.isNullOrBlank()) {
+      Column(
+          modifier = Modifier.fillMaxSize().padding(16.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center,
+      ) {
+        Icon(
+            imageVector = Icons.Filled.LocationOn,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Sin imagen",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
       }
     } else {
       AsyncImage(
           model = court.imageUrl,
           contentDescription = "Imagen de ${court.name}",
-          modifier = Modifier.size(48.dp).testTag("my_complex_court_image_${court.id}"),
+          modifier = Modifier.fillMaxSize().testTag("my_complex_court_image_${court.id}"),
       )
     }
   }
