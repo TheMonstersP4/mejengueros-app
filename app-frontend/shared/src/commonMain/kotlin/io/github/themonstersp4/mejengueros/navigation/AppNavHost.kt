@@ -1,11 +1,24 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -74,6 +87,11 @@ fun AppNavHost() {
 
   val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
   val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
+
+  if (authState.isRestoringSession) {
+    AuthSessionRestorationScreen()
+    return
+  }
 
   val loginActions =
       LoginNavigationActions(
@@ -158,4 +176,27 @@ fun AppNavHost() {
             )
           },
   )
+}
+
+@Composable
+internal fun AuthSessionRestorationScreen(modifier: Modifier = Modifier) {
+  Surface(
+      modifier = modifier.fillMaxSize().testTag("auth_session_restore_root"),
+      color = MaterialTheme.colorScheme.surface,
+  ) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        CircularProgressIndicator(modifier = Modifier.testTag("auth_session_restore_loading"))
+        Text(
+            text = "Restaurando tu sesión...",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+      }
+    }
+  }
 }

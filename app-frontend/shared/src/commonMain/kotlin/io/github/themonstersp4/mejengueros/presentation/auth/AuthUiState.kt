@@ -7,6 +7,7 @@ data class AuthUiState(
     val email: String = "",
     val displayName: String? = null,
     val provider: String? = null,
+    val isRestoringSession: Boolean = true,
     val isAuthenticated: Boolean = false,
     val isOwner: Boolean = false,
     val isLoading: Boolean = false,

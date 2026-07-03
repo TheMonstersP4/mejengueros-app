@@ -13,7 +13,7 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val presentationModule = module {
-  viewModel { AuthViewModel(get(), get()) }
+  viewModel { AuthViewModel(get(), get(), get()) }
   viewModel { CourtCatalogViewModel(get()) }
   viewModel { parameters -> CourtDetailViewModel(parameters.get(), get()) }
   viewModel { CreateComplexViewModel(get(), get()) }
