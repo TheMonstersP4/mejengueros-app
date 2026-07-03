@@ -27,6 +27,8 @@ import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexV
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.ForgotPasswordScreen
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
@@ -43,6 +45,8 @@ import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
+import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
+import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
@@ -280,7 +284,7 @@ internal fun SearchCatalogEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Buscar",
+      chrome = AuthenticatedScaffoldChrome(title = "Buscar"),
       topBarActions = {
         if (!shellActions.isOwner) {
           IconButton(onClick = shellActions.openCreateComplex) {
@@ -349,8 +353,11 @@ internal fun CatalogCourtDetailEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = route.complexName,
+      chrome =
+          AuthenticatedScaffoldChrome(
+              title = route.complexName,
+              onNavigateBack = shellActions.closeCurrentDetail,
+          ),
   ) { contentPadding ->
     CourtDetailScreen(
         courtName = route.courtName,
@@ -370,6 +377,8 @@ internal fun CatalogCourtDetailEntryContent(
                   complexId = route.complexId,
                   complexName = route.complexName,
                   courtName = route.courtName,
+                  provinceName = route.provinceName,
+                  cantonName = route.cantonName,
               )
           )
         },
@@ -383,6 +392,13 @@ internal fun CatalogReservationEntry(
     route: CatalogReservationRoute,
     shellActions: AuthenticatedShellActions,
 ) {
+  val viewModel =
+      koinViewModel<ReservationViewModel>(
+          key = "catalog-reservation-${route.courtId}",
+          parameters = { parametersOf(route.toReservationContext()) },
+      )
+  val state by viewModel.uiState.collectAsState()
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Search,
       onSearchSelected = shellActions.selectSearch,
@@ -394,14 +410,30 @@ internal fun CatalogReservationEntry(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = "Reserva",
+      chrome =
+          AuthenticatedScaffoldChrome(
+              title = "Reservar",
+              subtitle = "${route.complexName} · ${route.courtName}",
+              onNavigateBack = shellActions.closeCurrentDetail,
+              showBottomBar = false,
+          ),
   ) { contentPadding ->
-    ProductPlaceholderScreen(
-        title = "Reserva pendiente",
-        description =
-            "El handoff desde Buscar ya llega hasta el scope de reserva para ${route.courtName}, pero la reserva real se implementa aparte en #50.",
+    ReservationScreen(
+        state = state,
         contentPadding = contentPadding,
+        actions =
+            ReservationScreenActions(
+                onDateSelected = viewModel::selectDate,
+                onSlotSelected = viewModel::selectSlot,
+                onConfirmReservation = viewModel::confirmReservation,
+                onRetryLoad = viewModel::retryLoad,
+                onViewOtherHours = viewModel::viewOtherHours,
+                onViewReservations = {
+                  shellActions.returnToSearchRoot()
+                  shellActions.selectReservations()
+                },
+                onReturnToCatalog = shellActions.returnToSearchRoot,
+            ),
     )
   }
 }
@@ -419,12 +451,12 @@ private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Reservas",
+      chrome = AuthenticatedScaffoldChrome(title = "Mis reservas"),
   ) { contentPadding ->
     ProductPlaceholderScreen(
-        title = "Reservas",
+        title = "Mis reservas",
         description =
-            "Pronto vas a poder revisar tus reservas activas e historial desde aquí. Por ahora esta área es un placeholder controlado.",
+            "Pronto vas a poder revisar tus reservas activas e historial desde aquí. Por ahora esta área sigue siendo un placeholder controlado.",
         contentPadding = contentPadding,
     )
   }
@@ -443,7 +475,7 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Notificaciones",
+      chrome = AuthenticatedScaffoldChrome(title = "Notificaciones"),
   ) { contentPadding ->
     ProductPlaceholderScreen(
         title = "Notificaciones",
@@ -495,7 +527,7 @@ internal fun MyComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        title = "Mi complejo",
+        chrome = AuthenticatedScaffoldChrome(title = "Mi complejo"),
     ) { contentPadding ->
       MyComplexEntryContent(
           state = state,
@@ -585,8 +617,11 @@ internal fun ComplexDetailRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = "Mi complejo",
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Mi complejo",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
         topBarActions = {
           if (
               complex != null &&
@@ -710,8 +745,11 @@ internal fun AddCourtEntryContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = "Agregar cancha",
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Agregar cancha",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
     ) { contentPadding ->
       AddCourtScreen(
           state = state,
@@ -900,8 +938,11 @@ internal fun CreateComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = "Mi complejo",
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Mi complejo",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
         overlayVisible = overlayVisible,
         overlayContent = overlayContent,
     ) { contentPadding ->
@@ -975,8 +1016,11 @@ internal fun CourtAvailabilityRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = state.appBarTitle,
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = state.appBarTitle,
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
     ) { contentPadding ->
       CourtAvailabilityScreen(
           state = state,
@@ -998,6 +1042,16 @@ internal fun CourtAvailabilityRouteContent(
     }
   }
 }
+
+private fun CatalogReservationRoute.toReservationContext(): ReservationContext =
+    ReservationContext(
+        courtId = courtId,
+        complexId = complexId,
+        complexName = complexName,
+        courtName = courtName,
+        provinceName = provinceName,
+        cantonName = cantonName,
+    )
 
 @Composable
 private fun OwnerRouteGuard(

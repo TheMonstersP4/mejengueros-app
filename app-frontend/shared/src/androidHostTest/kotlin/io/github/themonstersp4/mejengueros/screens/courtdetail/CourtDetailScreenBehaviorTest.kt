@@ -80,7 +80,12 @@ class CourtDetailScreenBehaviorTest {
     }
 
     composeRule.onNodeWithTag("court_detail_no_slots_state").assertExists()
-    composeRule.onNodeWithText("Sin horarios disponibles").assertExists()
+    composeRule.onNodeWithText("No hay horarios para hoy").assertExists()
+    composeRule
+        .onNodeWithText(
+            "Esta cancha puede tener espacios en otras fechas. Tocá \"Reservar cancha\" para revisar otros días."
+        )
+        .assertExists()
     composeRule.onNodeWithTag("court_detail_reserve_button").assertExists()
   }
 

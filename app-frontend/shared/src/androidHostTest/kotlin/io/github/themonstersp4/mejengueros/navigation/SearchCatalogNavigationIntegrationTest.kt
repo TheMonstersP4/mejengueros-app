@@ -25,14 +25,20 @@ import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
+import io.github.themonstersp4.mejengueros.domain.model.ReservationAvailabilityStatus
+import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import kotlin.test.Test
@@ -44,6 +50,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.runner.RunWith
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,6 +63,7 @@ class SearchCatalogNavigationIntegrationTest {
 
   @Test
   fun catalogLivesUnderSearchAndHandsOffToDetailAndReservation() = runTest {
+    stopKoin()
     val renderedRoute = mutableStateOf<AppRoute>(SearchRoute)
     val visitedRoutes = NavBackStack<NavKey>(SearchRoute)
     val expectedDetailRoute =
@@ -75,6 +86,8 @@ class SearchCatalogNavigationIntegrationTest {
             complexId = "complex-id",
             complexName = "Mejengas CR",
             courtName = "Cancha 1",
+            provinceName = "San José",
+            cantonName = "Escazú",
         )
     val openedDetailRoute = mutableStateOf<CatalogCourtDetailRoute?>(null)
     val openedReservationRoute = mutableStateOf<CatalogReservationRoute?>(null)
@@ -129,58 +142,81 @@ class SearchCatalogNavigationIntegrationTest {
             repository = FakeCourtDetailRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
-    advanceUntilIdle()
+    startKoin {
+      modules(
+          module {
+            single<IReservationRepository> { FakeReservationRepository() }
+            viewModel { parameters ->
+              ReservationViewModel(parameters.get<ReservationContext>(), get())
+            }
+          }
+      )
+    }
 
-    composeRule.setContent {
-      MejenguerosTheme {
-        when (val route = renderedRoute.value) {
-          SearchRoute ->
-              SearchCatalogEntryContent(
-                  state = state,
-                  shellActions = shellActions,
-                  onSearchQueryChange = {},
-                  onProvinceSelected = {},
-                  onCantonSelected = {},
-                  onRetryLoad = {},
-              )
-          is CatalogCourtDetailRoute ->
-              CatalogCourtDetailEntryContent(
-                  route = route,
-                  viewModel = detailViewModel,
-                  shellActions = shellActions,
-              )
-          is CatalogReservationRoute ->
-              CatalogReservationEntry(route = route, shellActions = shellActions)
-          else -> error("Unexpected route $route")
+    try {
+      advanceUntilIdle()
+
+      composeRule.setContent {
+        MejenguerosTheme {
+          when (val route = renderedRoute.value) {
+            SearchRoute ->
+                SearchCatalogEntryContent(
+                    state = state,
+                    shellActions = shellActions,
+                    onSearchQueryChange = {},
+                    onProvinceSelected = {},
+                    onCantonSelected = {},
+                    onRetryLoad = {},
+                )
+            is CatalogCourtDetailRoute ->
+                CatalogCourtDetailEntryContent(
+                    route = route,
+                    viewModel = detailViewModel,
+                    shellActions = shellActions,
+                )
+            is CatalogReservationRoute ->
+                CatalogReservationEntry(route = route, shellActions = shellActions)
+            else -> error("Unexpected route $route")
+          }
         }
       }
-    }
 
-    composeRule.onNodeWithText("Canchas").assertExists()
-    composeRule.onNodeWithText("Home").assertDoesNotExist()
-    composeRule.onNodeWithText("Demo").assertDoesNotExist()
-    composeRule
-        .onNodeWithTag("catalog_court_card_court-id", useUnmergedTree = true)
-        .assertExists()
-        .assert(SemanticsMatcher("has click action") { hasClickAction().matches(it) })
+      composeRule.onNodeWithText("Canchas").assertExists()
+      composeRule.onNodeWithText("Home").assertDoesNotExist()
+      composeRule.onNodeWithText("Demo").assertDoesNotExist()
+      composeRule
+          .onNodeWithTag("catalog_court_card_court-id", useUnmergedTree = true)
+          .assertExists()
+          .assert(SemanticsMatcher("has click action") { hasClickAction().matches(it) })
 
-    composeRule.runOnIdle {
-      openedDetailRoute.value = expectedDetailRoute
-      visitedRoutes.add(expectedDetailRoute)
-      renderedRoute.value = expectedDetailRoute
-    }
+      composeRule
+          .onNodeWithTag("catalog_court_card_court-id", useUnmergedTree = true)
+          .performClick()
 
-    composeRule.onNodeWithTag("court_detail_title").assertExists()
-    composeRule.onNodeWithTag("court_detail_disponibilidad_section").assertExists()
-    composeRule.onNodeWithTag("court_detail_reserve_button").assertExists().performClick()
-    composeRule.onNodeWithText("Reserva pendiente").assertExists()
-    composeRule.runOnIdle {
-      assertEquals(expectedDetailRoute, openedDetailRoute.value)
-      assertEquals(expectedReservationRoute, openedReservationRoute.value)
-      assertEquals(
-          listOf(SearchRoute, expectedDetailRoute, expectedReservationRoute),
-          visitedRoutes.toList(),
-      )
+      composeRule.runOnIdle {
+        assertEquals(expectedDetailRoute, openedDetailRoute.value)
+        assertEquals(expectedDetailRoute, renderedRoute.value)
+        assertEquals(listOf(SearchRoute, expectedDetailRoute), visitedRoutes.toList())
+      }
+
+      composeRule.onNodeWithTag("court_detail_title").assertExists()
+      composeRule.onNodeWithTag("court_detail_disponibilidad_section").assertExists()
+      composeRule.onNodeWithTag("court_detail_reserve_button").assertExists().performClick()
+      composeRule.onNodeWithText("Reservar").assertExists()
+      composeRule.onNodeWithText("Mejengas CR · Cancha 1").assertExists()
+      composeRule.onNodeWithText("ELEGÍ EL DÍA").assertExists()
+      composeRule.onNodeWithText("CONFIRMAR RESERVA").assertExists()
+      composeRule.onNodeWithText("Reserva pendiente").assertDoesNotExist()
+      composeRule.runOnIdle {
+        assertEquals(expectedDetailRoute, openedDetailRoute.value)
+        assertEquals(expectedReservationRoute, openedReservationRoute.value)
+        assertEquals(
+            listOf(SearchRoute, expectedDetailRoute, expectedReservationRoute),
+            visitedRoutes.toList(),
+        )
+      }
+    } finally {
+      stopKoin()
     }
   }
 
@@ -388,6 +424,7 @@ class SearchCatalogNavigationIntegrationTest {
           selectReservations = {},
           selectNotifications = {},
           selectMyComplex = {},
+          returnToSearchRoot = {},
           returnToMyComplexRoot = {},
           openCatalogCourtDetail = onDetailOpened,
           openCatalogReservation = onReservationOpened,
@@ -431,6 +468,7 @@ class SearchCatalogNavigationIntegrationTest {
               selectReservations = navigationState::selectReservations,
               selectNotifications = navigationState::selectNotifications,
               selectMyComplex = navigationState::selectMyComplex,
+              returnToSearchRoot = navigationState::returnToSearchRoot,
               returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
               openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
               openCatalogReservation = navigationState::openCatalogReservation,
@@ -526,5 +564,35 @@ private class FakeCourtDetailRepository : ICourtDetailRepository {
               startsAtUtc = "2026-07-01T09:00:00.000Z",
               endsAtUtc = "2026-07-01T10:00:00.000Z",
           ),
+      )
+}
+
+private class FakeReservationRepository : IReservationRepository {
+  override suspend fun getReservableSlots(
+      courtId: String,
+      dateUtc: String,
+  ): ReservationDayAvailability =
+      ReservationDayAvailability(
+          dateUtc = dateUtc,
+          availabilityStatus = ReservationAvailabilityStatus.Available,
+          slots =
+              listOf(
+                  ReservableSlot(
+                      startsAtUtc = "${dateUtc}T18:00:00.000Z",
+                      endsAtUtc = "${dateUtc}T19:00:00.000Z",
+                  )
+              ),
+      )
+
+  override suspend fun createReservation(
+      courtId: String,
+      startsAtUtc: String,
+  ): ReservationConfirmation =
+      ReservationConfirmation(
+          id = "reservation-id",
+          courtId = courtId,
+          startsAtUtc = startsAtUtc,
+          endsAtUtc = startsAtUtc.replace("T18:00:00.000Z", "T19:00:00.000Z"),
+          status = "CONFIRMED",
       )
 }

@@ -58,8 +58,7 @@ fun AuthenticatedScaffold(
     // Called when an owner-in-player-mode taps "Mi complejo" in the top bar to return to owner
     // mode.
     onSwitchToOwnerView: () -> Unit = {},
-    title: String = "Mejengueros",
-    onNavigateBack: (() -> Unit)? = null,
+    chrome: AuthenticatedScaffoldChrome = AuthenticatedScaffoldChrome(),
     topBarActions: @Composable RowScope.() -> Unit = {},
     overlayVisible: Boolean = false,
     overlayContent: @Composable () -> Unit = {},
@@ -112,10 +111,11 @@ fun AuthenticatedScaffold(
             modifier = scaffoldModifier,
             topBar = {
               MejenguerosTopAppBar(
-                  title = title,
+                  title = chrome.title,
+                  subtitle = chrome.subtitle,
                   navigationIcon = {
-                    if (onNavigateBack != null) {
-                      IconButton(onClick = onNavigateBack) {
+                    if (chrome.onNavigateBack != null) {
+                      IconButton(onClick = chrome.onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
@@ -159,9 +159,10 @@ fun AuthenticatedScaffold(
           modifier = scaffoldModifier,
           topBar = {
             MejenguerosTopAppBar(
-                title = title,
+                title = chrome.title,
+                subtitle = chrome.subtitle,
                 navigationIcon = {
-                  onNavigateBack?.let { navigateBack ->
+                  chrome.onNavigateBack?.let { navigateBack ->
                     IconButton(onClick = navigateBack) {
                       Icon(
                           imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -193,44 +194,46 @@ fun AuthenticatedScaffold(
             )
           },
           bottomBar = {
-            MejenguerosBottomNavigationBar(
-                items =
-                    listOf(
-                        MejenguerosBottomNavigationItem(
-                            label = "Buscar",
-                            selected = selectedRoute == AuthenticatedTopLevelRoute.Search,
-                            onClick = onSearchSelected,
-                            icon = {
-                              Icon(
-                                  imageVector = Icons.Filled.Search,
-                                  contentDescription = "Buscar",
-                              )
-                            },
-                        ),
-                        MejenguerosBottomNavigationItem(
-                            label = "Reservas",
-                            selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
-                            onClick = onReservationsSelected,
-                            icon = {
-                              Icon(
-                                  imageVector = Icons.Filled.DateRange,
-                                  contentDescription = "Reservas",
-                              )
-                            },
-                        ),
-                        MejenguerosBottomNavigationItem(
-                            label = "Notificaciones",
-                            selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
-                            onClick = onNotificationsSelected,
-                            icon = {
-                              Icon(
-                                  imageVector = Icons.Filled.Notifications,
-                                  contentDescription = "Notificaciones",
-                              )
-                            },
-                        ),
-                    )
-            )
+            if (chrome.showBottomBar) {
+              MejenguerosBottomNavigationBar(
+                  items =
+                      listOf(
+                          MejenguerosBottomNavigationItem(
+                              label = "Buscar",
+                              selected = selectedRoute == AuthenticatedTopLevelRoute.Search,
+                              onClick = onSearchSelected,
+                              icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = "Buscar",
+                                )
+                              },
+                          ),
+                          MejenguerosBottomNavigationItem(
+                              label = "Mis reservas",
+                              selected = selectedRoute == AuthenticatedTopLevelRoute.Reservations,
+                              onClick = onReservationsSelected,
+                              icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.DateRange,
+                                    contentDescription = "Mis reservas",
+                                )
+                              },
+                          ),
+                          MejenguerosBottomNavigationItem(
+                              label = "Notificaciones",
+                              selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
+                              onClick = onNotificationsSelected,
+                              icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Notifications,
+                                    contentDescription = "Notificaciones",
+                                )
+                              },
+                          ),
+                      )
+              )
+            }
           },
           content = content,
       )
@@ -255,6 +258,13 @@ fun AuthenticatedScaffold(
     }
   }
 }
+
+data class AuthenticatedScaffoldChrome(
+    val title: String = "Mejengueros",
+    val subtitle: String? = null,
+    val onNavigateBack: (() -> Unit)? = null,
+    val showBottomBar: Boolean = true,
+)
 
 enum class AuthenticatedTopLevelRoute {
   Search,

@@ -205,6 +205,7 @@ private fun shellActions(
         selectReservations = navigationState::selectReservations,
         selectNotifications = navigationState::selectNotifications,
         selectMyComplex = navigationState::selectMyComplex,
+        returnToSearchRoot = navigationState::returnToSearchRoot,
         returnToMyComplexRoot = navigationState::returnToMyComplexRoot,
         openCatalogCourtDetail = navigationState::openCatalogCourtDetail,
         openCatalogReservation = navigationState::openCatalogReservation,

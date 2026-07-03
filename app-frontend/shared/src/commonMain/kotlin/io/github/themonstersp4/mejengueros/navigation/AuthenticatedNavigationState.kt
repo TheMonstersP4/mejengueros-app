@@ -346,6 +346,10 @@ class AuthenticatedNavigationState(
     navigateTo(AuthenticatedTopLevelRoute.MyComplex)
   }
 
+  fun returnToSearchRoot() {
+    showSearchRoot()
+  }
+
   fun openCreateComplex() {
     // Push onto the current stack so "back" returns to where the flow started:
     // the catalog when a mejenguero taps the on-ramp, the owner hub otherwise.
@@ -372,6 +376,8 @@ class AuthenticatedNavigationState(
             complexId = route.complexId,
             complexName = route.complexName,
             courtName = route.courtName,
+            provinceName = route.provinceName,
+            cantonName = route.cantonName,
         )
     if (searchBackStack.none { it == detailRoute }) {
       while (searchBackStack.size > 1) {

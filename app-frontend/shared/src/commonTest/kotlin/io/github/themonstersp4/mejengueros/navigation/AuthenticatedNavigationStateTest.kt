@@ -245,6 +245,25 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun returnToSearchRootClearsReservationFlowBackToCatalogRoot() {
+    val state = testNavigationState()
+
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+
+    state.returnToSearchRoot()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun openComplexDetailKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
 

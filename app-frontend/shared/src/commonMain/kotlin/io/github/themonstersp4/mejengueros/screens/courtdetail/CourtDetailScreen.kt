@@ -233,8 +233,9 @@ private fun DisponibilidadSection(
 
       state.slots.isEmpty() -> {
         MejenguerosStateContent(
-            title = "Sin horarios disponibles",
-            description = "No hay horarios disponibles para reservar hoy.",
+            title = "No hay horarios para hoy",
+            description =
+                "Esta cancha puede tener espacios en otras fechas. Tocá \"Reservar cancha\" para revisar otros días.",
             variant = MejenguerosStateVariant.Empty,
             modifier = Modifier.testTag("court_detail_no_slots_state"),
         )

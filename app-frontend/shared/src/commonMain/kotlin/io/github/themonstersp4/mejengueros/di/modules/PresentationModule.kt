@@ -9,6 +9,8 @@ import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailV
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -24,6 +26,7 @@ val presentationModule = module {
   viewModel { parameters ->
     CourtAvailabilityViewModel(parameters.get(), parameters.get(), parameters.get(), get())
   }
+  viewModel { parameters -> ReservationViewModel(parameters.get<ReservationContext>(), get()) }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }
 }

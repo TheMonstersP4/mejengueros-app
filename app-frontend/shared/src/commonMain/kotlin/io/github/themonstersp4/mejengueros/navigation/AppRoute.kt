@@ -40,6 +40,8 @@ data class CatalogReservationRoute(
     val complexId: String,
     val complexName: String,
     val courtName: String,
+    val provinceName: String = "",
+    val cantonName: String = "",
 ) : AppRoute
 
 @Serializable data object ReservationsRoute : AppRoute
