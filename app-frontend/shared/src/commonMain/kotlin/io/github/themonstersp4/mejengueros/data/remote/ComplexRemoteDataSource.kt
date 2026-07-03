@@ -104,6 +104,7 @@ class ComplexRemoteDataSource(
                             CreateCourtRequestPayloadDto(
                                 name = request.firstCourt.name,
                                 serviceIds = request.firstCourt.serviceIds,
+                                imageUploadId = request.firstCourt.imageUploadId,
                             ),
                     )
                 )
@@ -139,6 +140,7 @@ class ComplexRemoteDataSource(
                     CreateCourtRequestPayloadDto(
                         name = request.name,
                         serviceIds = request.serviceIds,
+                        imageUploadId = request.imageUploadId,
                     )
                 )
               }

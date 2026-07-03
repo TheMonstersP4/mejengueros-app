@@ -6,8 +6,11 @@ import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexDetails
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateFirstCourtDetails
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
+import io.github.themonstersp4.mejengueros.domain.repository.NoOpCourtImageUploadRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -18,6 +21,8 @@ import kotlinx.coroutines.launch
 
 class CreateComplexViewModel(
     private val complexRepository: IComplexRepository,
+    private val courtImageUploadRepository: ICourtImageUploadRepository =
+        NoOpCourtImageUploadRepository(),
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
   private val coroutineScope = coroutineScope ?: viewModelScope
@@ -97,6 +102,14 @@ class CreateComplexViewModel(
     }
   }
 
+  fun updateSelectedCourtImage(image: LocalCourtImage?) {
+    updateFormState { it.copy(selectedCourtImage = image) }
+  }
+
+  fun updateCourtImagePickerAvailability(isAvailable: Boolean) {
+    updateFormState { it.copy(isCourtImagePickerAvailable = isAvailable) }
+  }
+
   fun goToFirstCourtStep() {
     val currentState = _uiState.value
     if (!currentState.canGoToCourtStep) {
@@ -142,6 +155,15 @@ class CreateComplexViewModel(
           )
 
       runCatching {
+            val uploadedCourtImageId =
+                currentState.selectedCourtImage?.let { selectedCourtImage ->
+                  try {
+                    courtImageUploadRepository.uploadCourtImage(selectedCourtImage).id
+                  } catch (error: Throwable) {
+                    throw CreateComplexCourtImageUploadFailed(error)
+                  }
+                }
+
             complexRepository.createComplex(
                 CreateComplexRequest(
                     complex =
@@ -158,6 +180,7 @@ class CreateComplexViewModel(
                         CreateFirstCourtDetails(
                             name = currentState.firstCourtName.trim(),
                             serviceIds = currentState.selectedCourtServiceIds,
+                            imageUploadId = uploadedCourtImageId,
                         ),
                 )
             )
@@ -351,6 +374,8 @@ private fun Throwable.toCantonLoadUserMessage(): String =
 
 private fun Throwable.toSubmitUserMessage(): String =
     when (this) {
+      is CreateComplexCourtImageUploadFailed ->
+          "No pudimos subir la imagen de la cancha. Revisá el archivo e intentá de nuevo."
       is AppApiException ->
           when {
             statusCode == 401 || statusCode == 403 ->
@@ -361,3 +386,5 @@ private fun Throwable.toSubmitUserMessage(): String =
           }
       else -> "No pudimos crear el complejo en este momento. Intentá de nuevo."
     }
+
+private class CreateComplexCourtImageUploadFailed(cause: Throwable) : Exception(cause)

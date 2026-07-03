@@ -27,6 +27,7 @@ import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
@@ -37,6 +38,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
+import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -142,6 +144,111 @@ class AddCourtNavigationIntegrationTest {
           navigationState.currentBackStack.lastOrNull(),
       )
     }
+  }
+
+  @Test
+  fun addCourtRouteShowsImagePickerCtaThroughAndroidEntryWiring() = runTest {
+    val navigationState =
+        testNavigationState().apply {
+          openComplexDetail("complex-id")
+          openAddCourt("complex-id", "North Sports Center")
+        }
+    val viewModel =
+        AddCourtViewModel(
+            complexId = "complex-id",
+            complexName = "North Sports Center",
+            repository = SuccessfulAddCourtRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    advanceUntilIdle()
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = viewModel,
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.onNodeWithTag("add_court_root").assertExists()
+    composeRule
+        .onNodeWithText("Opcional. Podés agregar una imagen ahora o dejarla para más adelante.")
+        .assertExists()
+    composeRule.onNodeWithTag("add_court_pick_image_button").assertExists()
+    composeRule.onNodeWithText("Seleccionar imagen").assertExists()
+  }
+
+  @Test
+  fun addCourtRouteHidesImagePickerCtaWhenPickerSeamReportsUnavailable() = runTest {
+    val navigationState =
+        testNavigationState().apply {
+          openComplexDetail("complex-id")
+          openAddCourt("complex-id", "North Sports Center")
+        }
+    val viewModel =
+        AddCourtViewModel(
+            complexId = "complex-id",
+            complexName = "North Sports Center",
+            repository = SuccessfulAddCourtRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    advanceUntilIdle()
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = viewModel,
+          onMyComplexReloadRequested = {},
+          courtImagePickerController = CourtImagePickerController(isAvailable = false, launch = {}),
+      )
+    }
+
+    composeRule.onNodeWithTag("add_court_root").assertExists()
+    composeRule.onNodeWithTag("add_court_pick_image_button").assertDoesNotExist()
+    composeRule
+        .onNodeWithText("Opcional. Podés agregar una imagen ahora o dejarla para más adelante.")
+        .assertDoesNotExist()
+  }
+
+  @Test
+  fun addCourtRouteUpdatesPreviewWhenInjectedPickerLaunchReturnsImage() = runTest {
+    val navigationState =
+        testNavigationState().apply {
+          openComplexDetail("complex-id")
+          openAddCourt("complex-id", "North Sports Center")
+        }
+    val viewModel =
+        AddCourtViewModel(
+            complexId = "complex-id",
+            complexName = "North Sports Center",
+            repository = SuccessfulAddCourtRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    val pickedImage = localCourtImage(fileName = "route-picked-court.png")
+    advanceUntilIdle()
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = viewModel,
+          onMyComplexReloadRequested = {},
+          courtImagePickerController =
+              CourtImagePickerController(
+                  isAvailable = true,
+                  launch = { viewModel.updateSelectedCourtImage(pickedImage) },
+              ),
+      )
+    }
+
+    composeRule.onNodeWithTag("add_court_pick_image_button").performScrollTo().performClick()
+
+    composeRule.onNodeWithTag("add_court_image_preview").assertExists()
+    composeRule.onNodeWithText("route-picked-court.png").assertExists()
+    composeRule.onNodeWithText("Cambiar imagen").assertExists()
+    composeRule.onNodeWithTag("add_court_clear_image_button").assertExists()
   }
 
   @Test
@@ -320,6 +427,7 @@ private fun AddCourtNavigationTestHost(
     viewModel: AddCourtViewModel,
     myComplexState: MyComplexUiState = MyComplexUiState(complexes = listOf(defaultComplex())),
     onMyComplexReloadRequested: () -> Unit,
+    courtImagePickerController: CourtImagePickerController? = null,
 ) {
   MejenguerosTheme {
     var currentMyComplexState by remember { mutableStateOf(myComplexState) }
@@ -367,7 +475,12 @@ private fun AddCourtNavigationTestHost(
               shellActions = shellActions,
               onRetry = {},
           )
-      is AddCourtRoute -> AddCourtEntryContent(viewModel = viewModel, shellActions = shellActions)
+      is AddCourtRoute ->
+          AddCourtEntryContent(
+              viewModel = viewModel,
+              shellActions = shellActions,
+              courtImagePickerController = courtImagePickerController,
+          )
       else -> error("Unexpected route $route")
     }
   }
@@ -423,6 +536,14 @@ private fun defaultComplex() =
         longitude = -84.091,
         status = "ACTIVE",
         courts = emptyList(),
+    )
+
+private fun localCourtImage(fileName: String) =
+    LocalCourtImage(
+        fileName = fileName,
+        contentType = "image/png",
+        bytes = byteArrayOf(1, 2, 3),
+        previewUrl = "content://$fileName",
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)

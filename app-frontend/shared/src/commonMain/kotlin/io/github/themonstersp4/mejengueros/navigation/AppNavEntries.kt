@@ -42,11 +42,13 @@ import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
+import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
+import io.github.themonstersp4.mejengueros.ui.components.rememberCourtImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -629,8 +631,15 @@ private fun AddCourtEntry(route: AddCourtRoute, shellActions: AuthenticatedShell
 internal fun AddCourtEntryContent(
     viewModel: AddCourtViewModel,
     shellActions: AuthenticatedShellActions,
+    courtImagePickerController: CourtImagePickerController? = null,
 ) {
   val state by viewModel.uiState.collectAsState()
+  val courtImagePicker =
+      courtImagePickerController ?: rememberCourtImagePicker(viewModel::updateSelectedCourtImage)
+
+  LaunchedEffect(courtImagePicker.isAvailable) {
+    viewModel.updateCourtImagePickerAvailability(courtImagePicker.isAvailable)
+  }
 
   state.createdCourt?.let { createdCourt ->
     LaunchedEffect(createdCourt.id) {
@@ -662,6 +671,8 @@ internal fun AddCourtEntryContent(
                   onRetryServices = viewModel::refreshServices,
                   onCourtNameChange = viewModel::updateCourtName,
                   onToggleService = viewModel::toggleCourtService,
+                  onPickCourtImage = courtImagePicker.launch,
+                  onClearCourtImage = { viewModel.updateSelectedCourtImage(null) },
                   onSubmit = viewModel::submit,
               ),
       )
@@ -711,6 +722,21 @@ private fun CreateComplexEntry(
     shellActions: AuthenticatedShellActions,
 ) {
   val createComplexViewModel = koinViewModel<CreateComplexViewModel>()
+
+  CreateComplexEntryContent(
+      authenticatedNavigationState = authenticatedNavigationState,
+      shellActions = shellActions,
+      createComplexViewModel = createComplexViewModel,
+  )
+}
+
+@Composable
+internal fun CreateComplexEntryContent(
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+    createComplexViewModel: CreateComplexViewModel,
+    courtImagePickerController: CourtImagePickerController? = null,
+) {
   val state by createComplexViewModel.uiState.collectAsState()
   val createdComplex = state.createdComplex
   if (createdComplex != null) {
@@ -742,6 +768,13 @@ private fun CreateComplexEntry(
             longitude = confirmedLocation.longitude,
         )
       }
+  val courtImagePicker =
+      courtImagePickerController
+          ?: rememberCourtImagePicker(createComplexViewModel::updateSelectedCourtImage)
+
+  LaunchedEffect(courtImagePicker.isAvailable) {
+    createComplexViewModel.updateCourtImagePickerAvailability(courtImagePicker.isAvailable)
+  }
 
   CreateComplexRouteContent(
       authenticatedNavigationState = authenticatedNavigationState,
@@ -758,6 +791,8 @@ private fun CreateComplexEntry(
       onToggleComplexService = createComplexViewModel::toggleComplexService,
       onFirstCourtNameChange = createComplexViewModel::updateFirstCourtName,
       onToggleCourtService = createComplexViewModel::toggleCourtService,
+      onPickCourtImage = courtImagePicker.launch,
+      onClearCourtImage = { createComplexViewModel.updateSelectedCourtImage(null) },
       onNext = createComplexViewModel::goToFirstCourtStep,
       onBack = createComplexViewModel::goToComplexStep,
       onSubmit = createComplexViewModel::submit,
@@ -791,6 +826,8 @@ internal fun CreateComplexRouteContent(
     onToggleComplexService: (String) -> Unit,
     onFirstCourtNameChange: (String) -> Unit,
     onToggleCourtService: (String) -> Unit,
+    onPickCourtImage: () -> Unit,
+    onClearCourtImage: () -> Unit,
     onNext: () -> Unit,
     onBack: () -> Unit,
     onSubmit: () -> Unit,
@@ -834,6 +871,8 @@ internal fun CreateComplexRouteContent(
                   onToggleComplexService = onToggleComplexService,
                   onFirstCourtNameChange = onFirstCourtNameChange,
                   onToggleCourtService = onToggleCourtService,
+                  onPickCourtImage = onPickCourtImage,
+                  onClearCourtImage = onClearCourtImage,
                   onNext = onNext,
                   onBack = onBack,
                   onSubmit = onSubmit,

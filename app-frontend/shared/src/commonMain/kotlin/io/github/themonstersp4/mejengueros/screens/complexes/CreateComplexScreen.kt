@@ -1,12 +1,14 @@
 package io.github.themonstersp4.mejengueros.screens.complexes
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,7 +21,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.github.themonstersp4.mejengueros.domain.model.Canton
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexStep
@@ -50,6 +54,8 @@ data class CreateComplexScreenActions(
     val onToggleComplexService: (String) -> Unit,
     val onFirstCourtNameChange: (String) -> Unit,
     val onToggleCourtService: (String) -> Unit,
+    val onPickCourtImage: () -> Unit,
+    val onClearCourtImage: () -> Unit,
     val onNext: () -> Unit,
     val onBack: () -> Unit,
     val onSubmit: () -> Unit,
@@ -112,6 +118,8 @@ fun CreateComplexScreen(
           state = state,
           onFirstCourtNameChange = actions.onFirstCourtNameChange,
           onToggleCourtService = actions.onToggleCourtService,
+          onPickCourtImage = actions.onPickCourtImage,
+          onClearCourtImage = actions.onClearCourtImage,
       )
     }
 
@@ -272,6 +280,8 @@ private fun FirstCourtStepContent(
     state: CreateComplexUiState,
     onFirstCourtNameChange: (String) -> Unit,
     onToggleCourtService: (String) -> Unit,
+    onPickCourtImage: () -> Unit,
+    onClearCourtImage: () -> Unit,
 ) {
   MejenguerosFormStack(verticalSpacing = 16.dp) {
     MejenguerosTextField(
@@ -290,6 +300,77 @@ private fun FirstCourtStepContent(
         enabled = !state.isLoadingCatalogs && !state.isSubmitting,
         required = true,
     )
+    CourtImageSection(
+        isPickerAvailable = state.isCourtImagePickerAvailable,
+        selectedCourtImage = state.selectedCourtImage,
+        onPickCourtImage = onPickCourtImage,
+        onClearCourtImage = onClearCourtImage,
+        pickButtonTag = "create_complex_pick_court_image_button",
+        clearButtonTag = "create_complex_clear_court_image_button",
+        previewTag = "create_complex_court_image_preview",
+        enabled = !state.isSubmitting,
+    )
+  }
+}
+
+@Composable
+private fun CourtImageSection(
+    isPickerAvailable: Boolean,
+    selectedCourtImage: LocalCourtImage?,
+    onPickCourtImage: () -> Unit,
+    onClearCourtImage: () -> Unit,
+    pickButtonTag: String,
+    clearButtonTag: String,
+    previewTag: String,
+    enabled: Boolean,
+) {
+  if (!isPickerAvailable && selectedCourtImage == null) {
+    return
+  }
+
+  Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Text(
+        text = "Imagen de la cancha",
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+    MejenguerosSupportingText(
+        text = "Opcional. Podés agregar una imagen ahora o dejarla para más adelante.",
+    )
+
+    selectedCourtImage?.let { courtImage ->
+      Card(modifier = Modifier.fillMaxWidth().testTag(previewTag)) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+            AsyncImage(
+                model = courtImage.previewUrl,
+                contentDescription = "Vista previa de la imagen de la cancha",
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+            )
+          }
+          Text(text = courtImage.fileName, style = MaterialTheme.typography.bodyMedium)
+        }
+      }
+    }
+
+    MejenguerosFullWidthOutlinedButton(
+        text = if (selectedCourtImage == null) "Seleccionar imagen" else "Cambiar imagen",
+        onClick = onPickCourtImage,
+        enabled = enabled && isPickerAvailable,
+        modifier = Modifier.testTag(pickButtonTag),
+    )
+
+    if (selectedCourtImage != null) {
+      MejenguerosFullWidthOutlinedButton(
+          text = "Quitar imagen",
+          onClick = onClearCourtImage,
+          enabled = enabled,
+          modifier = Modifier.testTag(clearButtonTag),
+      )
+    }
   }
 }
 

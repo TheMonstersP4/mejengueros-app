@@ -12,16 +12,29 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
+import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
+import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
+import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
+import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
+import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
-import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexUiState
+import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
+import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -172,10 +185,21 @@ class SearchCatalogNavigationIntegrationTest {
   }
 
   @Test
-  fun nonOwnerSearchShowsCreateComplexAppBarActionAndPushesCreateComplexRoute() {
+  fun nonOwnerSearchShowsCreateComplexAppBarActionAndPushesCreateComplexRoute() = runTest {
     val navigationState = testNavigationState()
+    val viewModel =
+        CreateComplexViewModel(
+            complexRepository = CreateComplexCatalogRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    advanceUntilIdle()
 
-    composeRule.setContent { SearchCatalogCreateComplexTestHost(navigationState = navigationState) }
+    composeRule.setContent {
+      SearchCatalogCreateComplexTestHost(
+          navigationState = navigationState,
+          createComplexViewModel = viewModel,
+      )
+    }
 
     composeRule.onNodeWithContentDescription("Crear complejo").assertExists().performClick()
     composeRule.runOnIdle {
@@ -185,6 +209,111 @@ class SearchCatalogNavigationIntegrationTest {
           navigationState.currentBackStack.toList(),
       )
     }
+  }
+
+  @Test
+  fun createComplexRouteShowsImagePickerCtaThroughAndroidEntryWiring() = runTest {
+    val navigationState = testNavigationState().apply { openCreateComplex() }
+    val viewModel =
+        CreateComplexViewModel(
+            complexRepository = CreateComplexCatalogRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    advanceUntilIdle()
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.goToFirstCourtStep()
+
+    composeRule.setContent {
+      SearchCatalogCreateComplexTestHost(
+          navigationState = navigationState,
+          isOwner = true,
+          createComplexViewModel = viewModel,
+      )
+    }
+
+    composeRule.onNodeWithTag("create_complex_root", useUnmergedTree = true).assertExists()
+    composeRule
+        .onNodeWithText("Opcional. Podés agregar una imagen ahora o dejarla para más adelante.")
+        .assertExists()
+    composeRule.onNodeWithTag("create_complex_pick_court_image_button").assertExists()
+    composeRule.onNodeWithText("Seleccionar imagen").assertExists()
+  }
+
+  @Test
+  fun createComplexRouteHidesImagePickerCtaWhenPickerSeamReportsUnavailable() = runTest {
+    val navigationState = testNavigationState().apply { openCreateComplex() }
+    val viewModel =
+        CreateComplexViewModel(
+            complexRepository = CreateComplexCatalogRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    advanceUntilIdle()
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.goToFirstCourtStep()
+
+    composeRule.setContent {
+      SearchCatalogCreateComplexTestHost(
+          navigationState = navigationState,
+          isOwner = true,
+          createComplexViewModel = viewModel,
+          courtImagePickerController = CourtImagePickerController(isAvailable = false, launch = {}),
+      )
+    }
+
+    composeRule.onNodeWithTag("create_complex_root", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithTag("create_complex_pick_court_image_button").assertDoesNotExist()
+    composeRule
+        .onNodeWithText("Opcional. Podés agregar una imagen ahora o dejarla para más adelante.")
+        .assertDoesNotExist()
+  }
+
+  @Test
+  fun createComplexRouteUpdatesPreviewWhenInjectedPickerLaunchReturnsImage() = runTest {
+    val navigationState = testNavigationState().apply { openCreateComplex() }
+    val viewModel =
+        CreateComplexViewModel(
+            complexRepository = CreateComplexCatalogRepository(),
+            coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+    val pickedImage = localCourtImage(fileName = "route-picked-first-court.png")
+    advanceUntilIdle()
+    viewModel.updateComplexName("North Sports Center")
+    viewModel.updateComplexAddress("123 Main Street")
+    viewModel.selectProvince("province-1")
+    advanceUntilIdle()
+    viewModel.selectCanton("canton-1")
+    viewModel.goToFirstCourtStep()
+
+    composeRule.setContent {
+      SearchCatalogCreateComplexTestHost(
+          navigationState = navigationState,
+          isOwner = true,
+          createComplexViewModel = viewModel,
+          courtImagePickerController =
+              CourtImagePickerController(
+                  isAvailable = true,
+                  launch = { viewModel.updateSelectedCourtImage(pickedImage) },
+              ),
+      )
+    }
+
+    composeRule
+        .onNodeWithTag("create_complex_pick_court_image_button")
+        .performScrollTo()
+        .performClick()
+
+    composeRule.onNodeWithTag("create_complex_court_image_preview").assertExists()
+    composeRule.onNodeWithText("route-picked-first-court.png").assertExists()
+    composeRule.onNodeWithText("Cambiar imagen").assertExists()
+    composeRule.onNodeWithTag("create_complex_clear_court_image_button").assertExists()
   }
 
   @Test
@@ -213,28 +342,38 @@ class SearchCatalogNavigationIntegrationTest {
   }
 
   @Test
-  fun nonOwnerRestoredCreateComplexOwnerRouteRedirectsToSearchWithoutRenderingCreateComplex() {
-    val navigationState =
-        testNavigationState().apply {
-          selectMyComplex()
-          openCreateComplex()
+  fun nonOwnerRestoredCreateComplexOwnerRouteRedirectsToSearchWithoutRenderingCreateComplex() =
+      runTest {
+        val navigationState =
+            testNavigationState().apply {
+              selectMyComplex()
+              openCreateComplex()
+            }
+        val viewModel =
+            CreateComplexViewModel(
+                complexRepository = CreateComplexCatalogRepository(),
+                coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
+            )
+        advanceUntilIdle()
+
+        composeRule.setContent {
+          SearchCatalogCreateComplexTestHost(
+              navigationState = navigationState,
+              isOwner = false,
+              createComplexViewModel = viewModel,
+          )
         }
 
-    composeRule.setContent {
-      SearchCatalogCreateComplexTestHost(
-          navigationState = navigationState,
-          isOwner = false,
-      )
-    }
-
-    composeRule.waitForIdle()
-    composeRule.onNodeWithText("Canchas").assertExists()
-    composeRule.onNodeWithTag("create_complex_root", useUnmergedTree = true).assertDoesNotExist()
-    composeRule.runOnIdle {
-      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
-      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
-    }
-  }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Canchas").assertExists()
+        composeRule
+            .onNodeWithTag("create_complex_root", useUnmergedTree = true)
+            .assertDoesNotExist()
+        composeRule.runOnIdle {
+          assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+          assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+        }
+      }
 
   private fun shellActions(
       onDetailOpened: (CatalogCourtDetailRoute) -> Unit,
@@ -282,6 +421,8 @@ class SearchCatalogNavigationIntegrationTest {
   private fun SearchCatalogCreateComplexTestHost(
       navigationState: AuthenticatedNavigationState,
       isOwner: Boolean = false,
+      createComplexViewModel: CreateComplexViewModel? = null,
+      courtImagePickerController: CourtImagePickerController? = null,
   ) {
     MejenguerosTheme {
       val shellActions =
@@ -315,33 +456,64 @@ class SearchCatalogNavigationIntegrationTest {
                 onRetryLoad = {},
             )
         CreateComplexRoute ->
-            CreateComplexRouteContent(
+            CreateComplexEntryContent(
                 authenticatedNavigationState = navigationState,
                 shellActions = shellActions,
-                state = CreateComplexUiState(isLoadingCatalogs = false),
-                onRetryCatalogs = {},
-                onRetryCantons = {},
-                onComplexNameChange = {},
-                onProvinceSelected = {},
-                onCantonSelected = {},
-                onComplexAddressChange = {},
-                onOpenLocationPicker = {},
-                onClearLocation = {},
-                onToggleComplexService = {},
-                onFirstCourtNameChange = {},
-                onToggleCourtService = {},
-                onNext = {},
-                onBack = {},
-                onSubmit = {},
-                onSuccessAcknowledged = {},
-                overlayVisible = false,
-                overlayContent = {},
+                createComplexViewModel = createComplexViewModel ?: error("Missing test view model"),
+                courtImagePickerController = courtImagePickerController,
             )
         else -> Text("Ruta inesperada")
       }
     }
   }
 }
+
+private class CreateComplexCatalogRepository : IComplexRepository {
+  override suspend fun getProvinces(): List<Province> =
+      listOf(Province(id = "province-1", code = "SJ", name = "San José"))
+
+  override suspend fun getCantons(provinceId: String): List<Canton> =
+      listOf(
+          Canton(
+              id = "canton-1",
+              provinceId = provinceId,
+              code = "SJ-ESC",
+              name = "Escazú",
+          )
+      )
+
+  override suspend fun getServices(scope: ServiceScope): List<ServiceCatalogItem> =
+      when (scope) {
+        ServiceScope.COMPLEX ->
+            listOf(ServiceCatalogItem(id = "complex-service-id", name = "Parking", scope = scope))
+        ServiceScope.COURT ->
+            listOf(
+                ServiceCatalogItem(
+                    id = "court-service-id",
+                    name = "Synthetic Grass",
+                    scope = scope,
+                )
+            )
+      }
+
+  override suspend fun createComplex(request: CreateComplexRequest): CreatedComplex =
+      error("Unused in this test")
+
+  override suspend fun addCourt(
+      complexId: String,
+      request: CreateCourtRequest,
+  ): CreatedCourt = error("Unused in this test")
+
+  override suspend fun getMyComplexHub(): MyComplexHub = error("Unused in this test")
+}
+
+private fun localCourtImage(fileName: String) =
+    LocalCourtImage(
+        fileName = fileName,
+        contentType = "image/png",
+        bytes = byteArrayOf(1, 2, 3),
+        previewUrl = "content://$fileName",
+    )
 
 private class FakeCourtDetailRepository : ICourtDetailRepository {
   override suspend fun getReservableSlotsForToday(courtId: String): List<ReservableSlot> =
