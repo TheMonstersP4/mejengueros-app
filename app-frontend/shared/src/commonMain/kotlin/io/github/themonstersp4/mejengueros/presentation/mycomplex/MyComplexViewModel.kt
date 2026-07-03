@@ -3,7 +3,11 @@ package io.github.themonstersp4.mejengueros.presentation.mycomplex
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
+import io.github.themonstersp4.mejengueros.domain.repository.NoOpCourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
 import io.github.themonstersp4.mejengueros.monitoring.NoOpErrorReporter
 import kotlinx.coroutines.CancellationException
@@ -16,6 +20,8 @@ import kotlinx.coroutines.launch
 
 class MyComplexViewModel(
     private val repository: IComplexRepository,
+    private val imageUploadRepository: ICourtImageUploadRepository =
+        NoOpCourtImageUploadRepository(),
     private val errorReporter: ErrorReporter = NoOpErrorReporter(),
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
@@ -38,6 +44,7 @@ class MyComplexViewModel(
                         isLoading = false,
                         complexes = hub.complexes,
                         errorMessage = null,
+                        isCourtImagePickerAvailable = _uiState.value.isCourtImagePickerAvailable,
                     )
               }
               .onFailure { error ->
@@ -56,9 +63,67 @@ class MyComplexViewModel(
                         isLoading = false,
                         complexes = emptyList(),
                         errorMessage = error.toUserMessage(),
+                        isCourtImagePickerAvailable = _uiState.value.isCourtImagePickerAvailable,
+                        courtImageErrorMessage = _uiState.value.courtImageErrorMessage,
                     )
               }
         }
+  }
+
+  fun updateCourtImagePickerAvailability(isAvailable: Boolean) {
+    _uiState.value = _uiState.value.copy(isCourtImagePickerAvailable = isAvailable)
+  }
+
+  fun updateCourtImage(complexId: String, courtId: String, image: LocalCourtImage) {
+    if (_uiState.value.isUpdatingCourtImage) return
+
+    coroutineScope.launch {
+      _uiState.value =
+          _uiState.value.copy(
+              isUpdatingCourtImage = true,
+              courtImageErrorMessage = null,
+          )
+
+      runCatching {
+            val uploadedImage =
+                try {
+                  imageUploadRepository.uploadCourtImage(image)
+                } catch (error: Throwable) {
+                  throw CourtImageAssociationUploadFailed(error)
+                }
+
+            repository.updateCourtImage(complexId, courtId, uploadedImage.id)
+          }
+          .onSuccess { court ->
+            _uiState.value =
+                _uiState.value.copy(
+                    complexes = _uiState.value.complexes.replaceCourt(complexId, court),
+                    isUpdatingCourtImage = false,
+                    courtImageErrorMessage = null,
+                )
+          }
+          .onFailure { error ->
+            if (error is CancellationException) {
+              _uiState.value =
+                  _uiState.value.copy(
+                      isUpdatingCourtImage = false,
+                  )
+              return@onFailure
+            }
+
+            val reportingError = error.unwrapCourtImageAssociationFailure()
+            _uiState.value =
+                _uiState.value.copy(
+                    isUpdatingCourtImage = false,
+                    courtImageErrorMessage = error.toCourtImageUserMessage(),
+                )
+
+            errorReporter.reportRecoverableFailure(
+                name = "my_complex_court_image_update_failed",
+                attributes = reportingError.toReportAttributes(),
+            )
+          }
+    }
   }
 }
 
@@ -82,3 +147,40 @@ private fun Throwable.toReportAttributes(): Map<String, String> =
           )
       else -> mapOf("error_source" to "unexpected")
     }
+
+private fun Throwable.toCourtImageUserMessage(): String =
+    when (this) {
+      is CourtImageAssociationUploadFailed ->
+          "No pudimos subir la imagen de la cancha. Revisá el archivo e intentá de nuevo."
+      is AppApiException ->
+          when (statusCode) {
+            401,
+            403 -> "No tenés permisos para actualizar la imagen de esta cancha."
+            404 -> "No encontramos la cancha seleccionada."
+            else -> "No pudimos actualizar la imagen de la cancha. Intentá de nuevo."
+          }
+      else -> "No pudimos actualizar la imagen de la cancha. Intentá de nuevo."
+    }
+
+private fun Throwable.unwrapCourtImageAssociationFailure(): Throwable =
+    if (this is CourtImageAssociationUploadFailed) {
+      cause ?: this
+    } else {
+      this
+    }
+
+private fun List<io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex>.replaceCourt(
+    complexId: String,
+    updatedCourt: MyComplexHubCourt,
+): List<io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex> = map { complex ->
+  if (complex.id != complexId) {
+    complex
+  } else {
+    complex.copy(
+        courts =
+            complex.courts.map { court -> if (court.id == updatedCourt.id) updatedCourt else court }
+    )
+  }
+}
+
+private class CourtImageAssociationUploadFailed(cause: Throwable) : Exception(cause)

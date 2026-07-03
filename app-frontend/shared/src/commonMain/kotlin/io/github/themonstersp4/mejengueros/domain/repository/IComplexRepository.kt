@@ -21,5 +21,12 @@ interface IComplexRepository {
 
   suspend fun addCourt(complexId: String, request: CreateCourtRequest): CreatedCourt
 
+  suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ): io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt =
+      error("Court image updates are not implemented.")
+
   suspend fun getMyComplexHub(): MyComplexHub
 }

@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   UseGuards
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
@@ -20,12 +21,15 @@ import {
 import { CreateComplexWithFirstCourtUseCase } from '../../../application/use-cases/create-complex-with-first-court.use-case';
 import { CreateCourtForOwnedComplexUseCase } from '../../../application/use-cases/create-court-for-owned-complex.use-case';
 import { GetMyComplexHubUseCase } from '../../../application/use-cases/get-my-complex-hub.use-case';
+import { UpdateOwnedCourtImageUseCase } from '../../../application/use-cases/update-owned-court-image.use-case';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
 import { CreateComplexRequest } from '../dto/create-complex.request';
 import { CreateComplexResponse } from '../dto/create-complex.response';
 import { CreateOwnedCourtRequest } from '../dto/create-owned-court.request';
 import { CreateOwnedCourtResponse } from '../dto/create-owned-court.response';
 import { MyComplexHubResponse } from '../dto/my-complex-hub.response';
+import { UpdateOwnedCourtImageRequest } from '../dto/update-owned-court-image.request';
+import { UpdateOwnedCourtImageResponse } from '../dto/update-owned-court-image.response';
 
 /**
  * HTTP endpoints for sports complexes.
@@ -39,6 +43,8 @@ export class ComplexesController {
     private readonly createComplexWithFirstCourt: CreateComplexWithFirstCourtUseCase,
     @Inject(CreateCourtForOwnedComplexUseCase)
     private readonly createCourtForOwnedComplex: CreateCourtForOwnedComplexUseCase,
+    @Inject(UpdateOwnedCourtImageUseCase)
+    private readonly updateOwnedCourtImage: UpdateOwnedCourtImageUseCase,
     @Inject(GetMyComplexHubUseCase)
     private readonly getMyComplexHub: GetMyComplexHubUseCase
   ) {}
@@ -109,6 +115,35 @@ export class ComplexesController {
   ): Promise<CreateOwnedCourtResponse> {
     return {
       court: await this.createCourtForOwnedComplex.execute(user, complexId, request)
+    };
+  }
+
+  @Put(':complexId/courts/:courtId/image')
+  @UseGuards(CognitoAuthGuard)
+  @ApiOperation({
+    summary: 'Associate or replace the image of one owned court.',
+    description:
+      'Requires an authenticated owner, validates owned-court access plus confirmed court-image ownership, and returns the updated court with a signed read URL.'
+  })
+  @ApiParam({ name: 'complexId', description: 'Owned complex identifier.', format: 'uuid' })
+  @ApiParam({ name: 'courtId', description: 'Owned court identifier.', format: 'uuid' })
+  @ApiBody({
+    description: 'Confirmed image upload to associate with the owned court.',
+    type: UpdateOwnedCourtImageRequest
+  })
+  @ApiEnvelopeOk(
+    UpdateOwnedCourtImageResponse,
+    'Updated owned court image snapshot wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 404)
+  async updateCourtImage(
+    @CurrentUser() user: IAuthenticatedUserOutput,
+    @Param('complexId', new ParseUUIDPipe()) complexId: string,
+    @Param('courtId', new ParseUUIDPipe()) courtId: string,
+    @Body() request: UpdateOwnedCourtImageRequest
+  ): Promise<UpdateOwnedCourtImageResponse> {
+    return {
+      court: await this.updateOwnedCourtImage.execute(user, complexId, courtId, request)
     };
   }
 }

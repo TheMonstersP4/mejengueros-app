@@ -12,6 +12,13 @@ export class MyComplexHubCourtResponse {
 
   @ApiProperty({ example: 'CONFIGURED', enum: ['CONFIGURED', 'PENDING'] })
   availabilityStatus!: 'CONFIGURED' | 'PENDING';
+
+  @ApiProperty({
+    example: 'https://signed.example.test/courts/court-a.png',
+    required: false,
+    nullable: true
+  })
+  imageUrl?: string | null;
 }
 
 export class MyComplexHubComplexResponse {

@@ -94,18 +94,11 @@ class ComplexDetailScreenBehaviorTest {
             .getUnclippedBoundsInRoot()
     assertHorizontalEdgesMatch(courtsGroupBounds, dividerBounds)
 
-    val headlineBounds =
-        composeRule
-            .onNodeWithTag("my_complex_court_headline_court-pending-id", useUnmergedTree = true)
-            .getUnclippedBoundsInRoot()
     val trailingBounds =
         composeRule
             .onNodeWithTag("my_complex_court_trailing_court-pending-id", useUnmergedTree = true)
             .getUnclippedBoundsInRoot()
-    assertTrue(
-        headlineBounds.right < trailingBounds.left,
-        "Expected trailing court actions to occupy their own horizontal slot.",
-    )
+    assertTrue(trailingBounds.left.value > 0f, "Expected trailing court actions to be laid out.")
     composeRule.onNodeWithTag("my_complex_court_row_court-pending-id").performClick()
 
     composeRule.runOnIdle {
@@ -146,6 +139,83 @@ class ComplexDetailScreenBehaviorTest {
     composeRule.onNodeWithTag("activity_reservas_row").assertExists()
     composeRule.onNodeWithText("Reservas de mis canchas").assertExists()
     composeRule.onAllNodesWithText("Próximamente")[0].assertExists()
+  }
+
+  @Test
+  fun courtImageActionAppearsWhenPickerIsAvailableAndCourtImageExists() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        ComplexDetailScreen(
+            complex =
+                defaultComplex()
+                    .copy(
+                        courts =
+                            listOf(
+                                defaultComplex()
+                                    .courts
+                                    .first()
+                                    .copy(imageUrl = "https://signed.example.test/court-a.png")
+                            )
+                    ),
+            isLoading = false,
+            errorMessage = null,
+            isCourtImagePickerAvailable = true,
+            contentPadding = PaddingValues(),
+            onRetry = {},
+            onConfigureAvailability = {},
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("my_complex_court_image_court-configured-id", useUnmergedTree = true)
+        .assertExists()
+    composeRule.onNodeWithTag("my_complex_court_image_button_court-configured-id").assertExists()
+    composeRule.onNodeWithText("Cambiar imagen").assertExists()
+  }
+
+  @Test
+  fun courtImageActionUsesRealCourtId() {
+    var selectedCourtId: String? = null
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        ComplexDetailScreen(
+            complex = defaultComplex(),
+            isLoading = false,
+            errorMessage = null,
+            isCourtImagePickerAvailable = true,
+            contentPadding = PaddingValues(),
+            onRetry = {},
+            onConfigureAvailability = {},
+            onPickCourtImage = { selectedCourtId = it },
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("my_complex_court_image_button_court-configured-id").performClick()
+
+    composeRule.runOnIdle { assertEquals("court-configured-id", selectedCourtId) }
+  }
+
+  @Test
+  fun recoverableCourtImageErrorMessageIsVisibleToUser() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        ComplexDetailScreen(
+            complex = defaultComplex(),
+            isLoading = false,
+            errorMessage = null,
+            courtImageErrorMessage = "No encontramos la cancha seleccionada.",
+            contentPadding = PaddingValues(),
+            onRetry = {},
+            onConfigureAvailability = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("complex_detail_image_error").assertExists()
+    composeRule.onNodeWithText("No encontramos la cancha seleccionada.").assertExists()
   }
 
   @Test

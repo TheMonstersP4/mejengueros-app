@@ -7,7 +7,8 @@ export async function validateCourtImageUpload(
   complexRepository: Pick<IComplexRepository, 'findCourtIdByImageUploadId'>,
   imageUploadRepository: IImageUploadRepository,
   ownerSub: string,
-  imageUploadId?: string
+  imageUploadId?: string,
+  currentCourtId?: string
 ): Promise<void> {
   if (imageUploadId == null) {
     return;
@@ -38,7 +39,7 @@ export async function validateCourtImageUpload(
 
   const existingCourtId = await complexRepository.findCourtIdByImageUploadId(imageUploadId);
 
-  if (existingCourtId != null) {
+  if (existingCourtId != null && existingCourtId !== currentCourtId) {
     throw InvalidCourtImageUploadError.alreadyAssigned(imageUploadId, existingCourtId);
   }
 }

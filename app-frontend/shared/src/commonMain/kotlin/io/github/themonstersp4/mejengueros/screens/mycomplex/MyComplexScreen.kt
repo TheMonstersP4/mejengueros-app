@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
@@ -110,9 +112,13 @@ fun ComplexDetailScreen(
     complex: MyComplexHubComplex?,
     isLoading: Boolean,
     errorMessage: String?,
+    courtImageErrorMessage: String? = null,
+    isCourtImagePickerAvailable: Boolean = false,
+    isUpdatingCourtImage: Boolean = false,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -130,7 +136,11 @@ fun ComplexDetailScreen(
           ComplexDetailContent(
               complex = complex,
               isRefreshing = isLoading,
+              courtImageErrorMessage = courtImageErrorMessage,
+              isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+              isUpdatingCourtImage = isUpdatingCourtImage,
               onConfigureAvailability = onConfigureAvailability,
+              onPickCourtImage = onPickCourtImage,
           )
       isLoading -> LoadingState()
       errorMessage != null -> ErrorState(errorMessage, onRetry)
@@ -282,7 +292,11 @@ private fun ComplexListState(
 private fun ComplexDetailContent(
     complex: MyComplexHubComplex,
     isRefreshing: Boolean,
+    courtImageErrorMessage: String?,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     if (isRefreshing) {
@@ -293,9 +307,19 @@ private fun ComplexDetailContent(
       )
     }
 
+    courtImageErrorMessage?.let { message ->
+      MejenguerosErrorText(
+          text = message,
+          modifier = Modifier.testTag("complex_detail_image_error"),
+      )
+    }
+
     ComplexHubSection(
         complex = complex,
+        isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+        isUpdatingCourtImage = isUpdatingCourtImage,
         onConfigureAvailability = onConfigureAvailability,
+        onPickCourtImage = onPickCourtImage,
     )
   }
 }
@@ -303,12 +327,21 @@ private fun ComplexDetailContent(
 @Composable
 private fun ComplexHubSection(
     complex: MyComplexHubComplex,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
     SectionLabel(text = "TUS CANCHAS")
-    CourtsGroup(complex = complex, onConfigureAvailability = onConfigureAvailability)
+    CourtsGroup(
+        complex = complex,
+        isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+        isUpdatingCourtImage = isUpdatingCourtImage,
+        onConfigureAvailability = onConfigureAvailability,
+        onPickCourtImage = onPickCourtImage,
+    )
     Spacer(modifier = Modifier.height(8.dp))
     ActivitySection()
   }
@@ -374,7 +407,10 @@ private fun ComplexSummaryCard(complex: MyComplexHubComplex) {
 @Composable
 private fun CourtsGroup(
     complex: MyComplexHubComplex,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   if (complex.courts.isEmpty()) {
     MejenguerosListGroup {
@@ -395,8 +431,11 @@ private fun CourtsGroup(
       CourtRow(
           complexName = complex.name,
           court = court,
+          isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+          isUpdatingCourtImage = isUpdatingCourtImage,
           showDivider = index < complex.courts.lastIndex,
           onConfigureAvailability = onConfigureAvailability,
+          onPickCourtImage = onPickCourtImage,
       )
     }
   }
@@ -406,8 +445,11 @@ private fun CourtsGroup(
 private fun CourtRow(
     complexName: String,
     court: MyComplexHubCourt,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     showDivider: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   MejenguerosListItem(
       content =
@@ -423,14 +465,9 @@ private fun CourtRow(
                 )
               },
               supportingContent = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                   Text(
                       text = court.toSupportingText(),
-                      modifier = Modifier.weight(1f),
                       style = MaterialTheme.typography.bodyMedium,
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
                   )
@@ -443,6 +480,19 @@ private fun CourtRow(
                         text = court.availabilityStatus.toPillLabel(),
                         style = court.availabilityStatus.toPillStyle(),
                     )
+                    if (isCourtImagePickerAvailable) {
+                      TextButton(
+                          onClick = { onPickCourtImage(court.id) },
+                          enabled = !isUpdatingCourtImage,
+                          modifier = Modifier.testTag("my_complex_court_image_button_${court.id}"),
+                      ) {
+                        Text(
+                            text =
+                                if (court.imageUrl.isNullOrBlank()) "Agregar imagen"
+                                else "Cambiar imagen"
+                        )
+                      }
+                    }
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
@@ -454,24 +504,7 @@ private fun CourtRow(
               },
           ),
       modifier = Modifier.testTag("my_complex_court_row_${court.id}"),
-      leading = {
-        Box(modifier = Modifier.testTag("my_complex_court_icon_${court.id}")) {
-          Surface(
-              modifier = Modifier.size(36.dp),
-              shape = CircleShape,
-              color = MaterialTheme.colorScheme.surfaceContainerHighest,
-              contentColor = MaterialTheme.colorScheme.primary,
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Icon(
-                  imageVector = Icons.Filled.LocationOn,
-                  contentDescription = null,
-                  modifier = Modifier.size(18.dp),
-              )
-            }
-          }
-        }
-      },
+      leading = { CourtImageLeading(court = court) },
       onClick = {
         onConfigureAvailability(
             OwnerCourtAvailabilityEntrypoint(
@@ -488,6 +521,34 @@ private fun CourtRow(
               dividerModifier = Modifier.testTag("my_complex_court_divider_${court.id}"),
           ),
   )
+}
+
+@Composable
+private fun CourtImageLeading(court: MyComplexHubCourt) {
+  Box(modifier = Modifier.testTag("my_complex_court_icon_${court.id}")) {
+    if (court.imageUrl.isNullOrBlank()) {
+      Surface(
+          modifier = Modifier.size(36.dp),
+          shape = CircleShape,
+          color = MaterialTheme.colorScheme.surfaceContainerHighest,
+          contentColor = MaterialTheme.colorScheme.primary,
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+              imageVector = Icons.Filled.LocationOn,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp),
+          )
+        }
+      }
+    } else {
+      AsyncImage(
+          model = court.imageUrl,
+          contentDescription = "Imagen de ${court.name}",
+          modifier = Modifier.size(48.dp).testTag("my_complex_court_image_${court.id}"),
+      )
+    }
+  }
 }
 
 @Composable

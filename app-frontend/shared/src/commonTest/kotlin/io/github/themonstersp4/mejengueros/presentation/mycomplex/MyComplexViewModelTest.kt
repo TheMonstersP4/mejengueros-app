@@ -1,12 +1,15 @@
 package io.github.themonstersp4.mejengueros.presentation.mycomplex
 
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
+import io.github.themonstersp4.mejengueros.domain.model.ConfirmedCourtImageUpload
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
+import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -166,6 +169,101 @@ class MyComplexViewModelTest {
     assertFalse(viewModel.uiState.value.isLoading)
   }
 
+  @Test
+  fun updateCourtImageUploadsAssociatesAndReplacesCourtPreview() = runTest {
+    val repository = FakeComplexRepository()
+    val imageRepository = FakeCourtImageUploadRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, imageRepository, coroutineScope = scope)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    viewModel.updateCourtImage("complex-id", "court-configured-id", localCourtImage())
+    advanceUntilIdle()
+
+    assertEquals("court-configured-id", repository.updatedCourtId)
+    assertEquals("court-image-id", repository.updatedImageUploadId)
+    assertEquals(
+        "https://signed.example.test/court-a.png",
+        viewModel.uiState.value.complexes.single().courts.first().imageUrl,
+    )
+    assertFalse(viewModel.uiState.value.isUpdatingCourtImage)
+    assertNull(viewModel.uiState.value.courtImageErrorMessage)
+  }
+
+  @Test
+  fun updateCourtImageKeepsCurrentUiAndExposesRecoverableErrorWhenAssociationFails() = runTest {
+    val errorReporter = FakeErrorReporter()
+    val repository =
+        FakeComplexRepository(updateCourtImageFailure = AppApiException(404, "missing court"))
+    val imageRepository = FakeCourtImageUploadRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        MyComplexViewModel(
+            repository,
+            imageRepository,
+            errorReporter = errorReporter,
+            coroutineScope = scope,
+        )
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    viewModel.updateCourtImage("complex-id", "court-configured-id", localCourtImage())
+    advanceUntilIdle()
+
+    assertEquals(
+        "No encontramos la cancha seleccionada.",
+        viewModel.uiState.value.courtImageErrorMessage,
+    )
+    assertNull(viewModel.uiState.value.complexes.single().courts.first().imageUrl)
+    assertFalse(viewModel.uiState.value.isUpdatingCourtImage)
+    assertEquals("my_complex_court_image_update_failed", errorReporter.events.last().name)
+  }
+
+  @Test
+  fun updateCourtImagePreservesPreviousCourtImageWhenUploadFailsBeforeAssociation() = runTest {
+    val errorReporter = FakeErrorReporter()
+    val repository =
+        FakeComplexRepository(
+            hub =
+                hubWithCourtImage(imageUrl = "https://signed.example.test/existing-court-image.png")
+        )
+    val imageRepository =
+        FakeCourtImageUploadRepository(uploadFailure = IllegalStateException("upload failed"))
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        MyComplexViewModel(
+            repository,
+            imageRepository,
+            errorReporter = errorReporter,
+            coroutineScope = scope,
+        )
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    viewModel.updateCourtImage("complex-id", "court-configured-id", localCourtImage())
+    advanceUntilIdle()
+
+    assertNull(repository.updatedCourtId)
+    assertEquals(
+        "No pudimos subir la imagen de la cancha. Revisá el archivo e intentá de nuevo.",
+        viewModel.uiState.value.courtImageErrorMessage,
+    )
+    assertEquals(
+        "https://signed.example.test/existing-court-image.png",
+        viewModel.uiState.value.complexes.single().courts.first().imageUrl,
+    )
+    assertFalse(viewModel.uiState.value.isUpdatingCourtImage)
+    assertEquals("my_complex_court_image_update_failed", errorReporter.events.last().name)
+    assertEquals(
+        mapOf("error_source" to "unexpected"),
+        errorReporter.events.last().attributes,
+    )
+  }
+
   private suspend fun TestScope.assertPermissionFailureMessage(statusCode: Int) {
     val repository =
         FakeComplexRepository(
@@ -231,6 +329,12 @@ private class DelayedComplexRepository(
 
   override suspend fun addCourt(complexId: String, request: CreateCourtRequest) =
       error("Unused in this test")
+
+  override suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ) = error("Unused in this test")
 }
 
 private class FakeErrorReporter : ErrorReporter {
@@ -247,47 +351,37 @@ private data class ReportedFailure(
 )
 
 private class FakeComplexRepository(
-    private val hub: MyComplexHub =
-        MyComplexHub(
-            complexes =
-                listOf(
-                    MyComplexHubComplex(
-                        id = "complex-id",
-                        name = "North Sports Center",
-                        address = "123 Main Street",
-                        provinceId = "province-id",
-                        cantonId = "canton-id",
-                        latitude = 9.935,
-                        longitude = -84.091,
-                        status = "ACTIVE",
-                        courts =
-                            listOf(
-                                MyComplexHubCourt(
-                                    id = "court-configured-id",
-                                    name = "Court A",
-                                    status = "ACTIVE",
-                                    availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
-                                ),
-                                MyComplexHubCourt(
-                                    id = "court-pending-id",
-                                    name = "Court B",
-                                    status = "ACTIVE",
-                                    availabilityStatus = CourtAvailabilitySetupStatus.PENDING,
-                                ),
-                            ),
-                    )
-                )
-        ),
+    private val hub: MyComplexHub = hubWithCourtImage(),
     private val failure: Throwable? = null,
     private val failures: ArrayDeque<Throwable> = ArrayDeque(),
+    private val updateCourtImageFailure: Throwable? = null,
 ) : IComplexRepository {
   var hubRequests = 0
+  var updatedCourtId: String? = null
+  var updatedImageUploadId: String? = null
 
   override suspend fun getMyComplexHub(): MyComplexHub {
     hubRequests += 1
     failures.removeFirstOrNull()?.let { throw it }
     failure?.let { throw it }
     return hub
+  }
+
+  override suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ): MyComplexHubCourt {
+    updatedCourtId = courtId
+    updatedImageUploadId = imageUploadId
+    updateCourtImageFailure?.let { throw it }
+    return MyComplexHubCourt(
+        id = courtId,
+        name = "Court A",
+        status = "ACTIVE",
+        availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
+        imageUrl = "https://signed.example.test/court-a.png",
+    )
   }
 
   override suspend fun getProvinces() = error("Unused in this test")
@@ -305,3 +399,57 @@ private class FakeComplexRepository(
   override suspend fun addCourt(complexId: String, request: CreateCourtRequest) =
       error("Unused in this test")
 }
+
+private class FakeCourtImageUploadRepository(
+    private val uploadFailure: Throwable? = null,
+) : ICourtImageUploadRepository {
+  override suspend fun uploadCourtImage(image: LocalCourtImage): ConfirmedCourtImageUpload {
+    uploadFailure?.let { throw it }
+    return ConfirmedCourtImageUpload(
+        id = "court-image-id",
+        objectKey = "dev/uploads/court-image/owner-sub/2026/06/court-a.png",
+        readUrl = "https://signed.example.test/court-a.png",
+    )
+  }
+}
+
+private fun localCourtImage() =
+    LocalCourtImage(
+        fileName = "court-a.png",
+        contentType = "image/png",
+        bytes = byteArrayOf(1, 2, 3),
+        previewUrl = "content://court-a.png",
+    )
+
+private fun hubWithCourtImage(imageUrl: String? = null) =
+    MyComplexHub(
+        complexes =
+            listOf(
+                MyComplexHubComplex(
+                    id = "complex-id",
+                    name = "North Sports Center",
+                    address = "123 Main Street",
+                    provinceId = "province-id",
+                    cantonId = "canton-id",
+                    latitude = 9.935,
+                    longitude = -84.091,
+                    status = "ACTIVE",
+                    courts =
+                        listOf(
+                            MyComplexHubCourt(
+                                id = "court-configured-id",
+                                name = "Court A",
+                                status = "ACTIVE",
+                                availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
+                                imageUrl = imageUrl,
+                            ),
+                            MyComplexHubCourt(
+                                id = "court-pending-id",
+                                name = "Court B",
+                                status = "ACTIVE",
+                                availabilityStatus = CourtAvailabilitySetupStatus.PENDING,
+                            ),
+                        ),
+                )
+            )
+    )

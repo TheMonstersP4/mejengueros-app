@@ -112,6 +112,21 @@ class ComplexRepositoryTest {
   }
 
   @Test
+  fun updateCourtImageDelegatesDirectlyToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeComplexRemoteDataSource()
+    val repository = ComplexRepository(remoteDataSource)
+
+    val updated = repository.updateCourtImage("complex-id", "court-id", "upload-id")
+
+    assertEquals(listOf("updateCourtImage"), remoteDataSource.calls)
+    assertEquals(
+        listOf(Triple("complex-id", "court-id", "upload-id")),
+        remoteDataSource.updateCourtImageRequests,
+    )
+    assertEquals(updatedCourt, updated)
+  }
+
+  @Test
   fun getMyComplexHubDelegatesDirectlyToRemoteDataSource() = runTest {
     val remoteDataSource = FakeComplexRemoteDataSource()
     val repository = ComplexRepository(remoteDataSource)
@@ -139,6 +154,8 @@ class ComplexRepositoryTest {
       private val createResult: CreatedComplex = createdComplex,
       private val addCourtFailure: Throwable? = null,
       private val addCourtResult: CreatedCourt = createdCourt,
+      private val updateCourtImageFailure: Throwable? = null,
+      private val updateCourtImageResult: MyComplexHubCourt = updatedCourt,
       private val getMyComplexHubFailure: Throwable? = null,
       private val myComplexHubResult: MyComplexHub = myComplexHub,
   ) : IComplexRemoteDataSource {
@@ -147,6 +164,7 @@ class ComplexRepositoryTest {
     val serviceRequests = mutableListOf<ServiceScope>()
     val createRequests = mutableListOf<CreateComplexRequest>()
     val addCourtRequests = mutableListOf<Pair<String, CreateCourtRequest>>()
+    val updateCourtImageRequests = mutableListOf<Triple<String, String, String>>()
 
     override suspend fun getProvinces(): List<Province> {
       calls.add("getProvinces")
@@ -177,6 +195,17 @@ class ComplexRepositoryTest {
       addCourtRequests.add(complexId to request)
       addCourtFailure?.let { throw it }
       return addCourtResult
+    }
+
+    override suspend fun updateCourtImage(
+        complexId: String,
+        courtId: String,
+        imageUploadId: String,
+    ): MyComplexHubCourt {
+      calls.add("updateCourtImage")
+      updateCourtImageRequests.add(Triple(complexId, courtId, imageUploadId))
+      updateCourtImageFailure?.let { throw it }
+      return updateCourtImageResult
     }
 
     override suspend fun getMyComplexHub(): MyComplexHub {
@@ -234,6 +263,15 @@ class ComplexRepositoryTest {
         )
 
     val createdCourt = CreatedCourt(id = "court-id", complexId = "complex-id", name = "Court B")
+
+    val updatedCourt =
+        MyComplexHubCourt(
+            id = "court-id",
+            name = "Court A",
+            status = "ACTIVE",
+            availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
+            imageUrl = "https://signed.example.test/court.png",
+        )
 
     val myComplexHub =
         MyComplexHub(

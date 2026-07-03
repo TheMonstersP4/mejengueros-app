@@ -20,7 +20,7 @@ val presentationModule = module {
   viewModel { parameters ->
     AddCourtViewModel(parameters.get(), parameters.get(), get(), get(), get())
   }
-  viewModel { MyComplexViewModel(get(), get()) }
+  viewModel { MyComplexViewModel(get(), get(), get()) }
   viewModel { parameters ->
     CourtAvailabilityViewModel(parameters.get(), parameters.get(), parameters.get(), get())
   }

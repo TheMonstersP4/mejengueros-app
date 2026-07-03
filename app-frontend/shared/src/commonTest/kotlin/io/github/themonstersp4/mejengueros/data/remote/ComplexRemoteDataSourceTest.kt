@@ -509,7 +509,8 @@ class ComplexRemoteDataSourceTest {
                                     "id": "court-configured-id",
                                     "name": "Court A",
                                     "status": "ACTIVE",
-                                    "availabilityStatus": "CONFIGURED"
+                                    "availabilityStatus": "CONFIGURED",
+                                    "imageUrl": "https://signed.example.test/court-a.png"
                                   },
                                   {
                                     "id": "court-pending-id",
@@ -543,6 +544,49 @@ class ComplexRemoteDataSourceTest {
         CourtAvailabilitySetupStatus.PENDING,
         hub.complexes.single().courts.last().availabilityStatus,
     )
+    assertEquals(
+        "https://signed.example.test/court-a.png",
+        hub.complexes.single().courts.first().imageUrl,
+    )
+  }
+
+  @Test
+  fun updateCourtImageUsesOwnedCourtEndpointAndMapsUpdatedSnapshot() = runTest {
+    var requestedPath = ""
+    var requestedMethod = HttpMethod.Get
+    var requestBody = ""
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "court": {
+                              "id": "court-id",
+                              "name": "Court A",
+                              "status": "ACTIVE",
+                              "availabilityStatus": "CONFIGURED",
+                              "imageUrl": "https://signed.example.test/court-a.png"
+                            }
+                          }
+                        }
+                        """,
+                    capturePath = { requestedPath = it.orEmpty() },
+                    captureMethod = { requestedMethod = it ?: HttpMethod.Get },
+                    captureBody = { requestBody = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    val updatedCourt = dataSource.updateCourtImage("complex-id", "court-id", "upload-id")
+
+    assertEquals(HttpMethod.Put, requestedMethod)
+    assertEquals("/v1/complexes/complex-id/courts/court-id/image", requestedPath)
+    assertEquals(true, requestBody.contains("\"imageUploadId\":\"upload-id\""))
+    assertEquals("https://signed.example.test/court-a.png", updatedCourt.imageUrl)
   }
 
   @Test

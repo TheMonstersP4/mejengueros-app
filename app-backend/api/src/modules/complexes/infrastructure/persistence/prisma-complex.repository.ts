@@ -7,9 +7,14 @@ import {
 } from '../../../users/infrastructure/provisioning/demo-owner-role-provisioning';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { ComplexNotFoundForOwnerError } from '../../domain/errors/complex-not-found-for-owner.error';
+import { CourtNotFoundForOwnerError } from '../../domain/errors/court-not-found-for-owner.error';
 import { InvalidCourtImageUploadError } from '../../domain/errors/invalid-court-image-upload.error';
 import { InvalidComplexLocationError } from '../../domain/errors/invalid-complex-location.error';
 import { InvalidServiceCatalogSelectionError } from '../../domain/errors/invalid-service-catalog-selection.error';
+import {
+  FILE_READ_URL_PORT,
+  type IFileReadUrlPort
+} from '../../../files/application/ports/file-read-url.port';
 import type {
   IComplexRepository,
   ICreateOwnedComplexCourtCommand,
@@ -18,7 +23,8 @@ import type {
   ICreatedCourtSnapshot,
   IGetMyComplexHubQuery,
   IGetMyComplexHubResult,
-  IMyComplexHubCourtSnapshot
+  IMyComplexHubCourtSnapshot,
+  IUpdateOwnedCourtImageCommand
 } from '../../domain/repositories/complex.repository';
 
 const MAX_COMPLEX_CREATION_TRANSACTION_ATTEMPTS = 2;
@@ -46,6 +52,7 @@ interface IComplexPersistenceTransactionClient
   court: {
     findFirst: PrismaService['court']['findFirst'];
     create: PrismaService['court']['create'];
+    update: PrismaService['court']['update'];
   };
   complexService: {
     createMany: PrismaService['complexService']['createMany'];
@@ -74,7 +81,9 @@ interface IComplexPersistenceClient {
 export class PrismaComplexRepository implements IComplexRepository {
   constructor(
     @Inject(PrismaService)
-    private readonly prisma: IComplexPersistenceClient
+    private readonly prisma: IComplexPersistenceClient,
+    @Inject(FILE_READ_URL_PORT)
+    private readonly fileReadUrl: IFileReadUrlPort
   ) {}
 
   async findCourtIdByImageUploadId(imageUploadId: string): Promise<string | null> {
@@ -295,6 +304,70 @@ export class PrismaComplexRepository implements IComplexRepository {
     });
   }
 
+  async updateOwnedCourtImage(
+    command: IUpdateOwnedCourtImageCommand
+  ): Promise<IMyComplexHubCourtSnapshot> {
+    return this.prisma.$transaction(async (transaction) => {
+      const ownedCourt = await transaction.court.findFirst({
+        where: {
+          id: command.courtId,
+          complexId: command.complexId,
+          deletedAt: null,
+          complex: {
+            deletedAt: null,
+            owner: {
+              identities: {
+                some: {
+                  provider: command.ownerIdentity.provider ?? COGNITO_NATIVE_PROVIDER,
+                  providerSubject: command.ownerIdentity.sub
+                }
+              }
+            }
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (ownedCourt == null) {
+        throw new CourtNotFoundForOwnerError(command.courtId);
+      }
+
+      try {
+        const updatedCourt = await transaction.court.update({
+          where: { id: command.courtId },
+          data: {
+            imageUploadId: command.imageUploadId
+          },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            availability: {
+              select: {
+                id: true
+              }
+            },
+            imageUpload: {
+              select: {
+                objectKey: true
+              }
+            }
+          }
+        });
+
+        return this.toHubCourtSnapshot(updatedCourt);
+      } catch (error) {
+        if (this.isCourtImageUploadUniqueConstraint(error)) {
+          throw InvalidCourtImageUploadError.alreadyAssigned(command.imageUploadId);
+        }
+
+        throw error;
+      }
+    });
+  }
+
   async getMyComplexHub(query: IGetMyComplexHubQuery): Promise<IGetMyComplexHubResult> {
     const complexes = await this.prisma.complex.findMany({
       where: {
@@ -327,6 +400,11 @@ export class PrismaComplexRepository implements IComplexRepository {
             id: true,
             name: true,
             status: true,
+            imageUpload: {
+              select: {
+                objectKey: true
+              }
+            },
             availability: {
               select: {
                 id: true
@@ -338,17 +416,19 @@ export class PrismaComplexRepository implements IComplexRepository {
     });
 
     return {
-      complexes: complexes.map((complex) => ({
-        id: complex.id,
-        name: complex.name,
-        address: complex.address,
-        provinceId: complex.provinceId ?? undefined,
-        cantonId: complex.cantonId ?? undefined,
-        latitude: complex.latitude ?? undefined,
-        longitude: complex.longitude ?? undefined,
-        status: complex.status,
-        courts: complex.courts.map(this.toHubCourtSnapshot)
-      }))
+      complexes: await Promise.all(
+        complexes.map(async (complex) => ({
+          id: complex.id,
+          name: complex.name,
+          address: complex.address,
+          provinceId: complex.provinceId ?? undefined,
+          cantonId: complex.cantonId ?? undefined,
+          latitude: complex.latitude ?? undefined,
+          longitude: complex.longitude ?? undefined,
+          status: complex.status,
+          courts: await Promise.all(complex.courts.map((court) => this.toHubCourtSnapshot(court)))
+        }))
+      )
     };
   }
 
@@ -445,19 +525,33 @@ export class PrismaComplexRepository implements IComplexRepository {
     return target === 'imageUploadId';
   }
 
-  private toHubCourtSnapshot(
+  private async toHubCourtSnapshot(
     court: {
       id: string;
       name: string;
       status: string;
+      imageUpload?: { objectKey: string } | null;
       availability: { id: string } | null;
     }
-  ): IMyComplexHubCourtSnapshot {
+  ): Promise<IMyComplexHubCourtSnapshot> {
     return {
       id: court.id,
       name: court.name,
       status: court.status,
-      availabilityStatus: court.availability == null ? 'PENDING' : 'CONFIGURED'
+      availabilityStatus: court.availability == null ? 'PENDING' : 'CONFIGURED',
+      imageUrl: await this.createImageUrl(court.imageUpload?.objectKey ?? null)
     };
+  }
+
+  private async createImageUrl(objectKey: string | null): Promise<string | null> {
+    if (!objectKey) {
+      return null;
+    }
+
+    try {
+      return await this.fileReadUrl.createReadUrl(objectKey);
+    } catch {
+      return null;
+    }
   }
 }
