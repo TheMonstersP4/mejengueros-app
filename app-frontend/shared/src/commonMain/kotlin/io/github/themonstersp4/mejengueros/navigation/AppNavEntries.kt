@@ -141,6 +141,7 @@ private fun LoginEntry(
       onEmailSignIn = authViewModel::signInWithEmail,
       onGoogleSignIn = authViewModel::signInWithGoogle,
       onMicrosoftSignIn = authViewModel::signInWithMicrosoft,
+      onCancelExternalAuth = authViewModel::cancelExternalAuth,
       onForgotPassword = loginActions.openForgotPassword,
       onRegister = loginActions.openRegister,
   )

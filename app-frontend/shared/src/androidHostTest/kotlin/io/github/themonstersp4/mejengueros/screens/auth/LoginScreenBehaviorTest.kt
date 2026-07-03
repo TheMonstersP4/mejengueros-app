@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
@@ -185,6 +186,71 @@ class LoginScreenBehaviorTest {
   }
 
   @Test
+  fun externalGoogleAuthShowsBlockingProgressDialog() {
+    composeRule.setLoginScreenContent(
+        state =
+            AuthUiState(
+                isLoading = true,
+                pendingProvider = AuthProvider.Google,
+                isExternalAuthInProgress = true,
+                isRestoringSession = false,
+            )
+    )
+
+    composeRule.onNodeWithTag("login_external_auth_dialog", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithTag("login_external_auth_loading", useUnmergedTree = true).assertExists()
+    composeRule
+        .onNodeWithTag("login_external_auth_cancel_button", useUnmergedTree = true)
+        .assertExists()
+    composeRule.supportingText("Completando acceso con Google").assertExists()
+    composeRule
+        .supportingText("Estamos validando tu cuenta para entrar a Mejengueros.")
+        .assertExists()
+  }
+
+  @Test
+  fun externalAuthCancelButtonInvokesCallback() {
+    var cancelClicks = 0
+
+    composeRule.setLoginScreenContent(
+        state =
+            AuthUiState(
+                isLoading = true,
+                pendingProvider = AuthProvider.Google,
+                isExternalAuthInProgress = true,
+                isRestoringSession = false,
+            ),
+        onCancelExternalAuth = { cancelClicks += 1 },
+    )
+
+    composeRule
+        .onNodeWithTag("login_external_auth_cancel_button", useUnmergedTree = true)
+        .performRealClick()
+
+    composeRule.runOnIdle { assertEquals(1, cancelClicks) }
+  }
+
+  @Test
+  fun restoringSessionSuppressesExternalAuthProgressDialog() {
+    composeRule.setLoginScreenContent(
+        state =
+            AuthUiState(
+                isLoading = true,
+                pendingProvider = AuthProvider.Google,
+                isExternalAuthInProgress = true,
+                isRestoringSession = true,
+            )
+    )
+
+    composeRule
+        .onNodeWithTag("login_external_auth_dialog", useUnmergedTree = true)
+        .assertDoesNotExist()
+    composeRule
+        .onNodeWithTag("login_external_auth_loading", useUnmergedTree = true)
+        .assertDoesNotExist()
+  }
+
+  @Test
   fun errorMessageRemainsVisibleWhenAuthStateProvidesOne() {
     composeRule.setLoginScreenContent(
         state = AuthUiState(errorMessage = "Authentication failed"),
@@ -198,6 +264,7 @@ class LoginScreenBehaviorTest {
       onEmailSignIn: (String, String) -> Unit = { _, _ -> },
       onGoogleSignIn: () -> Unit = {},
       onMicrosoftSignIn: () -> Unit = {},
+      onCancelExternalAuth: () -> Unit = {},
       onForgotPassword: () -> Unit = {},
       onRegister: () -> Unit = {},
   ) {
@@ -208,6 +275,7 @@ class LoginScreenBehaviorTest {
             onEmailSignIn = onEmailSignIn,
             onGoogleSignIn = onGoogleSignIn,
             onMicrosoftSignIn = onMicrosoftSignIn,
+            onCancelExternalAuth = onCancelExternalAuth,
             onForgotPassword = onForgotPassword,
             onRegister = onRegister,
         )

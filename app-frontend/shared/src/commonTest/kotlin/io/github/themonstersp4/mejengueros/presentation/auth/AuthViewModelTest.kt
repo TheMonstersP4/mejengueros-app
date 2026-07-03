@@ -242,6 +242,282 @@ class AuthViewModelTest {
     assertEquals("https://cognito.example/authorize", browser.openedUrl)
     assertTrue(viewModel.uiState.value.isLoading)
     assertEquals(AuthProvider.Google, viewModel.uiState.value.pendingProvider)
+    assertTrue(viewModel.uiState.value.isExternalAuthInProgress)
+    scope.cancel()
+  }
+
+  @Test
+  fun cancelExternalAuthClearsProgressAndReportsRecoverableFailure() = runTest {
+    val browser = FakeOAuthBrowser()
+    val errorReporter = FakeErrorReporter()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            FakeAuthRepository(),
+            browser,
+            errorReporter = errorReporter,
+            callbackUrls = MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+
+    viewModel.signInWithGoogle()
+    advanceUntilIdle()
+    viewModel.cancelExternalAuth()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isExternalAuthInProgress)
+    assertNull(viewModel.uiState.value.pendingProvider)
+    assertEquals(
+        listOf(
+            ReportedFailure(
+                name = "auth_external_signin_cancelled",
+                attributes =
+                    mapOf(
+                        "operation" to "cancel_external_signin",
+                        "stage" to "pending_callback",
+                        "outcome" to "user_cancelled",
+                        "provider" to "google",
+                    ),
+            )
+        ),
+        errorReporter.events,
+    )
+    scope.cancel()
+  }
+
+  @Test
+  fun cancelExternalAuthAllowsFreshGoogleRetryAndReopensBrowser() = runTest {
+    val browser = FakeOAuthBrowser()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            FakeAuthRepository(),
+            browser,
+            callbackUrls = MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+
+    viewModel.signInWithGoogle()
+    advanceUntilIdle()
+    viewModel.cancelExternalAuth()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isExternalAuthInProgress)
+    assertNull(viewModel.uiState.value.pendingProvider)
+
+    viewModel.signInWithGoogle()
+    advanceUntilIdle()
+
+    assertEquals(2, browser.openCount)
+    assertEquals("https://cognito.example/authorize", browser.openedUrl)
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.isExternalAuthInProgress)
+    assertEquals(AuthProvider.Google, viewModel.uiState.value.pendingProvider)
+    scope.cancel()
+  }
+
+  @Test
+  fun externalSignInStartFailureClearsProgressAndReportsRecoverableFailureWithoutSecrets() =
+      runTest {
+        val browser = FakeOAuthBrowser(openError = IllegalStateException("browser failed"))
+        val errorReporter = FakeErrorReporter()
+        val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        val viewModel =
+            AuthViewModel(
+                FakeAuthRepository(),
+                browser,
+                errorReporter = errorReporter,
+                callbackUrls = MutableSharedFlow(),
+                coroutineScope = scope,
+            )
+
+        viewModel.signInWithGoogle()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertFalse(viewModel.uiState.value.isExternalAuthInProgress)
+        assertNull(viewModel.uiState.value.pendingProvider)
+        assertEquals(
+            listOf(
+                ReportedFailure(
+                    name = "auth_external_signin_start_failed",
+                    attributes =
+                        mapOf(
+                            "operation" to "start_external_signin",
+                            "stage" to "start",
+                            "outcome" to "failed",
+                            "provider" to "google",
+                            "error_source" to "unexpected",
+                        ),
+                )
+            ),
+            errorReporter.events,
+        )
+        scope.cancel()
+      }
+
+  @Test
+  fun callbackKeepsExternalAuthProgressVisibleUntilGoogleSignInCompletes() = runTest {
+    val callbacks = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val callbackGate = CompletableDeferred<Unit>()
+    val callbackStarted = CompletableDeferred<Unit>()
+    val repository =
+        FakeAuthRepository().apply {
+          onHandleCallback = { callbackUrl ->
+            receivedCallback = callbackUrl
+            callbackCount++
+            callbackStarted.complete(Unit)
+            callbackGate.await()
+            sampleSession()
+          }
+        }
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            callbackUrls = callbacks,
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    viewModel.signInWithGoogle()
+    advanceUntilIdle()
+    callbacks.emit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    advanceUntilIdle()
+
+    assertTrue(callbackStarted.isCompleted)
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.isExternalAuthInProgress)
+    assertEquals(AuthProvider.Google, viewModel.uiState.value.pendingProvider)
+    assertFalse(viewModel.uiState.value.isAuthenticated)
+
+    callbackGate.complete(Unit)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isAuthenticated)
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isExternalAuthInProgress)
+    assertNull(viewModel.uiState.value.pendingProvider)
+    scope.cancel()
+  }
+
+  @Test
+  fun callbackFailureClearsExternalAuthProgressAfterReplayCallbackStarts() = runTest {
+    val callbacks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    val callbackGate = CompletableDeferred<Unit>()
+    val callbackStarted = CompletableDeferred<Unit>()
+    val errorReporter = FakeErrorReporter()
+    callbacks.tryEmit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    val repository =
+        FakeAuthRepository().apply {
+          onHandleCallback = {
+            callbackCount++
+            callbackStarted.complete(Unit)
+            callbackGate.await()
+            throw IllegalStateException("No se pudo finalizar el inicio de sesión.")
+          }
+        }
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            errorReporter = errorReporter,
+            callbackUrls = callbacks,
+            markCallbackConsumed = { callbacks.resetReplayCache() },
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    assertTrue(callbackStarted.isCompleted)
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.isExternalAuthInProgress)
+    assertNull(viewModel.uiState.value.pendingProvider)
+
+    callbackGate.complete(Unit)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isExternalAuthInProgress)
+    assertNull(viewModel.uiState.value.pendingProvider)
+    assertEquals(
+        "No se pudo finalizar el inicio de sesión.",
+        viewModel.uiState.value.errorMessage,
+    )
+    assertEquals(
+        listOf(
+            ReportedFailure(
+                name = "auth_external_signin_callback_failed",
+                attributes =
+                    mapOf(
+                        "operation" to "handle_external_signin_callback",
+                        "stage" to "callback",
+                        "outcome" to "failed",
+                        "error_source" to "unexpected",
+                    ),
+            )
+        ),
+        errorReporter.events,
+    )
+    scope.cancel()
+  }
+
+  @Test
+  fun callbackCancellationClearsExternalAuthProgressAfterReplayCallbackStarts() = runTest {
+    val callbacks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    val callbackGate = CompletableDeferred<Unit>()
+    val callbackStarted = CompletableDeferred<Unit>()
+    val errorReporter = FakeErrorReporter()
+    callbacks.tryEmit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    val repository =
+        FakeAuthRepository().apply {
+          onHandleCallback = {
+            callbackCount++
+            callbackStarted.complete(Unit)
+            callbackGate.await()
+            throw CancellationException("External auth cancelled")
+          }
+        }
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            errorReporter = errorReporter,
+            callbackUrls = callbacks,
+            markCallbackConsumed = { callbacks.resetReplayCache() },
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    assertTrue(callbackStarted.isCompleted)
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.isExternalAuthInProgress)
+
+    callbackGate.complete(Unit)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isExternalAuthInProgress)
+    assertNull(viewModel.uiState.value.pendingProvider)
+    assertEquals(
+        listOf(
+            ReportedFailure(
+                name = "auth_external_signin_callback_cancelled",
+                attributes =
+                    mapOf(
+                        "operation" to "handle_external_signin_callback",
+                        "stage" to "callback",
+                        "outcome" to "cancelled",
+                        "error_source" to "cancellation",
+                    ),
+            )
+        ),
+        errorReporter.events,
+    )
     scope.cancel()
   }
 
@@ -327,6 +603,92 @@ class AuthViewModelTest {
     advanceUntilIdle()
 
     assertEquals(1, repository.callbackCount)
+    secondScope.cancel()
+  }
+
+  @Test
+  fun consumedFailureCallbackIsNotProcessedByNewSubscriber() = runTest {
+    val callbacks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    callbacks.tryEmit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    val repository =
+        FakeAuthRepository().apply {
+          onHandleCallback = {
+            callbackCount++
+            throw IllegalStateException("No se pudo finalizar el inicio de sesión.")
+          }
+        }
+    val firstErrorReporter = FakeErrorReporter()
+    val secondErrorReporter = FakeErrorReporter()
+    val firstScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val secondScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+
+    AuthViewModel(
+        repository,
+        FakeOAuthBrowser(),
+        errorReporter = firstErrorReporter,
+        callbackUrls = callbacks,
+        markCallbackConsumed = { callbacks.resetReplayCache() },
+        coroutineScope = firstScope,
+    )
+    advanceUntilIdle()
+    firstScope.cancel()
+
+    AuthViewModel(
+        repository,
+        FakeOAuthBrowser(),
+        errorReporter = secondErrorReporter,
+        callbackUrls = callbacks,
+        markCallbackConsumed = { callbacks.resetReplayCache() },
+        coroutineScope = secondScope,
+    )
+    advanceUntilIdle()
+
+    assertEquals(1, repository.callbackCount)
+    assertEquals(1, firstErrorReporter.events.size)
+    assertTrue(secondErrorReporter.events.isEmpty())
+    secondScope.cancel()
+  }
+
+  @Test
+  fun consumedCancellationCallbackIsNotProcessedByNewSubscriber() = runTest {
+    val callbacks = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+    callbacks.tryEmit("com.themonsters.mejengueros://auth/callback?code=code&state=state")
+    val repository =
+        FakeAuthRepository().apply {
+          onHandleCallback = {
+            callbackCount++
+            throw CancellationException("External auth cancelled")
+          }
+        }
+    val firstErrorReporter = FakeErrorReporter()
+    val secondErrorReporter = FakeErrorReporter()
+    val firstScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val secondScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+
+    AuthViewModel(
+        repository,
+        FakeOAuthBrowser(),
+        errorReporter = firstErrorReporter,
+        callbackUrls = callbacks,
+        markCallbackConsumed = { callbacks.resetReplayCache() },
+        coroutineScope = firstScope,
+    )
+    advanceUntilIdle()
+    firstScope.cancel()
+
+    AuthViewModel(
+        repository,
+        FakeOAuthBrowser(),
+        errorReporter = secondErrorReporter,
+        callbackUrls = callbacks,
+        markCallbackConsumed = { callbacks.resetReplayCache() },
+        coroutineScope = secondScope,
+    )
+    advanceUntilIdle()
+
+    assertEquals(1, repository.callbackCount)
+    assertEquals(1, firstErrorReporter.events.size)
+    assertTrue(secondErrorReporter.events.isEmpty())
     secondScope.cancel()
   }
 
@@ -551,6 +913,7 @@ class AuthViewModelTest {
       var currentProfile: UserProfile? = null,
   ) : IAuthRepository {
     var onRefreshUserProfile: (suspend () -> Unit)? = null
+    var onHandleCallback: (suspend (String) -> AuthSession)? = null
     var receivedProvider: AuthProvider? = null
     var receivedCallback: String? = null
     var callbackCount = 0
@@ -606,6 +969,9 @@ class AuthViewModelTest {
     }
 
     override suspend fun handleCallback(callbackUrl: String): AuthSession {
+      onHandleCallback?.let {
+        return it(callbackUrl)
+      }
       receivedCallback = callbackUrl
       callbackCount++
       return sampleSession()
@@ -636,10 +1002,15 @@ class AuthViewModelTest {
       val attributes: Map<String, String>,
   )
 
-  private class FakeOAuthBrowser : IOAuthBrowser {
+  private class FakeOAuthBrowser(
+      private val openError: Throwable? = null,
+  ) : IOAuthBrowser {
     var openedUrl: String? = null
+    var openCount = 0
 
     override suspend fun open(url: String) {
+      openError?.let { throw it }
+      openCount++
       openedUrl = url
     }
   }

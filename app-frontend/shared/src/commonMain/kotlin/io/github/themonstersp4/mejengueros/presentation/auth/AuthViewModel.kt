@@ -46,12 +46,33 @@ class AuthViewModel(
     startSignIn(AuthProvider.Microsoft)
   }
 
+  fun cancelExternalAuth() {
+    val state = _uiState.value
+    if (!state.isExternalAuthInProgress) {
+      return
+    }
+
+    errorReporter.reportRecoverableFailure(
+        name = "auth_external_signin_cancelled",
+        attributes =
+            externalAuthReportAttributes(
+                operation = "cancel_external_signin",
+                provider = state.pendingProvider,
+                stage = "pending_callback",
+                outcome = "user_cancelled",
+            ),
+    )
+
+    clearExternalAuthProgress()
+  }
+
   fun clearFeedback() {
     _uiState.value =
         _uiState.value.copy(
             errorMessage = null,
             successMessage = null,
             pendingProvider = null,
+            isExternalAuthInProgress = false,
         )
   }
 
@@ -61,6 +82,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa tu correo y contraseña para continuar.",
           )
       return
@@ -83,6 +105,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa nombre, correo y contraseña para crear la cuenta.",
           )
       return
@@ -111,6 +134,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa el código enviado a tu correo.",
           )
       return
@@ -136,6 +160,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa tu correo para reenviar el código.",
           )
       return
@@ -161,6 +186,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa tu correo para recuperar el acceso.",
           )
       return
@@ -190,6 +216,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa el código y la nueva contraseña.",
           )
       return
@@ -282,6 +309,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = true,
               pendingProvider = provider,
+              isExternalAuthInProgress = true,
               errorMessage = null,
               successMessage = null,
           )
@@ -290,10 +318,19 @@ class AuthViewModel(
             oauthBrowser.open(request.authorizationUrl)
           }
           .onFailure { error ->
+            reportExternalAuthFailure(
+                error = error,
+                provider = provider,
+                stage = "start",
+                failureName = "auth_external_signin_start_failed",
+                cancellationName = "auth_external_signin_start_cancelled",
+                operation = "start_external_signin",
+            )
             _uiState.value =
                 _uiState.value.copy(
                     isLoading = false,
                     pendingProvider = null,
+                    isExternalAuthInProgress = false,
                     errorMessage = resolveAuthErrorMessage(error, "No se pudo iniciar sesión."),
                 )
           }
@@ -306,6 +343,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = true,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = null,
               successMessage = null,
           )
@@ -315,6 +353,7 @@ class AuthViewModel(
                 _uiState.value.copy(
                     isLoading = false,
                     pendingProvider = null,
+                    isExternalAuthInProgress = false,
                     errorMessage =
                         resolveAuthErrorMessage(error, "No se pudo completar la solicitud."),
                 )
@@ -325,14 +364,29 @@ class AuthViewModel(
   private fun observeCallbacks() {
     coroutineScope.launch {
       callbackUrls.collect { callbackUrl ->
-        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        _uiState.value =
+            _uiState.value.copy(
+                isLoading = true,
+                isExternalAuthInProgress = true,
+                errorMessage = null,
+                successMessage = null,
+            )
         runCatching { authRepository.handleCallback(callbackUrl) }
             .onSuccess(::applyAuthenticatedSession)
             .onFailure { error ->
+              reportExternalAuthFailure(
+                  error = error,
+                  provider = _uiState.value.pendingProvider,
+                  stage = "callback",
+                  failureName = "auth_external_signin_callback_failed",
+                  cancellationName = "auth_external_signin_callback_cancelled",
+                  operation = "handle_external_signin_callback",
+              )
               _uiState.value =
                   _uiState.value.copy(
                       isLoading = false,
                       pendingProvider = null,
+                      isExternalAuthInProgress = false,
                       errorMessage =
                           resolveAuthErrorMessage(
                               error,
@@ -359,6 +413,7 @@ class AuthViewModel(
             isOwner = isOwner,
             isLoading = false,
             pendingProvider = null,
+            isExternalAuthInProgress = false,
             errorMessage = null,
             successMessage = null,
         )
@@ -366,6 +421,17 @@ class AuthViewModel(
 
   private fun finishSessionRestoration() {
     _uiState.value = _uiState.value.copy(isRestoringSession = false)
+  }
+
+  private fun clearExternalAuthProgress() {
+    _uiState.value =
+        _uiState.value.copy(
+            isLoading = false,
+            pendingProvider = null,
+            isExternalAuthInProgress = false,
+            errorMessage = null,
+            successMessage = null,
+        )
   }
 
   private suspend fun refreshProfileAndApplyOwnerRole() {
@@ -388,6 +454,45 @@ class AuthViewModel(
       else -> message
     }
   }
+
+  private fun reportExternalAuthFailure(
+      error: Throwable,
+      provider: AuthProvider?,
+      stage: String,
+      failureName: String,
+      cancellationName: String,
+      operation: String,
+  ) {
+    if (error is CancellationException && !coroutineScope.isActive) {
+      throw error
+    }
+
+    val isCancellation = error is CancellationException
+    errorReporter.reportRecoverableFailure(
+        name = if (isCancellation) cancellationName else failureName,
+        attributes =
+            externalAuthReportAttributes(
+                operation = operation,
+                provider = provider,
+                stage = stage,
+                outcome = if (isCancellation) "cancelled" else "failed",
+            ) +
+                if (isCancellation) mapOf("error_source" to "cancellation")
+                else error.toReportAttributes(operation),
+    )
+  }
+}
+
+private fun externalAuthReportAttributes(
+    operation: String,
+    provider: AuthProvider?,
+    stage: String,
+    outcome: String,
+): Map<String, String> = buildMap {
+  put("operation", operation)
+  put("stage", stage)
+  put("outcome", outcome)
+  provider?.let { put("provider", it.name.lowercase()) }
 }
 
 private fun Throwable.toReportAttributes(operation: String): Map<String, String> {
