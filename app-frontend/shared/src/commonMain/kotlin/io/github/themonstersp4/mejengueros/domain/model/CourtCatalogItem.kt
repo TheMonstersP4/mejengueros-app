@@ -15,6 +15,6 @@ data class CourtCatalogItem(
     val imageUrl: String?,
     val isReservableToday: Boolean,
 ) {
-  val displayName: String
-    get() = "$complexName · $courtName"
+  val displayTitle: String
+    get() = courtName
 }
