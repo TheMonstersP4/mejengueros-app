@@ -1,4 +1,8 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+  FILE_READ_URL_PORT,
+  type IFileReadUrlPort
+} from '@/modules/files/application/ports/file-read-url.port';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { InvalidCourtCatalogLocationFilterError } from '../../domain/errors/invalid-court-catalog-location-filter.error';
@@ -73,6 +77,11 @@ const PUBLIC_COURT_CATALOG_SELECT = {
         }
       }
     }
+  },
+  imageUpload: {
+    select: {
+      objectKey: true
+    }
   }
 } satisfies Prisma.CourtSelect;
 
@@ -86,10 +95,10 @@ interface ICourtCatalogPersistenceClient {
     ...values: unknown[]
   ): Promise<T>;
   canton: {
-    findFirst: PrismaService['canton']['findFirst'];
+    findFirst(args: Prisma.CantonFindFirstArgs): Promise<{ id: string } | null>;
   };
   court: {
-    findMany: PrismaService['court']['findMany'];
+    findMany(args: Prisma.CourtFindManyArgs): Promise<PublicCourtCatalogRow[]>;
   };
 }
 
@@ -104,6 +113,8 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
   constructor(
     @Inject(PrismaService)
     private readonly prisma: ICourtCatalogPersistenceClient,
+    @Inject(FILE_READ_URL_PORT)
+    private readonly fileReadUrl: IFileReadUrlPort,
     @Optional()
     @Inject(COURT_CATALOG_TODAY_PROVIDER)
     private readonly todayProvider: () => Date = () => new Date()
@@ -208,34 +219,52 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
       catalogCourts.map((court) => court.id)
     );
 
-    return catalogCourts.map((court) => {
-      const rating = ratingsByCourtId.get(court.id) ?? { average: null, count: 0 };
-      const services = uniqueSortedServices([
-        ...court.services.map((service) => service.serviceCatalog.name),
-        ...court.complex.services.map((service) => service.serviceCatalog.name)
-      ]);
+    return Promise.all(
+      catalogCourts.map(async (court) => {
+        const rating = ratingsByCourtId.get(court.id) ?? { average: null, count: 0 };
+        const services = uniqueSortedServices([
+          ...court.services.map(
+            (service: PublicCourtCatalogRow['services'][number]) => service.serviceCatalog.name
+          ),
+          ...court.complex.services.map(
+            (service: PublicCourtCatalogRow['complex']['services'][number]) =>
+              service.serviceCatalog.name
+          )
+        ]);
 
-      return {
-        courtId: court.id,
-        courtName: court.name,
-        complexId: court.complex.id,
-        complexName: court.complex.name,
-        province: {
-          id: court.complex.province!.id,
-          name: court.complex.province!.name
-        },
-        canton: {
-          id: court.complex.canton!.id,
-          name: court.complex.canton!.name
-        },
-        services,
-        rating,
-        isReservableToday:
-          court.availability?.days.some((availabilityDay) => availabilityDay.day === today) ??
-          false,
-        imageUrl: null
-      } satisfies ICourtCatalogItem;
-    });
+        return {
+          courtId: court.id,
+          courtName: court.name,
+          complexId: court.complex.id,
+          complexName: court.complex.name,
+          province: {
+            id: court.complex.province!.id,
+            name: court.complex.province!.name
+          },
+          canton: {
+            id: court.complex.canton!.id,
+            name: court.complex.canton!.name
+          },
+          services,
+          rating,
+          isReservableToday:
+            court.availability?.days.some(
+              (
+                availabilityDay: NonNullable<PublicCourtCatalogRow['availability']>['days'][number]
+              ) => availabilityDay.day === today
+            ) ?? false,
+          imageUrl: await this.createImageUrl(court.imageUpload?.objectKey ?? null)
+        } satisfies ICourtCatalogItem;
+      })
+    );
+  }
+
+  private async createImageUrl(objectKey: string | null): Promise<string | null> {
+    if (!objectKey) {
+      return null;
+    }
+
+    return this.fileReadUrl.createReadUrl(objectKey);
   }
 
   private async loadRatingsByCourtId(

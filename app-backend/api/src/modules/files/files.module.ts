@@ -3,7 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
 import { S3StorageModule } from '../../shared/infrastructure/storage/s3-storage.module';
 import { AuthModule } from '../auth/auth.module';
+import { FILE_READ_URL_PORT } from './application/ports/file-read-url.port';
 import { FILE_STORAGE_PORT } from './application/ports/file-storage.port';
+import { StorageReadUrlService } from './application/services/storage-read-url.service';
 import { READ_URL_TTL_SECONDS } from './application/tokens/read-url-ttl-seconds.token';
 import { UPLOAD_URL_TTL_SECONDS } from './application/tokens/upload-url-ttl-seconds.token';
 import { ConfirmUploadUseCase } from './application/use-cases/confirm-upload.use-case';
@@ -32,6 +34,7 @@ const imageUploadRepositoryClass = process.env.DATABASE_URL
     ConfirmUploadUseCase,
     CreateUploadUrlUseCase,
     ListImageUploadsUseCase,
+    StorageReadUrlService,
     {
       provide: ImageUploadPolicyService,
       inject: [ConfigService],
@@ -67,8 +70,12 @@ const imageUploadRepositoryClass = process.env.DATABASE_URL
     {
       provide: FILE_STORAGE_PORT,
       useClass: S3FileStorageAdapter
+    },
+    {
+      provide: FILE_READ_URL_PORT,
+      useExisting: StorageReadUrlService
     }
   ],
-  exports: [IMAGE_UPLOAD_REPOSITORY]
+  exports: [IMAGE_UPLOAD_REPOSITORY, FILE_READ_URL_PORT]
 })
 export class FilesModule {}
