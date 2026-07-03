@@ -38,12 +38,9 @@ class AuthRepository(
   override fun getUserProfile(): UserProfile? = _userProfile.value
 
   override suspend fun getSession(): AuthSession? {
-    val session =
-        secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
-            ?: return null
-
-    syncCurrentUser()
-    return session
+    // Startup restore must come from the locally persisted session only. Backend profile sync runs
+    // later so a slow API cannot block the authenticated shell gate.
+    return secureStorage.getSession()?.takeIf { it.expiresAtEpochSeconds > currentEpochSeconds() }
   }
 
   override suspend fun createSignInRequest(provider: AuthProvider): AuthSignInRequest {
@@ -100,7 +97,7 @@ class AuthRepository(
   }
 
   override suspend fun refreshUserProfile() {
-    syncCurrentUser()
+    _userProfile.value = authenticatedUserRemoteDataSource.syncCurrentUser()
   }
 
   @OptIn(ExperimentalTime::class)
@@ -122,16 +119,6 @@ class AuthRepository(
     secureStorage.saveSession(session)
     syncCurrentUserOrClearSession()
     return session
-  }
-
-  private suspend fun syncCurrentUser() {
-    try {
-      _userProfile.value = authenticatedUserRemoteDataSource.syncCurrentUser()
-    } catch (error: CancellationException) {
-      throw error
-    } catch (_: Throwable) {
-      // Restored sessions survive temporary API or network failures during app startup.
-    }
   }
 
   private suspend fun syncCurrentUserOrClearSession() {

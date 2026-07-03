@@ -4,20 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.auth.AuthCallbackBus
 import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
+import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.model.UserRoleKind
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
+import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
+import io.github.themonstersp4.mejengueros.monitoring.NoOpErrorReporter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val authRepository: IAuthRepository,
     private val oauthBrowser: IOAuthBrowser,
+    private val errorReporter: ErrorReporter = NoOpErrorReporter(),
     private val callbackUrls: SharedFlow<String> = AuthCallbackBus.callbackUrls,
     private val markCallbackConsumed: (String) -> Unit = AuthCallbackBus::markConsumed,
     coroutineScope: CoroutineScope? = null,
@@ -209,24 +216,64 @@ class AuthViewModel(
   fun signOut() {
     coroutineScope.launch {
       val signOutRequest = authRepository.signOut()
-      _uiState.value = AuthUiState()
+      _uiState.value = AuthUiState(isRestoringSession = false)
       runCatching { oauthBrowser.open(signOutRequest.logoutUrl) }
     }
   }
 
   fun refreshProfileAfterOwnerTransition() {
-    coroutineScope.launch {
-      runCatching { authRepository.refreshUserProfile() }
-          .onSuccess {
-            val profile = authRepository.getUserProfile()
-            val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
-            _uiState.value = _uiState.value.copy(isOwner = isOwner)
-          }
-    }
+    launchProfileRefresh(
+        reportName = "auth_profile_refresh_failed",
+        operation = "owner_transition",
+    )
   }
 
   private fun restoreSession() {
-    coroutineScope.launch { authRepository.getSession()?.let(::applyAuthenticatedSession) }
+    coroutineScope.launch {
+      try {
+        val session = authRepository.getSession()
+        if (session != null) {
+          applyAuthenticatedSession(session)
+          refreshRestoredProfile()
+        } else {
+          finishSessionRestoration()
+        }
+      } catch (error: CancellationException) {
+        if (currentCoroutineContext().isActive) {
+          finishSessionRestoration()
+        } else {
+          throw error
+        }
+        return@launch
+      } catch (error: Throwable) {
+        errorReporter.reportRecoverableFailure(
+            name = "auth_session_restore_failed",
+            attributes = error.toReportAttributes(operation = "restore_session"),
+        )
+        finishSessionRestoration()
+      }
+    }
+  }
+
+  private fun refreshRestoredProfile() {
+    launchProfileRefresh(
+        reportName = "auth_restore_profile_sync_failed",
+        operation = "restore_profile_sync",
+    )
+  }
+
+  private fun launchProfileRefresh(reportName: String, operation: String) {
+    coroutineScope.launch {
+      runCatching { refreshProfileAndApplyOwnerRole() }
+          .onFailure { error ->
+            if (error is CancellationException) return@onFailure
+
+            errorReporter.reportRecoverableFailure(
+                name = reportName,
+                attributes = error.toReportAttributes(operation = operation),
+            )
+          }
+    }
   }
 
   private fun startSignIn(provider: AuthProvider) {
@@ -307,6 +354,7 @@ class AuthViewModel(
             email = session.email,
             displayName = session.displayName,
             provider = session.provider,
+            isRestoringSession = false,
             isAuthenticated = true,
             isOwner = isOwner,
             isLoading = false,
@@ -314,6 +362,17 @@ class AuthViewModel(
             errorMessage = null,
             successMessage = null,
         )
+  }
+
+  private fun finishSessionRestoration() {
+    _uiState.value = _uiState.value.copy(isRestoringSession = false)
+  }
+
+  private suspend fun refreshProfileAndApplyOwnerRole() {
+    authRepository.refreshUserProfile()
+    val profile = authRepository.getUserProfile()
+    val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
+    _uiState.value = _uiState.value.copy(isOwner = isOwner)
   }
 
   private fun resolveAuthErrorMessage(error: Throwable, fallback: String): String {
@@ -328,5 +387,19 @@ class AuthViewModel(
       message.isBlank() -> fallback
       else -> message
     }
+  }
+}
+
+private fun Throwable.toReportAttributes(operation: String): Map<String, String> {
+  val baseAttributes = mapOf("operation" to operation)
+
+  return when (this) {
+    is AppApiException ->
+        baseAttributes +
+            mapOf(
+                "error_source" to "app_api",
+                "status_code" to statusCode.toString(),
+            )
+    else -> baseAttributes + mapOf("error_source" to "unexpected")
   }
 }
