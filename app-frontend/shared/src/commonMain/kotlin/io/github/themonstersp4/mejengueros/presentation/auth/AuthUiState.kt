@@ -12,6 +12,7 @@ data class AuthUiState(
     val isOwner: Boolean = false,
     val isLoading: Boolean = false,
     val pendingProvider: AuthProvider? = null,
+    val isExternalAuthInProgress: Boolean = false,
     val errorMessage: String? = null,
     val emailAuthMode: EmailAuthMode = EmailAuthMode.SignIn,
     val emailInput: String = "",

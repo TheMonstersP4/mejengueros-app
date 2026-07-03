@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
 import io.github.themonstersp4.mejengueros.ui.components.GoogleProviderIcon
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
@@ -48,6 +49,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
 import io.github.themonstersp4.mejengueros.ui.components.MicrosoftProviderIcon
@@ -86,11 +88,14 @@ fun LoginScreen(
     onEmailSignIn: (email: String, password: String) -> Unit,
     onGoogleSignIn: () -> Unit,
     onMicrosoftSignIn: () -> Unit,
+    onCancelExternalAuth: () -> Unit,
     onForgotPassword: () -> Unit,
     onRegister: () -> Unit,
 ) {
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
+  val showExternalAuthProgress =
+      state.isExternalAuthInProgress && !state.isAuthenticated && !state.isRestoringSession
   val emailAccessUiModel =
       resolveLoginEmailAccessUiModel(
           email = email,
@@ -177,7 +182,45 @@ fun LoginScreen(
       }
     }
   }
+
+  val externalAuthProgressUiModel = resolveExternalAuthProgressUiModel(state.pendingProvider)
+
+  MejenguerosLoadingDialog(
+      visible = showExternalAuthProgress,
+      title = externalAuthProgressUiModel.title,
+      message = externalAuthProgressUiModel.message,
+      onCancel = onCancelExternalAuth,
+      dialogTestTag = "login_external_auth_dialog",
+      indicatorTestTag = "login_external_auth_loading",
+      cancelButtonTestTag = "login_external_auth_cancel_button",
+  )
 }
+
+private fun resolveExternalAuthProgressUiModel(
+    provider: AuthProvider?,
+): ExternalAuthProgressUiModel =
+    when (provider) {
+      AuthProvider.Google ->
+          ExternalAuthProgressUiModel(
+              title = "Completando acceso con Google",
+              message = "Estamos validando tu cuenta para entrar a Mejengueros.",
+          )
+      AuthProvider.Microsoft ->
+          ExternalAuthProgressUiModel(
+              title = "Completando acceso con Microsoft",
+              message = "Estamos validando tu cuenta para entrar a Mejengueros.",
+          )
+      null ->
+          ExternalAuthProgressUiModel(
+              title = "Completando inicio de sesión",
+              message = "Estamos terminando tu autenticación. Esto puede tardar unos segundos.",
+          )
+    }
+
+private data class ExternalAuthProgressUiModel(
+    val title: String,
+    val message: String,
+)
 
 @Composable
 private fun LoginBrandHeader(modifier: Modifier = Modifier) {
