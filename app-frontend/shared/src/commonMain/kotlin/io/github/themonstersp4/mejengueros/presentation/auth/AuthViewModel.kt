@@ -260,14 +260,14 @@ class AuthViewModel(
       try {
         val session = authRepository.getSession()
         if (session != null) {
-          applyAuthenticatedSession(session)
+          applyAuthenticatedSession(session, isRestoredSession = true)
           refreshRestoredProfile()
         } else {
-          finishSessionRestoration()
+          clearStartupGates()
         }
       } catch (error: CancellationException) {
         if (currentCoroutineContext().isActive) {
-          finishSessionRestoration()
+          clearStartupGates()
         } else {
           throw error
         }
@@ -277,7 +277,7 @@ class AuthViewModel(
             name = "auth_session_restore_failed",
             attributes = error.toReportAttributes(operation = "restore_session"),
         )
-        finishSessionRestoration()
+        clearStartupGates()
       }
     }
   }
@@ -286,20 +286,32 @@ class AuthViewModel(
     launchProfileRefresh(
         reportName = "auth_restore_profile_sync_failed",
         operation = "restore_profile_sync",
+        clearAuthenticatedStartupGateOnCompletion = true,
     )
   }
 
-  private fun launchProfileRefresh(reportName: String, operation: String) {
+  private fun launchProfileRefresh(
+      reportName: String,
+      operation: String,
+      clearAuthenticatedStartupGateOnCompletion: Boolean = false,
+  ) {
     coroutineScope.launch {
-      runCatching { refreshProfileAndApplyOwnerRole() }
-          .onFailure { error ->
-            if (error is CancellationException) return@onFailure
-
-            errorReporter.reportRecoverableFailure(
-                name = reportName,
-                attributes = error.toReportAttributes(operation = operation),
-            )
-          }
+      try {
+        refreshProfileAndApplyOwnerRole()
+      } catch (error: CancellationException) {
+        if (!currentCoroutineContext().isActive) {
+          throw error
+        }
+      } catch (error: Throwable) {
+        errorReporter.reportRecoverableFailure(
+            name = reportName,
+            attributes = error.toReportAttributes(operation = operation),
+        )
+      } finally {
+        if (clearAuthenticatedStartupGateOnCompletion && currentCoroutineContext().isActive) {
+          finishAuthenticatedStartupResolution()
+        }
+      }
     }
   }
 
@@ -399,7 +411,10 @@ class AuthViewModel(
     }
   }
 
-  private fun applyAuthenticatedSession(session: AuthSession) {
+  private fun applyAuthenticatedSession(
+      session: AuthSession,
+      isRestoredSession: Boolean = false,
+  ) {
     val profile = authRepository.getUserProfile()
     val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
     _uiState.value =
@@ -409,6 +424,7 @@ class AuthViewModel(
             displayName = session.displayName,
             provider = session.provider,
             isRestoringSession = false,
+            isResolvingAuthenticatedStartup = isRestoredSession,
             isAuthenticated = true,
             isOwner = isOwner,
             isLoading = false,
@@ -419,8 +435,16 @@ class AuthViewModel(
         )
   }
 
-  private fun finishSessionRestoration() {
-    _uiState.value = _uiState.value.copy(isRestoringSession = false)
+  private fun clearStartupGates() {
+    _uiState.value =
+        _uiState.value.copy(
+            isRestoringSession = false,
+            isResolvingAuthenticatedStartup = false,
+        )
+  }
+
+  private fun finishAuthenticatedStartupResolution() {
+    _uiState.value = _uiState.value.copy(isResolvingAuthenticatedStartup = false)
   }
 
   private fun clearExternalAuthProgress() {

@@ -27,7 +27,7 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
   @Test
-  fun initRestoresExistingSessionBeforeProfileSyncCompletes() = runTest {
+  fun initKeepsAuthenticatedStartupGateActiveUntilProfileSyncCompletes() = runTest {
     val restoreGate = CompletableDeferred<Unit>()
     val profileRefreshStarted = CompletableDeferred<Unit>()
     val repository =
@@ -62,6 +62,7 @@ class AuthViewModelTest {
     assertEquals("Player", viewModel.uiState.value.displayName)
     assertTrue(viewModel.uiState.value.isAuthenticated)
     assertFalse(viewModel.uiState.value.isRestoringSession)
+    assertTrue(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertFalse(viewModel.uiState.value.isOwner)
     assertNull(viewModel.uiState.value.errorMessage)
     assertEquals(1, repository.refreshUserProfileCount)
@@ -84,6 +85,7 @@ class AuthViewModelTest {
     advanceUntilIdle()
 
     assertFalse(viewModel.uiState.value.isRestoringSession)
+    assertFalse(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertFalse(viewModel.uiState.value.isAuthenticated)
     assertEquals("", viewModel.uiState.value.email)
     scope.cancel()
@@ -106,6 +108,7 @@ class AuthViewModelTest {
     advanceUntilIdle()
 
     assertFalse(viewModel.uiState.value.isRestoringSession)
+    assertFalse(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertFalse(viewModel.uiState.value.isAuthenticated)
     assertNull(viewModel.uiState.value.errorMessage)
     assertEquals(
@@ -142,6 +145,7 @@ class AuthViewModelTest {
     advanceUntilIdle()
 
     assertFalse(viewModel.uiState.value.isRestoringSession)
+    assertFalse(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertFalse(viewModel.uiState.value.isAuthenticated)
     assertTrue(errorReporter.events.isEmpty())
     scope.cancel()
@@ -173,12 +177,14 @@ class AuthViewModelTest {
 
     assertTrue(profileRefreshStarted.isCompleted)
     assertTrue(viewModel.uiState.value.isAuthenticated)
+    assertTrue(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertFalse(viewModel.uiState.value.isOwner)
 
     refreshGate.complete(Unit)
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.isOwner)
+    assertFalse(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertEquals(1, repository.refreshUserProfileCount)
     scope.cancel()
   }
@@ -205,6 +211,7 @@ class AuthViewModelTest {
 
     assertTrue(viewModel.uiState.value.isAuthenticated)
     assertFalse(viewModel.uiState.value.isRestoringSession)
+    assertFalse(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertFalse(viewModel.uiState.value.isOwner)
     assertEquals(
         listOf(
@@ -754,6 +761,7 @@ class AuthViewModelTest {
 
     assertEquals("player@example.com", repository.receivedEmailSignInEmail)
     assertTrue(viewModel.uiState.value.isAuthenticated)
+    assertFalse(viewModel.uiState.value.isResolvingAuthenticatedStartup)
     assertNull(viewModel.uiState.value.errorMessage)
     scope.cancel()
   }

@@ -732,6 +732,30 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun coordinatorDefersOwnerPreferenceHydrationUntilAuthenticatedStartupResolves() = runTest {
+    val state = testNavigationState().apply { switchToOwnerView() }
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences = mapOf("owner-1" to OwnerViewPreference.OWNER)
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(
+        io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState(
+            userId = "owner-1",
+            isAuthenticated = true,
+            isOwner = false,
+            isResolvingAuthenticatedStartup = true,
+        )
+    )
+
+    assertEquals(emptyList(), storage.readUserIds)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
   fun coordinatorHydratesPlayerShellForStoredPlayerPreference() = runTest {
     val state = testNavigationState().apply { openComplexDetail("complex-id") }
     val storage =

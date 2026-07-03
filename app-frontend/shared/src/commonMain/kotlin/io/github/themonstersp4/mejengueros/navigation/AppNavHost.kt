@@ -12,8 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -71,7 +73,9 @@ fun AppNavHost() {
   val authViewModel = koinViewModel<AuthViewModel>()
   val secureStorage = koinInject<IAuthSecureStorage>()
   val authState by authViewModel.uiState.collectAsState()
+  val currentUserId = authState.userId?.takeIf { it.isNotBlank() }
   val coroutineScope = rememberCoroutineScope()
+  val startupOwnerPreferenceHydrationGate = remember { StartupOwnerPreferenceHydrationGate() }
   val ownerViewPreferenceCoordinator =
       remember(authenticatedNavigationState, secureStorage, coroutineScope) {
         OwnerViewPreferenceCoordinator(
@@ -81,14 +85,61 @@ fun AppNavHost() {
         )
       }
 
-  LaunchedEffect(authState.isAuthenticated, authState.isOwner, authState.userId) {
+  LaunchedEffect(
+      authState.isRestoringSession,
+      authState.isAuthenticated,
+      authState.isOwner,
+      authState.userId,
+      authState.isResolvingAuthenticatedStartup,
+  ) {
+    val userId = currentUserId
+
+    if (authState.isRestoringSession || authState.isResolvingAuthenticatedStartup) {
+      if (authState.isAuthenticated && userId != null) {
+        startupOwnerPreferenceHydrationGate.waitForAuthenticatedStartup(userId)
+      } else {
+        startupOwnerPreferenceHydrationGate.clear()
+      }
+      return@LaunchedEffect
+    }
+
+    if (!authState.isAuthenticated) {
+      startupOwnerPreferenceHydrationGate.clear()
+      ownerViewPreferenceCoordinator.hydrate(authState)
+      return@LaunchedEffect
+    }
+
+    if (
+        authState.isOwner &&
+            userId != null &&
+            startupOwnerPreferenceHydrationGate.isWaitingFor(userId)
+    ) {
+      startupOwnerPreferenceHydrationGate.beginOwnerPreferenceHydration(userId)
+    } else if (!authState.isOwner || userId == null) {
+      startupOwnerPreferenceHydrationGate.clear()
+    }
+
     ownerViewPreferenceCoordinator.hydrate(authState)
+
+    if (startupOwnerPreferenceHydrationGate.isHydratingFor(userId)) {
+      startupOwnerPreferenceHydrationGate.clear()
+    }
   }
 
   val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
   val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
 
-  if (authState.isRestoringSession) {
+  val isAwaitingStartupOwnerPreferenceHydration =
+      authState.isAuthenticated &&
+          authState.isOwner &&
+          currentUserId != null &&
+          startupOwnerPreferenceHydrationGate.isBlockingNavigationFor(currentUserId)
+
+  if (
+      authState.isRestoringSession ||
+          authState.isResolvingAuthenticatedStartup ||
+          isAwaitingStartupOwnerPreferenceHydration
+  ) {
     AuthSessionRestorationScreen()
     return
   }
@@ -176,6 +227,46 @@ fun AppNavHost() {
             )
           },
   )
+}
+
+private enum class StartupOwnerPreferenceHydrationPhase {
+  Idle,
+  WaitingForAuthenticatedStartup,
+  HydratingOwnerPreference,
+}
+
+private class StartupOwnerPreferenceHydrationGate {
+  private var phase by mutableStateOf(StartupOwnerPreferenceHydrationPhase.Idle)
+  private var pendingUserId by mutableStateOf<String?>(null)
+
+  fun waitForAuthenticatedStartup(userId: String) {
+    pendingUserId = userId
+    phase = StartupOwnerPreferenceHydrationPhase.WaitingForAuthenticatedStartup
+  }
+
+  fun beginOwnerPreferenceHydration(userId: String) {
+    pendingUserId = userId
+    phase = StartupOwnerPreferenceHydrationPhase.HydratingOwnerPreference
+  }
+
+  fun isWaitingFor(userId: String): Boolean {
+    return phase == StartupOwnerPreferenceHydrationPhase.WaitingForAuthenticatedStartup &&
+        pendingUserId == userId
+  }
+
+  fun isHydratingFor(userId: String?): Boolean {
+    return phase == StartupOwnerPreferenceHydrationPhase.HydratingOwnerPreference &&
+        pendingUserId == userId
+  }
+
+  fun isBlockingNavigationFor(userId: String?): Boolean {
+    return pendingUserId == userId && phase != StartupOwnerPreferenceHydrationPhase.Idle
+  }
+
+  fun clear() {
+    pendingUserId = null
+    phase = StartupOwnerPreferenceHydrationPhase.Idle
+  }
 }
 
 @Composable
