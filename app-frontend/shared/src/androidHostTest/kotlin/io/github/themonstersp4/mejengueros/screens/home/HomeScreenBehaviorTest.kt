@@ -125,6 +125,89 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
+  fun catalogCardSeparatesCourtTitleFromComplexAndLocationContext() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    visibleCourts =
+                        listOf(
+                            CourtCatalogItem(
+                                id = "court-copy-id",
+                                complexId = "complex-id",
+                                complexName = "Monsters inc",
+                                courtName = "cancha1",
+                                provinceId = "sj",
+                                provinceName = "San José",
+                                cantonId = "central",
+                                cantonName = "San José",
+                                services = listOf("Parqueo"),
+                                ratingAverage = null,
+                                ratingCount = 0,
+                                imageUrl = null,
+                                isReservableToday = false,
+                            )
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("cancha1").assertExists()
+    composeRule.onNodeWithText("Monsters inc · San José · San José").assertExists()
+    composeRule.onNodeWithText("Monsters inc · cancha1").assertDoesNotExist()
+  }
+
+  @Test
+  fun catalogCardContextSkipsBlankPartsWithoutDanglingSeparators() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    visibleCourts =
+                        listOf(
+                            CourtCatalogItem(
+                                id = "court-blank-context-id",
+                                complexId = "complex-id",
+                                complexName = "Monsters inc",
+                                courtName = "cancha1",
+                                provinceId = "province-id",
+                                provinceName = "",
+                                cantonId = "canton-id",
+                                cantonName = "San José",
+                                services = emptyList(),
+                                ratingAverage = null,
+                                ratingCount = 0,
+                                imageUrl = null,
+                                isReservableToday = false,
+                            )
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Monsters inc · San José").assertExists()
+    composeRule.onNodeWithText("Monsters inc ·  · San José").assertDoesNotExist()
+  }
+
+  @Test
   fun catalogCardClickTriggersCatalogItemCallback() {
     var openedCourtId: String? = null
 

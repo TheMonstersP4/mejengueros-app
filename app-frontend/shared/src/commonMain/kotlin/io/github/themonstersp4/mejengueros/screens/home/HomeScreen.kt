@@ -87,10 +87,10 @@ fun HomeScreen(
         }
         items(state.visibleCourts, key = { it.id }) { court ->
           MejenguerosCourtCard(
-              title = court.displayName,
-              location = "${court.provinceName} · ${court.cantonName}",
+              title = court.displayTitle,
+              location = catalogCourtContext(court),
               imageUrl = court.imageUrl,
-              imageContentDescription = court.displayName,
+              imageContentDescription = court.displayTitle,
               metadata = buildCourtMetadata(court),
               statusText = if (court.isReservableToday) "Reservable hoy" else null,
               modifier =
@@ -246,6 +246,11 @@ private fun CatalogHeader(
     }
   }
 }
+
+private fun catalogCourtContext(court: CourtCatalogItem): String =
+    listOf(court.complexName, court.provinceName, court.cantonName)
+        .filter { it.isNotBlank() }
+        .joinToString(separator = " · ")
 
 private fun buildCourtMetadata(court: CourtCatalogItem): List<String> {
   val metadata = mutableListOf<String>()
