@@ -48,6 +48,7 @@ describe('complex wizard HTTP contract', () => {
     ]
   };
   const ownedComplexId = '7b9d0b87-9e3d-4b43-b5a7-50f79d82fd40';
+  const ownedCourtId = 'd1240e67-07a4-4a5d-a719-2f3838039d0d';
   const validCourtImageUploadId = '9f6b4f0f-5f5a-4d8d-8c5e-2b2e7b0f6a3c';
   const wrongOwnerImageUploadId = '7a4d9ef5-6be0-47b4-a726-2c6df8a64ce4';
   const wrongPurposeImageUploadId = 'c5d03ef0-8efc-4d06-a8fb-48ae624e28c2';
@@ -720,6 +721,75 @@ describe('complex wizard HTTP contract', () => {
     );
   });
 
+  it('updates an owned court image through the HTTP endpoint even when the authenticated provider changed', async () => {
+    tokenVerifier.verify.mockResolvedValue({
+      sub: 'owner-sub',
+      email: 'owner@example.test',
+      emailVerified: true,
+      name: 'Owner User',
+      pictureUrl: 'https://example.test/owner.png',
+      provider: 'Cognito',
+      groups: ['players']
+    });
+
+    const transactionClient = createTransactionClient(createTransactionalState());
+    prismaService.$transaction.mockImplementation(async (callback) => callback(transactionClient));
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/v1/complexes/${ownedComplexId}/courts/${ownedCourtId}/image`,
+      headers: {
+        Authorization: 'Bearer valid-token'
+      },
+      payload: {
+        imageUploadId: validCourtImageUploadId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.imageUpload.findUnique).toHaveBeenCalledWith({
+      where: { id: validCourtImageUploadId }
+    });
+    expect(transactionClient.court.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: ownedCourtId,
+        deletedAt: null,
+        complex: {
+          deletedAt: null,
+          owner: {
+            identities: {
+              some: {
+                providerSubject: 'owner-sub'
+              }
+            }
+          }
+        }
+      },
+      select: { id: true }
+    });
+    expect(transactionClient.court.update).toHaveBeenCalledWith({
+      where: { id: ownedCourtId },
+      data: { imageUploadId: validCourtImageUploadId },
+      select: expect.any(Object)
+    });
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: ownedCourtId,
+          name: 'Court A',
+          status: 'ACTIVE',
+          availabilityStatus: 'CONFIGURED',
+          imageUrl: null
+        }
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/complexes/${ownedComplexId}/courts/${ownedCourtId}/image`
+      })
+    });
+  });
+
   it.each([
     {
       name: 'rejects an unknown court image upload while creating a complex',
@@ -1172,6 +1242,7 @@ describe('complex wizard HTTP contract', () => {
       complexServicesFound?: boolean;
       courtServicesFound?: boolean;
       ownedComplexFound?: boolean;
+      ownedCourtFound?: boolean;
     }
   ) {
     return {
@@ -1232,9 +1303,13 @@ describe('complex wizard HTTP contract', () => {
         })
       },
       court: {
-        findFirst: jest.fn().mockImplementation(async ({ where }: { where: { imageUploadId?: string } }) => {
+        findFirst: jest.fn().mockImplementation(async ({ where }: { where: { imageUploadId?: string; id?: string } }) => {
           if (where.imageUploadId === alreadyAssignedImageUploadId) {
             return { id: 'existing-court-id' };
+          }
+
+          if (where.id === ownedCourtId) {
+            return options?.ownedCourtFound === false ? null : { id: ownedCourtId };
           }
 
           return null;
@@ -1246,7 +1321,14 @@ describe('complex wizard HTTP contract', () => {
           status: 'ACTIVE',
           createdAt: new Date('2026-06-20T00:00:00.000Z'),
           updatedAt: new Date('2026-06-20T00:00:00.000Z')
-        }))
+        })),
+        update: jest.fn().mockResolvedValue({
+          id: ownedCourtId,
+          name: 'Court A',
+          status: 'ACTIVE',
+          availability: { id: 'availability-id' },
+          imageUpload: null
+        })
       },
       complexService: {
         createMany: jest.fn().mockImplementation(async ({ data }: { data: Array<Record<string, string>> }) => {

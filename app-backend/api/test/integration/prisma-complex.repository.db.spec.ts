@@ -80,6 +80,38 @@ const runLiveDatabaseIntegration =
         await cleanupOwnedCourtFixture(prismaService, fixture);
       }
     });
+
+    it('updates an owned court image when the request provider differs but the Cognito subject still belongs to the owner', async () => {
+      const fixture = await seedOwnedCourtFixture(prismaService);
+      const fileReadUrl: IFileReadUrlPort = {
+        createReadUrl: jest
+          .fn()
+          .mockImplementation(async (objectKey: string) => `https://signed.example.test/${objectKey}`)
+      };
+      const repository = new PrismaComplexRepository(prismaService as never, fileReadUrl);
+
+      try {
+        await expect(
+          repository.updateOwnedCourtImage({
+            ownerIdentity: {
+              sub: fixture.ownerSub,
+              provider: 'Cognito'
+            },
+            complexId: fixture.actualComplexId,
+            courtId: fixture.courtId,
+            imageUploadId: fixture.imageUploadId
+          })
+        ).resolves.toEqual({
+          id: fixture.courtId,
+          name: fixture.courtName,
+          status: 'ACTIVE',
+          availabilityStatus: 'PENDING',
+          imageUrl: `https://signed.example.test/${fixture.objectKey}`
+        });
+      } finally {
+        await cleanupOwnedCourtFixture(prismaService, fixture);
+      }
+    });
   }
 );
 

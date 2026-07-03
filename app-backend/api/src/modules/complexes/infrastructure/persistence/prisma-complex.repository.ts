@@ -317,7 +317,6 @@ export class PrismaComplexRepository implements IComplexRepository {
             owner: {
               identities: {
                 some: {
-                  provider: command.ownerIdentity.provider ?? COGNITO_NATIVE_PROVIDER,
                   providerSubject: command.ownerIdentity.sub
                 }
               }

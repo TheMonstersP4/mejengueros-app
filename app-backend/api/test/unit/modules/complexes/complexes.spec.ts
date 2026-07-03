@@ -1117,7 +1117,6 @@ describe('complexes module behavior', () => {
           owner: {
             identities: {
               some: {
-                provider: 'Google',
                 providerSubject: 'owner-sub'
               }
             }
@@ -1134,6 +1133,48 @@ describe('complexes module behavior', () => {
     expect(fileReadUrl.createReadUrl).toHaveBeenCalledWith(
       'dev/uploads/court-image/owner-sub/2026/06/court-image.png'
     );
+  });
+
+  it('updates one owned court image when the request provider differs but the Cognito subject still matches', async () => {
+    const harness = createRepositoryHarness();
+    const fileReadUrl = createFileReadUrlPort();
+    const repository = new PrismaComplexRepository(harness.prisma as never, fileReadUrl);
+
+    await expect(
+      repository.updateOwnedCourtImage({
+        ownerIdentity: {
+          sub: 'owner-sub',
+          provider: 'Cognito'
+        },
+        complexId: 'complex-id',
+        courtId: 'court-id',
+        imageUploadId: 'court-image-id'
+      })
+    ).resolves.toEqual({
+      id: 'court-id',
+      name: 'Court A',
+      status: 'ACTIVE',
+      availabilityStatus: 'CONFIGURED',
+      imageUrl: 'https://signed.example.test/court-image.png'
+    });
+
+    expect(harness.transactionClients[0].court.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'court-id',
+        deletedAt: null,
+        complex: {
+          deletedAt: null,
+          owner: {
+            identities: {
+              some: {
+                providerSubject: 'owner-sub'
+              }
+            }
+          }
+        }
+      },
+      select: { id: true }
+    });
   });
 
   it('updates one owned court image even when the provided complex id is stale', async () => {
