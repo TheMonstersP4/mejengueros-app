@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { FilesModule } from '../files/files.module';
 import { ListPublicCourtCatalogUseCase } from './application/use-cases/list-public-court-catalog.use-case';
 import { COURT_CATALOG_REPOSITORY } from './domain/repositories/court-catalog.repository';
 import {
@@ -8,6 +9,7 @@ import {
 import { CourtsController } from './interfaces/http/controllers/courts.controller';
 
 @Module({
+  imports: [FilesModule],
   controllers: [CourtsController],
   providers: [
     ListPublicCourtCatalogUseCase,

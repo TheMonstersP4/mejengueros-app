@@ -42,7 +42,7 @@ class CourtCatalogRemoteDataSourceTest {
                               "services": ["Sintetico", "Iluminacion"],
                               "rating": { "average": 4.5, "count": 2 },
                               "isReservableToday": true,
-                              "imageUrl": null
+                              "imageUrl": "https://read.example.test/courts/court-id.jpg"
                             }
                           ]
                         }
@@ -65,6 +65,7 @@ class CourtCatalogRemoteDataSourceTest {
     assertEquals("court-id", courts.single().id)
     assertEquals(listOf("Sintetico", "Iluminacion"), courts.single().services)
     assertEquals(4.5, courts.single().ratingAverage)
+    assertEquals("https://read.example.test/courts/court-id.jpg", courts.single().imageUrl)
   }
 
   @Test

@@ -3,6 +3,11 @@ import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { configureValidation } from '@/bootstrap/validation';
 import { COURT_CATALOG_TODAY_PROVIDER } from '@/modules/courts/infrastructure/persistence/prisma-court-catalog.repository';
+import {
+  FILE_READ_URL_PORT,
+  type IFileReadUrlPort
+} from '@/modules/files/application/ports/file-read-url.port';
+import { StorageInspectionError } from '@/modules/files/infrastructure/errors/storage-inspection.error';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
@@ -21,6 +26,7 @@ describe('public court catalog HTTP contract', () => {
   };
 
   let app: NestFastifyApplication;
+  let fileReadUrl: jest.Mocked<IFileReadUrlPort>;
   let prismaService: ReturnType<typeof createPrismaMock>;
 
   beforeAll(async () => {
@@ -39,12 +45,19 @@ describe('public court catalog HTTP contract', () => {
     const { AppModule } = await import('@/app.module');
 
     prismaService = createPrismaMock();
+    fileReadUrl = {
+      createReadUrl: jest.fn().mockResolvedValue(
+        'https://read.example.test/courts/court-id.jpg'
+      )
+    };
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
     })
       .overrideProvider(COURT_CATALOG_TODAY_PROVIDER)
       .useValue(() => fixedMonday)
+      .overrideProvider(FILE_READ_URL_PORT)
+      .useValue(fileReadUrl)
       .overrideProvider(PrismaService)
       .useValue(prismaService)
       .compile();
@@ -61,6 +74,9 @@ describe('public court catalog HTTP contract', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaService = Object.assign(prismaService, createPrismaMock());
+    fileReadUrl.createReadUrl.mockResolvedValue(
+      'https://read.example.test/courts/court-id.jpg'
+    );
   });
 
   afterAll(async () => {
@@ -121,7 +137,7 @@ describe('public court catalog HTTP contract', () => {
             count: 2
           },
           isReservableToday: true,
-          imageUrl: null
+          imageUrl: 'https://read.example.test/courts/court-id.jpg'
         }
       ],
       errors: [],
@@ -129,6 +145,39 @@ describe('public court catalog HTTP contract', () => {
         path: '/v1/courts/catalog?q=nogales&provinceId=3f91fe4d-a23b-4f85-ae1a-90db47d624f1&cantonId=1f6adf24-ea42-4c49-9179-c5f73fef7a41'
       })
     });
+    expect(fileReadUrl.createReadUrl).toHaveBeenCalledWith(
+      'test/uploads/court-image/court-id.jpg'
+    );
+  });
+
+  it('returns imageUrl null and does not request a read URL when a catalog court has no image upload', async () => {
+    prismaService.court.findMany.mockResolvedValue([
+      {
+        ...createCatalogCourtRow(),
+        imageUpload: null
+      }
+    ]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?q=no-image'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: [
+        expect.objectContaining({
+          courtId: 'court-id',
+          imageUrl: null
+        })
+      ],
+      errors: [],
+      meta: expect.objectContaining({
+        path: '/v1/courts/catalog?q=no-image'
+      })
+    });
+    expect(fileReadUrl.createReadUrl).not.toHaveBeenCalled();
   });
 
   it('rejects a canton filter that does not belong to the selected province', async () => {
@@ -174,6 +223,35 @@ describe('public court catalog HTTP contract', () => {
         path: '/v1/courts/catalog?q=no-results'
       })
     });
+  });
+
+  it('fails fast with the standard 502 envelope when catalog image signing fails', async () => {
+    fileReadUrl.createReadUrl.mockRejectedValue(
+      new StorageInspectionError('test/uploads/court-image/court-id.jpg', new Error('signer failed'))
+    );
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?q=signer-failure'
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.EXTERNAL_SERVICE_ERROR,
+            status: 502,
+            message: 'Unable to inspect the uploaded file right now.'
+          })
+        ],
+        meta: expect.objectContaining({
+          path: '/v1/courts/catalog?q=signer-failure'
+        })
+      })
+    );
   });
 
   it('rejects an overlong q query with the global 400 envelope', async () => {
@@ -263,39 +341,44 @@ describe('public court catalog HTTP contract', () => {
         findFirst: jest.fn().mockResolvedValue({ id: '1f6adf24-ea42-4c49-9179-c5f73fef7a41' })
       },
       court: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'court-id',
-            name: 'Cancha 1',
-            services: [
-              { serviceCatalog: { name: 'Iluminacion' } },
-              { serviceCatalog: { name: 'Sintetico' } }
-            ],
-            complex: {
-              id: 'complex-id',
-              name: 'Complejo Los Nogales',
-              province: {
-                id: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
-                name: 'San José'
-              },
-              canton: {
-                id: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
-                name: 'Escazú'
-              },
-              services: [{ serviceCatalog: { name: 'Parqueo' } }]
-            },
-            availability: {
-              days: [
-                {
-                  day: 'MONDAY'
-                }
-              ]
-            }
-          }
-        ])
+        findMany: jest.fn().mockResolvedValue([createCatalogCourtRow()])
       },
       onModuleInit: jest.fn(),
       onModuleDestroy: jest.fn()
+    };
+  }
+
+  function createCatalogCourtRow() {
+    return {
+      id: 'court-id',
+      name: 'Cancha 1',
+      services: [
+        { serviceCatalog: { name: 'Iluminacion' } },
+        { serviceCatalog: { name: 'Sintetico' } }
+      ],
+      complex: {
+        id: 'complex-id',
+        name: 'Complejo Los Nogales',
+        province: {
+          id: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
+          name: 'San José'
+        },
+        canton: {
+          id: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
+          name: 'Escazú'
+        },
+        services: [{ serviceCatalog: { name: 'Parqueo' } }]
+      },
+      availability: {
+        days: [
+          {
+            day: 'MONDAY'
+          }
+        ]
+      },
+      imageUpload: {
+        objectKey: 'test/uploads/court-image/court-id.jpg'
+      }
     };
   }
 });

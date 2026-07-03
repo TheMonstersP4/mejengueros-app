@@ -27,7 +27,7 @@ export class CourtsController {
     CourtCatalogResponse,
     'Public court catalog items wrapped in the API response envelope.'
   )
-  @ApiEnvelopeErrors(400)
+  @ApiEnvelopeErrors(400, 502)
   async listCatalog(
     @Query() query: ListCourtCatalogQuery
   ): Promise<CourtCatalogResponse[]> {

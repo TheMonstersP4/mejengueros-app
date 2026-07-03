@@ -2,7 +2,9 @@ import { ListCantonsByProvinceUseCase } from '@/modules/locations/application/us
 import { ListProvincesUseCase } from '@/modules/locations/application/use-cases/list-provinces.use-case';
 import { ListPublicCourtCatalogUseCase } from '@/modules/courts/application/use-cases/list-public-court-catalog.use-case';
 import { PrismaCourtCatalogRepository } from '@/modules/courts/infrastructure/persistence/prisma-court-catalog.repository';
+import type { IFileReadUrlPort } from '@/modules/files/application/ports/file-read-url.port';
 import { CourtsController } from '@/modules/courts/interfaces/http/controllers/courts.controller';
+import { StorageInspectionError } from '@/modules/files/infrastructure/errors/storage-inspection.error';
 import { PrismaLocationCatalogRepository } from '@/modules/locations/infrastructure/persistence/prisma-location-catalog.repository';
 import { LocationsController } from '@/modules/locations/interfaces/http/controllers/locations.controller';
 import { ListActiveServicesUseCase } from '@/modules/service-catalog/application/use-cases/list-active-services.use-case';
@@ -10,6 +12,7 @@ import { PrismaServiceCatalogRepository } from '@/modules/service-catalog/infras
 import { ServiceCatalogController } from '@/modules/service-catalog/interfaces/http/controllers/service-catalog.controller';
 
 const FIXED_MONDAY = new Date('2026-06-22T12:00:00.000Z');
+const CATALOG_IMAGE_READ_URL = 'https://read.example.test/courts/court-id.jpg';
 
 describe('catalog modules behavior', () => {
   it('delegates locations controllers and use cases to the repository', async () => {
@@ -144,6 +147,7 @@ describe('catalog modules behavior', () => {
   });
 
   it('builds Prisma queries for the public court catalog and validates province/canton pairs', async () => {
+    const fileStorage = createFileReadUrlMock();
     const prisma = {
       $queryRaw: jest.fn().mockResolvedValue([{ courtId: 'court-id', average: 4.5, count: 2 }]),
       canton: {
@@ -164,6 +168,9 @@ describe('catalog modules behavior', () => {
             },
             availability: {
               days: [{ day: 'MONDAY' }]
+            },
+            imageUpload: {
+              objectKey: 'test/uploads/court-image/court-id.jpg'
             }
           }
         ])
@@ -171,6 +178,7 @@ describe('catalog modules behavior', () => {
     };
     const repository = new PrismaCourtCatalogRepository(
       prisma as never,
+      fileStorage,
       () => FIXED_MONDAY
     );
 
@@ -212,18 +220,27 @@ describe('catalog modules behavior', () => {
         select: expect.objectContaining({
           complex: expect.any(Object),
           services: expect.any(Object),
-          availability: expect.any(Object)
+          availability: expect.any(Object),
+          imageUpload: {
+            select: {
+              objectKey: true
+            }
+          }
         })
       })
     );
     expect(prisma.court.findMany.mock.calls[0][0].select).not.toHaveProperty('reservations');
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(fileStorage.createReadUrl).toHaveBeenCalledWith(
+      'test/uploads/court-image/court-id.jpg'
+    );
     expect(prisma.$queryRaw.mock.calls[0]?.[0]?.strings?.join(' ')).toContain(
       'AVG(review.rating)::float8 AS average'
     );
   });
 
   it('returns empty rating aggregates when a court has no reviews', async () => {
+    const fileStorage = createFileReadUrlMock();
     const prisma = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       canton: {
@@ -242,23 +259,97 @@ describe('catalog modules behavior', () => {
               canton: { id: 'canton-id', name: 'Escazú' },
               services: []
             },
-            availability: null
+            availability: null,
+            imageUpload: null
           }
         ])
       }
     };
-    const repository = new PrismaCourtCatalogRepository(prisma as never);
+    const repository = new PrismaCourtCatalogRepository(prisma as never, fileStorage);
 
     await expect(repository.listPublicCatalog({})).resolves.toEqual([
       expect.objectContaining({
         courtId: 'court-id',
         rating: { average: null, count: 0 },
-        isReservableToday: false
+        isReservableToday: false,
+        imageUrl: null
       })
+    ]);
+    expect(fileStorage.createReadUrl).not.toHaveBeenCalled();
+  });
+
+  it('keeps each catalog court imageUrl matched to its own object key when read URLs resolve out of order', async () => {
+    const fileStorage = createFileReadUrlMock();
+    fileStorage.createReadUrl.mockImplementation((objectKey: string) =>
+      objectKey === 'test/uploads/court-image/court-a.jpg'
+        ? new Promise((resolve) => setTimeout(() => resolve('https://read.example.test/courts/court-a.jpg'), 10))
+        : Promise.resolve('https://read.example.test/courts/court-b.jpg')
+    );
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn()
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([
+          createCatalogCourtRow({
+            id: 'court-a',
+            name: 'Court A',
+            imageObjectKey: 'test/uploads/court-image/court-a.jpg'
+          }),
+          createCatalogCourtRow({
+            id: 'court-b',
+            name: 'Court B',
+            imageObjectKey: 'test/uploads/court-image/court-b.jpg'
+          })
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(prisma as never, fileStorage);
+
+    await expect(repository.listPublicCatalog({})).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-a',
+        imageUrl: 'https://read.example.test/courts/court-a.jpg'
+      }),
+      expect.objectContaining({
+        courtId: 'court-b',
+        imageUrl: 'https://read.example.test/courts/court-b.jpg'
+      })
+    ]);
+    expect(fileStorage.createReadUrl.mock.calls).toEqual([
+      ['test/uploads/court-image/court-a.jpg'],
+      ['test/uploads/court-image/court-b.jpg']
     ]);
   });
 
+  it('propagates catalog image signer failures instead of degrading imageUrl to null', async () => {
+    const fileStorage = createFileReadUrlMock();
+    fileStorage.createReadUrl.mockRejectedValue(
+      new StorageInspectionError('test/uploads/court-image/court-id.jpg', new Error('signer failed'))
+    );
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn()
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([
+          createCatalogCourtRow({
+            id: 'court-id',
+            name: 'Court A',
+            imageObjectKey: 'test/uploads/court-image/court-id.jpg'
+          })
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(prisma as never, fileStorage);
+
+    await expect(repository.listPublicCatalog({})).rejects.toThrow(StorageInspectionError);
+  });
+
   it('calculates isReservableToday from the injected date provider', async () => {
+    const fileStorage = createFileReadUrlMock();
     const prisma = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       canton: {
@@ -279,13 +370,15 @@ describe('catalog modules behavior', () => {
             },
             availability: {
               days: [{ day: 'TUESDAY' }]
-            }
+            },
+            imageUpload: null
           }
         ])
       }
     };
     const repository = new PrismaCourtCatalogRepository(
       prisma as never,
+      fileStorage,
       () => FIXED_MONDAY
     );
 
@@ -298,6 +391,7 @@ describe('catalog modules behavior', () => {
   });
 
   it('uses the UTC weekday for isReservableToday near timezone boundaries', async () => {
+    const fileStorage = createFileReadUrlMock();
     const prisma = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       canton: {
@@ -318,13 +412,15 @@ describe('catalog modules behavior', () => {
             },
             availability: {
               days: [{ day: 'TUESDAY' }]
-            }
+            },
+            imageUpload: null
           }
         ])
       }
     };
     const repository = new PrismaCourtCatalogRepository(
       prisma as never,
+      fileStorage,
       () => new Date('2026-06-22T23:30:00.000-05:00')
     );
 
@@ -335,4 +431,35 @@ describe('catalog modules behavior', () => {
       })
     ]);
   });
+
+  function createFileReadUrlMock(): jest.Mocked<IFileReadUrlPort> {
+    return {
+      createReadUrl: jest.fn().mockResolvedValue(CATALOG_IMAGE_READ_URL)
+    };
+  }
+
+  function createCatalogCourtRow({
+    id,
+    name,
+    imageObjectKey
+  }: {
+    id: string;
+    name: string;
+    imageObjectKey: string | null;
+  }) {
+    return {
+      id,
+      name,
+      services: [],
+      complex: {
+        id: 'complex-id',
+        name: 'North Sports Center',
+        province: { id: 'province-id', name: 'San José' },
+        canton: { id: 'canton-id', name: 'Escazú' },
+        services: []
+      },
+      availability: null,
+      imageUpload: imageObjectKey ? { objectKey: imageObjectKey } : null
+    };
+  }
 });
