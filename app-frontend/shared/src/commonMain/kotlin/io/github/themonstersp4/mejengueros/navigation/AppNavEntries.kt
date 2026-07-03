@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -44,6 +45,8 @@ import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
@@ -530,6 +533,17 @@ private fun ComplexDetailEntry(
 ) {
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
+  val pickerCoordinator =
+      remember(route.complexId, myComplexViewModel) {
+        ComplexDetailCourtImagePickerCoordinator(
+            complexId = route.complexId,
+            updateCourtImage = myComplexViewModel::updateCourtImage,
+        )
+      }
+  val courtImagePicker = rememberCourtImagePicker(pickerCoordinator::onImagePicked)
+  LaunchedEffect(courtImagePicker.isAvailable) {
+    myComplexViewModel.updateCourtImagePickerAvailability(courtImagePicker.isAvailable)
+  }
   MyComplexInitialRefreshEffect(state = state, onInitialLoadRequested = myComplexViewModel::refresh)
   MyComplexHubReloadEffect(
       reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
@@ -541,6 +555,10 @@ private fun ComplexDetailEntry(
       state = state,
       shellActions = shellActions,
       onRetry = myComplexViewModel::refresh,
+      onAcknowledgeCourtImageSuccess = myComplexViewModel::acknowledgeCourtImageSuccess,
+      onPickCourtImage = { courtId ->
+        pickerCoordinator.onPickCourtImage(courtId, courtImagePicker.launch)
+      },
   )
 }
 
@@ -550,6 +568,8 @@ internal fun ComplexDetailRouteContent(
     state: MyComplexUiState,
     shellActions: AuthenticatedShellActions,
     onRetry: () -> Unit,
+    onAcknowledgeCourtImageSuccess: () -> Unit = {},
+    onPickCourtImage: (String) -> Unit = {},
 ) {
   OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
     val complex = state.complexes.firstOrNull { it.id == route.complexId }
@@ -590,10 +610,31 @@ internal fun ComplexDetailRouteContent(
           complex = complex,
           isLoading = state.isLoading,
           errorMessage = state.errorMessage,
+          courtImageErrorMessage = state.courtImageErrorMessage,
+          isCourtImagePickerAvailable = state.isCourtImagePickerAvailable,
+          isUpdatingCourtImage = state.isUpdatingCourtImage,
           contentPadding = contentPadding,
           onRetry = onRetry,
           onConfigureAvailability = shellActions.openCourtAvailability,
+          onPickCourtImage = onPickCourtImage,
       )
+
+      MejenguerosLoadingDialog(
+          visible = state.isUpdatingCourtImage,
+          title = "Actualizando imagen",
+          message = "Estamos subiendo y asociando la imagen de la cancha.",
+      )
+
+      state.courtImageSuccessMessage?.let { message ->
+        MejenguerosConfirmationDialog(
+            title = "Imagen actualizada",
+            message = message,
+            confirmText = "Aceptar",
+            onConfirm = onAcknowledgeCourtImageSuccess,
+            onDismissRequest = {},
+            modifier = Modifier.testTag("complex_detail_image_success_dialog"),
+        )
+      }
     }
   }
 }
@@ -603,17 +644,25 @@ internal fun ComplexDetailEntryContent(
     complex: io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex?,
     isLoading: Boolean,
     errorMessage: String?,
+    courtImageErrorMessage: String? = null,
+    isCourtImagePickerAvailable: Boolean = false,
+    isUpdatingCourtImage: Boolean = false,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit = {},
 ) {
   ComplexDetailScreen(
       complex = complex,
       isLoading = isLoading,
       errorMessage = errorMessage,
+      courtImageErrorMessage = courtImageErrorMessage,
+      isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+      isUpdatingCourtImage = isUpdatingCourtImage,
       contentPadding = contentPadding,
       onRetry = onRetry,
       onConfigureAvailability = onConfigureAvailability,
+      onPickCourtImage = onPickCourtImage,
   )
 }
 

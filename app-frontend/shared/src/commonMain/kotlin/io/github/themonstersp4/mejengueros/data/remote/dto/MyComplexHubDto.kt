@@ -33,4 +33,21 @@ data class MyComplexHubCourtDto(
     val name: String,
     val status: String,
     val availabilityStatus: CourtAvailabilitySetupStatus,
+    val imageUrl: String? = null,
+)
+
+@Serializable
+data class UpdateCourtImageRequestDto(
+    val imageUploadId: String,
+)
+
+@Serializable
+data class UpdateCourtImageEnvelopeDto(
+    val success: Boolean,
+    val data: UpdateCourtImageEnvelopeDataDto? = null,
+)
+
+@Serializable
+data class UpdateCourtImageEnvelopeDataDto(
+    val court: MyComplexHubCourtDto,
 )

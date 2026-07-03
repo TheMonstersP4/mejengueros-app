@@ -34,6 +34,12 @@ class ComplexRepository(private val remoteDataSource: IComplexRemoteDataSource) 
     return remoteDataSource.addCourt(complexId, request)
   }
 
+  override suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ) = remoteDataSource.updateCourtImage(complexId, courtId, imageUploadId)
+
   override suspend fun getMyComplexHub(): MyComplexHub {
     return remoteDataSource.getMyComplexHub()
   }

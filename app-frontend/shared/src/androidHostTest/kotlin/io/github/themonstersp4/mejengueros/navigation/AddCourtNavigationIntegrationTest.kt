@@ -350,6 +350,31 @@ class AddCourtNavigationIntegrationTest {
   }
 
   @Test
+  fun complexDetailRouteShowsLoadingDialogWhileCourtImageUpdateIsInFlight() {
+    val navigationState = testNavigationState().apply { openComplexDetail("complex-id") }
+
+    composeRule.setContent {
+      AddCourtNavigationTestHost(
+          navigationState = navigationState,
+          shellActions = shellActions(navigationState),
+          viewModel = unusedAddCourtViewModel(),
+          myComplexState =
+              MyComplexUiState(
+                  complexes = listOf(defaultComplex()),
+                  isUpdatingCourtImage = true,
+              ),
+          onMyComplexReloadRequested = {},
+      )
+    }
+
+    composeRule.onNodeWithTag("mejengueros_loading_dialog").assertExists()
+    composeRule.onNodeWithText("Actualizando imagen").assertExists()
+    composeRule
+        .onNodeWithText("Estamos subiendo y asociando la imagen de la cancha.")
+        .assertExists()
+  }
+
+  @Test
   fun nonOwnerRestoredMyComplexRouteRedirectsToSearchWithoutRenderingOwnerHub() {
     val navigationState = testNavigationState()
 

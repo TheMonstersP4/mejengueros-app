@@ -21,5 +21,11 @@ interface IComplexRemoteDataSource {
 
   suspend fun addCourt(complexId: String, request: CreateCourtRequest): CreatedCourt
 
+  suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ): io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
+
   suspend fun getMyComplexHub(): MyComplexHub
 }
