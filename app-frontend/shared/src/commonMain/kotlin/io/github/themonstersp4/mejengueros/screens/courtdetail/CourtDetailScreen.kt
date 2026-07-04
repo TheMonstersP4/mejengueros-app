@@ -233,16 +233,16 @@ private fun DisponibilidadSection(
 
       state.slots.isEmpty() -> {
         MejenguerosStateContent(
-            title = "No hay horarios para hoy",
+            title = "Sin horarios próximos",
             description =
-                "Esta cancha puede tener espacios en otras fechas. Tocá \"Reservar cancha\" para revisar otros días.",
+                "No encontramos horarios disponibles en los próximos días. Tocá \"Reservar cancha\" para revisar más fechas.",
             variant = MejenguerosStateVariant.Empty,
             modifier = Modifier.testTag("court_detail_no_slots_state"),
         )
       }
 
       else -> {
-        AvailableTodayPill()
+        AvailabilityPill(label = state.availabilityHeadline ?: "Próximo horario disponible")
         SlotGrid(slots = state.slots)
       }
     }
@@ -250,7 +250,7 @@ private fun DisponibilidadSection(
 }
 
 @Composable
-private fun AvailableTodayPill() {
+private fun AvailabilityPill(label: String) {
   Surface(
       shape = RoundedCornerShape(999.dp),
       color = MaterialTheme.colorScheme.primaryContainer,
@@ -270,7 +270,7 @@ private fun AvailableTodayPill() {
                   )
       )
       Text(
-          text = "Hoy · slots de 1 hora",
+          text = label,
           style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
       )
     }

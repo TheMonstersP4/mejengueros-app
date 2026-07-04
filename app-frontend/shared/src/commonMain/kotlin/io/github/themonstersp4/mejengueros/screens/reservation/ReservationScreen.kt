@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -21,6 +22,7 @@ import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationU
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosDateChipRow
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReservationSummaryBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSlotGrid
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSlotUiModel
@@ -85,60 +87,72 @@ private fun ReservationSelectionContent(
         modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-      ReservationSection(title = "Elegí el día") {
-        MejenguerosDateChipRow(
-            dates = state.dates.map { date -> date.dayLabel to date.dateLabel },
-            selectedIndex = state.selectedDateIndex,
-            onDateSelected = actions.onDateSelected,
-        )
-      }
+      if (state.dates.isEmpty() && !state.isLoadingSlots && state.loadErrorMessage == null) {
+        ReservationSection(title = "Elegí el día") {
+          MejenguerosStateContent(
+              title = "Sin fechas disponibles",
+              description =
+                  "No encontramos días con horarios disponibles para esta cancha en este momento. Intentá de nuevo más tarde.",
+              variant = MejenguerosStateVariant.Empty,
+          )
+        }
+      } else {
+        ReservationSection(title = "Elegí el día") {
+          MejenguerosDateChipRow(
+              dates = state.dates.map { date -> date.dayLabel to date.dateLabel },
+              selectedIndex = state.selectedDateIndex,
+              onDateSelected = actions.onDateSelected,
+          )
+        }
 
-      ReservationSection(title = "Horarios de 1 hora") {
-        MejenguerosSupportingText(
-            text = "Los horarios tachados ya no están disponibles para esta cancha.",
-        )
+        ReservationSection(title = "Horarios de 1 hora") {
+          MejenguerosSupportingText(
+              text = "Los horarios tachados ya no están disponibles para esta cancha.",
+          )
 
-        when {
-          state.isLoadingSlots -> {
-            Text(
-                text = "Cargando horarios disponibles...",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
+          when {
+            state.isLoadingSlots -> {
+              MejenguerosInlineLoadingState(
+                  text = "Cargando horarios disponibles",
+                  modifier = Modifier.fillMaxWidth(),
+                  containerTestTag = "reservation_slots_loading",
+                  indicatorTestTag = "reservation_slots_loading_indicator",
+              )
+            }
 
-          state.loadErrorMessage != null -> {
-            MejenguerosStateContent(
-                title = "No pudimos cargar horarios",
-                description = state.loadErrorMessage,
-                variant = MejenguerosStateVariant.Error,
-                actions = {
-                  MejenguerosFullWidthOutlinedButton(
-                      text = "Reintentar",
-                      onClick = actions.onRetryLoad,
-                  )
-                },
-            )
-          }
+            state.loadErrorMessage != null -> {
+              MejenguerosStateContent(
+                  title = "No pudimos cargar horarios",
+                  description = state.loadErrorMessage,
+                  variant = MejenguerosStateVariant.Error,
+                  actions = {
+                    MejenguerosFullWidthOutlinedButton(
+                        text = "Reintentar",
+                        onClick = actions.onRetryLoad,
+                    )
+                  },
+              )
+            }
 
-          state.slots.isEmpty() -> {
-            MejenguerosStateContent(
-                title = "Sin horarios disponibles",
-                description =
-                    "No encontramos slots de una hora para la fecha seleccionada. Probá otro día.",
-                variant = MejenguerosStateVariant.Empty,
-            )
-          }
+            state.slots.isEmpty() -> {
+              MejenguerosStateContent(
+                  title = "Sin horarios disponibles",
+                  description =
+                      "No encontramos slots de una hora para la fecha seleccionada. Probá otro día.",
+                  variant = MejenguerosStateVariant.Empty,
+              )
+            }
 
-          else -> {
-            MejenguerosSlotGrid(
-                slots =
-                    state.slots.map { slot ->
-                      MejenguerosSlotUiModel(id = slot.id, label = slot.label, state = slot.state)
-                    },
-                onSlotSelected = actions.onSlotSelected,
-                modifier = Modifier.testTag("reservation_slot_grid"),
-            )
+            else -> {
+              MejenguerosSlotGrid(
+                  slots =
+                      state.slots.map { slot ->
+                        MejenguerosSlotUiModel(id = slot.id, label = slot.label, state = slot.state)
+                      },
+                  onSlotSelected = actions.onSlotSelected,
+                  modifier = Modifier.testTag("reservation_slot_grid"),
+              )
+            }
           }
         }
       }
@@ -234,7 +248,11 @@ private fun ReservationSection(
     title: String,
     content: @Composable () -> Unit,
 ) {
-  Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+  Column(
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+      horizontalAlignment = Alignment.Start,
+      modifier = Modifier.fillMaxWidth(),
+  ) {
     Text(
         text = title.uppercase(),
         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),

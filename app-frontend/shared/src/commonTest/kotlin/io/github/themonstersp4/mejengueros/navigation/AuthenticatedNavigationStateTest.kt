@@ -238,8 +238,43 @@ class AuthenticatedNavigationStateTest {
                 complexId = "complex-id",
                 complexName = "Mejengas CR",
                 courtName = "Cancha 1",
+                attemptId = 1,
             ),
         ),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
+  fun reopeningCatalogReservationForSameCourtAssignsFreshAttemptRoute() {
+    val state = testNavigationState()
+
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+    val firstAttempt = state.currentBackStack.last() as CatalogReservationRoute
+
+    state.returnToSearchRoot()
+    state.openCatalogCourtDetail(sampleCatalogDetailRoute())
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+    val secondAttempt = state.currentBackStack.last() as CatalogReservationRoute
+
+    assertEquals(1L, firstAttempt.attemptId)
+    assertEquals(2L, secondAttempt.attemptId)
+    assertEquals(
+        listOf(SearchRoute, sampleCatalogDetailRoute(), secondAttempt),
         state.currentBackStack.toList(),
     )
   }

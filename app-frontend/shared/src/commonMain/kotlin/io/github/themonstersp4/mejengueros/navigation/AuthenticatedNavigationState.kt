@@ -304,6 +304,12 @@ class AuthenticatedNavigationState(
     private val viewingAsPlayerState: MutableState<Boolean>,
     private val hydratedOwnerPreferenceUserIdState: MutableState<String?>,
 ) {
+  private var nextCatalogReservationAttemptId: Long =
+      searchBackStack
+          .filterIsInstance<CatalogReservationRoute>()
+          .maxOfOrNull { it.attemptId }
+          ?.plus(1) ?: 1L
+
   var selectedRoute: AuthenticatedTopLevelRoute by selectedRoute
     private set
 
@@ -370,14 +376,20 @@ class AuthenticatedNavigationState(
 
   fun openCatalogReservation(route: CatalogReservationRoute) {
     navigateTo(AuthenticatedTopLevelRoute.Search)
+    val reservationRoute =
+        if (route.requiresGeneratedAttemptId()) {
+          route.copy(attemptId = nextCatalogReservationAttemptId++)
+        } else {
+          route
+        }
     val detailRoute =
         CatalogCourtDetailRoute(
-            courtId = route.courtId,
-            complexId = route.complexId,
-            complexName = route.complexName,
-            courtName = route.courtName,
-            provinceName = route.provinceName,
-            cantonName = route.cantonName,
+            courtId = reservationRoute.courtId,
+            complexId = reservationRoute.complexId,
+            complexName = reservationRoute.complexName,
+            courtName = reservationRoute.courtName,
+            provinceName = reservationRoute.provinceName,
+            cantonName = reservationRoute.cantonName,
         )
     if (searchBackStack.none { it == detailRoute }) {
       while (searchBackStack.size > 1) {
@@ -389,10 +401,13 @@ class AuthenticatedNavigationState(
         searchBackStack.removeLastOrNull()
       }
     }
-    if (searchBackStack.lastOrNull() != route) {
-      searchBackStack.add(route)
+    if (searchBackStack.lastOrNull() != reservationRoute) {
+      searchBackStack.add(reservationRoute)
     }
   }
+
+  private fun CatalogReservationRoute.requiresGeneratedAttemptId(): Boolean =
+      attemptId == UnspecifiedCatalogReservationAttemptId
 
   fun openComplexDetail(complexId: String) {
     navigateTo(AuthenticatedTopLevelRoute.MyComplex)

@@ -91,11 +91,11 @@ val dataModule = module {
   single<ICourtDetailRemoteDataSource> {
     CourtDetailRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
-  single<ICourtDetailRepository> { CourtDetailRepository(get()) }
   single<IReservationRemoteDataSource> {
     ReservationRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
   single<IReservationRepository> { ReservationRepository(get()) }
+  single<ICourtDetailRepository> { CourtDetailRepository(get()) }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }

@@ -5,6 +5,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable sealed interface AppRoute : NavKey
 
+internal const val UnspecifiedCatalogReservationAttemptId = 0L
+
 @Serializable data object LoginRoute : AppRoute
 
 @Serializable data object RegisterRoute : AppRoute
@@ -42,6 +44,7 @@ data class CatalogReservationRoute(
     val courtName: String,
     val provinceName: String = "",
     val cantonName: String = "",
+    val attemptId: Long = UnspecifiedCatalogReservationAttemptId,
 ) : AppRoute
 
 @Serializable data object ReservationsRoute : AppRoute

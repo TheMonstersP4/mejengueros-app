@@ -3,11 +3,18 @@ package io.github.themonstersp4.mejengueros.data.repository
 import io.github.themonstersp4.mejengueros.data.remote.IReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 
 class ReservationRepository(
     private val remoteDataSource: IReservationRemoteDataSource,
 ) : IReservationRepository {
+  override suspend fun getReservableDays(
+      courtId: String,
+      fromUtcDate: String,
+      days: Int,
+  ): ReservationDayDiscovery = remoteDataSource.getReservableDays(courtId, fromUtcDate, days)
+
   override suspend fun getReservableSlots(
       courtId: String,
       dateUtc: String,

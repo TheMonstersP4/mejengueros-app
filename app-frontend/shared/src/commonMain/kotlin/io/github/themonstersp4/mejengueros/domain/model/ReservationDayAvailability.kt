@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.domain.model
 
 data class ReservationDayAvailability(
     val dateUtc: String,
+    val referenceDateUtc: String = dateUtc,
     val availabilityStatus: ReservationAvailabilityStatus,
     val slots: List<ReservableSlot>,
 )

@@ -33,6 +33,7 @@ class CourtDetailScreenBehaviorTest {
             state =
                 CourtDetailUiState(
                     isLoadingSlots = false,
+                    availabilityHeadline = "Hoy · slots de 1 hora",
                     slots =
                         listOf(
                             CourtDetailSlot(displayTime = "08:00"),
@@ -53,6 +54,7 @@ class CourtDetailScreenBehaviorTest {
     composeRule.onNodeWithTag("court_detail_servicios_section").assertExists()
     composeRule.onNodeWithText("Parqueo").assertExists()
     composeRule.onNodeWithText("Iluminación").assertExists()
+    composeRule.onNodeWithText("Hoy · slots de 1 hora").assertExists()
     composeRule.onNodeWithTag("court_detail_slot_08:00").assertExists()
     composeRule.onNodeWithTag("court_detail_slot_09:00").assertExists()
     composeRule.onNodeWithTag("court_detail_reserve_button").assertExists()
@@ -80,13 +82,43 @@ class CourtDetailScreenBehaviorTest {
     }
 
     composeRule.onNodeWithTag("court_detail_no_slots_state").assertExists()
-    composeRule.onNodeWithText("No hay horarios para hoy").assertExists()
+    composeRule.onNodeWithText("Sin horarios próximos").assertExists()
     composeRule
         .onNodeWithText(
-            "Esta cancha puede tener espacios en otras fechas. Tocá \"Reservar cancha\" para revisar otros días."
+            "No encontramos horarios disponibles en los próximos días. Tocá \"Reservar cancha\" para revisar más fechas."
         )
         .assertExists()
     composeRule.onNodeWithTag("court_detail_reserve_button").assertExists()
+  }
+
+  @Test
+  fun detailScreenShowsFutureAvailabilityHeadlineWhenPreviewComesFromAnotherDay() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    availabilityHeadline = "Próximo día disponible · Jue, 2 de julio",
+                    slots = listOf(CourtDetailSlot(displayTime = "18:00")),
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Próximo día disponible · Jue, 2 de julio").assertExists()
+    composeRule.onNodeWithTag("court_detail_slot_18:00").assertExists()
   }
 
   @Test

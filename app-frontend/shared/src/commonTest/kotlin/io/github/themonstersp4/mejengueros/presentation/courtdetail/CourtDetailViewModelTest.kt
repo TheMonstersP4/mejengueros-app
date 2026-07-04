@@ -1,6 +1,8 @@
 package io.github.themonstersp4.mejengueros.presentation.courtdetail
 
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
+import io.github.themonstersp4.mejengueros.domain.model.ReservationAvailabilityStatus
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,7 +27,7 @@ class CourtDetailViewModelTest {
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
-          val repository = FakeCourtDetailRepository(successSlots = defaultSlots)
+          val repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability)
           val viewModel =
               CourtDetailViewModel(
                   courtId = "court-1",
@@ -38,6 +40,7 @@ class CourtDetailViewModelTest {
           advanceUntilIdle()
 
           assertFalse(viewModel.uiState.value.isLoadingSlots)
+          assertEquals("Hoy · slots de 1 hora", viewModel.uiState.value.availabilityHeadline)
           assertNull(viewModel.uiState.value.slotsErrorMessage)
           assertEquals(
               listOf("08:00", "09:00", "10:00"),
@@ -53,7 +56,7 @@ class CourtDetailViewModelTest {
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
-          val repository = FakeCourtDetailRepository(successSlots = emptyList())
+          val repository = FakeCourtDetailRepository(availabilityPreview = null)
           val viewModel =
               CourtDetailViewModel(
                   courtId = "court-1",
@@ -64,6 +67,7 @@ class CourtDetailViewModelTest {
           advanceUntilIdle()
 
           assertFalse(viewModel.uiState.value.isLoadingSlots)
+          assertNull(viewModel.uiState.value.availabilityHeadline)
           assertNull(viewModel.uiState.value.slotsErrorMessage)
           assertTrue(viewModel.uiState.value.slots.isEmpty())
         } finally {
@@ -98,7 +102,7 @@ class CourtDetailViewModelTest {
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         try {
-          val repository = FlakyCourtDetailRepository(successSlots = defaultSlots)
+          val repository = FlakyCourtDetailRepository(availabilityPreview = defaultAvailability)
           val viewModel =
               CourtDetailViewModel(
                   courtId = "court-1",
@@ -114,6 +118,69 @@ class CourtDetailViewModelTest {
 
           assertNull(viewModel.uiState.value.slotsErrorMessage)
           assertEquals(3, viewModel.uiState.value.slots.size)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun initWithNextAvailableDayExposesFutureAvailabilityHeadline() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              FakeCourtDetailRepository(
+                  availabilityPreview =
+                      ReservationDayAvailability(
+                          dateUtc = "2026-07-02",
+                          referenceDateUtc = "2026-07-01",
+                          availabilityStatus = ReservationAvailabilityStatus.Available,
+                          slots = defaultSlots,
+                      )
+              )
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = repository,
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+
+          assertEquals(
+              "Próximo día disponible · Jue, 2 de julio",
+              viewModel.uiState.value.availabilityHeadline,
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun initUsesRepositoryReferenceDateForAvailabilityHeadlineClassification() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              FakeCourtDetailRepository(
+                  availabilityPreview =
+                      ReservationDayAvailability(
+                          dateUtc = "2026-07-02",
+                          referenceDateUtc = "2026-07-02",
+                          availabilityStatus = ReservationAvailabilityStatus.Available,
+                          slots = defaultSlots,
+                      )
+              )
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = repository,
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+
+          assertEquals("Hoy · slots de 1 hora", viewModel.uiState.value.availabilityHeadline)
         } finally {
           Dispatchers.resetMain()
         }
@@ -136,27 +203,39 @@ private val defaultSlots =
         ),
     )
 
+private val defaultAvailability =
+    ReservationDayAvailability(
+        dateUtc = "2026-07-01",
+        availabilityStatus = ReservationAvailabilityStatus.Available,
+        slots = defaultSlots,
+    )
+
 private class FakeCourtDetailRepository(
-    private val successSlots: List<ReservableSlot>,
+    private val availabilityPreview: ReservationDayAvailability?,
 ) : ICourtDetailRepository {
-  override suspend fun getReservableSlotsForToday(courtId: String): List<ReservableSlot> =
-      successSlots
+  override suspend fun getUpcomingReservableSlotsPreview(
+      courtId: String,
+  ): ReservationDayAvailability? = availabilityPreview
 }
 
 private class FailingCourtDetailRepository : ICourtDetailRepository {
-  override suspend fun getReservableSlotsForToday(courtId: String): List<ReservableSlot> {
+  override suspend fun getUpcomingReservableSlotsPreview(
+      courtId: String,
+  ): ReservationDayAvailability? {
     throw IllegalStateException("network error")
   }
 }
 
 private class FlakyCourtDetailRepository(
-    private val successSlots: List<ReservableSlot>,
+    private val availabilityPreview: ReservationDayAvailability,
 ) : ICourtDetailRepository {
   private var attempts = 0
 
-  override suspend fun getReservableSlotsForToday(courtId: String): List<ReservableSlot> {
+  override suspend fun getUpcomingReservableSlotsPreview(
+      courtId: String,
+  ): ReservationDayAvailability? {
     attempts += 1
     if (attempts == 1) throw IllegalStateException("transient failure")
-    return successSlots
+    return availabilityPreview
   }
 }

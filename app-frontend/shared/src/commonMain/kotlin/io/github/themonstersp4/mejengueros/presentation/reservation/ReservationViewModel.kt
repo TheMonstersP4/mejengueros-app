@@ -3,8 +3,10 @@ package io.github.themonstersp4.mejengueros.presentation.reservation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
+import io.github.themonstersp4.mejengueros.domain.model.DefaultReservableDaysWindow
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.time.parseUtcCalendarDate
 import io.github.themonstersp4.mejengueros.domain.time.todayUtcDateString
@@ -19,18 +21,24 @@ import kotlinx.coroutines.launch
 class ReservationViewModel(
     private val context: ReservationContext,
     private val repository: IReservationRepository,
-    private val dateOptionsProvider: () -> List<ReservationDateUiModel> = {
-      buildReservationDateOptions(todayUtcDateString())
+    private val reservableDatesLoader: suspend () -> List<ReservationDateUiModel> = {
+      repository
+          .getReservableDays(
+              courtId = context.courtId,
+              fromUtcDate = todayUtcDateString(),
+              days = DefaultReservableDaysWindow,
+          )
+          .toReservationDateUiModels()
     },
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
   private val scope = coroutineScope ?: viewModelScope
-  private val _uiState = MutableStateFlow(initialState())
+  private val _uiState = MutableStateFlow(ReservationUiState())
   private var latestSlotsRequestId = 0L
   val uiState: StateFlow<ReservationUiState> = _uiState.asStateFlow()
 
   init {
-    loadSelectedDateSlots()
+    loadReservableDates()
   }
 
   fun selectDate(index: Int) {
@@ -139,7 +147,11 @@ class ReservationViewModel(
             selectionSupportingText = null,
             mode = ReservationUiMode.Selection,
         )
-    loadSelectedDateSlots()
+    if (_uiState.value.dates.isEmpty()) {
+      loadReservableDates()
+    } else {
+      loadSelectedDateSlots()
+    }
   }
 
   fun viewOtherHours() {
@@ -153,9 +165,53 @@ class ReservationViewModel(
     loadSelectedDateSlots()
   }
 
-  private fun initialState(): ReservationUiState {
-    val dates = dateOptionsProvider().ifEmpty { buildReservationDateOptions(todayUtcDateString()) }
-    return ReservationUiState(dates = dates)
+  private fun loadReservableDates() {
+    scope.launch {
+      _uiState.value =
+          _uiState.value.copy(
+              isLoadingSlots = true,
+              isSubmitting = false,
+              dates = emptyList(),
+              selectedDateIndex = 0,
+              slots = emptyList(),
+              selectedSlotId = null,
+              selectionSummary = null,
+              selectionSupportingText = null,
+              loadErrorMessage = null,
+              mode = ReservationUiMode.Selection,
+          )
+      try {
+        val dates = reservableDatesLoader()
+        if (dates.isEmpty()) {
+          _uiState.value =
+              _uiState.value.copy(
+                  isLoadingSlots = false,
+                  dates = emptyList(),
+                  selectedDateIndex = 0,
+                  slots = emptyList(),
+              )
+          return@launch
+        }
+
+        _uiState.value =
+            _uiState.value.copy(
+                dates = dates,
+                selectedDateIndex = 0,
+            )
+        loadSelectedDateSlots()
+      } catch (error: Throwable) {
+        if (error is CancellationException) throw error
+        _uiState.value =
+            _uiState.value.copy(
+                isLoadingSlots = false,
+                loadErrorMessage = error.toReservationLoadUserMessage(),
+                dates = emptyList(),
+                selectedDateIndex = 0,
+                slots = emptyList(),
+                mode = ReservationUiMode.Selection,
+            )
+      }
+    }
   }
 
   private fun loadSelectedDateSlots() {
@@ -281,24 +337,35 @@ internal fun buildReservationDateOptions(
   val startDate = parseUtcCalendarDate(startDateUtc)
   return (0 until days).map { offset ->
     val currentDate = startDate.plusDays(offset)
-    val shortWeekday = currentDate.shortWeekdayLabel()
-    val dayLabel = if (offset == 0) "Hoy" else shortWeekday
-    ReservationDateUiModel(
-        utcDate = currentDate.toIsoDate(),
-        dayLabel = dayLabel,
-        dateLabel = currentDate.day.toString().padStart(2, '0'),
-        summaryLabel =
-            if (offset == 0) {
-              "Hoy ${currentDate.day.toString().padStart(2, '0')}"
-            } else {
-              "$shortWeekday ${currentDate.day.toString().padStart(2, '0')}"
-            },
-        ticketLabel =
-            if (offset == 0) {
-              "Hoy, ${currentDate.day} de ${currentDate.monthName()}"
-            } else {
-              "$shortWeekday, ${currentDate.day} de ${currentDate.monthName()}"
-            },
-    )
+    currentDate.toReservationDateUiModel(referenceDateUtc = startDateUtc)
   }
+}
+
+private fun ReservationDayDiscovery.toReservationDateUiModels(): List<ReservationDateUiModel> =
+    reservableDays.map { day ->
+      parseUtcCalendarDate(day.dateUtc).toReservationDateUiModel(referenceDateUtc = fromUtc)
+    }
+
+private fun io.github.themonstersp4.mejengueros.domain.time.UtcCalendarDate
+    .toReservationDateUiModel(referenceDateUtc: String): ReservationDateUiModel {
+  val utcDate = toIsoDate()
+  val shortWeekday = shortWeekdayLabel()
+  val isReferenceDate = utcDate == referenceDateUtc
+  return ReservationDateUiModel(
+      utcDate = utcDate,
+      dayLabel = if (isReferenceDate) "Hoy" else shortWeekday,
+      dateLabel = day.toString().padStart(2, '0'),
+      summaryLabel =
+          if (isReferenceDate) {
+            "Hoy ${day.toString().padStart(2, '0')}"
+          } else {
+            "$shortWeekday ${day.toString().padStart(2, '0')}"
+          },
+      ticketLabel =
+          if (isReferenceDate) {
+            "Hoy, $day de ${monthName()}"
+          } else {
+            "$shortWeekday, $day de ${monthName()}"
+          },
+  )
 }

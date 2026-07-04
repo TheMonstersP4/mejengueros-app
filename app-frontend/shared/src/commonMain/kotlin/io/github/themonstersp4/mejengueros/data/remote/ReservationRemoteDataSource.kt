@@ -2,10 +2,13 @@ package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReservationEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReservationRequestDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.ReservableDaysEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ReservableSlotsEnvelopeDto
+import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.model.toReservationAvailabilityStatus
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -23,6 +26,38 @@ class ReservationRemoteDataSource(
     private val httpClient: HttpClient,
     private val json: Json,
 ) : IReservationRemoteDataSource {
+  override suspend fun getReservableDays(
+      courtId: String,
+      fromUtcDate: String,
+      days: Int,
+  ): ReservationDayDiscovery {
+    return try {
+      val data =
+          httpClient
+              .get("/v1/courts/$courtId/reservable-days") {
+                parameter("from", fromUtcDate)
+                parameter("days", days)
+              }
+              .body<ReservableDaysEnvelopeDto>()
+              .data
+
+      ReservationDayDiscovery(
+          fromUtc = data?.from ?: fromUtcDate,
+          days = data?.days ?: days,
+          reservableDays =
+              data?.reservableDays?.map { day ->
+                ReservableDay(
+                    dateUtc = day.date,
+                    availabilityStatus = day.availabilityStatus.toReservationAvailabilityStatus(),
+                    availableSlotsCount = day.availableSlotsCount,
+                )
+              } ?: emptyList(),
+      )
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
+
   override suspend fun getReservableSlots(
       courtId: String,
       dateUtc: String,

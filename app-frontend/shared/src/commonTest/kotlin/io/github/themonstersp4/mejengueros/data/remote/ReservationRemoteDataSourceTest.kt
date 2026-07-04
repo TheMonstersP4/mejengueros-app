@@ -25,6 +25,95 @@ class ReservationRemoteDataSourceTest {
   private val json = Json { ignoreUnknownKeys = true }
 
   @Test
+  fun getReservableDaysMapsDiscoveryIntoDomainModel() = runTest {
+    var requestedPath = ""
+    var requestedFrom = ""
+    var requestedDays = ""
+    val dataSource =
+        ReservationRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "court": {
+                              "id": "court-id",
+                              "name": "Cancha 1",
+                              "status": "ACTIVE"
+                            },
+                            "from": "2026-07-04",
+                            "days": 14,
+                            "reservableDays": [
+                              {
+                                "date": "2026-07-05",
+                                "availabilityStatus": "AVAILABLE",
+                                "availableSlotsCount": 4
+                              },
+                              {
+                                "date": "2026-07-07",
+                                "availabilityStatus": "AVAILABLE",
+                                "availableSlotsCount": 2
+                              }
+                            ]
+                          }
+                        }
+                        """
+                            .trimIndent(),
+                    capturePath = { requestedPath = it.orEmpty() },
+                    captureQueryFrom = { requestedFrom = it.orEmpty() },
+                    captureQueryDays = { requestedDays = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    val result = dataSource.getReservableDays("court-id", "2026-07-04", 14)
+
+    assertEquals("/v1/courts/court-id/reservable-days", requestedPath)
+    assertEquals("2026-07-04", requestedFrom)
+    assertEquals("14", requestedDays)
+    assertEquals("2026-07-04", result.fromUtc)
+    assertEquals(14, result.days)
+    assertEquals(listOf("2026-07-05", "2026-07-07"), result.reservableDays.map { it.dateUtc })
+    assertEquals(listOf(4, 2), result.reservableDays.map { it.availableSlotsCount })
+  }
+
+  @Test
+  fun getReservableDaysPropagatesApiErrors() = runTest {
+    val dataSource =
+        ReservationRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": false,
+                          "errors": [
+                            {
+                              "code": "COURT_NOT_FOUND",
+                              "message": "Court not found.",
+                              "status": 404
+                            }
+                          ]
+                        }
+                        """
+                            .trimIndent(),
+                    status = HttpStatusCode.NotFound,
+                ),
+            json = json,
+        )
+
+    val error =
+        assertFailsWith<AppApiException> {
+          dataSource.getReservableDays("court-id", "2026-07-04", 14)
+        }
+
+    assertEquals(404, error.statusCode)
+    assertEquals("Court not found.", error.message)
+  }
+
+  @Test
   fun getReservableSlotsMapsReservationWindowIntoDomainAvailability() = runTest {
     var requestedPath = ""
     var requestedDate = ""
@@ -170,6 +259,8 @@ private fun mockClient(
     capturePath: (String?) -> Unit = {},
     captureMethod: (HttpMethod?) -> Unit = {},
     captureQueryDate: (String?) -> Unit = {},
+    captureQueryFrom: (String?) -> Unit = {},
+    captureQueryDays: (String?) -> Unit = {},
     captureBody: (String?) -> Unit = {},
     captureAuthorizationHeader: (String?) -> Unit = {},
     authToken: String? = null,
@@ -186,6 +277,8 @@ private fun mockClient(
           capturePath(request.url.encodedPath)
           captureMethod(request.method)
           captureQueryDate(request.url.parameters["date"])
+          captureQueryFrom(request.url.parameters["from"])
+          captureQueryDays(request.url.parameters["days"])
           captureBody(request.body.readText())
           captureAuthorizationHeader(request.headers[HttpHeaders.Authorization])
           respond(

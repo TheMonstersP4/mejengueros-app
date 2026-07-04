@@ -355,7 +355,7 @@ internal fun CatalogCourtDetailEntryContent(
       onSwitchToOwnerView = shellActions.switchToOwnerView,
       chrome =
           AuthenticatedScaffoldChrome(
-              title = route.complexName,
+              title = "Detalle de cancha",
               onNavigateBack = shellActions.closeCurrentDetail,
           ),
   ) { contentPadding ->
@@ -394,7 +394,7 @@ internal fun CatalogReservationEntry(
 ) {
   val viewModel =
       koinViewModel<ReservationViewModel>(
-          key = "catalog-reservation-${route.courtId}",
+          key = "catalog-reservation-${route.courtId}-${route.attemptId}",
           parameters = { parametersOf(route.toReservationContext()) },
       )
   val state by viewModel.uiState.collectAsState()
@@ -413,7 +413,6 @@ internal fun CatalogReservationEntry(
       chrome =
           AuthenticatedScaffoldChrome(
               title = "Reservar",
-              subtitle = "${route.complexName} · ${route.courtName}",
               onNavigateBack = shellActions.closeCurrentDetail,
               showBottomBar = false,
           ),
