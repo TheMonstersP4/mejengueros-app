@@ -97,6 +97,7 @@ fun MejenguerosTextField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    placeholder: String? = null,
     enabled: Boolean = true,
     isError: Boolean = false,
     supportingText: String? = null,
@@ -106,6 +107,7 @@ fun MejenguerosTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     readOnly: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    showLabel: Boolean = true,
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
   var isFocused by remember { mutableStateOf(false) }
@@ -169,14 +171,17 @@ fun MejenguerosTextField(
                             end = contentEndPadding,
                             bottom = TextFieldVerticalPadding,
                         ),
-                verticalArrangement = Arrangement.spacedBy(TextFieldLabelSpacing),
+                verticalArrangement =
+                    Arrangement.spacedBy(if (showLabel) TextFieldLabelSpacing else 0.dp),
             ) {
-              Text(
-                  text = label,
-                  modifier = labelModifier,
-                  style = MaterialTheme.typography.labelSmall,
-                  color = colors.labelColor,
-              )
+              if (showLabel) {
+                Text(
+                    text = label,
+                    modifier = labelModifier,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.labelColor,
+                )
+              }
               Box(modifier = Modifier.fillMaxWidth()) {
                 BasicTextField(
                     value = value,
@@ -204,7 +209,16 @@ fun MejenguerosTextField(
                         ),
                     cursorBrush = SolidColor(colors.cursorColor),
                     interactionSource = interactionSource,
-                    decorationBox = { innerTextField -> innerTextField() },
+                    decorationBox = { innerTextField ->
+                      if (value.isEmpty() && !placeholder.isNullOrBlank()) {
+                        Text(
+                            text = placeholder,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.labelColor,
+                        )
+                      }
+                      innerTextField()
+                    },
                 )
               }
             }
@@ -348,23 +362,27 @@ fun MejenguerosTextArea(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    placeholder: String? = null,
     enabled: Boolean = true,
     isError: Boolean = false,
     supportingText: String? = null,
     minLines: Int = 3,
     maxLines: Int = 5,
+    showLabel: Boolean = true,
 ) {
   MejenguerosTextField(
       value = value,
       onValueChange = onValueChange,
       label = label,
       modifier = modifier,
+      placeholder = placeholder,
       enabled = enabled,
       isError = isError,
       supportingText = supportingText,
       singleLine = false,
       minLines = minLines,
       maxLines = maxLines,
+      showLabel = showLabel,
   )
 }
 

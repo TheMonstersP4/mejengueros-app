@@ -47,6 +47,12 @@ import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewReservationContext
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewScreen
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewScreenActions
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewUiMode
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewUiState
+import io.github.themonstersp4.mejengueros.screens.review.ReservationsReviewLauncherScreen
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
@@ -439,6 +445,43 @@ internal fun CatalogReservationEntry(
 
 @Composable
 private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
+  ReservationsEntryContent(shellActions = shellActions)
+}
+
+@Composable
+internal fun ReservationsEntryContent(shellActions: AuthenticatedShellActions) {
+  var reviewEntryMode by rememberSaveable {
+    mutableStateOf(ReservationReviewEntryMode.Launcher.name)
+  }
+  var selectedRating by rememberSaveable { mutableStateOf(0) }
+  var comment by rememberSaveable { mutableStateOf("") }
+  val reservationContext = remember {
+    LeaveReviewReservationContext(
+        title = "Moravia FC · Cancha A",
+        reservationLabel = "Reserva de ayer · 20:00 – 21:00",
+        imageContentDescription = "Cancha A",
+    )
+  }
+  val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
+  val reviewState =
+      LeaveReviewUiState(
+          reservationContext = reservationContext,
+          selectedRating = selectedRating,
+          comment = comment,
+          mode =
+              if (currentMode == ReservationReviewEntryMode.Success) {
+                LeaveReviewUiMode.Success
+              } else {
+                LeaveReviewUiMode.Form
+              },
+      )
+
+  fun resetReviewFlow() {
+    reviewEntryMode = ReservationReviewEntryMode.Launcher.name
+    selectedRating = 0
+    comment = ""
+  }
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Reservations,
       onSearchSelected = shellActions.selectSearch,
@@ -450,15 +493,60 @@ private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      chrome = AuthenticatedScaffoldChrome(title = "Mis reservas"),
+      chrome =
+          when (currentMode) {
+            ReservationReviewEntryMode.Launcher ->
+                AuthenticatedScaffoldChrome(title = "Mis reservas")
+            ReservationReviewEntryMode.Form ->
+                AuthenticatedScaffoldChrome(
+                    title = "DEJAR RESEÑA",
+                    onNavigateBack = ::resetReviewFlow,
+                    showBottomBar = false,
+                )
+            ReservationReviewEntryMode.Success ->
+                AuthenticatedScaffoldChrome(
+                    title = "DEJAR RESEÑA",
+                    onNavigateBack = ::resetReviewFlow,
+                    showBottomBar = false,
+                )
+          },
   ) { contentPadding ->
-    ProductPlaceholderScreen(
-        title = "Mis reservas",
-        description =
-            "Pronto vas a poder revisar tus reservas activas e historial desde aquí. Por ahora esta área sigue siendo un placeholder controlado.",
-        contentPadding = contentPadding,
-    )
+    when (currentMode) {
+      ReservationReviewEntryMode.Launcher ->
+          ReservationsReviewLauncherScreen(
+              reservationContext = reservationContext,
+              contentPadding = contentPadding,
+              onStartReview = { reviewEntryMode = ReservationReviewEntryMode.Form.name },
+          )
+      ReservationReviewEntryMode.Form,
+      ReservationReviewEntryMode.Success ->
+          LeaveReviewScreen(
+              state = reviewState,
+              contentPadding = contentPadding,
+              actions =
+                  LeaveReviewScreenActions(
+                      onRatingSelected = { rating -> selectedRating = rating },
+                      onCommentChanged = { updatedComment -> comment = updatedComment },
+                      onSubmit = {
+                        if (reviewState.canSubmit) {
+                          reviewEntryMode = ReservationReviewEntryMode.Success.name
+                        }
+                      },
+                      onReturnToReservations = ::resetReviewFlow,
+                      onExploreCourts = {
+                        resetReviewFlow()
+                        shellActions.selectSearch()
+                      },
+                  ),
+          )
+    }
   }
+}
+
+private enum class ReservationReviewEntryMode {
+  Launcher,
+  Form,
+  Success,
 }
 
 @Composable
