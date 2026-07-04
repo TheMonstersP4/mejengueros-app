@@ -33,7 +33,7 @@ class ReservationsNavigationIntegrationTest {
     }
 
     composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
 
     composeRule.onNodeWithText("¿Cómo estuvo tu mejenga?").assertExists()
     composeRule.onNodeWithContentDescription("Seleccionar 3 de 5 estrellas").performClick()
@@ -47,7 +47,7 @@ class ReservationsNavigationIntegrationTest {
     composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
     composeRule.onNodeWithText("¿Cómo estuvo tu mejenga?").assertDoesNotExist()
 
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule.onNodeWithText("Comentario temporal").assertDoesNotExist()
   }
@@ -60,18 +60,18 @@ class ReservationsNavigationIntegrationTest {
       MejenguerosTheme { ReservationsNavigationTestHost(navigationState = navigationState) }
     }
 
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
         .performTextInput("Otro comentario temporal")
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
-    composeRule.onNodeWithText("¡GRACIAS POR TU RESEÑA!").assertExists()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
 
     composeRule.onNodeWithContentDescription("Volver").performClick()
 
     composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule.onNodeWithText("Otro comentario temporal").assertDoesNotExist()
   }
@@ -84,7 +84,7 @@ class ReservationsNavigationIntegrationTest {
       MejenguerosTheme { ReservationsNavigationTestHost(navigationState = navigationState) }
     }
 
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule
@@ -96,7 +96,7 @@ class ReservationsNavigationIntegrationTest {
         .performTextInput("El piso estaba resbaloso y no había buena iluminación")
 
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
-    composeRule.onNodeWithText("¡GRACIAS POR TU RESEÑA!").assertExists()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
   }
 
   @Test
@@ -107,23 +107,23 @@ class ReservationsNavigationIntegrationTest {
       MejenguerosTheme { ReservationsNavigationTestHost(navigationState = navigationState) }
     }
 
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
         .performTextInput("La cancha estaba impecable")
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
 
-    composeRule.onNodeWithText("¡GRACIAS POR TU RESEÑA!").assertExists()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
     composeRule.onNodeWithText("VOLVER A MIS RESERVAS").performClick()
     composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
 
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule.onNodeWithText("La cancha estaba impecable").assertDoesNotExist()
     composeRule.onNodeWithContentDescription("Volver").performClick()
 
-    composeRule.onNodeWithText("DEJAR RESEÑA").performClick()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
     composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     composeRule.onNodeWithText("EXPLORAR CANCHAS").performClick()
@@ -138,7 +138,51 @@ class ReservationsNavigationIntegrationTest {
     composeRule.waitForIdle()
 
     composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-    composeRule.onNodeWithText("¡GRACIAS POR TU RESEÑA!").assertDoesNotExist()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertDoesNotExist()
+  }
+
+  @Test
+  fun systemBackFromFormReturnsToLauncherAndClearsDraft() {
+    val navigationState = testNavigationState()
+
+    composeRule.setContent {
+      MejenguerosTheme { ReservationsNavigationTestHost(navigationState = navigationState) }
+    }
+
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
+    composeRule
+        .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
+        .performTextInput("Borrador que no debe sobrevivir")
+
+    composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
+    composeRule.onNodeWithText("¿Cómo estuvo tu mejenga?").assertDoesNotExist()
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
+    composeRule.onNodeWithText("Borrador que no debe sobrevivir").assertDoesNotExist()
+  }
+
+  @Test
+  fun systemBackFromSuccessReturnsToLauncherAndClearsDraft() {
+    val navigationState = testNavigationState()
+
+    composeRule.setContent {
+      MejenguerosTheme { ReservationsNavigationTestHost(navigationState = navigationState) }
+    }
+
+    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
+    composeRule.onNodeWithTag("leave_review_submit_button").performClick()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
+
+    composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertDoesNotExist()
   }
 
   @Composable

@@ -60,6 +60,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialo
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
+import io.github.themonstersp4.mejengueros.ui.components.PlatformBackHandler
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import io.github.themonstersp4.mejengueros.ui.components.rememberCourtImagePicker
 import org.koin.compose.viewmodel.koinViewModel
@@ -481,6 +482,11 @@ internal fun ReservationsEntryContent(shellActions: AuthenticatedShellActions) {
     selectedRating = 0
     comment = ""
   }
+
+  PlatformBackHandler(
+      enabled = currentMode != ReservationReviewEntryMode.Launcher,
+      onBack = ::resetReviewFlow,
+  )
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Reservations,

@@ -83,7 +83,7 @@ class LeaveReviewScreenBehaviorTest {
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
 
-    composeRule.onNodeWithText("¡GRACIAS POR TU RESEÑA!").assertExists()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
   }
 
   @Test
@@ -148,7 +148,7 @@ class LeaveReviewScreenBehaviorTest {
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
 
-    composeRule.onNodeWithText("¡GRACIAS POR TU RESEÑA!").assertExists()
+    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
     composeRule.onNodeWithText("VOLVER A MIS RESERVAS").assertExists()
     composeRule.onNodeWithText("EXPLORAR CANCHAS").assertExists()
   }
@@ -169,7 +169,7 @@ class LeaveReviewScreenBehaviorTest {
     composeRule.onNodeWithTag("leave_review_success_icon").assertIsDisplayed()
     composeRule
         .onNodeWithText(
-            "Tu calificación quedó lista en este flujo. Muy pronto vas a poder publicarla para que otros la vean."
+            "Esta reseña todavía no se publica. Por ahora podés revisar esta vista previa y más adelante vas a poder enviarla de verdad."
         )
         .assertExists()
     composeRule.onNodeWithText("VOLVER A MIS RESERVAS").assertIsDisplayed()

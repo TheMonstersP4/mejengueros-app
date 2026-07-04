@@ -121,7 +121,7 @@ fun ReservationsReviewLauncherScreen(
       )
       Text(
           text =
-              "Mientras llega el historial completo de reservas, dejamos este acceso controlado para validar el flujo visual de calificación.",
+              "Por ahora esta reseña funciona como una vista previa: podés preparar tu calificación y revisar cómo se verá, pero todavía no se publica.",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -134,7 +134,7 @@ fun ReservationsReviewLauncherScreen(
         imageContentDescription = reservationContext.imageContentDescription,
     )
 
-    MejenguerosFullWidthPrimaryButton(text = "DEJAR RESEÑA", onClick = onStartReview)
+    MejenguerosFullWidthPrimaryButton(text = "PREPARAR RESEÑA", onClick = onStartReview)
   }
 }
 
@@ -213,7 +213,7 @@ private fun LeaveReviewFormContent(
 
       MejenguerosBottomActionBar {
         MejenguerosFullWidthPrimaryButton(
-            text = "ENVIAR RESEÑA",
+            text = "VER VISTA PREVIA",
             onClick = actions.onSubmit,
             enabled = state.canSubmit,
             modifier = Modifier.testTag("leave_review_submit_button"),
@@ -264,14 +264,14 @@ private fun LeaveReviewSuccessContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
           Text(
-              text = "¡GRACIAS POR TU RESEÑA!",
+              text = "VISTA PREVIA DE TU RESEÑA",
               style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
               color = MaterialTheme.colorScheme.onSurface,
               textAlign = TextAlign.Center,
           )
           Text(
               text =
-                  "Tu calificación quedó lista en este flujo. Muy pronto vas a poder publicarla para que otros la vean.",
+                  "Esta reseña todavía no se publica. Por ahora podés revisar esta vista previa y más adelante vas a poder enviarla de verdad.",
               style = MaterialTheme.typography.bodyLarge,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               textAlign = TextAlign.Center,
