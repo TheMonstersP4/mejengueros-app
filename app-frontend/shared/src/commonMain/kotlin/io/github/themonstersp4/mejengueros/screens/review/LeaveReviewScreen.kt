@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,8 +29,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosRating
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReviewCommentField
@@ -46,13 +52,18 @@ data class LeaveReviewUiState(
     val reservationContext: LeaveReviewReservationContext,
     val selectedRating: Int = 0,
     val comment: String = "",
+    val selectedEvidenceImage: LocalReviewEvidenceImage? = null,
+    val isEvidenceImagePickerAvailable: Boolean = false,
+    val isSubmitting: Boolean = false,
+    val submitErrorMessage: String? = null,
     val mode: LeaveReviewUiMode = LeaveReviewUiMode.Form,
 ) {
   val canSubmit: Boolean
     get() =
         selectedRating in 1..MaxReviewRating &&
             mode == LeaveReviewUiMode.Form &&
-            (!requiresComment || hasValidComment)
+            (!requiresComment || hasValidComment) &&
+            (!requiresEvidenceImage || selectedEvidenceImage != null)
 }
 
 internal const val MinReviewRating = 1
@@ -67,6 +78,8 @@ sealed interface LeaveReviewUiMode {
 data class LeaveReviewScreenActions(
     val onRatingSelected: (Int) -> Unit,
     val onCommentChanged: (String) -> Unit,
+    val onPickEvidenceImage: () -> Unit,
+    val onClearEvidenceImage: () -> Unit,
     val onSubmit: () -> Unit,
     val onReturnToReservations: () -> Unit,
     val onExploreCourts: () -> Unit,
@@ -121,7 +134,7 @@ fun ReservationsReviewLauncherScreen(
       )
       Text(
           text =
-              "Por ahora esta reseña funciona como una vista previa: podés preparar tu calificación y revisar cómo se verá, pero todavía no se publica.",
+              "Tu próxima reseña ya se publica de verdad. Si calificás con 1 estrella, también te vamos a pedir comentario e imagen de respaldo.",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -209,16 +222,120 @@ private fun LeaveReviewFormContent(
             supportingText = oneStarCommentSupportingText(requiresComment),
             placeholderLabel = "Contá tu experiencia: la cancha, la superficie, el ambiente...",
         )
+
+        ReviewEvidenceSection(
+            isPickerAvailable = state.isEvidenceImagePickerAvailable,
+            selectedEvidenceImage = state.selectedEvidenceImage,
+            onPickEvidenceImage = actions.onPickEvidenceImage,
+            onClearEvidenceImage = actions.onClearEvidenceImage,
+            enabled = !state.isSubmitting,
+            requiresEvidenceImage = state.requiresEvidenceImage,
+        )
+
+        state.submitErrorMessage?.let { errorMessage ->
+          Text(
+              text = errorMessage,
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.error,
+          )
+        }
       }
 
       MejenguerosBottomActionBar {
         MejenguerosFullWidthPrimaryButton(
-            text = "VER VISTA PREVIA",
+            text = "ENVIAR RESEÑA",
             onClick = actions.onSubmit,
-            enabled = state.canSubmit,
+            enabled = state.canSubmit && !state.isSubmitting,
             modifier = Modifier.testTag("leave_review_submit_button"),
         )
       }
+
+      MejenguerosLoadingDialog(
+          visible = state.isSubmitting,
+          title = "Enviando reseña",
+          message =
+              if (state.selectedEvidenceImage != null) {
+                "Estamos subiendo la imagen de respaldo y enviando tu reseña."
+              } else {
+                "Estamos enviando tu reseña."
+              },
+      )
+    }
+  }
+}
+
+@Composable
+private fun ReviewEvidenceSection(
+    isPickerAvailable: Boolean,
+    selectedEvidenceImage: LocalReviewEvidenceImage?,
+    onPickEvidenceImage: () -> Unit,
+    onClearEvidenceImage: () -> Unit,
+    enabled: Boolean,
+    requiresEvidenceImage: Boolean,
+) {
+  if (!isPickerAvailable && selectedEvidenceImage == null && !requiresEvidenceImage) {
+    return
+  }
+
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text(
+        text = "IMAGEN DE RESPALDO",
+        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        text =
+            if (requiresEvidenceImage) {
+              "Si dejás 1 estrella, agregá al menos una imagen para respaldar tu reporte."
+            } else {
+              "Opcional. Podés adjuntar una imagen para respaldar mejor tu experiencia."
+            },
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+
+    if (!isPickerAvailable) {
+      Text(
+          text =
+              "En este dispositivo todavía no podés adjuntar imágenes de respaldo. Si necesitás dejar 1 estrella, intentá desde un dispositivo compatible.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+
+    selectedEvidenceImage?.let { evidenceImage ->
+      Card(
+          modifier = Modifier.fillMaxWidth().testTag("leave_review_evidence_preview"),
+          shape = RoundedCornerShape(16.dp),
+      ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          AsyncImage(
+              model = evidenceImage.previewUrl,
+              contentDescription = "Vista previa de la imagen de respaldo",
+              modifier = Modifier.fillMaxWidth().height(160.dp),
+          )
+          Text(text = evidenceImage.fileName, style = MaterialTheme.typography.bodyMedium)
+        }
+      }
+    }
+
+    MejenguerosFullWidthOutlinedButton(
+        text = if (selectedEvidenceImage == null) "Seleccionar imagen" else "Cambiar imagen",
+        onClick = onPickEvidenceImage,
+        enabled = enabled && isPickerAvailable,
+        modifier = Modifier.testTag("leave_review_pick_evidence_button"),
+    )
+
+    if (selectedEvidenceImage != null) {
+      MejenguerosFullWidthOutlinedButton(
+          text = "Quitar imagen",
+          onClick = onClearEvidenceImage,
+          enabled = enabled,
+          modifier = Modifier.testTag("leave_review_clear_evidence_button"),
+      )
     }
   }
 }
@@ -264,14 +381,14 @@ private fun LeaveReviewSuccessContent(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
           Text(
-              text = "VISTA PREVIA DE TU RESEÑA",
+              text = "TU RESEÑA FUE ENVIADA",
               style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
               color = MaterialTheme.colorScheme.onSurface,
               textAlign = TextAlign.Center,
           )
           Text(
               text =
-                  "Esta reseña todavía no se publica. Por ahora podés revisar esta vista previa y más adelante vas a poder enviarla de verdad.",
+                  "Gracias por compartir tu experiencia. Vamos a usar tu reseña para mejorar la información de la cancha.",
               style = MaterialTheme.typography.bodyLarge,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               textAlign = TextAlign.Center,
@@ -309,6 +426,9 @@ private fun ratingHelperText(value: Int): String =
     }
 
 private val LeaveReviewUiState.requiresComment: Boolean
+  get() = selectedRating == MinReviewRating && mode == LeaveReviewUiMode.Form
+
+private val LeaveReviewUiState.requiresEvidenceImage: Boolean
   get() = selectedRating == MinReviewRating && mode == LeaveReviewUiMode.Form
 
 private val LeaveReviewUiState.hasValidComment: Boolean
