@@ -142,6 +142,10 @@ class CourtDetailScreenBehaviorTest {
       }
     }
 
+    composeRule.onNodeWithTag("court_detail_loading_slots", useUnmergedTree = true).assertExists()
+    composeRule
+        .onNodeWithTag("court_detail_loading_slots_indicator", useUnmergedTree = true)
+        .assertExists()
     composeRule.onNodeWithText("Cargando disponibilidad…").assertExists()
     composeRule.onNodeWithTag("court_detail_no_slots_state").assertDoesNotExist()
   }

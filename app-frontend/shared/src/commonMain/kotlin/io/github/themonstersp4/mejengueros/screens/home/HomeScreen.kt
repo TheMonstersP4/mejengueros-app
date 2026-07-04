@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
@@ -120,10 +121,11 @@ fun HomeScreen(
       ) {
         when {
           state.isLoading ->
-              MejenguerosStateContent(
-                  title = "Cargando canchas",
-                  description = "Preparando el catálogo disponible.",
-                  variant = MejenguerosStateVariant.Pending,
+              MejenguerosInlineLoadingState(
+                  text = "Cargando canchas…",
+                  modifier = Modifier.fillMaxWidth(),
+                  containerTestTag = "catalog_loading",
+                  indicatorTestTag = "catalog_loading_indicator",
               )
 
           state.loadErrorMessage != null ->

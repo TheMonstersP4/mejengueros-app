@@ -38,6 +38,7 @@ import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailS
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
@@ -209,10 +210,11 @@ private fun DisponibilidadSection(
 
     when {
       state.isLoadingSlots -> {
-        Text(
+        MejenguerosInlineLoadingState(
             text = "Cargando disponibilidad…",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            containerTestTag = "court_detail_loading_slots",
+            indicatorTestTag = "court_detail_loading_slots_indicator",
         )
       }
 

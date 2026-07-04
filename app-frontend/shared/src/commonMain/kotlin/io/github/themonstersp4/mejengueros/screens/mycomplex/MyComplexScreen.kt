@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +38,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -51,6 +49,7 @@ import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiSta
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemCustomContent
@@ -152,28 +151,15 @@ fun ComplexDetailScreen(
 
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
-  Column(
-      modifier = modifier.fillMaxWidth(),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(12.dp),
+  Box(
+      modifier = modifier.fillMaxSize(),
+      contentAlignment = Alignment.Center,
   ) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-      Column(
-          horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.spacedBy(12.dp),
-      ) {
-        CircularProgressIndicator(modifier = Modifier.testTag("my_complex_loading_indicator"))
-        Text(
-            text = "Cargando tu hub de complejos...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-        )
-      }
-    }
+    MejenguerosInlineLoadingState(
+        text = "Cargando tu hub de complejos…",
+        containerTestTag = "my_complex_loading",
+        indicatorTestTag = "my_complex_loading_indicator",
+    )
   }
 }
 
