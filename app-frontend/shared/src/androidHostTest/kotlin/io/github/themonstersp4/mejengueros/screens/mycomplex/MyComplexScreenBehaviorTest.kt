@@ -43,8 +43,9 @@ class MyComplexScreenBehaviorTest {
       }
     }
 
+    composeRule.onNodeWithTag("my_complex_loading", useUnmergedTree = true).assertExists()
     composeRule.onNodeWithTag("my_complex_loading_indicator").assertExists()
-    composeRule.onNodeWithText("Cargando tu hub de complejos...").assertExists()
+    composeRule.onNodeWithText("Cargando tu hub de complejos…").assertExists()
     composeRule.onNodeWithText("Tus complejos deportivos").assertExists()
     composeRule
         .onNodeWithText("Gestioná canchas, disponibilidad y reservas desde un solo lugar.")

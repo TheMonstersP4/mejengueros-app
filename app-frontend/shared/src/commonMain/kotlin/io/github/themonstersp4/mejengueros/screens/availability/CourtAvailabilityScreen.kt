@@ -25,6 +25,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmation
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSlotGrid
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSlotState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSlotUiModel
@@ -91,10 +92,11 @@ fun CourtAvailabilityScreen(
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
         ) {
-          Text(
-              text = "Cargando disponibilidad...",
-              modifier = Modifier.padding(16.dp),
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
+          MejenguerosInlineLoadingState(
+              text = "Cargando disponibilidad…",
+              modifier = Modifier.padding(16.dp).fillMaxWidth(),
+              containerTestTag = "court_availability_loading",
+              indicatorTestTag = "court_availability_loading_indicator",
           )
         }
       } else {
