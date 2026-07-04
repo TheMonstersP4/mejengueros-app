@@ -64,6 +64,7 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema('/v1/complexes/{complexId}/courts', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/reservations', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/courts/{courtId}/reservable-days', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
     expectSuccessEnvelopeSchema(responseSchema('/v1/auth/me', 'get', '200'));
@@ -106,6 +107,10 @@ describe('OpenAPI document contract', () => {
       responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200'),
       '#/components/schemas/ReservableSlotsResponse'
     );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/courts/{courtId}/reservable-days', 'get', '200'),
+      '#/components/schemas/ReservableDaysResponse'
+    );
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
     expectErrorEnvelopeSchema('/v1/complexes/my-hub', 'get', '401');
     expectErrorEnvelopeSchema('/v1/complexes/{complexId}/courts', 'post', '400');
@@ -118,6 +123,9 @@ describe('OpenAPI document contract', () => {
     expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '400');
     expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '401');
     expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '404');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-days', 'get', '400');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-days', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-days', 'get', '404');
     expectErrorEnvelopeSchema('/v1/services', 'get', '400');
     expectErrorEnvelopeSchema('/v1/courts/catalog', 'get', '400');
     expectErrorEnvelopeSchema(
@@ -131,6 +139,22 @@ describe('OpenAPI document contract', () => {
       'get',
       'courtId'
     );
+    expectOperationHasPathUuidParameter(
+      '/v1/courts/{courtId}/reservable-days',
+      'get',
+      'courtId'
+    );
+    expectOperationHasQueryParameter('/v1/courts/{courtId}/reservable-days', 'get', 'from', {
+      required: true,
+      type: 'string'
+    });
+    expectOperationHasQueryParameter('/v1/courts/{courtId}/reservable-days', 'get', 'days', {
+      required: false,
+      type: 'number',
+      minimum: 1,
+      maximum: 31,
+      default: 14
+    });
   });
 
   it('documents reservation startsAt as an explicit UTC whole-hour datetime with Z', () => {
@@ -270,6 +294,29 @@ describe('OpenAPI document contract', () => {
           in: 'path',
           required: true,
           schema: expect.objectContaining({ format: 'uuid' })
+        })
+      ])
+    );
+  }
+
+  function expectOperationHasQueryParameter(
+    path: string,
+    method: OpenApiMethod,
+    parameterName: string,
+    expectedSchema: Record<string, unknown> & { required: boolean }
+  ): void {
+    const { required, ...schema } = expectedSchema;
+    const operation = document.paths[path]?.[method] as
+      | { parameters?: Array<Record<string, unknown>> }
+      | undefined;
+
+    expect(operation?.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: parameterName,
+          in: 'query',
+          required,
+          schema: expect.objectContaining(schema)
         })
       ])
     );

@@ -1,9 +1,18 @@
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 import type { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
 import { CreateReservationUseCase } from '@/modules/reservations/application/use-cases/create-reservation.use-case';
+import { GetReservableDaysUseCase } from '@/modules/reservations/application/use-cases/get-reservable-days.use-case';
 import { GetReservableSlotsUseCase } from '@/modules/reservations/application/use-cases/get-reservable-slots.use-case';
 import { PrismaReservationRepository } from '@/modules/reservations/infrastructure/persistence/prisma-reservation.repository';
+import { ReservableDaysController } from '@/modules/reservations/interfaces/http/controllers/reservable-days.controller';
 import { ReservationsController } from '@/modules/reservations/interfaces/http/controllers/reservations.controller';
 import { ReservableSlotsController } from '@/modules/reservations/interfaces/http/controllers/reservable-slots.controller';
+import {
+  DEFAULT_RESERVABLE_DAYS_RANGE,
+  GetReservableDaysRequest,
+  MAX_RESERVABLE_DAYS_RANGE
+} from '@/modules/reservations/interfaces/http/dto/reservable-days.request';
 import type { IClock } from '@/shared/application/clock/clock.port';
 import {
   assertReservationStartsInFuture,
@@ -251,6 +260,127 @@ describe('reservations module behavior', () => {
     });
   });
 
+  it('returns only upcoming dates with at least one available slot', async () => {
+    const repository: IReservationRepository = {
+      getReservationWindow: jest
+        .fn()
+        .mockResolvedValueOnce({
+          ...reservationWindow,
+          confirmedStartsAt: ['2026-07-01T19:00:00.000Z']
+        })
+        .mockResolvedValueOnce({
+          ...reservationWindow,
+          availability: {
+            ...reservationWindow.availability,
+            days: ['THURSDAY']
+          },
+          confirmedStartsAt: [
+            '2026-07-02T18:00:00.000Z',
+            '2026-07-02T19:00:00.000Z',
+            '2026-07-02T20:00:00.000Z'
+          ]
+        })
+        .mockResolvedValueOnce({
+          ...reservationWindow,
+          availability: {
+            ...reservationWindow.availability,
+            days: ['SUNDAY']
+          }
+        }),
+      createConfirmedReservation: jest.fn()
+    };
+    const useCase = new GetReservableDaysUseCase(
+      repository,
+      fixedClock('2026-07-01T10:00:00.000Z')
+    );
+
+    await expect(useCase.execute('court-id', '2026-07-01', 3)).resolves.toEqual({
+      court: {
+        id: 'court-id',
+        name: 'Cancha 1',
+        status: 'ACTIVE'
+      },
+      from: '2026-07-01',
+      days: 3,
+      reservableDays: [
+        {
+          date: '2026-07-01',
+          availabilityStatus: 'AVAILABLE',
+          availableSlotsCount: 2
+        }
+      ]
+    });
+    expect(repository.getReservationWindow).toHaveBeenNthCalledWith(1, {
+      courtId: 'court-id',
+      date: '2026-07-01'
+    });
+    expect(repository.getReservationWindow).toHaveBeenNthCalledWith(2, {
+      courtId: 'court-id',
+      date: '2026-07-02'
+    });
+    expect(repository.getReservationWindow).toHaveBeenNthCalledWith(3, {
+      courtId: 'court-id',
+      date: '2026-07-03'
+    });
+  });
+
+  it('excludes owner-unconfigured weekdays from reservable day discovery', async () => {
+    const repository: IReservationRepository = {
+      getReservationWindow: jest.fn().mockResolvedValue({
+        ...reservationWindow,
+        availability: {
+          ...reservationWindow.availability,
+          days: ['THURSDAY']
+        }
+      }),
+      createConfirmedReservation: jest.fn()
+    };
+    const useCase = new GetReservableDaysUseCase(
+      repository,
+      fixedClock('2026-07-01T10:00:00.000Z')
+    );
+
+    await expect(useCase.execute('court-id', '2026-07-01', 1)).resolves.toEqual({
+      court: {
+        id: 'court-id',
+        name: 'Cancha 1',
+        status: 'ACTIVE'
+      },
+      from: '2026-07-01',
+      days: 1,
+      reservableDays: []
+    });
+  });
+
+  it('excludes fully booked days from reservable day discovery', async () => {
+    const repository: IReservationRepository = {
+      getReservationWindow: jest.fn().mockResolvedValue({
+        ...reservationWindow,
+        confirmedStartsAt: [
+          '2026-07-01T18:00:00.000Z',
+          '2026-07-01T19:00:00.000Z',
+          '2026-07-01T20:00:00.000Z'
+        ]
+      }),
+      createConfirmedReservation: jest.fn()
+    };
+    const useCase = new GetReservableDaysUseCase(
+      repository,
+      fixedClock('2026-06-30T10:00:00.000Z')
+    );
+
+    await expect(useCase.execute('court-id', '2026-07-01', 1)).resolves.toEqual({
+      court: {
+        id: 'court-id',
+        name: 'Cancha 1',
+        status: 'ACTIVE'
+      },
+      from: '2026-07-01',
+      days: 1,
+      reservableDays: []
+    });
+  });
+
   it('excludes same-day slots whose start time has already passed in UTC', async () => {
     const repository: IReservationRepository = {
       getReservationWindow: jest.fn().mockResolvedValue(reservationWindow),
@@ -278,6 +408,44 @@ describe('reservations module behavior', () => {
     });
   });
 
+  it('omits today from reservable day discovery when no future same-day slots remain', async () => {
+    const repository: IReservationRepository = {
+      getReservationWindow: jest
+        .fn()
+        .mockResolvedValueOnce(reservationWindow)
+        .mockResolvedValueOnce({
+          ...reservationWindow,
+          availability: {
+            ...reservationWindow.availability,
+            days: ['THURSDAY']
+          },
+          confirmedStartsAt: ['2026-07-02T20:00:00.000Z']
+        }),
+      createConfirmedReservation: jest.fn()
+    };
+    const useCase = new GetReservableDaysUseCase(
+      repository,
+      fixedClock('2026-07-01T20:30:00.000Z')
+    );
+
+    await expect(useCase.execute('court-id', '2026-07-01', 2)).resolves.toEqual({
+      court: {
+        id: 'court-id',
+        name: 'Cancha 1',
+        status: 'ACTIVE'
+      },
+      from: '2026-07-01',
+      days: 2,
+      reservableDays: [
+        {
+          date: '2026-07-02',
+          availabilityStatus: 'AVAILABLE',
+          availableSlotsCount: 2
+        }
+      ]
+    });
+  });
+
   it('delegates the create endpoint to the command use case', async () => {
     const useCase = {
       execute: jest.fn().mockResolvedValue({ id: 'reservation-id' })
@@ -292,6 +460,18 @@ describe('reservations module behavior', () => {
     ).resolves.toEqual({ id: 'reservation-id' });
   });
 
+  it('delegates the reservable days endpoint to the query use case', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue({ reservableDays: [] })
+    } as unknown as GetReservableDaysUseCase;
+    const controller = new ReservableDaysController(useCase);
+
+    await expect(
+      controller.get('court-id', { from: '2026-07-01', days: 7 })
+    ).resolves.toEqual({ reservableDays: [] });
+    expect(useCase.execute).toHaveBeenCalledWith('court-id', '2026-07-01', 7);
+  });
+
   it('delegates the reservable slots endpoint to the query use case', async () => {
     const useCase = {
       execute: jest.fn().mockResolvedValue({ availabilityStatus: 'AVAILABLE' })
@@ -301,6 +481,37 @@ describe('reservations module behavior', () => {
     await expect(controller.get('court-id', { date: '2026-07-01' })).resolves.toEqual({
       availabilityStatus: 'AVAILABLE'
     });
+  });
+
+  it('defaults reservable day query days to the safe bounded window', () => {
+    const query = plainToInstance(GetReservableDaysRequest, { from: '2026-07-01' });
+
+    expect(query.days).toBe(DEFAULT_RESERVABLE_DAYS_RANGE);
+    expect(validateSync(query)).toEqual([]);
+  });
+
+  it('rejects invalid reservable day query bounds', () => {
+    const query = plainToInstance(GetReservableDaysRequest, {
+      from: '2026-07-01',
+      days: MAX_RESERVABLE_DAYS_RANGE + 1
+    });
+
+    const errors = validateSync(query);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe('days');
+  });
+
+  it('rejects malformed reservable day start dates', () => {
+    const query = plainToInstance(GetReservableDaysRequest, {
+      from: '2026-07-32',
+      days: 14
+    });
+
+    const errors = validateSync(query);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe('from');
   });
 
   it('rejects reservation starts that are not aligned to a whole hour', () => {
