@@ -29,6 +29,8 @@ import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiSta
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
+import io.github.themonstersp4.mejengueros.presentation.review.ReviewUiState
+import io.github.themonstersp4.mejengueros.presentation.review.ReviewViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.ForgotPasswordScreen
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
@@ -56,13 +58,16 @@ import io.github.themonstersp4.mejengueros.screens.review.ReservationsReviewLaun
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
 import io.github.themonstersp4.mejengueros.ui.components.PlatformBackHandler
+import io.github.themonstersp4.mejengueros.ui.components.ReviewEvidenceImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import io.github.themonstersp4.mejengueros.ui.components.rememberCourtImagePicker
+import io.github.themonstersp4.mejengueros.ui.components.rememberReviewEvidenceImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -446,41 +451,39 @@ internal fun CatalogReservationEntry(
 
 @Composable
 private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
-  ReservationsEntryContent(shellActions = shellActions)
+  ReservationsEntryContent(shellActions = shellActions, viewModel = koinViewModel())
 }
 
 @Composable
-internal fun ReservationsEntryContent(shellActions: AuthenticatedShellActions) {
+internal fun ReservationsEntryContent(
+    shellActions: AuthenticatedShellActions,
+    viewModel: ReviewViewModel,
+    reviewEvidenceImagePickerController: ReviewEvidenceImagePickerController? = null,
+) {
+  val state by viewModel.uiState.collectAsState()
+  val reviewEvidenceImagePicker =
+      reviewEvidenceImagePickerController
+          ?: rememberReviewEvidenceImagePicker(viewModel::updateSelectedEvidenceImage)
+
+  LaunchedEffect(reviewEvidenceImagePicker.isAvailable) {
+    viewModel.updateEvidenceImagePickerAvailability(reviewEvidenceImagePicker.isAvailable)
+  }
+
   var reviewEntryMode by rememberSaveable {
     mutableStateOf(ReservationReviewEntryMode.Launcher.name)
   }
-  var selectedRating by rememberSaveable { mutableStateOf(0) }
-  var comment by rememberSaveable { mutableStateOf("") }
-  val reservationContext = remember {
-    LeaveReviewReservationContext(
-        title = "Moravia FC · Cancha A",
-        reservationLabel = "Reserva de ayer · 20:00 – 21:00",
-        imageContentDescription = "Cancha A",
-    )
-  }
   val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
-  val reviewState =
-      LeaveReviewUiState(
-          reservationContext = reservationContext,
-          selectedRating = selectedRating,
-          comment = comment,
-          mode =
-              if (currentMode == ReservationReviewEntryMode.Success) {
-                LeaveReviewUiMode.Success
-              } else {
-                LeaveReviewUiMode.Form
-              },
-      )
+  val reviewState = state.toLeaveReviewUiState(currentMode)
+
+  LaunchedEffect(state.submittedReview?.id) {
+    if (state.submittedReview != null) {
+      reviewEntryMode = ReservationReviewEntryMode.Success.name
+    }
+  }
 
   fun resetReviewFlow() {
     reviewEntryMode = ReservationReviewEntryMode.Launcher.name
-    selectedRating = 0
-    comment = ""
+    viewModel.resetFlow()
   }
 
   PlatformBackHandler(
@@ -519,33 +522,76 @@ internal fun ReservationsEntryContent(shellActions: AuthenticatedShellActions) {
   ) { contentPadding ->
     when (currentMode) {
       ReservationReviewEntryMode.Launcher ->
-          ReservationsReviewLauncherScreen(
-              reservationContext = reservationContext,
+          ReservationsLauncherContent(
+              state = state,
               contentPadding = contentPadding,
-              onStartReview = { reviewEntryMode = ReservationReviewEntryMode.Form.name },
+              onStartReview = {
+                viewModel.startReview()
+                reviewEntryMode = ReservationReviewEntryMode.Form.name
+              },
+              onRetryLoad = viewModel::refreshLatestReviewableReservation,
           )
       ReservationReviewEntryMode.Form,
       ReservationReviewEntryMode.Success ->
-          LeaveReviewScreen(
-              state = reviewState,
-              contentPadding = contentPadding,
-              actions =
-                  LeaveReviewScreenActions(
-                      onRatingSelected = { rating -> selectedRating = rating },
-                      onCommentChanged = { updatedComment -> comment = updatedComment },
-                      onSubmit = {
-                        if (reviewState.canSubmit) {
-                          reviewEntryMode = ReservationReviewEntryMode.Success.name
-                        }
-                      },
-                      onReturnToReservations = ::resetReviewFlow,
-                      onExploreCourts = {
-                        resetReviewFlow()
-                        shellActions.selectSearch()
-                      },
-                  ),
-          )
+          reviewState?.let { currentReviewState ->
+            LeaveReviewScreen(
+                state = currentReviewState,
+                contentPadding = contentPadding,
+                actions =
+                    LeaveReviewScreenActions(
+                        onRatingSelected = viewModel::updateRating,
+                        onCommentChanged = viewModel::updateComment,
+                        onPickEvidenceImage = reviewEvidenceImagePicker.launch,
+                        onClearEvidenceImage = viewModel::clearSelectedEvidenceImage,
+                        onSubmit = viewModel::submit,
+                        onReturnToReservations = ::resetReviewFlow,
+                        onExploreCourts = {
+                          resetReviewFlow()
+                          shellActions.selectSearch()
+                        },
+                    ),
+            )
+          }
     }
+  }
+}
+
+@Composable
+private fun ReservationsLauncherContent(
+    state: ReviewUiState,
+    contentPadding: PaddingValues,
+    onStartReview: () -> Unit,
+    onRetryLoad: () -> Unit,
+) {
+  when {
+    state.isLoading ->
+        ProductPlaceholderScreen(
+            title = "Mis reservas",
+            description = "Estamos buscando tu última reserva pendiente de reseña.",
+            contentPadding = contentPadding,
+        )
+    state.loadErrorMessage != null ->
+        ProductPlaceholderScreen(
+            title = "Mis reservas",
+            description = state.loadErrorMessage,
+            contentPadding = contentPadding,
+            actions = {
+              MejenguerosFullWidthPrimaryButton(text = "REINTENTAR", onClick = onRetryLoad)
+            },
+        )
+    state.reviewableReservation == null ->
+        ProductPlaceholderScreen(
+            title = "Mis reservas",
+            description =
+                "Todavía no tenés reservas completadas pendientes de reseña. Cuando terminés una mejenga, la vas a ver aquí.",
+            contentPadding = contentPadding,
+        )
+    else ->
+        ReservationsReviewLauncherScreen(
+            reservationContext = state.reviewableReservation.toReservationContext(),
+            contentPadding = contentPadding,
+            onStartReview = onStartReview,
+        )
   }
 }
 
@@ -554,6 +600,45 @@ private enum class ReservationReviewEntryMode {
   Form,
   Success,
 }
+
+private fun ReviewUiState.toLeaveReviewUiState(
+    currentMode: ReservationReviewEntryMode
+): LeaveReviewUiState? {
+  val reservation = reviewableReservation ?: return null
+
+  return LeaveReviewUiState(
+      reservationContext = reservation.toReservationContext(),
+      selectedRating = selectedRating,
+      comment = comment,
+      selectedEvidenceImage = selectedEvidenceImage,
+      isEvidenceImagePickerAvailable = isEvidenceImagePickerAvailable,
+      isSubmitting = isSubmitting,
+      submitErrorMessage = submitErrorMessage,
+      mode =
+          if (currentMode == ReservationReviewEntryMode.Success) {
+            LeaveReviewUiMode.Success
+          } else {
+            LeaveReviewUiMode.Form
+          },
+  )
+}
+
+private fun io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
+    .toReservationContext(): LeaveReviewReservationContext =
+    LeaveReviewReservationContext(
+        title = "$complexName · $courtName",
+        reservationLabel =
+            "Reserva del ${startsAt.take(10)} · ${startsAt.toTimeLabel()} – ${endsAt.toTimeLabel()}",
+        imageUrl = imageUrl,
+        imageContentDescription = courtName,
+    )
+
+private fun String.toTimeLabel(): String =
+    if (contains('T') && length >= indexOf('T') + 6) {
+      substring(indexOf('T') + 1, indexOf('T') + 6)
+    } else {
+      this
+    }
 
 @Composable
 private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {

@@ -21,8 +21,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
 import org.junit.Rule
@@ -68,22 +70,28 @@ class LeaveReviewScreenBehaviorTest {
     composeRule
         .onNodeWithText("Si dejás 1 estrella, contanos qué pasó para revisar mejor tu experiencia.")
         .assertExists()
+    composeRule
+        .onNodeWithText(
+            "Si dejás 1 estrella, agregá al menos una imagen para respaldar tu reporte."
+        )
+        .assertExists()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
   }
 
   @Test
-  fun oneStarWithCommentCanSubmit() {
+  fun oneStarWithCommentAndImageCanSubmit() {
     setReviewScreenContent()
 
     composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
     composeRule
         .commentField()
         .performTextInput("La iluminación falló y la cancha estaba muy descuidada")
+    composeRule.onNodeWithTag("leave_review_pick_evidence_button").performScrollTo().performClick()
 
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
 
-    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
+    composeRule.onNodeWithText("TU RESEÑA FUE ENVIADA").assertExists()
   }
 
   @Test
@@ -92,6 +100,7 @@ class LeaveReviewScreenBehaviorTest {
 
     composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
     composeRule.commentField().performTextInput("Comentario que debe quedarse")
+    composeRule.onNodeWithTag("leave_review_pick_evidence_button").performClick()
     composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
 
     composeRule
@@ -99,6 +108,58 @@ class LeaveReviewScreenBehaviorTest {
         .assertDoesNotExist()
     composeRule.onNodeWithText("Comentario que debe quedarse").assertExists()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
+  }
+
+  @Test
+  fun oneStarWithCommentButWithoutImageStaysBlocked() {
+    setReviewScreenContent()
+
+    composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
+    composeRule
+        .commentField()
+        .performTextInput("La iluminación falló y la cancha estaba muy descuidada")
+
+    composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
+  }
+
+  @Test
+  fun unavailablePickerForOneStarShowsHonestExplanationAndDisabledAction() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        LeaveReviewScreen(
+            state =
+                sampleState(
+                        selectedRating = 1,
+                    )
+                    .copy(
+                        comment = "La iluminación falló y la cancha estaba muy descuidada",
+                        isEvidenceImagePickerAvailable = false,
+                    ),
+            contentPadding = PaddingValues(),
+            actions = noOpActions(),
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithText(
+            "En este dispositivo todavía no podés adjuntar imágenes de respaldo. Si necesitás dejar 1 estrella, intentá desde un dispositivo compatible."
+        )
+        .assertExists()
+    composeRule.onNodeWithTag("leave_review_pick_evidence_button").assertIsNotEnabled()
+    composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
+  }
+
+  @Test
+  fun selectedEvidenceImageShowsPreviewAndCanBeRemoved() {
+    setReviewScreenContent()
+
+    composeRule.onNodeWithTag("leave_review_pick_evidence_button").performScrollTo().performClick()
+
+    composeRule.onNodeWithTag("leave_review_evidence_preview").assertExists()
+    composeRule.onNodeWithText("evidence.png").assertExists()
+    composeRule.onNodeWithTag("leave_review_clear_evidence_button").performScrollTo().performClick()
+    composeRule.onNodeWithTag("leave_review_evidence_preview").assertDoesNotExist()
   }
 
   @Test
@@ -137,6 +198,7 @@ class LeaveReviewScreenBehaviorTest {
     }
 
     composeRule.commentField().assertIsFocused().performTextInput("La experiencia fue mala")
+    composeRule.onNodeWithTag("leave_review_pick_evidence_button").performScrollTo().performClick()
 
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
   }
@@ -148,7 +210,7 @@ class LeaveReviewScreenBehaviorTest {
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
 
-    composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertExists()
+    composeRule.onNodeWithText("TU RESEÑA FUE ENVIADA").assertExists()
     composeRule.onNodeWithText("VOLVER A MIS RESERVAS").assertExists()
     composeRule.onNodeWithText("EXPLORAR CANCHAS").assertExists()
   }
@@ -169,11 +231,27 @@ class LeaveReviewScreenBehaviorTest {
     composeRule.onNodeWithTag("leave_review_success_icon").assertIsDisplayed()
     composeRule
         .onNodeWithText(
-            "Esta reseña todavía no se publica. Por ahora podés revisar esta vista previa y más adelante vas a poder enviarla de verdad."
+            "Gracias por compartir tu experiencia. Vamos a usar tu reseña para mejorar la información de la cancha."
         )
         .assertExists()
     composeRule.onNodeWithText("VOLVER A MIS RESERVAS").assertIsDisplayed()
     composeRule.onNodeWithText("EXPLORAR CANCHAS").assertIsDisplayed()
+  }
+
+  @Test
+  fun submittingStateShowsVisibleLoadingFeedback() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        LeaveReviewScreen(
+            state = sampleState(selectedRating = 5).copy(isSubmitting = true),
+            contentPadding = PaddingValues(),
+            actions = noOpActions(),
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("mejengueros_loading_dialog").assertIsDisplayed()
+    composeRule.onNodeWithText("Enviando reseña").assertExists()
   }
 
   private fun setReviewScreenContent() {
@@ -191,6 +269,10 @@ class LeaveReviewScreenBehaviorTest {
             LeaveReviewScreenActions(
                 onRatingSelected = { rating -> state = state.copy(selectedRating = rating) },
                 onCommentChanged = { comment -> state = state.copy(comment = comment) },
+                onPickEvidenceImage = {
+                  state = state.copy(selectedEvidenceImage = sampleEvidenceImage())
+                },
+                onClearEvidenceImage = { state = state.copy(selectedEvidenceImage = null) },
                 onSubmit = {
                   if (state.canSubmit) {
                     state = state.copy(mode = LeaveReviewUiMode.Success)
@@ -214,13 +296,24 @@ class LeaveReviewScreenBehaviorTest {
                   imageContentDescription = "Cancha A",
               ),
           selectedRating = selectedRating,
+          isEvidenceImagePickerAvailable = true,
           mode = mode,
+      )
+
+  private fun sampleEvidenceImage() =
+      LocalReviewEvidenceImage(
+          fileName = "evidence.png",
+          contentType = "image/png",
+          bytes = byteArrayOf(1, 2, 3),
+          previewUrl = "content://evidence.png",
       )
 
   private fun noOpActions() =
       LeaveReviewScreenActions(
           onRatingSelected = {},
           onCommentChanged = {},
+          onPickEvidenceImage = {},
+          onClearEvidenceImage = {},
           onSubmit = {},
           onReturnToReservations = {},
           onExploreCourts = {},
