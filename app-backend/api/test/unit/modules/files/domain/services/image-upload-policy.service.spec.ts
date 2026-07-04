@@ -43,6 +43,21 @@ describe('ImageUploadPolicyService', () => {
     });
   });
 
+  it('validates a review evidence image upload intent', () => {
+    expect(
+      policy.validate({
+        purpose: FilePurpose.ReviewEvidenceImage,
+        contentType: 'image/png',
+        sizeBytes: 256
+      })
+    ).toEqual({
+      purpose: FilePurpose.ReviewEvidenceImage,
+      contentType: 'image/png',
+      sizeBytes: 256,
+      maxSizeBytes: 1024
+    });
+  });
+
   it('rejects unsupported file purposes', () => {
     expect(() =>
       policy.validate({
@@ -95,6 +110,18 @@ describe('ImageUploadPolicyService', () => {
         id: 'file-id'
       })
     ).toBe('dev/court-image/user-sub-123/2026/06/file-id.png');
+  });
+
+  it('builds stable private object keys for review evidence images', () => {
+    expect(
+      policy.buildObjectKey({
+        purpose: FilePurpose.ReviewEvidenceImage,
+        ownerId: 'user/sub:123',
+        contentType: 'image/png',
+        date: new Date('2026-06-04T00:00:00.000Z'),
+        id: 'file-id'
+      })
+    ).toBe('dev/review-evidence-image/user-sub-123/2026/06/file-id.png');
   });
 
   it('validates confirmed uploaded object metadata', () => {

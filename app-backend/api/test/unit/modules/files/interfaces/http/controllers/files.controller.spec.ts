@@ -91,6 +91,39 @@ describe('FilesController', () => {
     });
   });
 
+  it('delegates review evidence image upload URL creation to the use case', async () => {
+    const response = {
+      objectKey: 'dev/review-evidence-image/sub/2026/06/file.jpg',
+      uploadUrl: 'https://upload.example.test',
+      method: 'POST',
+      fields: {
+        key: 'dev/review-evidence-image/sub/file.jpg',
+        policy: 'policy'
+      },
+      expiresInSeconds: 300,
+      maxSizeBytes: 5242880
+    };
+    const useCase = {
+      execute: jest.fn().mockResolvedValue(response)
+    } as unknown as CreateUploadUrlUseCase;
+    const controller = new FilesController(
+      useCase,
+      { execute: jest.fn() } as unknown as ConfirmUploadUseCase,
+      createListUseCase()
+    );
+
+    await expect(
+      controller.createUpload(
+        { sub: 'sub', groups: [] },
+        {
+          purpose: FilePurpose.ReviewEvidenceImage,
+          contentType: 'image/jpeg',
+          sizeBytes: 100
+        }
+      )
+    ).resolves.toEqual(response);
+  });
+
   it('propagates unsupported image type errors to the global filter', async () => {
     const useCase = {
       execute: jest

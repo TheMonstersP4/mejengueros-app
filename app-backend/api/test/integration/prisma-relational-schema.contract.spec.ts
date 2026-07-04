@@ -9,13 +9,14 @@ import {
   sqlFragmentPattern
 } from '@/shared/infrastructure/database/prisma-relational-schema.contract';
 
-const DEFAULT_TEST_DATABASE_URL = 'postgresql://user:password@localhost:5432/appdb';
+const DEFAULT_TEST_DATABASE_URL = 'file:memory:';
 const liveDatabaseUrl =
   process.env.PRISMA_MIGRATION_CONTRACT_DATABASE_URL ?? process.env.DATABASE_URL;
 const runLiveDatabaseContract =
   typeof liveDatabaseUrl === 'string' &&
   liveDatabaseUrl.length > 0 &&
-  liveDatabaseUrl !== DEFAULT_TEST_DATABASE_URL;
+  liveDatabaseUrl !== DEFAULT_TEST_DATABASE_URL &&
+  !isLegacyLocalTestDatabaseUrl(liveDatabaseUrl);
 
 describe('Prisma relational MVP schema contract', () => {
   it('adds Province and Canton catalogs for controlled Costa Rica location data', () => {
@@ -200,10 +201,18 @@ describe('Prisma relational MVP schema contract', () => {
   it('represents review uniqueness and rating bounds in schema and migration contracts', () => {
     const contract = loadPrismaRelationalSchemaContract();
     const reviewModel = extractPrismaBlock(contract.schema, 'model', 'Review');
+    const imageUploadModel = extractPrismaBlock(contract.schema, 'model', 'ImageUpload');
 
     expect(reviewModel).toMatch(prismaFieldPattern('reservationId', 'String'));
     expect(reviewModel).toContain('@unique');
+    expect(reviewModel).toMatch(prismaFieldPattern('evidenceImageUploadId', 'String?'));
     expect(reviewModel).toMatch(prismaFieldPattern('rating', 'Int'));
+    expect(reviewModel).toMatch(
+      /evidenceImageUpload\s+ImageUpload\?\s+@relation\("ReviewEvidenceImage",\s*fields:\s*\[evidenceImageUploadId\],\s*references:\s*\[id\],\s*onDelete:\s*SetNull\)/
+    );
+    expect(imageUploadModel).toMatch(
+      /reviewEvidenceFor\s+Review\?\s+@relation\("ReviewEvidenceImage"\)/
+    );
     expect(contract.migration).toMatch(
       sqlFragmentPattern(
         'CONSTRAINT "Review_rating_range_check" CHECK ("rating" BETWEEN 1 AND 5)'
@@ -212,6 +221,16 @@ describe('Prisma relational MVP schema contract', () => {
     expect(contract.migration).toMatch(
       sqlFragmentPattern(
         'CREATE UNIQUE INDEX "Review_reservationId_key" ON "mejengueros_dev"."Review"("reservationId")'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'CREATE UNIQUE INDEX "Review_evidenceImageUploadId_key" ON "mejengueros_dev"."Review"("evidenceImageUploadId")'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ADD CONSTRAINT "Review_evidenceImageUploadId_fkey" FOREIGN KEY ("evidenceImageUploadId") REFERENCES "mejengueros_dev"."ImageUpload"("id") ON DELETE SET NULL ON UPDATE CASCADE;'
       )
     );
   });
@@ -307,3 +326,23 @@ describe('Prisma relational MVP schema contract', () => {
     }
   );
 });
+
+function isLegacyLocalTestDatabaseUrl(databaseUrl: string): boolean {
+  try {
+    const connectionUrl = new URL(databaseUrl);
+
+    return (
+      connectionUrl.protocol === 'postgresql:' &&
+      connectionUrl.hostname === 'localhost' &&
+      ((connectionUrl.username === 'user' &&
+        connectionUrl.password === 'password' &&
+        connectionUrl.pathname === '/appdb') ||
+        (connectionUrl.username === 'test' &&
+          connectionUrl.password === 'test' &&
+          connectionUrl.pathname === '/test' &&
+          connectionUrl.searchParams.get('schema') === 'mejengueros'))
+    );
+  } catch {
+    return false;
+  }
+}

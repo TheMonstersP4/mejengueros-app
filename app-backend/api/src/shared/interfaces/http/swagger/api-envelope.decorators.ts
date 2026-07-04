@@ -32,6 +32,11 @@ interface IApiEnvelopeResponseOptions {
    * Whether the data schema is an array of the provided type.
    */
   isArray?: boolean;
+
+  /**
+   * Whether successful responses may return a null data payload.
+   */
+  nullableData?: boolean;
 }
 
 const errorDescriptions: Record<number, string> = {
@@ -72,7 +77,11 @@ export function ApiEnvelopeResponse(
           { $ref: getSchemaPath(ApiSuccessEnvelopeResponse) },
           {
             properties: {
-              data: buildDataSchema(options.type, options.isArray)
+              data: buildDataSchema(
+                options.type,
+                options.isArray,
+                options.nullableData
+              )
             }
           }
         ]
@@ -90,12 +99,14 @@ export function ApiEnvelopeResponse(
  */
 export function ApiEnvelopeOk(
   type: Type<unknown>,
-  description: string
+  description: string,
+  options?: Pick<IApiEnvelopeResponseOptions, 'nullableData'>
 ): MethodDecorator {
   return ApiEnvelopeResponse({
     status: HttpStatus.OK,
     description,
-    type
+    type,
+    ...options
   });
 }
 
@@ -163,13 +174,25 @@ export function ApiEnvelopeErrors(...statuses: number[]): MethodDecorator {
   );
 }
 
-function buildDataSchema(type: Type<unknown>, isArray = false): object {
+function buildDataSchema(
+  type: Type<unknown>,
+  isArray = false,
+  nullableData = false
+): object {
   const itemSchema = { $ref: getSchemaPath(type) };
 
   if (isArray) {
     return {
       type: 'array',
-      items: itemSchema
+      items: itemSchema,
+      ...(nullableData ? { nullable: true } : {})
+    };
+  }
+
+  if (nullableData) {
+    return {
+      nullable: true,
+      allOf: [itemSchema]
     };
   }
 
