@@ -14,6 +14,7 @@ import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ServiceCatalogModule } from './modules/service-catalog/service-catalog.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './shared/infrastructure/database/prisma.module';
@@ -29,7 +30,8 @@ const databaseBackedModules = process.env.DATABASE_URL
       CourtAvailabilityModule,
       LocationsModule,
       ServiceCatalogModule,
-      ReservationsModule
+      ReservationsModule,
+      ReviewsModule
     ]
   : [];
 

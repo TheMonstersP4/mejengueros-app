@@ -51,4 +51,36 @@ describe('CreateUploadUrlUseCase', () => {
       maxSizeBytes: 1024
     });
   });
+
+  it('creates a presigned upload URL for a review evidence image', async () => {
+    const storage = {
+      createPresignedUploadUrl: jest.fn().mockResolvedValue({
+        method: 'POST',
+        uploadUrl: 'https://upload.example.test',
+        fields: {
+          key: 'dev/review-evidence-image/cognito-sub/file.jpg',
+          policy: 'policy'
+        }
+      }),
+      inspectUploadedObject: jest.fn(),
+      createPresignedReadUrl: jest.fn()
+    } satisfies IFileStoragePort;
+    const policy = new ImageUploadPolicyService({
+      allowedMimeTypes: ['image/jpeg'],
+      profileImageMaxBytes: 1024,
+      keyPrefix: 'dev'
+    });
+    const useCase = new CreateUploadUrlUseCase(storage, policy, 120);
+
+    const result = await useCase.execute({
+      ownerSub: 'cognito-sub',
+      purpose: FilePurpose.ReviewEvidenceImage,
+      contentType: 'image/jpeg',
+      sizeBytes: 100
+    });
+
+    expect(result.objectKey).toMatch(
+      /^dev\/review-evidence-image\/cognito-sub\/\d{4}\/\d{2}\/.+\.jpg$/
+    );
+  });
 });

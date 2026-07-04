@@ -3,5 +3,6 @@
  */
 export enum FilePurpose {
   ProfileImage = 'profile-image',
-  CourtImage = 'court-image'
+  CourtImage = 'court-image',
+  ReviewEvidenceImage = 'review-evidence-image'
 }
