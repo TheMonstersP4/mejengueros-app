@@ -46,7 +46,7 @@ class AuthenticatedScaffoldBehaviorTest {
             onNotificationsSelected = {},
             onMyComplexSelected = {},
             onSignOut = {},
-            onNavigateBack = { backClicks += 1 },
+            chrome = AuthenticatedScaffoldChrome(onNavigateBack = { backClicks += 1 }),
         ) { contentPadding ->
           Box(modifier = Modifier.fillMaxSize().padding(contentPadding).testTag("scaffold_body"))
         }
@@ -196,7 +196,7 @@ class AuthenticatedScaffoldBehaviorTest {
     }
 
     composeRule.onNodeWithText("Buscar").assertExists()
-    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Mis reservas").assertExists()
     composeRule.onNodeWithText("Notificaciones").assertExists()
     composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
     composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
@@ -221,7 +221,7 @@ class AuthenticatedScaffoldBehaviorTest {
     }
 
     composeRule.onNodeWithText("Buscar").assertExists()
-    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Mis reservas").assertExists()
     composeRule.onNodeWithText("Notificaciones").assertExists()
     composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
   }
@@ -330,7 +330,7 @@ class AuthenticatedScaffoldBehaviorTest {
 
     // Bottom nav 3 tabs are shown
     composeRule.onNodeWithText("Buscar").assertExists()
-    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Mis reservas").assertExists()
     composeRule.onNodeWithText("Notificaciones").assertExists()
     // "Mi complejo" top-bar action is shown (owners only, in player mode)
     composeRule.onNodeWithContentDescription("Mi complejo").assertExists()
@@ -387,7 +387,7 @@ class AuthenticatedScaffoldBehaviorTest {
 
     // Bottom nav tabs are present
     composeRule.onNodeWithText("Buscar").assertExists()
-    composeRule.onNodeWithText("Reservas").assertExists()
+    composeRule.onNodeWithText("Mis reservas").assertExists()
     composeRule.onNodeWithText("Notificaciones").assertExists()
     // No "Mi complejo" top-bar action (owners-only feature)
     composeRule.onNodeWithContentDescription("Mi complejo").assertDoesNotExist()

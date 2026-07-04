@@ -14,4 +14,17 @@ data class ReservableSlot(
         startsAtUtc
       }
     }
+
+  val displayEndTime: String
+    get() {
+      val tIndex = endsAtUtc.indexOf('T')
+      return if (tIndex >= 0 && tIndex + 6 <= endsAtUtc.length) {
+        endsAtUtc.substring(tIndex + 1, tIndex + 6)
+      } else {
+        endsAtUtc
+      }
+    }
+
+  val displayRange: String
+    get() = "$displayStartTime – $displayEndTime"
 }

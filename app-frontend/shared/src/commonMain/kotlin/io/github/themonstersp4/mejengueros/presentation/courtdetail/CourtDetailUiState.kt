@@ -4,6 +4,7 @@ data class CourtDetailUiState(
     val isLoadingSlots: Boolean = true,
     val slots: List<CourtDetailSlot> = emptyList(),
     val slotsErrorMessage: String? = null,
+    val availabilityHeadline: String? = null,
 )
 
 data class CourtDetailSlot(

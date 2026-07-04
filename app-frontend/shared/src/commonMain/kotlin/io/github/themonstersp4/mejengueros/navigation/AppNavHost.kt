@@ -183,6 +183,7 @@ fun AppNavHost() {
           selectReservations = authenticatedNavigationState::selectReservations,
           selectNotifications = authenticatedNavigationState::selectNotifications,
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
+          returnToSearchRoot = authenticatedNavigationState::returnToSearchRoot,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
           openCatalogCourtDetail = authenticatedNavigationState::openCatalogCourtDetail,
           openCatalogReservation = authenticatedNavigationState::openCatalogReservation,

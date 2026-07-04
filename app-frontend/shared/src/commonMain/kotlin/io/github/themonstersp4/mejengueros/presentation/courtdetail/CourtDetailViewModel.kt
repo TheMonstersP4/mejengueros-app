@@ -2,7 +2,9 @@ package io.github.themonstersp4.mejengueros.presentation.courtdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.time.parseUtcCalendarDate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,11 +33,18 @@ class CourtDetailViewModel(
     scope.launch {
       _uiState.value = CourtDetailUiState(isLoadingSlots = true, slotsErrorMessage = null)
       try {
+        val availabilityPreview = repository.getUpcomingReservableSlotsPreview(courtId)
         val slots =
-            repository.getReservableSlotsForToday(courtId).map { slot ->
-              CourtDetailSlot(displayTime = slot.displayStartTime)
-            }
-        _uiState.value = CourtDetailUiState(isLoadingSlots = false, slots = slots)
+            availabilityPreview
+                ?.slots
+                ?.map { slot -> CourtDetailSlot(displayTime = slot.displayStartTime) }
+                .orEmpty()
+        _uiState.value =
+            CourtDetailUiState(
+                isLoadingSlots = false,
+                slots = slots,
+                availabilityHeadline = availabilityPreview?.toAvailabilityHeadline(),
+            )
       } catch (error: Throwable) {
         if (error is CancellationException) throw error
         _uiState.value =
@@ -46,5 +55,14 @@ class CourtDetailViewModel(
             )
       }
     }
+  }
+}
+
+private fun ReservationDayAvailability.toAvailabilityHeadline(): String {
+  val date = parseUtcCalendarDate(dateUtc)
+  return if (dateUtc == referenceDateUtc) {
+    "Hoy · slots de 1 hora"
+  } else {
+    "Próximo día disponible · ${date.shortWeekdayLabel()}, ${date.day} de ${date.monthName()}"
   }
 }

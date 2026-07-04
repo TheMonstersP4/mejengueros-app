@@ -66,6 +66,7 @@ class ComplexDetailRouteContentBehaviorTest {
           selectReservations = {},
           selectNotifications = {},
           selectMyComplex = {},
+          returnToSearchRoot = {},
           returnToMyComplexRoot = {},
           openCatalogCourtDetail = {},
           openCatalogReservation = {},
