@@ -8,6 +8,8 @@ import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
+import io.github.themonstersp4.mejengueros.domain.time.toCostaRicaDateLabel
+import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,6 +23,11 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReservationViewModelTest {
+  private companion object {
+    const val COSTA_RICA_UTC_ROLLOVER_INSTANT = "2026-07-05T02:24:00.000Z"
+    const val COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE = "2026-07-04"
+  }
+
   private val dispatcher = StandardTestDispatcher()
   private val dates = buildReservationDateOptions("2026-07-16", days = 3)
 
@@ -37,12 +44,12 @@ class ReservationViewModelTest {
                                 slots =
                                     listOf(
                                         reservableSlot(
-                                            "2026-07-16T18:00:00.000Z",
-                                            "2026-07-16T19:00:00.000Z",
+                                            "2026-07-17T00:00:00.000Z",
+                                            "2026-07-17T01:00:00.000Z",
                                         ),
                                         reservableSlot(
-                                            "2026-07-16T20:00:00.000Z",
-                                            "2026-07-16T21:00:00.000Z",
+                                            "2026-07-17T02:00:00.000Z",
+                                            "2026-07-17T03:00:00.000Z",
                                         ),
                                     ),
                             )
@@ -80,8 +87,8 @@ class ReservationViewModelTest {
                                 "2026-07-16",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-16T18:00:00.000Z",
-                                        "2026-07-16T19:00:00.000Z",
+                                        "2026-07-17T00:00:00.000Z",
+                                        "2026-07-17T01:00:00.000Z",
                                     )
                                 ),
                             ),
@@ -90,8 +97,8 @@ class ReservationViewModelTest {
                                 "2026-07-17",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-17T21:00:00.000Z",
-                                        "2026-07-17T22:00:00.000Z",
+                                        "2026-07-18T03:00:00.000Z",
+                                        "2026-07-18T04:00:00.000Z",
                                     )
                                 ),
                             ),
@@ -115,6 +122,79 @@ class ReservationViewModelTest {
       }
 
   @Test
+  fun initRequestsCostaRicaBusinessDateForDiscoveryAtUtcRollover() =
+      runTest(dispatcher) {
+        val repository = FakeReservationRepository(availabilityByDate = emptyMap())
+        val viewModel =
+            ReservationViewModel(
+                context = reservationContext(),
+                repository = repository,
+                todayDateProvider = { COSTA_RICA_UTC_ROLLOVER_INSTANT.toCostaRicaDateLabel() },
+                coroutineScope = this,
+            )
+
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE to 14),
+            repository.discoveryRequests,
+        )
+        assertEquals(emptyList(), viewModel.uiState.value.dates)
+      }
+
+  @Test
+  fun initUsesCostaRicaCivilDateLabelsForDiscoveryAtUtcRollover() =
+      runTest(dispatcher) {
+        val repository =
+            FakeReservationRepository(
+                availabilityByDate =
+                    mapOf(
+                        COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE to
+                            reservationAvailability(
+                                COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE,
+                                listOf(
+                                    reservableSlot(
+                                        "2026-07-05T03:00:00.000Z",
+                                        "2026-07-05T04:00:00.000Z",
+                                    )
+                                ),
+                            )
+                    ),
+                discoveryResult =
+                    ReservationDayDiscovery(
+                        fromUtc = COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE,
+                        days = 14,
+                        reservableDays =
+                            listOf(
+                                ReservableDay(
+                                    dateUtc = COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE,
+                                    availabilityStatus = ReservationAvailabilityStatus.Available,
+                                    availableSlotsCount = 1,
+                                )
+                            ),
+                    ),
+            )
+        val viewModel =
+            ReservationViewModel(
+                context = reservationContext(),
+                repository = repository,
+                todayDateProvider = { COSTA_RICA_UTC_ROLLOVER_INSTANT.toCostaRicaDateLabel() },
+                coroutineScope = this,
+            )
+
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE to 14),
+            repository.discoveryRequests,
+        )
+        assertEquals(listOf(COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE), repository.requestedDates)
+        assertEquals("Hoy", viewModel.uiState.value.dates.first().dayLabel)
+        assertEquals("04", viewModel.uiState.value.dates.first().dateLabel)
+        assertEquals("Hoy 04", viewModel.uiState.value.dates.first().summaryLabel)
+      }
+
+  @Test
   fun confirmReservationTransitionsIntoSuccessState() =
       runTest(dispatcher) {
         val repository =
@@ -126,8 +206,8 @@ class ReservationViewModelTest {
                                 "2026-07-16",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-16T19:00:00.000Z",
-                                        "2026-07-16T20:00:00.000Z",
+                                        "2026-07-17T01:00:00.000Z",
+                                        "2026-07-17T02:00:00.000Z",
                                     )
                                 ),
                             ),
@@ -136,8 +216,8 @@ class ReservationViewModelTest {
                     ReservationConfirmation(
                         id = "reservation-id",
                         courtId = "court-id",
-                        startsAtUtc = "2026-07-16T19:00:00.000Z",
-                        endsAtUtc = "2026-07-16T20:00:00.000Z",
+                        startsAtUtc = "2026-07-17T01:00:00.000Z",
+                        endsAtUtc = "2026-07-17T02:00:00.000Z",
                         status = "CONFIRMED",
                     ),
             )
@@ -156,7 +236,7 @@ class ReservationViewModelTest {
         advanceUntilIdle()
 
         val success = assertIs<ReservationUiMode.Success>(viewModel.uiState.value.mode)
-        assertEquals(listOf("2026-07-16T19:00:00.000Z"), repository.createdStartsAt)
+        assertEquals(listOf("2026-07-17T01:00:00.000Z"), repository.createdStartsAt)
         assertEquals("Mejengas CR · Cancha 1", success.ticket.courtLabel)
         assertEquals("San José · Escazú", success.ticket.locationLabel)
         assertEquals("19:00 – 20:00", success.ticket.timeLabel)
@@ -165,6 +245,7 @@ class ReservationViewModelTest {
   @Test
   fun conflictTransitionsIntoConflictStateAndViewOtherHoursReloadsSelection() =
       runTest(dispatcher) {
+        val errorReporter = FakeErrorReporter()
         val repository =
             FakeReservationRepository(
                 availabilityByDate =
@@ -174,8 +255,8 @@ class ReservationViewModelTest {
                                 "2026-07-16",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-16T19:00:00.000Z",
-                                        "2026-07-16T20:00:00.000Z",
+                                        "2026-07-17T01:00:00.000Z",
+                                        "2026-07-17T02:00:00.000Z",
                                     )
                                 ),
                             ),
@@ -186,6 +267,7 @@ class ReservationViewModelTest {
             ReservationViewModel(
                 context = reservationContext(),
                 repository = repository,
+                errorReporter = errorReporter,
                 reservableDatesLoader = { dates },
                 coroutineScope = this,
             )
@@ -197,6 +279,21 @@ class ReservationViewModelTest {
 
         val conflict = assertIs<ReservationUiMode.Conflict>(viewModel.uiState.value.mode)
         assertEquals("19:00 – 20:00", conflict.attemptedTimeLabel)
+        assertEquals(
+            listOf(
+                ReportedFailure(
+                    name = "reservation_submit_failed",
+                    attributes =
+                        mapOf(
+                            "operation" to "create_reservation",
+                            "selected_date" to "2026-07-16",
+                            "error_source" to "app_api",
+                            "status_code" to "409",
+                        ),
+                )
+            ),
+            errorReporter.events,
+        )
 
         viewModel.viewOtherHours()
         advanceUntilIdle()
@@ -240,7 +337,7 @@ class ReservationViewModelTest {
         secondDateResponse.complete(
             reservationAvailability(
                 "2026-07-17",
-                listOf(reservableSlot("2026-07-17T21:00:00.000Z", "2026-07-17T22:00:00.000Z")),
+                listOf(reservableSlot("2026-07-18T03:00:00.000Z", "2026-07-18T04:00:00.000Z")),
             )
         )
         advanceUntilIdle()
@@ -251,7 +348,7 @@ class ReservationViewModelTest {
         firstDateResponse.complete(
             reservationAvailability(
                 "2026-07-16",
-                listOf(reservableSlot("2026-07-16T18:00:00.000Z", "2026-07-16T19:00:00.000Z")),
+                listOf(reservableSlot("2026-07-17T00:00:00.000Z", "2026-07-17T01:00:00.000Z")),
             )
         )
         advanceUntilIdle()
@@ -274,8 +371,8 @@ class ReservationViewModelTest {
                                 "2026-07-16",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-16T19:00:00.000Z",
-                                        "2026-07-16T20:00:00.000Z",
+                                        "2026-07-17T01:00:00.000Z",
+                                        "2026-07-17T02:00:00.000Z",
                                     )
                                 ),
                             )
@@ -297,22 +394,22 @@ class ReservationViewModelTest {
         viewModel.confirmReservation()
         advanceUntilIdle()
 
-        assertEquals(listOf("2026-07-16T19:00:00.000Z"), repository.createdStartsAt)
+        assertEquals(listOf("2026-07-17T01:00:00.000Z"), repository.createdStartsAt)
         assertEquals(true, viewModel.uiState.value.isSubmitting)
 
         createReservationResult.complete(
             ReservationConfirmation(
                 id = "reservation-id",
                 courtId = "court-id",
-                startsAtUtc = "2026-07-16T19:00:00.000Z",
-                endsAtUtc = "2026-07-16T20:00:00.000Z",
+                startsAtUtc = "2026-07-17T01:00:00.000Z",
+                endsAtUtc = "2026-07-17T02:00:00.000Z",
                 status = "CONFIRMED",
             )
         )
         advanceUntilIdle()
 
         assertIs<ReservationUiMode.Success>(viewModel.uiState.value.mode)
-        assertEquals(listOf("2026-07-16T19:00:00.000Z"), repository.createdStartsAt)
+        assertEquals(listOf("2026-07-17T01:00:00.000Z"), repository.createdStartsAt)
       }
 
   @Test
@@ -327,8 +424,8 @@ class ReservationViewModelTest {
                                 "2026-07-18",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-18T21:00:00.000Z",
-                                        "2026-07-18T22:00:00.000Z",
+                                        "2026-07-19T03:00:00.000Z",
+                                        "2026-07-19T04:00:00.000Z",
                                     )
                                 ),
                             )
@@ -371,8 +468,8 @@ class ReservationViewModelTest {
                                 "2026-07-18",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-18T21:00:00.000Z",
-                                        "2026-07-18T22:00:00.000Z",
+                                        "2026-07-19T03:00:00.000Z",
+                                        "2026-07-19T04:00:00.000Z",
                                     )
                                 ),
                             )
@@ -436,8 +533,9 @@ class ReservationViewModelTest {
       }
 
   @Test
-  fun initDiscoveryFailureExposesLoadErrorWithoutDatesOrSlots() =
+  fun initDiscoveryFailureExposesLoadErrorWithoutDatesOrSlotsAndReportsRecoverableFailure() =
       runTest(dispatcher) {
+        val errorReporter = FakeErrorReporter()
         val repository =
             FakeReservationRepository(
                 discoveryBlock = { _, _ -> throw AppApiException(500, "Discovery failed") }
@@ -446,6 +544,7 @@ class ReservationViewModelTest {
             ReservationViewModel(
                 context = reservationContext(),
                 repository = repository,
+                errorReporter = errorReporter,
                 coroutineScope = this,
             )
 
@@ -460,6 +559,78 @@ class ReservationViewModelTest {
         )
         assertEquals(1, repository.discoveryRequests.size)
         assertEquals(emptyList(), repository.requestedDates)
+        assertEquals(
+            listOf(
+                ReportedFailure(
+                    name = "reservation_discovery_load_failed",
+                    attributes =
+                        mapOf(
+                            "operation" to "load_reservable_days",
+                            "error_source" to "app_api",
+                            "status_code" to "500",
+                        ),
+                )
+            ),
+            errorReporter.events,
+        )
+      }
+
+  @Test
+  fun selectDateSlotLoadFailureReportsRecoverableFailureForTheSelectedBusinessDate() =
+      runTest(dispatcher) {
+        val errorReporter = FakeErrorReporter()
+        val repository =
+            FakeReservationRepository(
+                availabilityByDate =
+                    mapOf(
+                        "2026-07-16" to
+                            reservationAvailability(
+                                "2026-07-16",
+                                listOf(
+                                    reservableSlot(
+                                        "2026-07-17T01:00:00.000Z",
+                                        "2026-07-17T02:00:00.000Z",
+                                    )
+                                ),
+                            )
+                    ),
+                availabilityLoads =
+                    mapOf("2026-07-17" to { throw AppApiException(503, "Slots failed") }),
+            )
+        val viewModel =
+            ReservationViewModel(
+                context = reservationContext(),
+                repository = repository,
+                errorReporter = errorReporter,
+                reservableDatesLoader = { dates },
+                coroutineScope = this,
+            )
+
+        advanceUntilIdle()
+        viewModel.selectDate(1)
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.selectedDateIndex)
+        assertEquals(emptyList(), viewModel.uiState.value.slots)
+        assertEquals(
+            "No pudimos cargar los horarios disponibles. Intentá nuevamente.",
+            viewModel.uiState.value.loadErrorMessage,
+        )
+        assertEquals(
+            listOf(
+                ReportedFailure(
+                    name = "reservation_slots_load_failed",
+                    attributes =
+                        mapOf(
+                            "operation" to "load_reservable_slots",
+                            "selected_date" to "2026-07-17",
+                            "error_source" to "app_api",
+                            "status_code" to "503",
+                        ),
+                )
+            ),
+            errorReporter.events,
+        )
       }
 
   @Test
@@ -475,8 +646,8 @@ class ReservationViewModelTest {
                                 "2026-07-18",
                                 listOf(
                                     reservableSlot(
-                                        "2026-07-18T21:00:00.000Z",
-                                        "2026-07-18T22:00:00.000Z",
+                                        "2026-07-19T03:00:00.000Z",
+                                        "2026-07-19T04:00:00.000Z",
                                     )
                                 ),
                             )
@@ -524,6 +695,19 @@ class ReservationViewModelTest {
         assertEquals(listOf("21:00"), viewModel.uiState.value.slots.map { it.label })
       }
 }
+
+private class FakeErrorReporter : ErrorReporter {
+  val events = mutableListOf<ReportedFailure>()
+
+  override fun reportRecoverableFailure(name: String, attributes: Map<String, String>) {
+    events += ReportedFailure(name = name, attributes = attributes)
+  }
+}
+
+private data class ReportedFailure(
+    val name: String,
+    val attributes: Map<String, String>,
+)
 
 private class FakeReservationRepository(
     private val availabilityByDate: Map<String, ReservationDayAvailability> = emptyMap(),

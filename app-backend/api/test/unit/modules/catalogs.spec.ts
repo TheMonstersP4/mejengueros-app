@@ -13,6 +13,9 @@ import { ServiceCatalogController } from '@/modules/service-catalog/interfaces/h
 
 const FIXED_MONDAY = new Date('2026-06-22T12:00:00.000Z');
 const CATALOG_IMAGE_READ_URL = 'https://read.example.test/courts/court-id.jpg';
+const COSTA_RICA_UTC_ROLLOVER_INSTANT = '2026-07-05T02:24:00.000Z';
+const COSTA_RICA_DAY_WINDOW_START_UTC = '2026-07-04T06:00:00.000Z';
+const NEXT_COSTA_RICA_DAY_WINDOW_START_UTC = '2026-07-05T06:00:00.000Z';
 
 describe('catalog modules behavior', () => {
   it('delegates locations controllers and use cases to the repository', async () => {
@@ -167,8 +170,11 @@ describe('catalog modules behavior', () => {
               services: [{ serviceCatalog: { name: 'Parqueo' } }]
             },
             availability: {
+              startTime: new Date('1970-01-01T18:00:00.000Z'),
+              endTime: new Date('1970-01-01T21:00:00.000Z'),
               days: [{ day: 'MONDAY' }]
             },
+            reservations: [],
             imageUpload: {
               objectKey: 'test/uploads/court-image/court-id.jpg'
             }
@@ -229,7 +235,6 @@ describe('catalog modules behavior', () => {
         })
       })
     );
-    expect(prisma.court.findMany.mock.calls[0][0].select).not.toHaveProperty('reservations');
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
     expect(fileStorage.createReadUrl).toHaveBeenCalledWith(
       'test/uploads/court-image/court-id.jpg'
@@ -260,6 +265,7 @@ describe('catalog modules behavior', () => {
               services: []
             },
             availability: null,
+            reservations: [],
             imageUpload: null
           }
         ])
@@ -369,8 +375,11 @@ describe('catalog modules behavior', () => {
               services: []
             },
             availability: {
+              startTime: new Date('1970-01-01T18:00:00.000Z'),
+              endTime: new Date('1970-01-01T21:00:00.000Z'),
               days: [{ day: 'TUESDAY' }]
             },
+            reservations: [],
             imageUpload: null
           }
         ])
@@ -390,7 +399,7 @@ describe('catalog modules behavior', () => {
     ]);
   });
 
-  it('uses the UTC weekday for isReservableToday near timezone boundaries', async () => {
+  it('uses the Costa Rica business weekday for isReservableToday near UTC rollover boundaries', async () => {
     const fileStorage = createFileReadUrlMock();
     const prisma = {
       $queryRaw: jest.fn().mockResolvedValue([]),
@@ -411,8 +420,11 @@ describe('catalog modules behavior', () => {
               services: []
             },
             availability: {
-              days: [{ day: 'TUESDAY' }]
+              startTime: new Date('1970-01-01T18:00:00.000Z'),
+              endTime: new Date('1970-01-01T21:00:00.000Z'),
+              days: [{ day: 'MONDAY' }]
             },
+            reservations: [],
             imageUpload: null
           }
         ])
@@ -421,7 +433,7 @@ describe('catalog modules behavior', () => {
     const repository = new PrismaCourtCatalogRepository(
       prisma as never,
       fileStorage,
-      () => new Date('2026-06-22T23:30:00.000-05:00')
+      () => new Date('2026-06-23T00:30:00.000Z')
     );
 
     await expect(repository.listPublicCatalog({})).resolves.toEqual([
@@ -430,6 +442,102 @@ describe('catalog modules behavior', () => {
         isReservableToday: true
       })
     ]);
+  });
+
+  it('uses real same-day slot availability when calculating isReservableToday', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn()
+      },
+      court: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: []
+            },
+            availability: {
+              startTime: new Date('1970-01-01T18:00:00.000Z'),
+              endTime: new Date('1970-01-01T21:00:00.000Z'),
+              days: [{ day: 'MONDAY' }]
+            },
+            reservations: [{ startsAt: new Date('2026-06-23T01:00:00.000Z') }],
+            imageUpload: null
+          }
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => new Date('2026-06-22T23:45:00.000Z')
+    );
+
+    await expect(repository.listPublicCatalog({})).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        isReservableToday: true
+      })
+    ]);
+  });
+
+  it('locks catalog reservation queries to Costa Rica day bounds near UTC rollover', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'court-id',
+        name: 'Court A',
+        services: [],
+        complex: {
+          id: 'complex-id',
+          name: 'North Sports Center',
+          province: { id: 'province-id', name: 'San José' },
+          canton: { id: 'canton-id', name: 'Escazú' },
+          services: []
+        },
+        availability: {
+          startTime: new Date('1970-01-01T21:00:00.000Z'),
+          endTime: new Date('1970-01-01T23:00:00.000Z'),
+          days: [{ day: 'SATURDAY' }]
+        },
+        reservations: [],
+        imageUpload: null
+      }
+    ]);
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn()
+      },
+      court: {
+        findMany
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => new Date(COSTA_RICA_UTC_ROLLOVER_INSTANT)
+    );
+
+    await expect(repository.listPublicCatalog({})).resolves.toEqual([
+      expect.objectContaining({
+        courtId: 'court-id',
+        isReservableToday: true
+      })
+    ]);
+
+    const startsAtBounds = findMany.mock.calls[0]?.[0]?.select?.reservations?.where?.startsAt;
+
+    expect(startsAtBounds?.gte.toISOString()).toBe(COSTA_RICA_DAY_WINDOW_START_UTC);
+    expect(startsAtBounds?.lt.toISOString()).toBe(NEXT_COSTA_RICA_DAY_WINDOW_START_UTC);
   });
 
   function createFileReadUrlMock(): jest.Mocked<IFileReadUrlPort> {
@@ -459,6 +567,7 @@ describe('catalog modules behavior', () => {
         services: []
       },
       availability: null,
+      reservations: [],
       imageUpload: imageObjectKey ? { objectKey: imageObjectKey } : null
     };
   }

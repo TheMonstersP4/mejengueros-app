@@ -9,7 +9,9 @@ import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailabili
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.time.parseUtcCalendarDate
-import io.github.themonstersp4.mejengueros.domain.time.todayUtcDateString
+import io.github.themonstersp4.mejengueros.domain.time.todayCostaRicaDateString
+import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
+import io.github.themonstersp4.mejengueros.monitoring.NoOpErrorReporter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSlotState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -21,11 +23,13 @@ import kotlinx.coroutines.launch
 class ReservationViewModel(
     private val context: ReservationContext,
     private val repository: IReservationRepository,
+    private val errorReporter: ErrorReporter = NoOpErrorReporter(),
+    private val todayDateProvider: () -> String = { todayCostaRicaDateString() },
     private val reservableDatesLoader: suspend () -> List<ReservationDateUiModel> = {
       repository
           .getReservableDays(
               courtId = context.courtId,
-              fromUtcDate = todayUtcDateString(),
+              fromUtcDate = todayDateProvider(),
               days = DefaultReservableDaysWindow,
           )
           .toReservationDateUiModels()
@@ -121,6 +125,14 @@ class ReservationViewModel(
             )
       } catch (error: Throwable) {
         if (error is CancellationException) throw error
+        errorReporter.reportRecoverableFailure(
+            name = "reservation_submit_failed",
+            attributes =
+                error.toReservationReportAttributes(
+                    operation = "create_reservation",
+                    selectedDate = state.dates.getOrNull(state.selectedDateIndex)?.utcDate,
+                ),
+        )
         if (error is AppApiException && error.statusCode == 409) {
           _uiState.value =
               _uiState.value.copy(
@@ -201,6 +213,10 @@ class ReservationViewModel(
         loadSelectedDateSlots()
       } catch (error: Throwable) {
         if (error is CancellationException) throw error
+        errorReporter.reportRecoverableFailure(
+            name = "reservation_discovery_load_failed",
+            attributes = error.toReservationReportAttributes(operation = "load_reservable_days"),
+        )
         _uiState.value =
             _uiState.value.copy(
                 isLoadingSlots = false,
@@ -250,6 +266,14 @@ class ReservationViewModel(
         ) {
           return@launch
         }
+        errorReporter.reportRecoverableFailure(
+            name = "reservation_slots_load_failed",
+            attributes =
+                error.toReservationReportAttributes(
+                    operation = "load_reservable_slots",
+                    selectedDate = selectedDate.utcDate,
+                ),
+        )
         _uiState.value =
             _uiState.value.copy(
                 isLoadingSlots = false,
@@ -329,6 +353,26 @@ private fun Throwable.toReservationSubmitUserMessage(): String =
           }
       else -> "No pudimos confirmar la reserva en este momento. Intentá nuevamente."
     }
+
+private fun Throwable.toReservationReportAttributes(
+    operation: String,
+    selectedDate: String? = null,
+): Map<String, String> {
+  val baseAttributes = buildMap {
+    put("operation", operation)
+    selectedDate?.let { put("selected_date", it) }
+  }
+
+  return when (this) {
+    is AppApiException ->
+        baseAttributes +
+            mapOf(
+                "error_source" to "app_api",
+                "status_code" to statusCode.toString(),
+            )
+    else -> baseAttributes + mapOf("error_source" to "unexpected")
+  }
+}
 
 internal fun buildReservationDateOptions(
     startDateUtc: String,

@@ -42,7 +42,8 @@ function IsDateOnly(validationOptions?: ValidationOptions): PropertyDecorator {
 
 export class GetReservableDaysRequest {
   @ApiProperty({
-    description: 'Inclusive UTC start date for the discovery window in YYYY-MM-DD format.',
+    description:
+      'Inclusive Costa Rica business start date for the discovery window in YYYY-MM-DD format.',
     example: '2026-07-04'
   })
   @Transform(({ value }) => trimText(value))
@@ -51,7 +52,7 @@ export class GetReservableDaysRequest {
 
   @ApiPropertyOptional({
     description:
-      'Number of UTC calendar days to scan from the inclusive start date. Days above the safe bounded limit are rejected.',
+      'Number of Costa Rica business calendar days to scan from the inclusive start date. Days above the safe bounded limit are rejected.',
     example: DEFAULT_RESERVABLE_DAYS_RANGE,
     minimum: 1,
     maximum: MAX_RESERVABLE_DAYS_RANGE,

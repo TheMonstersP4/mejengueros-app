@@ -191,21 +191,27 @@ describe('OpenAPI document contract', () => {
     expect(operationDescription('/v1/courts/{courtId}/reservable-slots', 'get')).toContain(
       '30-minute minimum advance threshold'
     );
+    expect(operationDescription('/v1/courts/{courtId}/reservable-slots', 'get')).toContain(
+      'America/Costa_Rica civil date'
+    );
     expect(operationDescription('/v1/courts/{courtId}/reservable-days', 'get')).toContain(
       'same-day 30-minute minimum advance threshold'
+    );
+    expect(operationDescription('/v1/courts/{courtId}/reservable-days', 'get')).toContain(
+      'Costa Rica business calendar dates'
     );
     expect(
       schemaProperty(componentSchema('ReservableSlotsResponse'), 'slots')
     ).toEqual(
       expect.objectContaining({
-        description: expect.stringContaining('30-minute minimum advance threshold')
+        description: expect.stringContaining('Costa Rica business date')
       })
     );
     expect(
       schemaProperty(componentSchema('ReservableDaysResponse'), 'reservableDays')
     ).toEqual(
       expect.objectContaining({
-        description: expect.stringContaining('same-day 30-minute minimum advance threshold')
+        description: expect.stringContaining('Costa Rica business dates')
       })
     );
   });

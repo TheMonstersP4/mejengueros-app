@@ -2,8 +2,14 @@ package io.github.themonstersp4.mejengueros.domain.time
 
 import kotlin.time.Clock
 
+private const val CostaRicaUtcOffsetSeconds = -6 * 60 * 60L
+private const val CostaRicaUtcOffsetMinutes = -6 * 60
+
 internal fun todayUtcDateString(): String =
     epochSecondsToUtcDateString(Clock.System.now().epochSeconds)
+
+internal fun todayCostaRicaDateString(): String =
+    epochSecondsToCostaRicaDateString(Clock.System.now().epochSeconds)
 
 /**
  * Shared UTC civil-date math based on the proleptic Gregorian calendar.
@@ -132,6 +138,47 @@ internal fun parseUtcCalendarDate(value: String): UtcCalendarDate {
 internal fun epochSecondsToUtcDateString(epochSeconds: Long): String {
   val epochDay = floorDiv(epochSeconds, UtcCivilDateMath.SecondsPerDay).toInt()
   return UtcCalendarDate.fromEpochDay(epochDay).toIsoDate()
+}
+
+internal fun epochSecondsToCostaRicaDateString(epochSeconds: Long): String =
+    epochSecondsToUtcDateString(epochSeconds + CostaRicaUtcOffsetSeconds)
+
+internal fun String.toCostaRicaDateLabel(): String =
+    parseUtcInstantToCostaRicaDateTimeOrNull()?.date?.toIsoDate() ?: this
+
+internal fun String.toCostaRicaTimeLabel(): String =
+    parseUtcInstantToCostaRicaDateTimeOrNull()?.toTimeLabel() ?: this
+
+private data class CostaRicaDateTime(
+    val date: UtcCalendarDate,
+    val hour: Int,
+    val minute: Int,
+) {
+  fun toTimeLabel(): String =
+      "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+}
+
+private fun String.parseUtcInstantToCostaRicaDateTimeOrNull(): CostaRicaDateTime? {
+  if (length < 17 || getOrNull(4) != '-' || getOrNull(7) != '-' || getOrNull(10) != 'T') {
+    return null
+  }
+
+  val year = substring(0, 4).toIntOrNull() ?: return null
+  val month = substring(5, 7).toIntOrNull() ?: return null
+  val day = substring(8, 10).toIntOrNull() ?: return null
+  val hour = substring(11, 13).toIntOrNull() ?: return null
+  val minute = substring(14, 16).toIntOrNull() ?: return null
+
+  val baseDate = UtcCalendarDate(year = year, month = month, day = day)
+  val totalMinutesInCostaRica = hour * 60 + minute + CostaRicaUtcOffsetMinutes
+  val dayOffset = floorDiv(totalMinutesInCostaRica, 24 * 60)
+  val normalizedMinutes = mod(totalMinutesInCostaRica, 24 * 60)
+
+  return CostaRicaDateTime(
+      date = baseDate.plusDays(dayOffset),
+      hour = normalizedMinutes / 60,
+      minute = normalizedMinutes % 60,
+  )
 }
 
 private fun floorDiv(value: Int, divisor: Int): Int {

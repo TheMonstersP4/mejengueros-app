@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { CourtStatus } from '@/generated/prisma/enums';
 import { CLOCK, type IClock } from '@/shared/application/clock/clock.port';
+import {
+  addCostaRicaBusinessDays,
+  formatCostaRicaBusinessDate
+} from '@/shared/domain/time/costa-rica-business-time';
 import { buildReservableSlots, parseDateOnly } from '../../domain/services/reservation-slot-policy';
 import {
   RESERVATION_REPOSITORY,
@@ -41,8 +45,8 @@ export class GetReservableDaysUseCase {
     const reservableDays: IReservableDayOutput[] = [];
 
     for (let offset = 0; offset < days; offset += 1) {
-      const currentDate = addUtcDays(fromDate, offset);
-      const currentDateString = currentDate.toISOString().slice(0, 10);
+      const currentDate = addCostaRicaBusinessDays(fromDate, offset);
+      const currentDateString = formatCostaRicaBusinessDate(currentDate);
       const reservationWindow = await this.reservationRepository.getReservationWindow({
         courtId,
         date: currentDateString
@@ -78,10 +82,4 @@ export class GetReservableDaysUseCase {
       reservableDays
     };
   }
-}
-
-function addUtcDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
 }

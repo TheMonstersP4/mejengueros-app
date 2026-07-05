@@ -7,12 +7,17 @@ import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
+import io.github.themonstersp4.mejengueros.domain.time.toCostaRicaDateLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 
 class CourtDetailRepositoryTest {
+  private companion object {
+    const val COSTA_RICA_UTC_ROLLOVER_INSTANT = "2026-07-05T02:24:00.000Z"
+  }
+
   @Test
   fun getUpcomingReservableSlotsPreviewLooksAheadUntilFirstAvailableDay() = runTest {
     val requestedDiscoveryWindows = mutableListOf<Pair<String, Int>>()
@@ -43,8 +48,8 @@ class CourtDetailRepositoryTest {
                           slots =
                               listOf(
                                   ReservableSlot(
-                                      startsAtUtc = "2026-07-03T18:00:00.000Z",
-                                      endsAtUtc = "2026-07-03T19:00:00.000Z",
+                                      startsAtUtc = "2026-07-04T00:00:00.000Z",
+                                      endsAtUtc = "2026-07-04T01:00:00.000Z",
                                   )
                               ),
                       )
@@ -89,8 +94,8 @@ class CourtDetailRepositoryTest {
                           slots =
                               listOf(
                                   ReservableSlot(
-                                      startsAtUtc = "2026-07-05T18:00:00.000Z",
-                                      endsAtUtc = "2026-07-05T19:00:00.000Z",
+                                      startsAtUtc = "2026-07-06T00:00:00.000Z",
+                                      endsAtUtc = "2026-07-06T01:00:00.000Z",
                                   )
                               ),
                       )
@@ -159,6 +164,31 @@ class CourtDetailRepositoryTest {
 
     assertEquals(listOf("2026-07-01" to 3), requestedDiscoveryWindows)
     assertNull(result)
+  }
+
+  @Test
+  fun getUpcomingReservableSlotsPreviewUsesCostaRicaBusinessDateAtUtcRollover() = runTest {
+    val requestedDiscoveryWindows = mutableListOf<Pair<String, Int>>()
+    val repository =
+        CourtDetailRepository(
+            reservationRepository =
+                fakeReservationRepository(
+                    getReservableDays = { _, fromUtcDate, days ->
+                      requestedDiscoveryWindows += fromUtcDate to days
+                      ReservationDayDiscovery(
+                          fromUtc = fromUtcDate,
+                          days = days,
+                          reservableDays = emptyList(),
+                      )
+                    },
+                ),
+            todayDateProvider = { COSTA_RICA_UTC_ROLLOVER_INSTANT.toCostaRicaDateLabel() },
+            previewDays = 14,
+        )
+
+    repository.getUpcomingReservableSlotsPreview("court-id")
+
+    assertEquals(listOf("2026-07-04" to 14), requestedDiscoveryWindows)
   }
 }
 

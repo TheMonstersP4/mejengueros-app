@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { costaRicaBusinessDayBounds } from '@/shared/domain/time/costa-rica-business-time';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { ReservationConflictError } from '../../domain/errors/reservation-conflict.error';
 import { ReservationCourtNotFoundError } from '../../domain/errors/reservation-court-not-found.error';
@@ -29,9 +30,7 @@ export class PrismaReservationRepository implements IReservationRepository {
   async getReservationWindow(
     query: IReservationWindowQuery
   ): Promise<IReservationWindowSnapshot> {
-    const dayStart = new Date(`${query.date}T00:00:00.000Z`);
-    const dayEnd = new Date(`${query.date}T00:00:00.000Z`);
-    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+    const { start: dayStart, end: dayEnd } = costaRicaBusinessDayBounds(query.date);
 
     const court = await this.prisma.court.findFirst({
       where: {

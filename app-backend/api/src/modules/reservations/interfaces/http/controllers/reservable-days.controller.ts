@@ -38,12 +38,13 @@ export class ReservableDaysController {
   @ApiOperation({
     summary: 'List upcoming court dates that still have reservable one-hour slots.',
     description:
-      'Returns only UTC calendar dates that currently have at least one reservable one-hour slot after applying court status, weekday availability, existing confirmed reservations, and the same-day 30-minute minimum advance threshold.'
+      'Returns only Costa Rica business calendar dates that currently have at least one reservable one-hour slot after applying court status, weekday availability, existing confirmed reservations, and the same-day 30-minute minimum advance threshold using the America/Costa_Rica civil date.'
   })
   @ApiParam({ name: 'courtId', description: 'Court identifier.', format: 'uuid' })
   @ApiQuery({
     name: 'from',
-    description: 'Inclusive UTC start date for the discovery window in YYYY-MM-DD format.'
+    description:
+      'Inclusive Costa Rica business start date for the discovery window in YYYY-MM-DD format.'
   })
   @ApiQuery({
     name: 'days',

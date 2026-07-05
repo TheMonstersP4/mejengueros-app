@@ -445,8 +445,8 @@ private fun sampleReservation() =
         reservationId = "reservation-id",
         complexName = "Moravia FC",
         courtName = "Cancha A",
-        startsAt = "2026-07-02T20:00:00.000Z",
-        endsAt = "2026-07-02T21:00:00.000Z",
+        startsAt = "2026-07-03T02:00:00.000Z",
+        endsAt = "2026-07-03T03:00:00.000Z",
     )
 
 private fun testNavigationState(): AuthenticatedNavigationState =

@@ -115,7 +115,7 @@ describe('reservations HTTP contract', () => {
       headers: { Authorization: 'Bearer valid-token' },
       payload: {
         courtId,
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       }
     });
 
@@ -124,8 +124,8 @@ describe('reservations HTTP contract', () => {
       data: {
         userId: 'user-id',
         courtId,
-        startsAt: new Date('2026-07-01T18:00:00.000Z'),
-        endsAt: new Date('2026-07-01T19:00:00.000Z'),
+        startsAt: new Date('2026-07-02T00:00:00.000Z'),
+        endsAt: new Date('2026-07-02T01:00:00.000Z'),
         status: 'CONFIRMED'
       }
     });
@@ -134,8 +134,8 @@ describe('reservations HTTP contract', () => {
       data: {
         id: 'reservation-id',
         courtId,
-        startsAt: '2026-07-01T18:00:00.000Z',
-        endsAt: '2026-07-01T19:00:00.000Z',
+        startsAt: '2026-07-02T00:00:00.000Z',
+        endsAt: '2026-07-02T01:00:00.000Z',
         status: 'CONFIRMED'
       },
       errors: [],
@@ -152,7 +152,7 @@ describe('reservations HTTP contract', () => {
       headers: { Authorization: 'Bearer valid-token' },
       payload: {
         courtId,
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       }
     });
 
@@ -341,12 +341,16 @@ describe('reservations HTTP contract', () => {
         availabilityStatus: 'AVAILABLE',
         slots: [
           {
-            startsAt: '2026-07-01T18:00:00.000Z',
-            endsAt: '2026-07-01T19:00:00.000Z'
+            startsAt: '2026-07-02T00:00:00.000Z',
+            endsAt: '2026-07-02T01:00:00.000Z'
           },
           {
-            startsAt: '2026-07-01T20:00:00.000Z',
-            endsAt: '2026-07-01T21:00:00.000Z'
+            startsAt: '2026-07-02T01:00:00.000Z',
+            endsAt: '2026-07-02T02:00:00.000Z'
+          },
+          {
+            startsAt: '2026-07-02T02:00:00.000Z',
+            endsAt: '2026-07-02T03:00:00.000Z'
           }
         ]
       },
@@ -358,7 +362,7 @@ describe('reservations HTTP contract', () => {
   });
 
   it('excludes same-day slots at or inside the 30-minute threshold from the public reservable slots response while keeping later slots', async () => {
-    currentNow = new Date('2026-07-01T17:30:00.000Z');
+    currentNow = new Date('2026-07-02T00:30:00.000Z');
     prismaService.court.findFirst.mockResolvedValueOnce({
       id: courtId,
       name: 'Cancha 1',
@@ -391,12 +395,8 @@ describe('reservations HTTP contract', () => {
         availabilityStatus: 'AVAILABLE',
         slots: [
           {
-            startsAt: '2026-07-01T19:00:00.000Z',
-            endsAt: '2026-07-01T20:00:00.000Z'
-          },
-          {
-            startsAt: '2026-07-01T20:00:00.000Z',
-            endsAt: '2026-07-01T21:00:00.000Z'
+            startsAt: '2026-07-02T02:00:00.000Z',
+            endsAt: '2026-07-02T03:00:00.000Z'
           }
         ]
       },
@@ -476,7 +476,7 @@ describe('reservations HTTP contract', () => {
           {
             date: '2026-07-01',
             availabilityStatus: 'AVAILABLE',
-            availableSlotsCount: 2
+            availableSlotsCount: 3
           }
         ]
       },
@@ -509,7 +509,7 @@ describe('reservations HTTP contract', () => {
           {
             date: '2026-07-01',
             availabilityStatus: 'AVAILABLE',
-            availableSlotsCount: 2
+            availableSlotsCount: 3
           },
           {
             date: '2026-07-08',
@@ -606,7 +606,7 @@ describe('reservations HTTP contract', () => {
   });
 
   it('omits today from reservable day counts in the real HTTP response when every same-day slot is inside the threshold', async () => {
-    currentNow = new Date('2026-07-01T19:30:00.000Z');
+    currentNow = new Date('2026-07-02T02:30:00.000Z');
     prismaService.court.findFirst.mockResolvedValue({
       id: courtId,
       name: 'Cancha 1',
@@ -674,8 +674,8 @@ function createPrismaMock() {
         id: 'reservation-id',
         userId: 'user-id',
         courtId,
-        startsAt: new Date('2026-07-01T18:00:00.000Z'),
-        endsAt: new Date('2026-07-01T19:00:00.000Z'),
+        startsAt: new Date('2026-07-02T00:00:00.000Z'),
+        endsAt: new Date('2026-07-02T01:00:00.000Z'),
         status: 'CONFIRMED'
       })
     }
