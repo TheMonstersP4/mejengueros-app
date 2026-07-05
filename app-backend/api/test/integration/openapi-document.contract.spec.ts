@@ -179,10 +179,33 @@ describe('OpenAPI document contract', () => {
     expect(startsAt).toEqual(
       expect.objectContaining({
         description:
-          'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour.',
+          'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour. Same-day reservations must start more than 30 minutes after the current UTC time.',
         example: '2026-07-01T18:00:00.000Z',
         format: 'date-time',
         pattern: UTC_RESERVATION_STARTS_AT_SCHEMA_PATTERN
+      })
+    );
+  });
+
+  it('documents the reservable slot and day discovery threshold behavior in public contracts', () => {
+    expect(operationDescription('/v1/courts/{courtId}/reservable-slots', 'get')).toContain(
+      '30-minute minimum advance threshold'
+    );
+    expect(operationDescription('/v1/courts/{courtId}/reservable-days', 'get')).toContain(
+      'same-day 30-minute minimum advance threshold'
+    );
+    expect(
+      schemaProperty(componentSchema('ReservableSlotsResponse'), 'slots')
+    ).toEqual(
+      expect.objectContaining({
+        description: expect.stringContaining('30-minute minimum advance threshold')
+      })
+    );
+    expect(
+      schemaProperty(componentSchema('ReservableDaysResponse'), 'reservableDays')
+    ).toEqual(
+      expect.objectContaining({
+        description: expect.stringContaining('same-day 30-minute minimum advance threshold')
       })
     );
   });
@@ -395,6 +418,16 @@ describe('OpenAPI document contract', () => {
         })
       ])
     );
+  }
+
+  function operationDescription(path: string, method: OpenApiMethod): string {
+    const operation = document.paths[path]?.[method] as
+      | { description?: string }
+      | undefined;
+
+    expect(operation?.description).toBeDefined();
+
+    return operation?.description as string;
   }
 
   function dataSchema(schema: SchemaRecord): unknown {

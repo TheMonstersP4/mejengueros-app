@@ -3,7 +3,7 @@ import { CLOCK, type IClock } from '@/shared/application/clock/clock.port';
 import type { IAuthenticatedUserOutput } from '../../../auth/application/dto/authenticated-user.output';
 import { SyncAuthenticatedUserUseCase } from '../../../users/application/use-cases/sync-authenticated-user.use-case';
 import {
-  assertReservationStartsInFuture,
+  assertReservationStartsWithMinimumAdvance,
   assertCourtCanBeReserved,
   resolveReservationTime
 } from '../../domain/services/reservation-slot-policy';
@@ -36,7 +36,7 @@ export class CreateReservationUseCase {
     input: ICreateReservationInput
   ): Promise<ICreatedReservationOutput> {
     const resolved = resolveReservationTime(input.startsAt);
-    assertReservationStartsInFuture(resolved, this.clock.now());
+    assertReservationStartsWithMinimumAdvance(resolved, this.clock.now());
     const localUser = await this.syncAuthenticatedUser.execute(user);
     const reservationWindow = await this.reservationRepository.getReservationWindow({
       courtId: input.courtId,

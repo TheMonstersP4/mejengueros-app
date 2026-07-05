@@ -38,7 +38,7 @@ export class ReservableSlotsController {
   @ApiOperation({
     summary: 'List reservable one-hour slots for one court date.',
     description:
-      'Returns UTC one-hour reservation slot candidates derived from court availability for the selected date, excluding already confirmed reservations and any same-day slots whose start time is not strictly in the future.'
+      'Returns UTC one-hour reservation slot candidates derived from court availability for the selected date, excluding already confirmed reservations and any same-day slots whose start time is less than or equal to the 30-minute minimum advance threshold.'
   })
   @ApiParam({ name: 'courtId', description: 'Court identifier.', format: 'uuid' })
   @ApiQuery({

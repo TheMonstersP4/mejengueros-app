@@ -33,4 +33,15 @@ export class InvalidReservationRequestError extends DomainError {
       { startsAt, now }
     );
   }
+
+  static sameDayAdvanceThresholdNotMet(
+    startsAt: string,
+    now: string,
+    minimumAdvanceMinutes: number
+  ): InvalidReservationRequestError {
+    return new InvalidReservationRequestError(
+      `Same-day reservation start time must be more than ${minimumAdvanceMinutes} minutes in the future.`,
+      { startsAt, now, minimumAdvanceMinutes }
+    );
+  }
 }

@@ -36,7 +36,7 @@ export class ReservableSlotsResponse {
   @ApiProperty({
     type: [ReservableSlotResponse],
     description:
-      'UTC one-hour slot candidates after excluding confirmed reservations and already-started slots on the current UTC date.'
+      'UTC one-hour slot candidates after excluding confirmed reservations and any current-day slots that do not clear the 30-minute minimum advance threshold.'
   })
   slots!: ReservableSlotResponse[];
 }

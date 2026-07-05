@@ -36,7 +36,7 @@ export class CreateReservationRequest {
 
   @ApiProperty({
     description:
-      'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour.',
+      'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour. Same-day reservations must start more than 30 minutes after the current UTC time.',
     example: '2026-07-01T18:00:00.000Z',
     format: 'date-time',
     pattern: UTC_RESERVATION_STARTS_AT_SCHEMA_PATTERN
