@@ -63,6 +63,7 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema('/v1/complexes/my-hub', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/complexes/{complexId}/courts', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/reservations', 'post', '201')).toBeDefined();
+    expect(responseSchema('/v1/reservations/my', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/reviews/latest-eligible-reservation', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/reviews', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200')).toBeDefined();
@@ -105,6 +106,10 @@ describe('OpenAPI document contract', () => {
       responseSchema('/v1/reservations', 'post', '201'),
       '#/components/schemas/CreateReservationResponse'
     );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/reservations/my', 'get', '200'),
+      '#/components/schemas/MyReservationsResponse'
+    );
     expectNullableObjectEnvelopeSchema(
       responseSchema('/v1/reviews/latest-eligible-reservation', 'get', '200'),
       '#/components/schemas/LatestReviewableReservationResponse'
@@ -130,6 +135,7 @@ describe('OpenAPI document contract', () => {
     expectErrorEnvelopeSchema('/v1/reservations', 'post', '401');
     expectErrorEnvelopeSchema('/v1/reservations', 'post', '404');
     expectErrorEnvelopeSchema('/v1/reservations', 'post', '409');
+    expectErrorEnvelopeSchema('/v1/reservations/my', 'get', '401');
     expectErrorEnvelopeSchema('/v1/reviews/latest-eligible-reservation', 'get', '401');
     expectErrorEnvelopeSchema('/v1/reviews', 'post', '400');
     expectErrorEnvelopeSchema('/v1/reviews', 'post', '401');
@@ -184,6 +190,55 @@ describe('OpenAPI document contract', () => {
         format: 'date-time',
         pattern: UTC_RESERVATION_STARTS_AT_SCHEMA_PATTERN
       })
+    );
+  });
+
+  it('documents the my reservations response contract for render-ready review states', () => {
+    const myReservationsResponse = componentSchema('MyReservationsResponse');
+    const reservationCard = componentSchema('ReservationCardResponse');
+
+    expect(schemaProperty(myReservationsResponse, 'upcoming')).toEqual(
+      expect.objectContaining({
+        description: expect.stringContaining('up to 20 cards'),
+        type: 'array',
+        items: expect.objectContaining({
+          $ref: '#/components/schemas/ReservationCardResponse'
+        })
+      })
+    );
+    expect(schemaProperty(myReservationsResponse, 'finalized')).toEqual(
+      expect.objectContaining({
+        description: expect.stringContaining('up to 20 cards'),
+        type: 'array',
+        items: expect.objectContaining({
+          $ref: '#/components/schemas/ReservationCardResponse'
+        })
+      })
+    );
+    expect(schemaProperty(reservationCard, 'status')).toEqual(
+      expect.objectContaining({
+        enum: ['CONFIRMED', 'COMPLETED']
+      })
+    );
+    expect(schemaProperty(reservationCard, 'section')).toEqual(
+      expect.objectContaining({
+        enum: ['UPCOMING', 'FINALIZED']
+      })
+    );
+    expect(schemaProperty(reservationCard, 'reviewStatus')).toEqual(
+      expect.objectContaining({
+        enum: ['NOT_APPLICABLE', 'PENDING_REVIEW', 'REVIEWED']
+      })
+    );
+    expect(schemaProperty(reservationCard, 'primaryActionLabel')).toEqual(
+      expect.objectContaining({ example: 'Dejar reseña' })
+    );
+    expect(schemaProperty(reservationCard, 'indicatorLabel')).toEqual(
+      expect.objectContaining({ example: 'Ya dejaste tu reseña' })
+    );
+    expect(operationDescription('/v1/reservations/my', 'get')).toContain('bounded screen snapshot');
+    expect(operationDescription('/v1/reservations/my', 'get')).toContain(
+      'up to 20 upcoming cards and up to 20 finalized cards'
     );
   });
 

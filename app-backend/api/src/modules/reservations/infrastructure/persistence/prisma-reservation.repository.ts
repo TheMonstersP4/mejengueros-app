@@ -5,6 +5,9 @@ import { ReservationConflictError } from '../../domain/errors/reservation-confli
 import { ReservationCourtNotFoundError } from '../../domain/errors/reservation-court-not-found.error';
 import type {
   ICreateConfirmedReservationCommand,
+  IFindMyReservationsQuery,
+  IMyReservationSnapshot,
+  IMyReservationsSnapshotGroups,
   IReservationRepository,
   IReservationSnapshot,
   IReservationWindowQuery,
@@ -17,6 +20,7 @@ interface IReservationPersistenceClient {
   };
   reservation: {
     create: PrismaService['reservation']['create'];
+    findMany: PrismaService['reservation']['findMany'];
   };
 }
 
@@ -134,6 +138,133 @@ export class PrismaReservationRepository implements IReservationRepository {
       throw error;
     }
   }
+
+  async findMyReservationsByUserId(
+    query: IFindMyReservationsQuery
+  ): Promise<IMyReservationsSnapshotGroups> {
+    const [upcomingReservations, finalizedReservations] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where: {
+          userId: query.userId,
+          status: 'CONFIRMED',
+          court: {
+            deletedAt: null,
+            complex: {
+              deletedAt: null
+            }
+          }
+        },
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        take: query.upcomingLimit,
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          completedAt: true,
+          review: {
+            select: {
+              id: true
+            }
+          },
+          court: {
+            select: {
+              name: true,
+              imageUpload: {
+                select: {
+                  objectKey: true
+                }
+              },
+              complex: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      this.prisma.reservation.findMany({
+        where: {
+          userId: query.userId,
+          status: 'COMPLETED',
+          completedAt: {
+            not: null
+          },
+          court: {
+            deletedAt: null,
+            complex: {
+              deletedAt: null
+            }
+          }
+        },
+        orderBy: [{ completedAt: 'desc' }, { startsAt: 'desc' }, { id: 'asc' }],
+        take: query.finalizedLimit,
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          completedAt: true,
+          review: {
+            select: {
+              id: true
+            }
+          },
+          court: {
+            select: {
+              name: true,
+              imageUpload: {
+                select: {
+                  objectKey: true
+                }
+              },
+              complex: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        }
+      })
+    ]);
+
+    return {
+      upcoming: mapMyReservationSnapshots(upcomingReservations),
+      finalized: mapMyReservationSnapshots(finalizedReservations)
+    };
+  }
+}
+
+function mapMyReservationSnapshots(
+  reservations: Array<{
+    id: string;
+    startsAt: Date;
+    endsAt: Date;
+    status: IMyReservationSnapshot['status'];
+    completedAt: Date | null;
+    review: { id: string } | null;
+    court: {
+      name: string;
+      imageUpload: { objectKey: string } | null;
+      complex: {
+        name: string;
+      };
+    };
+  }>
+): IMyReservationSnapshot[] {
+  return reservations.map((reservation) => ({
+    id: reservation.id,
+    complexName: reservation.court.complex.name,
+    courtName: reservation.court.name,
+    imageObjectKey: reservation.court.imageUpload?.objectKey ?? undefined,
+    startsAt: reservation.startsAt.toISOString(),
+    endsAt: reservation.endsAt.toISOString(),
+    status: reservation.status,
+    completedAt: reservation.completedAt?.toISOString() ?? null,
+    reviewId: reservation.review?.id ?? null
+  }));
 }
 
 function formatTimeOnly(value: Date): string {
