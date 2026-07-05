@@ -54,6 +54,7 @@ class ReviewViewModel(
   private val _uiState = MutableStateFlow(ReviewUiState())
   private var activeSubmissionJob: Job? = null
   private var submissionGeneration: Long = 0
+  private var latestReservationLoadGeneration: Long = 0
   val uiState: StateFlow<ReviewUiState> = _uiState.asStateFlow()
 
   init {
@@ -61,6 +62,7 @@ class ReviewViewModel(
   }
 
   fun refreshLatestReviewableReservation() {
+    val currentLoadGeneration = ++latestReservationLoadGeneration
     _uiState.value =
         _uiState.value.copy(
             isLoading = true,
@@ -72,6 +74,7 @@ class ReviewViewModel(
     coroutineScope.launch {
       runCatching { reviewRepository.getLatestReviewableReservation() }
           .onSuccess { reservation ->
+            if (latestReservationLoadGeneration != currentLoadGeneration) return@onSuccess
             _uiState.value =
                 _uiState.value.copy(
                     isLoading = false,
@@ -81,6 +84,7 @@ class ReviewViewModel(
           }
           .onFailure { error ->
             if (error is CancellationException) return@onFailure
+            if (latestReservationLoadGeneration != currentLoadGeneration) return@onFailure
 
             errorReporter.reportRecoverableFailure(
                 name = "review_latest_reservation_load_failed",
@@ -99,6 +103,24 @@ class ReviewViewModel(
 
   fun startReview() {
     _uiState.value = _uiState.value.copy(submitErrorMessage = null)
+  }
+
+  fun startReview(reservation: ReviewableReservation) {
+    invalidateActiveSubmission()
+    invalidateLatestReservationLoad()
+    _uiState.value =
+        _uiState.value.copy(
+            isLoading = false,
+            loadErrorMessage = null,
+            reviewableReservation = reservation,
+            selectedRating = 0,
+            comment = "",
+            selectedEvidenceImage = null,
+            confirmedEvidenceImageUpload = null,
+            isSubmitting = false,
+            submitErrorMessage = null,
+            submittedReview = null,
+        )
   }
 
   fun updateRating(rating: Int) {
@@ -133,10 +155,13 @@ class ReviewViewModel(
     _uiState.value = _uiState.value.copy(isEvidenceImagePickerAvailable = isAvailable)
   }
 
-  fun resetFlow() {
+  fun resetFlow(reloadLatestReservation: Boolean = true) {
     val currentState = _uiState.value
-    val shouldRefreshReservation = currentState.submittedReview != null || currentState.isSubmitting
+    val shouldRefreshReservation =
+        reloadLatestReservation &&
+            (currentState.submittedReview != null || currentState.isSubmitting)
     invalidateActiveSubmission()
+    invalidateLatestReservationLoad()
     _uiState.value =
         currentState.copy(
             selectedRating = 0,
@@ -231,6 +256,10 @@ class ReviewViewModel(
     submissionGeneration += 1
     activeSubmissionJob?.cancel()
     activeSubmissionJob = null
+  }
+
+  private fun invalidateLatestReservationLoad() {
+    latestReservationLoadGeneration += 1
   }
 
   private fun isActiveSubmission(generation: Long): Boolean = submissionGeneration == generation

@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.data.repository
 
+import io.github.themonstersp4.mejengueros.domain.model.MyReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationAvailabilityStatus
@@ -214,6 +215,9 @@ private fun fakeReservationRepository(
           courtId: String,
           startsAtUtc: String,
       ): ReservationConfirmation = error("Unused in test")
+
+      override suspend fun getMyReservations(): MyReservations =
+          MyReservations(emptyList(), emptyList())
     }
 
 private fun reservationAvailability(

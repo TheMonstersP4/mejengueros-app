@@ -26,6 +26,7 @@ import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
+import io.github.themonstersp4.mejengueros.domain.model.MyReservations
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
@@ -996,4 +997,7 @@ private class FakeReservationRepository(
           endsAtUtc = startsAtUtc.replace("T18:00:00.000Z", "T19:00:00.000Z"),
           status = "CONFIRMED",
       )
+
+  override suspend fun getMyReservations(): MyReservations =
+      MyReservations(emptyList(), emptyList())
 }
