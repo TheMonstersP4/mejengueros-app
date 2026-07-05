@@ -1,4 +1,12 @@
 import type { CourtStatus, Weekday } from '@/generated/prisma/enums';
+import {
+  costaRicaBusinessDateToUtcInstant,
+  formatCostaRicaBusinessDate,
+  isSameCostaRicaBusinessDate,
+  minutesInCostaRica,
+  parseCostaRicaBusinessDate,
+  weekdayInCostaRica
+} from '@/shared/domain/time/costa-rica-business-time';
 import { CourtNotReservableError } from '../errors/court-not-reservable.error';
 import { InvalidReservationRequestError } from '../errors/invalid-reservation-request.error';
 import { ReservationConflictError } from '../errors/reservation-conflict.error';
@@ -40,7 +48,7 @@ export function resolveReservationTime(startsAt: string): IResolvedReservationTi
   return {
     startsAt: parsed,
     endsAt: new Date(parsed.getTime() + MINUTES_PER_HOUR * 60_000),
-    date: parsed.toISOString().slice(0, 10)
+    date: formatCostaRicaBusinessDate(parsed)
   };
 }
 
@@ -55,7 +63,7 @@ export function assertReservationStartsWithMinimumAdvance(
     );
   }
 
-  if (!isSameUtcDate(resolved.startsAt, now)) {
+  if (!isSameCostaRicaBusinessDate(resolved.startsAt, now)) {
     return;
   }
 
@@ -90,8 +98,8 @@ export function assertCourtCanBeReserved(
     throw CourtNotReservableError.unavailableDay(resolved.date, weekday);
   }
 
-  const startMinutes = minutesFromUtcDate(resolved.startsAt);
-  const endMinutes = minutesFromUtcDate(resolved.endsAt);
+  const startMinutes = minutesFromDate(resolved.startsAt);
+  const endMinutes = minutesFromDate(resolved.endsAt);
   const availabilityStart = minutesFromTimeOnly(window.availability.startTime);
   const availabilityEnd = minutesFromTimeOnly(window.availability.endTime);
 
@@ -133,7 +141,7 @@ export function buildReservableSlots(
   const availabilityEnd = minutesFromTimeOnly(window.availability.endTime);
   const slots: IReservableSlot[] = [];
   const confirmedStartsAt = new Set(window.confirmedStartsAt);
-  const shouldApplySameDayAdvanceThreshold = isSameUtcDate(day, now);
+  const shouldApplySameDayAdvanceThreshold = isSameCostaRicaBusinessDate(day, now);
   const minimumReservableStartsAt = new Date(
     now.getTime() + SAME_DAY_RESERVATION_MINIMUM_ADVANCE_MINUTES * 60_000
   );
@@ -168,13 +176,19 @@ export function buildReservableSlots(
 }
 
 export function parseDateOnly(date: string): Date {
+  let parsed: Date;
+
   if (!DATE_ONLY_PATTERN.test(date)) {
     throw InvalidReservationRequestError.invalidDate(date);
   }
 
-  const parsed = new Date(`${date}T00:00:00.000Z`);
+  try {
+    parsed = parseCostaRicaBusinessDate(date);
+  } catch {
+    throw InvalidReservationRequestError.invalidDate(date);
+  }
 
-  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+  if (Number.isNaN(parsed.getTime()) || formatCostaRicaBusinessDate(parsed) !== date) {
     throw InvalidReservationRequestError.invalidDate(date);
   }
 
@@ -182,17 +196,7 @@ export function parseDateOnly(date: string): Date {
 }
 
 function weekdayFromDate(date: Date): Weekday {
-  const weekdayByIndex: Weekday[] = [
-    'SUNDAY',
-    'MONDAY',
-    'TUESDAY',
-    'WEDNESDAY',
-    'THURSDAY',
-    'FRIDAY',
-    'SATURDAY'
-  ];
-
-  return weekdayByIndex[date.getUTCDay()];
+  return weekdayInCostaRica(date);
 }
 
 function minutesFromTimeOnly(value: string): number {
@@ -200,30 +204,12 @@ function minutesFromTimeOnly(value: string): number {
   return hours * MINUTES_PER_HOUR + minutes;
 }
 
-function minutesFromUtcDate(value: Date): number {
-  return value.getUTCHours() * MINUTES_PER_HOUR + value.getUTCMinutes();
+function minutesFromDate(value: Date): number {
+  return minutesInCostaRica(value);
 }
 
 function utcDateFromMinutes(day: Date, minutes: number): Date {
-  return new Date(
-    Date.UTC(
-      day.getUTCFullYear(),
-      day.getUTCMonth(),
-      day.getUTCDate(),
-      Math.floor(minutes / MINUTES_PER_HOUR),
-      minutes % MINUTES_PER_HOUR,
-      0,
-      0
-    )
-  );
-}
-
-function isSameUtcDate(left: Date, right: Date): boolean {
-  return (
-    left.getUTCFullYear() === right.getUTCFullYear() &&
-    left.getUTCMonth() === right.getUTCMonth() &&
-    left.getUTCDate() === right.getUTCDate()
-  );
+  return costaRicaBusinessDateToUtcInstant(day, minutes);
 }
 
 function isCourtActive(status: CourtStatus | string): boolean {

@@ -27,7 +27,13 @@ val presentationModule = module {
   viewModel { parameters ->
     CourtAvailabilityViewModel(parameters.get(), parameters.get(), parameters.get(), get())
   }
-  viewModel { parameters -> ReservationViewModel(parameters.get<ReservationContext>(), get()) }
+  viewModel { parameters ->
+    ReservationViewModel(
+        context = parameters.get<ReservationContext>(),
+        repository = get(),
+        errorReporter = get(),
+    )
+  }
   viewModel { ReviewViewModel(get(), get(), get()) }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }

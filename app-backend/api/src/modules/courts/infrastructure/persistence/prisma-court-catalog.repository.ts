@@ -3,6 +3,11 @@ import {
   FILE_READ_URL_PORT,
   type IFileReadUrlPort
 } from '@/modules/files/application/ports/file-read-url.port';
+import { buildReservableSlots } from '@/modules/reservations/domain/services/reservation-slot-policy';
+import {
+  costaRicaBusinessDayBounds,
+  formatCostaRicaBusinessDate
+} from '@/shared/domain/time/costa-rica-business-time';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { InvalidCourtCatalogLocationFilterError } from '../../domain/errors/invalid-court-catalog-location-filter.error';
@@ -12,23 +17,9 @@ import type {
   ICourtCatalogRepository
 } from '../../domain/repositories/court-catalog.repository';
 
-const WEEKDAY_BY_INDEX = [
-  'SUNDAY',
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY'
-] as const;
-
 const PUBLIC_COURT_CATALOG_TAKE = 50;
 
 export const COURT_CATALOG_TODAY_PROVIDER = Symbol('COURT_CATALOG_TODAY_PROVIDER');
-
-function weekdayInUtc(date: Date): (typeof WEEKDAY_BY_INDEX)[number] {
-  return WEEKDAY_BY_INDEX[date.getUTCDay()];
-}
 
 const PUBLIC_COURT_CATALOG_SELECT = {
   id: true,
@@ -71,11 +62,18 @@ const PUBLIC_COURT_CATALOG_SELECT = {
   },
   availability: {
     select: {
+      startTime: true,
+      endTime: true,
       days: {
         select: {
           day: true
         }
       }
+    }
+  },
+  reservations: {
+    select: {
+      startsAt: true
     }
   },
   imageUpload: {
@@ -142,7 +140,9 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
 
   async listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogItem[]> {
     const normalizedQuery = filters.q?.trim();
-    const today = weekdayInUtc(this.todayProvider());
+    const now = this.todayProvider();
+    const todayBusinessDate = formatCostaRicaBusinessDate(now);
+    const todayBusinessDayBounds = costaRicaBusinessDayBounds(todayBusinessDate);
     const courts = (await this.prisma.court.findMany({
       where: {
         status: 'ACTIVE',
@@ -209,7 +209,21 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
       },
       take: PUBLIC_COURT_CATALOG_TAKE,
       orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
-      select: PUBLIC_COURT_CATALOG_SELECT
+      select: {
+        ...PUBLIC_COURT_CATALOG_SELECT,
+        reservations: {
+          where: {
+            status: 'CONFIRMED',
+            startsAt: {
+              gte: todayBusinessDayBounds.start,
+              lt: todayBusinessDayBounds.end
+            }
+          },
+          select: {
+            startsAt: true
+          }
+        }
+      }
     })) as PublicCourtCatalogRow[];
 
     const catalogCourts = courts.filter(
@@ -247,12 +261,7 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
           },
           services,
           rating,
-          isReservableToday:
-            court.availability?.days.some(
-              (
-                availabilityDay: NonNullable<PublicCourtCatalogRow['availability']>['days'][number]
-              ) => availabilityDay.day === today
-            ) ?? false,
+          isReservableToday: hasReservableSlotToday(court, todayBusinessDate, now),
           imageUrl: await this.createImageUrl(court.imageUpload?.objectKey ?? null)
         } satisfies ICourtCatalogItem;
       })
@@ -296,6 +305,44 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
       ])
     );
   }
+}
+
+function hasReservableSlotToday(
+  court: PublicCourtCatalogRow,
+  todayDate: string,
+  now: Date
+): boolean {
+  if (court.availability == null) {
+    return false;
+  }
+
+  return (
+    buildReservableSlots(
+      {
+        court: {
+          id: court.id,
+          name: court.name,
+          status: 'ACTIVE',
+          complexStatus: 'ACTIVE'
+        },
+        availability: {
+          days: court.availability.days.map(({ day }) => day),
+          startTime: formatTimeOnly(court.availability.startTime),
+          endTime: formatTimeOnly(court.availability.endTime)
+        },
+        confirmedStartsAt: court.reservations.map(({ startsAt }) => startsAt.toISOString())
+      },
+      todayDate,
+      now
+    ).availabilityStatus === 'AVAILABLE'
+  );
+}
+
+function formatTimeOnly(value: Date): string {
+  const hours = String(value.getUTCHours()).padStart(2, '0');
+  const minutes = String(value.getUTCMinutes()).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
 }
 
 function uniqueSortedServices(services: string[]): string[] {

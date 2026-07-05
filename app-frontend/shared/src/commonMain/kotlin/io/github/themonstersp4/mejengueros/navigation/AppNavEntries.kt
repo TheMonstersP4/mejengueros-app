@@ -624,21 +624,7 @@ private fun ReviewUiState.toLeaveReviewUiState(
 }
 
 private fun io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
-    .toReservationContext(): LeaveReviewReservationContext =
-    LeaveReviewReservationContext(
-        title = "$complexName · $courtName",
-        reservationLabel =
-            "Reserva del ${startsAt.take(10)} · ${startsAt.toTimeLabel()} – ${endsAt.toTimeLabel()}",
-        imageUrl = imageUrl,
-        imageContentDescription = courtName,
-    )
-
-private fun String.toTimeLabel(): String =
-    if (contains('T') && length >= indexOf('T') + 6) {
-      substring(indexOf('T') + 1, indexOf('T') + 6)
-    } else {
-      this
-    }
+    .toReservationContext(): LeaveReviewReservationContext = toLeaveReviewReservationContext()
 
 @Composable
 private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {

@@ -4,21 +4,21 @@ import io.github.themonstersp4.mejengueros.domain.model.DefaultReservableDaysWin
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
-import io.github.themonstersp4.mejengueros.domain.time.todayUtcDateString
+import io.github.themonstersp4.mejengueros.domain.time.todayCostaRicaDateString
 
 class CourtDetailRepository(
     private val reservationRepository: IReservationRepository,
-    private val todayDateProvider: () -> String = { todayUtcDateString() },
+    private val todayDateProvider: () -> String = { todayCostaRicaDateString() },
     private val previewDays: Int = DefaultReservableDaysWindow,
 ) : ICourtDetailRepository {
   override suspend fun getUpcomingReservableSlotsPreview(
       courtId: String,
   ): ReservationDayAvailability? {
-    val requestedReferenceDateUtc = todayDateProvider()
+    val requestedReferenceDate = todayDateProvider()
     val discovery =
         reservationRepository.getReservableDays(
             courtId = courtId,
-            fromUtcDate = requestedReferenceDateUtc,
+            fromUtcDate = requestedReferenceDate,
             days = previewDays.coerceAtLeast(1),
         )
     val firstReservableDay = discovery.reservableDays.firstOrNull() ?: return null

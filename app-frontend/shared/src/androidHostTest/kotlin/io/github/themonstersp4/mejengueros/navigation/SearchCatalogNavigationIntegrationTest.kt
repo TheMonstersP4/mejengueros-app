@@ -922,12 +922,12 @@ private class FakeCourtDetailRepository : ICourtDetailRepository {
           slots =
               listOf(
                   ReservableSlot(
-                      startsAtUtc = "2026-07-01T08:00:00.000Z",
-                      endsAtUtc = "2026-07-01T09:00:00.000Z",
+                      startsAtUtc = "2026-07-01T14:00:00.000Z",
+                      endsAtUtc = "2026-07-01T15:00:00.000Z",
                   ),
                   ReservableSlot(
-                      startsAtUtc = "2026-07-01T09:00:00.000Z",
-                      endsAtUtc = "2026-07-01T10:00:00.000Z",
+                      startsAtUtc = "2026-07-01T15:00:00.000Z",
+                      endsAtUtc = "2026-07-01T16:00:00.000Z",
                   ),
               ),
       )

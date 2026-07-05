@@ -26,6 +26,11 @@ import type {
   IReservationWindowSnapshot
 } from '@/modules/reservations/domain/repositories/reservation.repository';
 
+const COSTA_RICA_UTC_ROLLOVER_INSTANT = '2026-07-05T02:24:00.000Z';
+const COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE = '2026-07-04';
+const COSTA_RICA_DAY_WINDOW_START_UTC = '2026-07-04T06:00:00.000Z';
+const NEXT_COSTA_RICA_DAY_WINDOW_START_UTC = '2026-07-05T06:00:00.000Z';
+
 describe('reservations module behavior', () => {
   const authenticatedUser = {
     sub: 'player-sub',
@@ -63,8 +68,8 @@ describe('reservations module behavior', () => {
         id: 'reservation-id',
         userId: 'user-id',
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z',
-        endsAt: '2026-07-01T19:00:00.000Z',
+        startsAt: '2026-07-02T00:00:00.000Z',
+        endsAt: '2026-07-02T01:00:00.000Z',
         status: 'CONFIRMED'
       })
     };
@@ -83,13 +88,13 @@ describe('reservations module behavior', () => {
     await expect(
       useCase.execute(authenticatedUser, {
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       })
     ).resolves.toEqual({
       id: 'reservation-id',
       courtId: 'court-id',
-      startsAt: '2026-07-01T18:00:00.000Z',
-      endsAt: '2026-07-01T19:00:00.000Z',
+      startsAt: '2026-07-02T00:00:00.000Z',
+      endsAt: '2026-07-02T01:00:00.000Z',
       status: 'CONFIRMED'
     });
     expect(repository.getReservationWindow).toHaveBeenCalledWith({
@@ -99,8 +104,8 @@ describe('reservations module behavior', () => {
     expect(repository.createConfirmedReservation).toHaveBeenCalledWith({
       userId: 'user-id',
       courtId: 'court-id',
-      startsAt: new Date('2026-07-01T18:00:00.000Z'),
-      endsAt: new Date('2026-07-01T19:00:00.000Z')
+      startsAt: new Date('2026-07-02T00:00:00.000Z'),
+      endsAt: new Date('2026-07-02T01:00:00.000Z')
     });
     expect(syncAuthenticatedUser.execute).toHaveBeenCalledWith(authenticatedUser);
   });
@@ -119,13 +124,13 @@ describe('reservations module behavior', () => {
     const useCase = new CreateReservationUseCase(
       repository,
       syncAuthenticatedUser,
-      fixedClock('2026-07-01T18:30:00.000Z')
+      fixedClock('2026-07-02T00:30:00.000Z')
     );
 
     await expect(
       useCase.execute(authenticatedUser, {
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       })
     ).rejects.toThrow('Reservation start time must be strictly in the future.');
     expect(syncAuthenticatedUser.execute).not.toHaveBeenCalled();
@@ -147,13 +152,13 @@ describe('reservations module behavior', () => {
     const useCase = new CreateReservationUseCase(
       repository,
       syncAuthenticatedUser,
-      fixedClock('2026-07-01T17:30:00.000Z')
+      fixedClock('2026-07-01T23:30:00.000Z')
     );
 
     await expect(
       useCase.execute(authenticatedUser, {
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       })
     ).rejects.toThrow(
       'Same-day reservation start time must be more than 30 minutes in the future.'
@@ -174,7 +179,7 @@ describe('reservations module behavior', () => {
     const useCase = new CreateReservationUseCase(
       repository,
       syncAuthenticatedUser,
-      fixedClock('2026-07-01T17:30:00.000Z')
+      fixedClock('2026-07-01T23:30:00.000Z')
     );
 
     await expect(
@@ -197,8 +202,8 @@ describe('reservations module behavior', () => {
         id: 'reservation-id',
         userId: 'user-id',
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z',
-        endsAt: '2026-07-01T19:00:00.000Z',
+        startsAt: '2026-07-02T00:00:00.000Z',
+        endsAt: '2026-07-02T01:00:00.000Z',
         status: 'CONFIRMED'
       })
     };
@@ -211,18 +216,18 @@ describe('reservations module behavior', () => {
     const useCase = new CreateReservationUseCase(
       repository,
       syncAuthenticatedUser,
-      fixedClock('2026-07-01T17:29:00.000Z')
+      fixedClock('2026-07-01T23:29:00.000Z')
     );
 
     await expect(
       useCase.execute(authenticatedUser, {
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       })
     ).resolves.toMatchObject({
       id: 'reservation-id',
       courtId: 'court-id',
-      startsAt: '2026-07-01T18:00:00.000Z'
+      startsAt: '2026-07-02T00:00:00.000Z'
     });
     expect(syncAuthenticatedUser.execute).toHaveBeenCalledWith(authenticatedUser);
     expect(repository.createConfirmedReservation).toHaveBeenCalled();
@@ -232,7 +237,7 @@ describe('reservations module behavior', () => {
     const repository: IReservationRepository = {
       getReservationWindow: jest.fn().mockResolvedValue({
         ...reservationWindow,
-        confirmedStartsAt: ['2026-07-01T19:00:00.000Z']
+        confirmedStartsAt: ['2026-07-02T01:00:00.000Z']
       }),
       createConfirmedReservation: jest.fn()
     };
@@ -251,12 +256,12 @@ describe('reservations module behavior', () => {
       availabilityStatus: 'AVAILABLE',
       slots: [
         {
-          startsAt: '2026-07-01T18:00:00.000Z',
-          endsAt: '2026-07-01T19:00:00.000Z'
+          startsAt: '2026-07-02T00:00:00.000Z',
+          endsAt: '2026-07-02T01:00:00.000Z'
         },
         {
-          startsAt: '2026-07-01T20:00:00.000Z',
-          endsAt: '2026-07-01T21:00:00.000Z'
+          startsAt: '2026-07-02T02:00:00.000Z',
+          endsAt: '2026-07-02T03:00:00.000Z'
         }
       ]
     });
@@ -268,7 +273,7 @@ describe('reservations module behavior', () => {
         .fn()
         .mockResolvedValueOnce({
           ...reservationWindow,
-          confirmedStartsAt: ['2026-07-01T19:00:00.000Z']
+          confirmedStartsAt: ['2026-07-02T01:00:00.000Z']
         })
         .mockResolvedValueOnce({
           ...reservationWindow,
@@ -277,9 +282,9 @@ describe('reservations module behavior', () => {
             days: ['THURSDAY']
           },
           confirmedStartsAt: [
-            '2026-07-02T18:00:00.000Z',
-            '2026-07-02T19:00:00.000Z',
-            '2026-07-02T20:00:00.000Z'
+            '2026-07-03T00:00:00.000Z',
+            '2026-07-03T01:00:00.000Z',
+            '2026-07-03T02:00:00.000Z'
           ]
         })
         .mockResolvedValueOnce({
@@ -359,9 +364,9 @@ describe('reservations module behavior', () => {
       getReservationWindow: jest.fn().mockResolvedValue({
         ...reservationWindow,
         confirmedStartsAt: [
-          '2026-07-01T18:00:00.000Z',
-          '2026-07-01T19:00:00.000Z',
-          '2026-07-01T20:00:00.000Z'
+          '2026-07-02T00:00:00.000Z',
+          '2026-07-02T01:00:00.000Z',
+          '2026-07-02T02:00:00.000Z'
         ]
       }),
       createConfirmedReservation: jest.fn()
@@ -390,7 +395,7 @@ describe('reservations module behavior', () => {
     };
     const useCase = new GetReservableSlotsUseCase(
       repository,
-      fixedClock('2026-07-01T18:30:00.000Z')
+      fixedClock('2026-07-02T00:30:00.000Z')
     );
 
     await expect(useCase.execute('court-id', '2026-07-01')).resolves.toEqual({
@@ -403,8 +408,8 @@ describe('reservations module behavior', () => {
       availabilityStatus: 'AVAILABLE',
       slots: [
         {
-          startsAt: '2026-07-01T20:00:00.000Z',
-          endsAt: '2026-07-01T21:00:00.000Z'
+          startsAt: '2026-07-02T02:00:00.000Z',
+          endsAt: '2026-07-02T03:00:00.000Z'
         }
       ]
     });
@@ -421,13 +426,13 @@ describe('reservations module behavior', () => {
             ...reservationWindow.availability,
             days: ['THURSDAY']
           },
-          confirmedStartsAt: ['2026-07-02T20:00:00.000Z']
+          confirmedStartsAt: ['2026-07-03T02:00:00.000Z']
         }),
       createConfirmedReservation: jest.fn()
     };
     const useCase = new GetReservableDaysUseCase(
       repository,
-      fixedClock('2026-07-01T19:31:00.000Z')
+      fixedClock('2026-07-02T01:31:00.000Z')
     );
 
     await expect(useCase.execute('court-id', '2026-07-01', 2)).resolves.toEqual({
@@ -455,7 +460,7 @@ describe('reservations module behavior', () => {
     };
     const useCase = new GetReservableDaysUseCase(
       repository,
-      fixedClock('2026-07-01T18:31:00.000Z')
+      fixedClock('2026-07-02T00:31:00.000Z')
     );
 
     await expect(useCase.execute('court-id', '2026-07-01', 1)).resolves.toEqual({
@@ -485,7 +490,7 @@ describe('reservations module behavior', () => {
     await expect(
       controller.create(authenticatedUser, {
         courtId: 'court-id',
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       })
     ).resolves.toEqual({ id: 'reservation-id' });
   });
@@ -578,7 +583,7 @@ describe('reservations module behavior', () => {
 
   it('rejects reservations on dates not enabled by the court weekday configuration', () => {
     expect(() =>
-      assertCourtCanBeReserved(reservationWindow, resolveReservationTime('2026-07-02T18:00:00.000Z'))
+      assertCourtCanBeReserved(reservationWindow, resolveReservationTime('2026-07-03T00:00:00.000Z'))
     ).toThrow('Court is not reservable on the selected date.');
   });
 
@@ -595,9 +600,9 @@ describe('reservations module behavior', () => {
         {
           ...reservationWindow,
           confirmedStartsAt: [
-            '2026-07-01T18:00:00.000Z',
-            '2026-07-01T19:00:00.000Z',
-            '2026-07-01T20:00:00.000Z'
+            '2026-07-02T00:00:00.000Z',
+            '2026-07-02T01:00:00.000Z',
+            '2026-07-02T02:00:00.000Z'
           ]
         },
         '2026-07-01'
@@ -613,14 +618,14 @@ describe('reservations module behavior', () => {
       buildReservableSlots(
         reservationWindow,
         '2026-07-01',
-        new Date('2026-07-01T18:30:00.000Z')
+        new Date('2026-07-02T00:30:00.000Z')
       )
     ).toEqual({
       availabilityStatus: 'AVAILABLE',
       slots: [
         {
-          startsAt: '2026-07-01T20:00:00.000Z',
-          endsAt: '2026-07-01T21:00:00.000Z'
+          startsAt: '2026-07-02T02:00:00.000Z',
+          endsAt: '2026-07-02T03:00:00.000Z'
         }
       ]
     });
@@ -635,8 +640,8 @@ describe('reservations module behavior', () => {
   it('rejects reservation times whose same-day UTC start does not clear the 30-minute threshold', () => {
     expect(() =>
       assertReservationStartsWithMinimumAdvance(
-        resolveReservationTime('2026-07-01T18:00:00.000Z'),
-        new Date('2026-07-01T17:30:00.000Z')
+        resolveReservationTime('2026-07-02T00:00:00.000Z'),
+        new Date('2026-07-01T23:30:00.000Z')
       )
     ).toThrow('Same-day reservation start time must be more than 30 minutes in the future.');
   });
@@ -644,8 +649,8 @@ describe('reservations module behavior', () => {
   it('allows reservation times that clear the same-day 30-minute threshold', () => {
     expect(() =>
       assertReservationStartsWithMinimumAdvance(
-        resolveReservationTime('2026-07-01T18:00:00.000Z'),
-        new Date('2026-07-01T17:29:00.000Z')
+        resolveReservationTime('2026-07-02T00:00:00.000Z'),
+        new Date('2026-07-01T23:29:00.000Z')
       )
     ).not.toThrow();
   });
@@ -664,8 +669,8 @@ describe('reservations module behavior', () => {
       repository.createConfirmedReservation({
         userId: 'user-id',
         courtId: 'court-id',
-        startsAt: new Date('2026-07-01T18:00:00.000Z'),
-        endsAt: new Date('2026-07-01T19:00:00.000Z')
+        startsAt: new Date('2026-07-02T00:00:00.000Z'),
+        endsAt: new Date('2026-07-02T01:00:00.000Z')
       })
     ).rejects.toMatchObject({
       code: 'CONFLICT',
@@ -687,7 +692,7 @@ describe('reservations module behavior', () => {
             endTime: new Date('1970-01-01T21:00:00.000Z'),
             days: [{ day: 'WEDNESDAY' }]
           },
-          reservations: [{ startsAt: new Date('2026-07-01T19:00:00.000Z') }]
+          reservations: [{ startsAt: new Date('2026-07-02T01:00:00.000Z') }]
         })
       },
       reservation: {
@@ -707,7 +712,77 @@ describe('reservations module behavior', () => {
         startTime: '18:00',
         endTime: '21:00'
       },
-      confirmedStartsAt: ['2026-07-01T19:00:00.000Z']
+      confirmedStartsAt: ['2026-07-02T01:00:00.000Z']
+    });
+  });
+
+  it('locks reservation window queries to Costa Rica day bounds', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'court-id',
+      name: 'Cancha 1',
+      status: 'ACTIVE',
+      complex: { status: 'ACTIVE' },
+      availability: {
+        startTime: new Date('1970-01-01T18:00:00.000Z'),
+        endTime: new Date('1970-01-01T21:00:00.000Z'),
+        days: [{ day: 'SATURDAY' }]
+      },
+      reservations: []
+    });
+    const repository = new PrismaReservationRepository({
+      court: {
+        findFirst
+      },
+      reservation: {
+        create: jest.fn()
+      }
+    } as never);
+
+    await repository.getReservationWindow({
+      courtId: 'court-id',
+      date: COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE
+    });
+
+    const startsAtBounds = findFirst.mock.calls[0]?.[0]?.select?.reservations?.where?.startsAt;
+
+    expect(startsAtBounds?.gte.toISOString()).toBe(COSTA_RICA_DAY_WINDOW_START_UTC);
+    expect(startsAtBounds?.lt.toISOString()).toBe(NEXT_COSTA_RICA_DAY_WINDOW_START_UTC);
+  });
+
+  it('treats 2026-07-02T02:24:00.000Z as 2026-07-01 in Costa Rica business date logic', () => {
+    expect(parseDateOnly('2026-07-01').toISOString()).toBe('2026-07-01T06:00:00.000Z');
+    expect(
+      buildReservableSlots(
+        reservationWindow,
+        '2026-07-01',
+        new Date('2026-07-02T02:24:00.000Z')
+      )
+    ).toEqual({
+      availabilityStatus: 'FULLY_BOOKED',
+      slots: []
+    });
+  });
+
+  it('treats the fresh review rollover instant as the previous Costa Rica business date', () => {
+    expect(parseDateOnly(COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE).toISOString()).toBe(
+      COSTA_RICA_DAY_WINDOW_START_UTC
+    );
+    expect(
+      buildReservableSlots(
+        {
+          ...reservationWindow,
+          availability: {
+            days: ['SATURDAY'],
+            startTime: '18:00',
+            endTime: '21:00'
+          }
+        },
+        COSTA_RICA_UTC_ROLLOVER_BUSINESS_DATE,
+        new Date(COSTA_RICA_UTC_ROLLOVER_INSTANT)
+      )
+    ).toEqual({
+      availabilityStatus: 'FULLY_BOOKED',
+      slots: []
     });
   });
 });

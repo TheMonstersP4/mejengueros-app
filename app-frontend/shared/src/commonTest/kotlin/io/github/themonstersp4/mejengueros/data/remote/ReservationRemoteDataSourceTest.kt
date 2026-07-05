@@ -134,16 +134,16 @@ class ReservationRemoteDataSourceTest {
                             },
                             "date": "2026-07-16",
                             "availabilityStatus": "AVAILABLE",
-                            "slots": [
-                              {
-                                "startsAt": "2026-07-16T18:00:00.000Z",
-                                "endsAt": "2026-07-16T19:00:00.000Z"
-                              },
-                              {
-                                "startsAt": "2026-07-16T20:00:00.000Z",
-                                "endsAt": "2026-07-16T21:00:00.000Z"
-                              }
-                            ]
+                              "slots": [
+                                {
+                                  "startsAt": "2026-07-17T00:00:00.000Z",
+                                  "endsAt": "2026-07-17T01:00:00.000Z"
+                                },
+                                {
+                                  "startsAt": "2026-07-17T02:00:00.000Z",
+                                  "endsAt": "2026-07-17T03:00:00.000Z"
+                                }
+                              ]
                           }
                         }
                         """
