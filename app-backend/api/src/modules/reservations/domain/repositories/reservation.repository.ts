@@ -45,6 +45,29 @@ export interface IReservationSnapshot {
   status: ReservationStatus;
 }
 
+export interface IMyReservationSnapshot {
+  id: string;
+  complexName: string;
+  courtName: string;
+  imageObjectKey?: string;
+  startsAt: string;
+  endsAt: string;
+  status: ReservationStatus;
+  completedAt: string | null;
+  reviewId: string | null;
+}
+
+export interface IFindMyReservationsQuery {
+  userId: string;
+  upcomingLimit: number;
+  finalizedLimit: number;
+}
+
+export interface IMyReservationsSnapshotGroups {
+  upcoming: IMyReservationSnapshot[];
+  finalized: IMyReservationSnapshot[];
+}
+
 export interface IReservationRepository {
   getReservationWindow(
     query: IReservationWindowQuery
@@ -53,6 +76,10 @@ export interface IReservationRepository {
   createConfirmedReservation(
     command: ICreateConfirmedReservationCommand
   ): Promise<IReservationSnapshot>;
+
+  findMyReservationsByUserId(
+    query: IFindMyReservationsQuery
+  ): Promise<IMyReservationsSnapshotGroups>;
 }
 
 export const RESERVATION_REPOSITORY = Symbol('RESERVATION_REPOSITORY');
