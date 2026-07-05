@@ -27,6 +27,9 @@ import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexV
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationCardUiModel
+import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsUiState
+import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import io.github.themonstersp4.mejengueros.presentation.review.ReviewUiState
@@ -49,16 +52,16 @@ import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
+import io.github.themonstersp4.mejengueros.screens.reservations.MyReservationsScreen
+import io.github.themonstersp4.mejengueros.screens.reservations.MyReservationsScreenActions
 import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewReservationContext
 import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewScreen
 import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewScreenActions
 import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewUiMode
 import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewUiState
-import io.github.themonstersp4.mejengueros.screens.review.ReservationsReviewLauncherScreen
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
-import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
@@ -451,39 +454,46 @@ internal fun CatalogReservationEntry(
 
 @Composable
 private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
-  ReservationsEntryContent(shellActions = shellActions, viewModel = koinViewModel())
+  ReservationsEntryContent(
+      shellActions = shellActions,
+      reservationsViewModel = koinViewModel(),
+      reviewViewModel = koinViewModel(),
+  )
 }
 
 @Composable
 internal fun ReservationsEntryContent(
     shellActions: AuthenticatedShellActions,
-    viewModel: ReviewViewModel,
+    reservationsViewModel: MyReservationsViewModel,
+    reviewViewModel: ReviewViewModel,
     reviewEvidenceImagePickerController: ReviewEvidenceImagePickerController? = null,
 ) {
-  val state by viewModel.uiState.collectAsState()
+  val reservationsState by reservationsViewModel.uiState.collectAsState()
+  val reviewState by reviewViewModel.uiState.collectAsState()
   val reviewEvidenceImagePicker =
       reviewEvidenceImagePickerController
-          ?: rememberReviewEvidenceImagePicker(viewModel::updateSelectedEvidenceImage)
+          ?: rememberReviewEvidenceImagePicker(reviewViewModel::updateSelectedEvidenceImage)
 
   LaunchedEffect(reviewEvidenceImagePicker.isAvailable) {
-    viewModel.updateEvidenceImagePickerAvailability(reviewEvidenceImagePicker.isAvailable)
+    reviewViewModel.updateEvidenceImagePickerAvailability(reviewEvidenceImagePicker.isAvailable)
   }
 
   var reviewEntryMode by rememberSaveable {
     mutableStateOf(ReservationReviewEntryMode.Launcher.name)
   }
   val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
-  val reviewState = state.toLeaveReviewUiState(currentMode)
+  val leaveReviewState = reviewState.toLeaveReviewUiState(currentMode)
 
-  LaunchedEffect(state.submittedReview?.id) {
-    if (state.submittedReview != null) {
+  LaunchedEffect(reviewState.submittedReview?.id) {
+    if (reviewState.submittedReview != null) {
       reviewEntryMode = ReservationReviewEntryMode.Success.name
+      reservationsViewModel.refresh()
     }
   }
 
   fun resetReviewFlow() {
     reviewEntryMode = ReservationReviewEntryMode.Launcher.name
-    viewModel.resetFlow()
+    reviewViewModel.resetFlow(reloadLatestReservation = false)
   }
 
   PlatformBackHandler(
@@ -523,27 +533,29 @@ internal fun ReservationsEntryContent(
     when (currentMode) {
       ReservationReviewEntryMode.Launcher ->
           ReservationsLauncherContent(
-              state = state,
+              state = reservationsState,
               contentPadding = contentPadding,
-              onStartReview = {
-                viewModel.startReview()
-                reviewEntryMode = ReservationReviewEntryMode.Form.name
+              onReviewRequested = { card ->
+                if (card.primaryActionKey == "leave_review") {
+                  reviewViewModel.startReview(card.toReviewableReservation())
+                  reviewEntryMode = ReservationReviewEntryMode.Form.name
+                }
               },
-              onRetryLoad = viewModel::refreshLatestReviewableReservation,
+              onRetryLoad = reservationsViewModel::refresh,
           )
       ReservationReviewEntryMode.Form,
       ReservationReviewEntryMode.Success ->
-          reviewState?.let { currentReviewState ->
+          leaveReviewState?.let { currentReviewState ->
             LeaveReviewScreen(
                 state = currentReviewState,
                 contentPadding = contentPadding,
                 actions =
                     LeaveReviewScreenActions(
-                        onRatingSelected = viewModel::updateRating,
-                        onCommentChanged = viewModel::updateComment,
+                        onRatingSelected = reviewViewModel::updateRating,
+                        onCommentChanged = reviewViewModel::updateComment,
                         onPickEvidenceImage = reviewEvidenceImagePicker.launch,
-                        onClearEvidenceImage = viewModel::clearSelectedEvidenceImage,
-                        onSubmit = viewModel::submit,
+                        onClearEvidenceImage = reviewViewModel::clearSelectedEvidenceImage,
+                        onSubmit = reviewViewModel::submit,
                         onReturnToReservations = ::resetReviewFlow,
                         onExploreCourts = {
                           resetReviewFlow()
@@ -558,41 +570,20 @@ internal fun ReservationsEntryContent(
 
 @Composable
 private fun ReservationsLauncherContent(
-    state: ReviewUiState,
+    state: MyReservationsUiState,
     contentPadding: PaddingValues,
-    onStartReview: () -> Unit,
+    onReviewRequested: (MyReservationCardUiModel) -> Unit,
     onRetryLoad: () -> Unit,
 ) {
-  when {
-    state.isLoading ->
-        ProductPlaceholderScreen(
-            title = "Mis reservas",
-            description = "Estamos buscando tu última reserva pendiente de reseña.",
-            contentPadding = contentPadding,
-        )
-    state.loadErrorMessage != null ->
-        ProductPlaceholderScreen(
-            title = "Mis reservas",
-            description = state.loadErrorMessage,
-            contentPadding = contentPadding,
-            actions = {
-              MejenguerosFullWidthPrimaryButton(text = "REINTENTAR", onClick = onRetryLoad)
-            },
-        )
-    state.reviewableReservation == null ->
-        ProductPlaceholderScreen(
-            title = "Mis reservas",
-            description =
-                "Todavía no tenés reservas completadas pendientes de reseña. Cuando terminés una mejenga, la vas a ver aquí.",
-            contentPadding = contentPadding,
-        )
-    else ->
-        ReservationsReviewLauncherScreen(
-            reservationContext = state.reviewableReservation.toReservationContext(),
-            contentPadding = contentPadding,
-            onStartReview = onStartReview,
-        )
-  }
+  MyReservationsScreen(
+      state = state,
+      contentPadding = contentPadding,
+      actions =
+          MyReservationsScreenActions(
+              onRetryLoad = onRetryLoad,
+              onReviewRequested = onReviewRequested,
+          ),
+  )
 }
 
 private enum class ReservationReviewEntryMode {
@@ -625,6 +616,17 @@ private fun ReviewUiState.toLeaveReviewUiState(
 
 private fun io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
     .toReservationContext(): LeaveReviewReservationContext = toLeaveReviewReservationContext()
+
+private fun MyReservationCardUiModel.toReviewableReservation():
+    io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation =
+    io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation(
+        reservationId = id,
+        complexName = complexName,
+        courtName = courtName,
+        startsAt = startsAt,
+        endsAt = endsAt,
+        imageUrl = imageUrl,
+    )
 
 @Composable
 private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {

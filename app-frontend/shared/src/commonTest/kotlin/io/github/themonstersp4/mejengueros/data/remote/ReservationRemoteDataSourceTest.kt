@@ -251,6 +251,143 @@ class ReservationRemoteDataSourceTest {
         error.message,
     )
   }
+
+  @Test
+  fun getMyReservationsMapsBackendEnvelopeIntoDomainGroups() = runTest {
+    var requestedPath = ""
+    val dataSource =
+        ReservationRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "upcoming": [
+                              {
+                                "id": "upcoming-id",
+                                "complexName": "Moravia FC",
+                                "courtName": "Cancha 1",
+                                "startsAt": "2026-07-10T18:00:00.000Z",
+                                "endsAt": "2026-07-10T19:00:00.000Z",
+                                "status": "CONFIRMED",
+                                "section": "UPCOMING",
+                                "reviewStatus": "NOT_APPLICABLE",
+                                "canReview": false,
+                                "hasReview": false
+                              }
+                            ],
+                            "finalized": [
+                              {
+                                "id": "finalized-id",
+                                "complexName": "Moravia FC",
+                                "courtName": "Cancha 2",
+                                "startsAt": "2026-07-08T18:00:00.000Z",
+                                "endsAt": "2026-07-08T19:00:00.000Z",
+                                "status": "COMPLETED",
+                                "section": "FINALIZED",
+                                "reviewStatus": "PENDING_REVIEW",
+                                "canReview": true,
+                                "hasReview": false,
+                                "primaryActionKey": "leave_review",
+                                "primaryActionLabel": "Dejar reseña"
+                              }
+                            ]
+                          }
+                        }
+                        """
+                            .trimIndent(),
+                    capturePath = { requestedPath = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    val result = dataSource.getMyReservations()
+
+    assertEquals("/v1/reservations/my", requestedPath)
+    assertEquals(listOf("upcoming-id"), result.upcoming.map { it.id })
+    assertEquals(listOf("finalized-id"), result.finalized.map { it.id })
+    assertEquals("Dejar reseña", result.finalized.first().primaryActionLabel)
+  }
+
+  @Test
+  fun getMyReservationsPreservesReviewedIndicatorFieldsFromBackend() = runTest {
+    val dataSource =
+        ReservationRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "upcoming": [],
+                            "finalized": [
+                              {
+                                "id": "reviewed-id",
+                                "complexName": "Moravia FC",
+                                "courtName": "Cancha 2",
+                                "startsAt": "2026-07-08T18:00:00.000Z",
+                                "endsAt": "2026-07-08T19:00:00.000Z",
+                                "status": "COMPLETED",
+                                "section": "FINALIZED",
+                                "reviewStatus": "REVIEWED",
+                                "canReview": false,
+                                "hasReview": true,
+                                "indicatorKey": "already_reviewed",
+                                "indicatorLabel": "Ya dejaste tu reseña"
+                              }
+                            ]
+                          }
+                        }
+                        """
+                            .trimIndent(),
+                ),
+            json = json,
+        )
+
+    val result = dataSource.getMyReservations()
+
+    assertEquals("REVIEWED", result.finalized.first().reviewStatus)
+    assertEquals(false, result.finalized.first().canReview)
+    assertEquals(true, result.finalized.first().hasReview)
+    assertEquals(null, result.finalized.first().primaryActionKey)
+    assertEquals(null, result.finalized.first().primaryActionLabel)
+    assertEquals("already_reviewed", result.finalized.first().indicatorKey)
+    assertEquals("Ya dejaste tu reseña", result.finalized.first().indicatorLabel)
+  }
+
+  @Test
+  fun getMyReservationsMapsApiErrors() = runTest {
+    val dataSource =
+        ReservationRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": false,
+                          "errors": [
+                            {
+                              "code": "UNAUTHORIZED",
+                              "message": "Unauthorized",
+                              "status": 401
+                            }
+                          ]
+                        }
+                        """
+                            .trimIndent(),
+                    status = HttpStatusCode.Unauthorized,
+                ),
+            json = json,
+        )
+
+    val error = assertFailsWith<AppApiException> { dataSource.getMyReservations() }
+
+    assertEquals(401, error.statusCode)
+    assertEquals("Unauthorized", error.message)
+  }
 }
 
 private fun mockClient(

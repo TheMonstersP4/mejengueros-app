@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.presentation.reservation
 
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
+import io.github.themonstersp4.mejengueros.domain.model.MyReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationAvailabilityStatus
@@ -765,6 +766,9 @@ private class FakeReservationRepository(
     createError?.let { throw it }
     return requireNotNull(confirmation)
   }
+
+  override suspend fun getMyReservations(): MyReservations =
+      MyReservations(emptyList(), emptyList())
 }
 
 private fun reservationContext() =

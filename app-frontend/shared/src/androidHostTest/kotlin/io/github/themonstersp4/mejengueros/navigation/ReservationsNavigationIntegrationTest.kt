@@ -14,13 +14,21 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.ConfirmedReviewEvidenceImageUpload
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
+import io.github.themonstersp4.mejengueros.domain.model.MyReservationCard
+import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
+import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
+import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewRepository
+import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.review.ReviewViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import io.github.themonstersp4.mejengueros.ui.components.ReviewEvidenceImagePickerController
@@ -28,7 +36,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -42,20 +49,31 @@ class ReservationsNavigationIntegrationTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
   @Test
-  fun launcherOpensFormAndBackReturnsToLauncher() = runTest {
+  fun reservationsListOpensFormAndBackReturnsToList() = runTest {
     val navigationState = testNavigationState()
-    val viewModel = createReviewViewModel(TestScope(StandardTestDispatcher(testScheduler)))
+    val reservationsViewModel = createReservationsViewModel(this)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
+    composeRule
+        .onNodeWithTag(FinalizedReservationActionTag)
+        .assertExists()
+        .performScrollTo()
+        .performClick()
+    composeRule.waitForIdle()
 
+    composeRule.onNodeWithTag("leave_review_form_root").assertExists()
     composeRule.onNodeWithText("¿Cómo estuvo tu mejenga?").assertExists()
     composeRule.onNodeWithContentDescription("Seleccionar 3 de 5 estrellas").performClick()
     composeRule
@@ -65,27 +83,74 @@ class ReservationsNavigationIntegrationTest {
 
     composeRule.onNodeWithContentDescription("Volver").performClick()
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
     composeRule.onNodeWithText("¿Cómo estuvo tu mejenga?").assertDoesNotExist()
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule.onNodeWithText("Comentario temporal").assertDoesNotExist()
   }
 
   @Test
-  fun successBackReturnsToLauncherAndClearsDraft() = runTest {
+  fun unsupportedReservationPrimaryActionKeyDoesNotRenderDeadCta() = runTest {
     val navigationState = testNavigationState()
-    val viewModel = createReviewViewModel(TestScope(StandardTestDispatcher(testScheduler)))
+    val reservationRepository =
+        SequencedReservationRepository(
+            listOf(
+                Result.success(
+                    sampleMyReservations(
+                        primaryActionKey = "unsupported_action",
+                        primaryActionLabel = "Dejar reseña",
+                    )
+                )
+            )
+        )
+    val reservationsViewModel = createReservationsViewModel(this, reservationRepository)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).assertDoesNotExist()
+    composeRule.onNodeWithText("Dejar reseña").assertDoesNotExist()
+  }
+
+  @Test
+  fun successBackReturnsToRefreshedReservationsListAndClearsDraft() = runTest {
+    val navigationState = testNavigationState()
+    val reservationRepository =
+        SequencedReservationRepository(
+            listOf(
+                Result.success(sampleMyReservations()),
+                Result.success(sampleMyReservations(reviewActionAvailable = false)),
+            )
+        )
+    val reservationsViewModel = createReservationsViewModel(this, reservationRepository)
+    val reviewViewModel = createReviewViewModel(this)
+    advanceUntilIdle()
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
@@ -93,31 +158,79 @@ class ReservationsNavigationIntegrationTest {
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
+
     composeRule.onNodeWithText("TU RESEÑA FUE ENVIADA").assertExists()
 
     composeRule.onNodeWithContentDescription("Volver").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
-    composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
+    composeRule.onNodeWithText("Dejar reseña").assertDoesNotExist()
+    composeRule.onNodeWithText("Reseña enviada").assertExists()
     composeRule.onNodeWithText("Otro comentario temporal").assertDoesNotExist()
+  }
+
+  @Test
+  fun successBackShowsReservationsRefreshErrorWhenPostReviewReloadFails() = runTest {
+    val navigationState = testNavigationState()
+    val reservationRepository =
+        SequencedReservationRepository(
+            listOf(
+                Result.success(sampleMyReservations()),
+                Result.failure(AppApiException(500, "refresh failed after submit")),
+            )
+        )
+    val reservationsViewModel = createReservationsViewModel(this, reservationRepository)
+    val reviewViewModel = createReviewViewModel(this)
+    advanceUntilIdle()
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
+    composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
+    composeRule.onNodeWithTag("leave_review_submit_button").performClick()
+    advanceUntilIdle()
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("TU RESEÑA FUE ENVIADA").assertExists()
+
+    composeRule.onNodeWithContentDescription("Volver").performClick()
+    advanceUntilIdle()
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("No pudimos cargar tus reservas").assertExists()
+    composeRule.onNodeWithText("REINTENTAR").assertExists()
   }
 
   @Test
   fun oneStarBlankCommentStaysBlockedUntilCommentIsProvided() = runTest {
     val navigationState = testNavigationState()
-    val viewModel = createReviewViewModel(TestScope(StandardTestDispatcher(testScheduler)))
+    val reservationsViewModel = createReservationsViewModel(this)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule
@@ -138,16 +251,29 @@ class ReservationsNavigationIntegrationTest {
   @Test
   fun validSubmitReachesSuccessAndExitPathsResetReservationsFlow() = runTest {
     val navigationState = testNavigationState()
-    val viewModel = createReviewViewModel(TestScope(StandardTestDispatcher(testScheduler)))
+    val reservationRepository =
+        SequencedReservationRepository(
+            listOf(
+                Result.success(sampleMyReservations()),
+                Result.success(sampleMyReservations(reviewActionAvailable = false)),
+            )
+        )
+    val reservationsViewModel = createReservationsViewModel(this, reservationRepository)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
@@ -160,48 +286,49 @@ class ReservationsNavigationIntegrationTest {
     composeRule.onNodeWithText("VOLVER A MIS RESERVAS").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
-    composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
+    composeRule.onNodeWithText("Dejar reseña").assertDoesNotExist()
     composeRule.onNodeWithText("La cancha estaba impecable").assertDoesNotExist()
-    composeRule.onNodeWithContentDescription("Volver").performClick()
-    composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
-    composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
-    composeRule.onNodeWithTag("leave_review_submit_button").performClick()
-    advanceUntilIdle()
-    composeRule.waitForIdle()
-    composeRule.onNodeWithText("EXPLORAR CANCHAS").performClick()
-
-    composeRule.onNodeWithText("Buscar canchas").assertExists()
-    composeRule.runOnIdle {
-      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
-      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
-    }
+    composeRule.onNodeWithText("Reseña enviada").assertExists()
+    composeRule.onNodeWithText("EXPLORAR CANCHAS").assertDoesNotExist()
 
     navigationState.selectReservations()
     advanceUntilIdle()
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
+    composeRule.onNodeWithText("Reseña enviada").assertExists()
     composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertDoesNotExist()
+
+    composeRule.runOnIdle { navigationState.selectSearch() }
+    advanceUntilIdle()
+    composeRule.waitForIdle()
+    composeRule.onNodeWithText("Buscar canchas").assertExists()
+    composeRule.runOnIdle {
+      assertEquals(AuthenticatedTopLevelRoute.Search, navigationState.selectedRoute)
+      assertEquals(listOf(SearchRoute), navigationState.currentBackStack.toList())
+    }
   }
 
   @Test
-  fun systemBackFromFormReturnsToLauncherAndClearsDraft() = runTest {
+  fun systemBackFromFormReturnsToReservationsListAndClearsDraft() = runTest {
     val navigationState = testNavigationState()
-    val viewModel = createReviewViewModel(TestScope(StandardTestDispatcher(testScheduler)))
+    val reservationsViewModel = createReservationsViewModel(this)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
@@ -210,26 +337,40 @@ class ReservationsNavigationIntegrationTest {
     composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
     composeRule.onNodeWithText("¿Cómo estuvo tu mejenga?").assertDoesNotExist()
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
     composeRule.onNodeWithText("Borrador que no debe sobrevivir").assertDoesNotExist()
   }
 
   @Test
-  fun systemBackFromSuccessReturnsToLauncherAndClearsDraft() = runTest {
+  fun systemBackFromSuccessReturnsToRefreshedReservationsListAndClearsDraft() = runTest {
     val navigationState = testNavigationState()
-    val viewModel = createReviewViewModel(TestScope(StandardTestDispatcher(testScheduler)))
+    val reservationRepository =
+        SequencedReservationRepository(
+            listOf(
+                Result.success(sampleMyReservations()),
+                Result.success(sampleMyReservations(reviewActionAvailable = false)),
+            )
+        )
+    val reservationsViewModel = createReservationsViewModel(this, reservationRepository)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("PREPARAR RESEÑA").performClick()
+    composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
+    composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     advanceUntilIdle()
@@ -240,90 +381,105 @@ class ReservationsNavigationIntegrationTest {
     advanceUntilIdle()
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
+    composeRule.onNodeWithText("Dejar reseña").assertDoesNotExist()
     composeRule.onNodeWithText("VISTA PREVIA DE TU RESEÑA").assertDoesNotExist()
   }
 
   @Test
-  fun launcherShowsLoadingWhileLatestReservationIsStillResolving() = runTest {
+  fun reservationsListShowsLoadingWhileMyReservationsAreStillResolving() = runTest {
     val navigationState = testNavigationState()
-    val latestReservationResult = CompletableDeferred<ReviewableReservation?>()
-    val viewModel =
-        createReviewViewModel(
-            coroutineScope = TestScope(StandardTestDispatcher(testScheduler)),
-            reviewRepository = DelayedLatestReservationReviewRepository(latestReservationResult),
+    val myReservationsResult = CompletableDeferred<MyReservations>()
+    val reservationsViewModel =
+        createReservationsViewModel(
+            this,
+            DelayedReservationRepository(myReservationsResult),
         )
+    val reviewViewModel = createReviewViewModel(this)
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule
-        .onNodeWithText("Estamos buscando tu última reserva pendiente de reseña.")
-        .assertExists()
+    composeRule.onNodeWithText("Cargando tus reservas...").assertExists()
 
-    latestReservationResult.complete(sampleReservation())
+    myReservationsResult.complete(sampleMyReservations())
     advanceUntilIdle()
     composeRule.waitForIdle()
+
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
   }
 
   @Test
-  fun launcherShowsEmptyStateWhenThereIsNoEligibleReservation() = runTest {
+  fun reservationsListShowsEmptyStateWhenThereAreNoReservations() = runTest {
     val navigationState = testNavigationState()
-    val viewModel =
-        createReviewViewModel(
-            coroutineScope = TestScope(StandardTestDispatcher(testScheduler)),
-            reviewRepository = EmptyLatestReservationReviewRepository(),
+    val reservationsViewModel =
+        createReservationsViewModel(
+            this,
+            FixedReservationRepository(MyReservations(emptyList(), emptyList())),
         )
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule
-        .onNodeWithText(
-            "Todavía no tenés reservas completadas pendientes de reseña. Cuando terminés una mejenga, la vas a ver aquí."
-        )
-        .assertExists()
-    composeRule.onNodeWithText("PREPARAR RESEÑA").assertDoesNotExist()
+    composeRule.onNodeWithText("Todavía no tenés reservas").assertExists()
+    composeRule.onNodeWithText("Dejar reseña").assertDoesNotExist()
   }
 
   @Test
-  fun launcherRetryRecoversFromLoadFailure() = runTest {
+  fun reservationsRetryRecoversFromLoadFailure() = runTest {
     val navigationState = testNavigationState()
-    val reviewRepository = RetryableLatestReservationReviewRepository()
-    val viewModel =
-        createReviewViewModel(
-            coroutineScope = TestScope(StandardTestDispatcher(testScheduler)),
-            reviewRepository = reviewRepository,
+    val reservationRepository =
+        SequencedReservationRepository(
+            listOf(
+                Result.failure(AppApiException(500, "boom")),
+                Result.success(sampleMyReservations()),
+            )
         )
+    val reservationsViewModel = createReservationsViewModel(this, reservationRepository)
+    val reviewViewModel = createReviewViewModel(this)
     advanceUntilIdle()
 
     composeRule.setContent {
       MejenguerosTheme {
-        ReservationsNavigationTestHost(navigationState = navigationState, viewModel = viewModel)
+        ReservationsNavigationTestHost(
+            navigationState = navigationState,
+            reservationsViewModel = reservationsViewModel,
+            reviewViewModel = reviewViewModel,
+        )
       }
     }
 
-    composeRule.onNodeWithText("No pudimos cargar la reserva pendiente de reseña.").assertExists()
+    composeRule.onNodeWithText("No pudimos cargar tus reservas").assertExists()
     composeRule.onNodeWithText("REINTENTAR").performClick()
 
     advanceUntilIdle()
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("Tu última mejenga ya está lista para reseña").assertExists()
-    assertEquals(2, reviewRepository.loadCalls)
+    composeRule.onNodeWithTag(FinalizedReservationCardTag).assertExists()
+    assertEquals(2, reservationRepository.getMyReservationsCalls)
   }
 
   @Composable
   private fun ReservationsNavigationTestHost(
       navigationState: AuthenticatedNavigationState,
-      viewModel: ReviewViewModel,
+      reservationsViewModel: MyReservationsViewModel,
+      reviewViewModel: ReviewViewModel,
   ) {
     val shellActions =
         AuthenticatedShellActions(
@@ -351,12 +507,13 @@ class ReservationsNavigationIntegrationTest {
       AuthenticatedTopLevelRoute.Reservations ->
           ReservationsEntryContent(
               shellActions = shellActions,
-              viewModel = viewModel,
+              reservationsViewModel = reservationsViewModel,
+              reviewViewModel = reviewViewModel,
               reviewEvidenceImagePickerController =
                   ReviewEvidenceImagePickerController(
                       isAvailable = true,
                       launch = {
-                        viewModel.updateSelectedEvidenceImage(
+                        reviewViewModel.updateSelectedEvidenceImage(
                             LocalReviewEvidenceImage(
                                 fileName = "evidence.png",
                                 contentType = "image/png",
@@ -372,23 +529,19 @@ class ReservationsNavigationIntegrationTest {
     }
   }
 
+  private fun createReservationsViewModel(
+      coroutineScope: TestScope,
+      reservationRepository: IReservationRepository =
+          FixedReservationRepository(sampleMyReservations()),
+  ): MyReservationsViewModel =
+      MyReservationsViewModel(
+          reservationRepository = reservationRepository,
+          coroutineScope = coroutineScope,
+      )
+
   private fun createReviewViewModel(
       coroutineScope: TestScope,
-      reviewRepository: IReviewRepository =
-          object : IReviewRepository {
-            override suspend fun getLatestReviewableReservation(): ReviewableReservation? =
-                sampleReservation()
-
-            override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
-                CreatedReview(
-                    id = "review-id",
-                    reservationId = request.reservationId,
-                    rating = request.rating,
-                    comment = request.comment,
-                    evidenceImageUploadId = request.evidenceImageUploadId,
-                    createdAt = "2026-07-03T02:00:00.000Z",
-                )
-          },
+      reviewRepository: IReviewRepository = RecordingReviewRepository(),
       reviewEvidenceUploadRepository: IReviewEvidenceUploadRepository =
           object : IReviewEvidenceUploadRepository {
             override suspend fun uploadReviewEvidence(
@@ -407,46 +560,163 @@ class ReservationsNavigationIntegrationTest {
           coroutineScope = coroutineScope,
       )
 
-  private class DelayedLatestReservationReviewRepository(
-      private val latestReservationResult: CompletableDeferred<ReviewableReservation?>
+  private class RecordingReviewRepository(
+      private val latestReservation: ReviewableReservation? = null,
   ) : IReviewRepository {
     override suspend fun getLatestReviewableReservation(): ReviewableReservation? =
-        latestReservationResult.await()
+        latestReservation
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
-        error("Should not create review in launcher loading test.")
+        CreatedReview(
+            id = "review-id",
+            reservationId = request.reservationId,
+            rating = request.rating,
+            comment = request.comment,
+            evidenceImageUploadId = request.evidenceImageUploadId,
+            createdAt = "2026-07-03T02:00:00.000Z",
+        )
   }
 
-  private class EmptyLatestReservationReviewRepository : IReviewRepository {
-    override suspend fun getLatestReviewableReservation(): ReviewableReservation? = null
+  private class FixedReservationRepository(
+      private val myReservations: MyReservations,
+  ) : IReservationRepository {
+    override suspend fun getReservableDays(
+        courtId: String,
+        fromUtcDate: String,
+        days: Int,
+    ): ReservationDayDiscovery = error("Unused in test")
 
-    override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
-        error("Should not create review in empty launcher test.")
+    override suspend fun getReservableSlots(
+        courtId: String,
+        dateUtc: String,
+    ): ReservationDayAvailability = error("Unused in test")
+
+    override suspend fun createReservation(
+        courtId: String,
+        startsAtUtc: String,
+    ): ReservationConfirmation = error("Unused in test")
+
+    override suspend fun getMyReservations(): MyReservations = myReservations
   }
 
-  private class RetryableLatestReservationReviewRepository : IReviewRepository {
-    var loadCalls: Int = 0
+  private class SequencedReservationRepository(
+      private val results: List<Result<MyReservations>>,
+  ) : IReservationRepository {
+    var getMyReservationsCalls: Int = 0
 
-    override suspend fun getLatestReviewableReservation(): ReviewableReservation? {
-      loadCalls += 1
-      if (loadCalls == 1) {
-        throw RuntimeException("Temporary launcher failure")
-      }
-      return sampleReservation()
+    override suspend fun getReservableDays(
+        courtId: String,
+        fromUtcDate: String,
+        days: Int,
+    ): ReservationDayDiscovery = error("Unused in test")
+
+    override suspend fun getReservableSlots(
+        courtId: String,
+        dateUtc: String,
+    ): ReservationDayAvailability = error("Unused in test")
+
+    override suspend fun createReservation(
+        courtId: String,
+        startsAtUtc: String,
+    ): ReservationConfirmation = error("Unused in test")
+
+    override suspend fun getMyReservations(): MyReservations {
+      val result =
+          results.getOrElse(getMyReservationsCalls) {
+            results.lastOrNull() ?: Result.success(sampleMyReservations())
+          }
+      getMyReservationsCalls += 1
+      return result.getOrThrow()
     }
+  }
 
-    override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
-        error("Should not create review in launcher retry test.")
+  private class DelayedReservationRepository(
+      private val myReservationsResult: CompletableDeferred<MyReservations>,
+  ) : IReservationRepository {
+    override suspend fun getReservableDays(
+        courtId: String,
+        fromUtcDate: String,
+        days: Int,
+    ): ReservationDayDiscovery = error("Unused in test")
+
+    override suspend fun getReservableSlots(
+        courtId: String,
+        dateUtc: String,
+    ): ReservationDayAvailability = error("Unused in test")
+
+    override suspend fun createReservation(
+        courtId: String,
+        startsAtUtc: String,
+    ): ReservationConfirmation = error("Unused in test")
+
+    override suspend fun getMyReservations(): MyReservations = myReservationsResult.await()
   }
 }
 
-private fun sampleReservation() =
-    ReviewableReservation(
-        reservationId = "reservation-id",
+private const val FinalizedReservationId = "reservation-id"
+private const val FinalizedReservationCardTag = "my_reservation_card_$FinalizedReservationId"
+private const val FinalizedReservationActionTag = "my_reservation_action_$FinalizedReservationId"
+
+private fun sampleMyReservations(
+    reviewActionAvailable: Boolean = true,
+    primaryActionKey: String? = if (reviewActionAvailable) "leave_review" else null,
+    primaryActionLabel: String? = if (reviewActionAvailable) "Dejar reseña" else null,
+): MyReservations =
+    MyReservations(
+        upcoming =
+            listOf(
+                reservationCard(
+                    id = "upcoming-id",
+                    section = "UPCOMING",
+                    reviewStatus = "NOT_APPLICABLE",
+                    canReview = false,
+                    hasReview = false,
+                )
+            ),
+        finalized =
+            listOf(
+                reservationCard(
+                    id = FinalizedReservationId,
+                    section = "FINALIZED",
+                    reviewStatus = if (reviewActionAvailable) "PENDING_REVIEW" else "REVIEWED",
+                    canReview = reviewActionAvailable,
+                    hasReview = !reviewActionAvailable,
+                    primaryActionKey = primaryActionKey,
+                    primaryActionLabel = primaryActionLabel,
+                    indicatorKey =
+                        if (reviewActionAvailable) "leave_review" else "already_reviewed",
+                    indicatorLabel =
+                        if (reviewActionAvailable) "Pendiente de reseña" else "Reseña enviada",
+                )
+            ),
+    )
+
+private fun reservationCard(
+    id: String,
+    section: String,
+    reviewStatus: String,
+    canReview: Boolean,
+    hasReview: Boolean,
+    primaryActionKey: String? = null,
+    primaryActionLabel: String? = null,
+    indicatorKey: String? = null,
+    indicatorLabel: String? = null,
+) =
+    MyReservationCard(
+        id = id,
         complexName = "Moravia FC",
-        courtName = "Cancha A",
-        startsAt = "2026-07-03T02:00:00.000Z",
-        endsAt = "2026-07-03T03:00:00.000Z",
+        courtName = if (id == FinalizedReservationId) "Cancha A" else "Cancha 1",
+        startsAt = "2026-07-10T18:00:00.000Z",
+        endsAt = "2026-07-10T19:00:00.000Z",
+        status = if (section == "UPCOMING") "CONFIRMED" else "COMPLETED",
+        section = section,
+        reviewStatus = reviewStatus,
+        canReview = canReview,
+        hasReview = hasReview,
+        primaryActionKey = primaryActionKey,
+        primaryActionLabel = primaryActionLabel,
+        indicatorKey = indicatorKey,
+        indicatorLabel = indicatorLabel,
     )
 
 private fun testNavigationState(): AuthenticatedNavigationState =

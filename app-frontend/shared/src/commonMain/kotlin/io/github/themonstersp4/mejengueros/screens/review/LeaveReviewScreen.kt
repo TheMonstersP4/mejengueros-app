@@ -111,47 +111,6 @@ fun LeaveReviewScreen(
 }
 
 @Composable
-fun ReservationsReviewLauncherScreen(
-    reservationContext: LeaveReviewReservationContext,
-    contentPadding: PaddingValues,
-    onStartReview: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-  Column(
-      modifier =
-          modifier
-              .fillMaxSize()
-              .padding(contentPadding)
-              .verticalScroll(rememberScrollState())
-              .padding(horizontal = 20.dp, vertical = 24.dp),
-      verticalArrangement = Arrangement.spacedBy(24.dp),
-  ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      Text(
-          text = "Tu última mejenga ya está lista para reseña",
-          style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-          color = MaterialTheme.colorScheme.onSurface,
-      )
-      Text(
-          text =
-              "Tu próxima reseña ya se publica de verdad. Si calificás con 1 estrella, también te vamos a pedir comentario e imagen de respaldo.",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-    }
-
-    MejenguerosReviewContextCard(
-        title = reservationContext.title,
-        supportingText = reservationContext.reservationLabel,
-        imageUrl = reservationContext.imageUrl,
-        imageContentDescription = reservationContext.imageContentDescription,
-    )
-
-    MejenguerosFullWidthPrimaryButton(text = "PREPARAR RESEÑA", onClick = onStartReview)
-  }
-}
-
-@Composable
 private fun LeaveReviewFormContent(
     state: LeaveReviewUiState,
     contentPadding: PaddingValues,
