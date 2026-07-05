@@ -41,6 +41,27 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
+  fun loadingStateShowsInlineIndicatorAndCopy() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state = CourtCatalogUiState(isLoading = true),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("catalog_loading", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithTag("catalog_loading_indicator", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithText("Cargando canchas…").assertExists()
+  }
+
+  @Test
   fun playerCatalogDoesNotContainProminentOwnerCtaCard() {
     composeRule.setContent {
       MejenguerosTheme {

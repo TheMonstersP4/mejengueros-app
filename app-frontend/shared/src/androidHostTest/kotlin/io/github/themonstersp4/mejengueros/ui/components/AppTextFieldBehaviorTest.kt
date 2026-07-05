@@ -191,6 +191,104 @@ class AppTextFieldBehaviorTest {
     composeRule.onNodeWithContentDescription("Ocultar contraseña").assertExists()
   }
 
+  @Test
+  fun placeholderIsVisibleWhenTextFieldIsEmptyAndHiddenAfterInput() {
+    composeRule.setContent {
+      var value by remember { mutableStateOf("") }
+
+      MaterialTheme {
+        MejenguerosTextField(
+            value = value,
+            onValueChange = { value = it },
+            label = "Display name",
+            placeholder = "Write your display name",
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Write your display name").assertExists()
+
+    composeRule.textField("Display name").performTextInput("Misty")
+
+    composeRule.onNodeWithText("Write your display name").assertDoesNotExist()
+    composeRule.textField("Display name").assertTextEquals("Misty")
+  }
+
+  @Test
+  fun hiddenLabelKeepsTextFieldAccessibleWithoutRenderingVisibleLabel() {
+    composeRule.setContent {
+      var value by remember { mutableStateOf("") }
+
+      MaterialTheme {
+        MejenguerosTextField(
+            value = value,
+            onValueChange = { value = it },
+            label = "Display name",
+            placeholder = "Write your display name",
+            showLabel = false,
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Display name").assertDoesNotExist()
+    composeRule.onNodeWithText("Write your display name").assertExists()
+    composeRule.textField("Display name").performTextInput("Misty")
+    composeRule.onNodeWithText("Write your display name").assertDoesNotExist()
+  }
+
+  @Test
+  fun hiddenLabelContainerTapFocusesTextAreaAndPreservesKeyboardInput() {
+    composeRule.setContent {
+      var value by remember { mutableStateOf("") }
+
+      MaterialTheme {
+        MejenguerosTextArea(
+            value = value,
+            onValueChange = { value = it },
+            label = "Comment",
+            placeholder = "Share your experience",
+            showLabel = false,
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Share your experience").assertExists()
+    composeRule.textField("Comment").assertIsNotFocused()
+
+    composeRule.onNodeWithTag("Comment text field container").performTouchInput {
+      click(Offset(8f, height - 8f))
+    }
+
+    composeRule.textField("Comment").assertIsFocused().performTextInput("Great court")
+    composeRule.onNodeWithText("Share your experience").assertDoesNotExist()
+    composeRule.textField("Comment").assertTextEquals("Great court")
+  }
+
+  @Test
+  fun textAreaShowsPlaceholderWhenEmptyAndHidesItAfterInputWithoutLabel() {
+    composeRule.setContent {
+      var value by remember { mutableStateOf("") }
+
+      MaterialTheme {
+        MejenguerosTextArea(
+            value = value,
+            onValueChange = { value = it },
+            label = "Comment",
+            placeholder = "Share your experience",
+            showLabel = false,
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Comment").assertDoesNotExist()
+    composeRule.onNodeWithText("Share your experience").assertExists()
+
+    composeRule.textField("Comment").performTextInput("Great court")
+
+    composeRule.onNodeWithText("Share your experience").assertDoesNotExist()
+    composeRule.textField("Comment").assertTextEquals("Great court")
+  }
+
   private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.setTextFieldContent(
       enabled: Boolean,
       isError: Boolean,

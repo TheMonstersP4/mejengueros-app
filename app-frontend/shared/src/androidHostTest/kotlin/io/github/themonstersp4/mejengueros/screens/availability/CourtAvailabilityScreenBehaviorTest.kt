@@ -20,6 +20,33 @@ class CourtAvailabilityScreenBehaviorTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
   @Test
+  fun loadingStateShowsInlineIndicatorAndCopy() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtAvailabilityScreen(
+            state = CourtAvailabilityUiState(isLoading = true),
+            contentPadding = PaddingValues(),
+            actions =
+                CourtAvailabilityScreenActions(
+                    onToggleDay = {},
+                    onStartTimeSelected = {},
+                    onEndTimeSelected = {},
+                    onRetry = {},
+                    onSave = {},
+                    onSuccessAcknowledged = {},
+                ),
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_availability_loading", useUnmergedTree = true).assertExists()
+    composeRule
+        .onNodeWithTag("court_availability_loading_indicator", useUnmergedTree = true)
+        .assertExists()
+    composeRule.onNodeWithText("Cargando disponibilidad…").assertExists()
+  }
+
+  @Test
   fun successShowsConfirmationDialogAndConfirmUsesAcknowledgedCallback() {
     var acknowledgements = 0
 

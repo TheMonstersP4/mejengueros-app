@@ -26,4 +26,5 @@ data class MyComplexHubCourt(
     val name: String,
     val status: String,
     val availabilityStatus: CourtAvailabilitySetupStatus,
+    val imageUrl: String? = null,
 )

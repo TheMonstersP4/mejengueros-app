@@ -1,11 +1,26 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -58,7 +73,9 @@ fun AppNavHost() {
   val authViewModel = koinViewModel<AuthViewModel>()
   val secureStorage = koinInject<IAuthSecureStorage>()
   val authState by authViewModel.uiState.collectAsState()
+  val currentUserId = authState.userId?.takeIf { it.isNotBlank() }
   val coroutineScope = rememberCoroutineScope()
+  val startupOwnerPreferenceHydrationGate = remember { StartupOwnerPreferenceHydrationGate() }
   val ownerViewPreferenceCoordinator =
       remember(authenticatedNavigationState, secureStorage, coroutineScope) {
         OwnerViewPreferenceCoordinator(
@@ -68,12 +85,64 @@ fun AppNavHost() {
         )
       }
 
-  LaunchedEffect(authState.isAuthenticated, authState.isOwner, authState.userId) {
+  LaunchedEffect(
+      authState.isRestoringSession,
+      authState.isAuthenticated,
+      authState.isOwner,
+      authState.userId,
+      authState.isResolvingAuthenticatedStartup,
+  ) {
+    val userId = currentUserId
+
+    if (authState.isRestoringSession || authState.isResolvingAuthenticatedStartup) {
+      if (authState.isAuthenticated && userId != null) {
+        startupOwnerPreferenceHydrationGate.waitForAuthenticatedStartup(userId)
+      } else {
+        startupOwnerPreferenceHydrationGate.clear()
+      }
+      return@LaunchedEffect
+    }
+
+    if (!authState.isAuthenticated) {
+      startupOwnerPreferenceHydrationGate.clear()
+      ownerViewPreferenceCoordinator.hydrate(authState)
+      return@LaunchedEffect
+    }
+
+    if (
+        authState.isOwner &&
+            userId != null &&
+            startupOwnerPreferenceHydrationGate.isWaitingFor(userId)
+    ) {
+      startupOwnerPreferenceHydrationGate.beginOwnerPreferenceHydration(userId)
+    } else if (!authState.isOwner || userId == null) {
+      startupOwnerPreferenceHydrationGate.clear()
+    }
+
     ownerViewPreferenceCoordinator.hydrate(authState)
+
+    if (startupOwnerPreferenceHydrationGate.isHydratingFor(userId)) {
+      startupOwnerPreferenceHydrationGate.clear()
+    }
   }
 
   val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
   val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
+
+  val isAwaitingStartupOwnerPreferenceHydration =
+      authState.isAuthenticated &&
+          authState.isOwner &&
+          currentUserId != null &&
+          startupOwnerPreferenceHydrationGate.isBlockingNavigationFor(currentUserId)
+
+  if (
+      authState.isRestoringSession ||
+          authState.isResolvingAuthenticatedStartup ||
+          isAwaitingStartupOwnerPreferenceHydration
+  ) {
+    AuthSessionRestorationScreen()
+    return
+  }
 
   val loginActions =
       LoginNavigationActions(
@@ -114,6 +183,7 @@ fun AppNavHost() {
           selectReservations = authenticatedNavigationState::selectReservations,
           selectNotifications = authenticatedNavigationState::selectNotifications,
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
+          returnToSearchRoot = authenticatedNavigationState::returnToSearchRoot,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
           openCatalogCourtDetail = authenticatedNavigationState::openCatalogCourtDetail,
           openCatalogReservation = authenticatedNavigationState::openCatalogReservation,
@@ -158,4 +228,67 @@ fun AppNavHost() {
             )
           },
   )
+}
+
+private enum class StartupOwnerPreferenceHydrationPhase {
+  Idle,
+  WaitingForAuthenticatedStartup,
+  HydratingOwnerPreference,
+}
+
+private class StartupOwnerPreferenceHydrationGate {
+  private var phase by mutableStateOf(StartupOwnerPreferenceHydrationPhase.Idle)
+  private var pendingUserId by mutableStateOf<String?>(null)
+
+  fun waitForAuthenticatedStartup(userId: String) {
+    pendingUserId = userId
+    phase = StartupOwnerPreferenceHydrationPhase.WaitingForAuthenticatedStartup
+  }
+
+  fun beginOwnerPreferenceHydration(userId: String) {
+    pendingUserId = userId
+    phase = StartupOwnerPreferenceHydrationPhase.HydratingOwnerPreference
+  }
+
+  fun isWaitingFor(userId: String): Boolean {
+    return phase == StartupOwnerPreferenceHydrationPhase.WaitingForAuthenticatedStartup &&
+        pendingUserId == userId
+  }
+
+  fun isHydratingFor(userId: String?): Boolean {
+    return phase == StartupOwnerPreferenceHydrationPhase.HydratingOwnerPreference &&
+        pendingUserId == userId
+  }
+
+  fun isBlockingNavigationFor(userId: String?): Boolean {
+    return pendingUserId == userId && phase != StartupOwnerPreferenceHydrationPhase.Idle
+  }
+
+  fun clear() {
+    pendingUserId = null
+    phase = StartupOwnerPreferenceHydrationPhase.Idle
+  }
+}
+
+@Composable
+internal fun AuthSessionRestorationScreen(modifier: Modifier = Modifier) {
+  Surface(
+      modifier = modifier.fillMaxSize().testTag("auth_session_restore_root"),
+      color = MaterialTheme.colorScheme.surface,
+  ) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        CircularProgressIndicator(modifier = Modifier.testTag("auth_session_restore_loading"))
+        Text(
+            text = "Restaurando tu sesión...",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+      }
+    }
+  }
 }

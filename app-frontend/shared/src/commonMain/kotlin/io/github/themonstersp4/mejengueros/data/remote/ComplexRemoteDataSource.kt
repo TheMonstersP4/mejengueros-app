@@ -10,6 +10,8 @@ import io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtRequestPay
 import io.github.themonstersp4.mejengueros.data.remote.dto.MyComplexHubEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ProvinceCatalogEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ServiceCatalogEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.UpdateCourtImageEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.UpdateCourtImageRequestDto
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
@@ -28,6 +30,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -163,6 +166,33 @@ class ComplexRemoteDataSource(
     }
   }
 
+  override suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ): MyComplexHubCourt {
+    try {
+      val response =
+          httpClient
+              .put("/v1/complexes/$complexId/courts/$courtId/image") {
+                header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody(UpdateCourtImageRequestDto(imageUploadId = imageUploadId))
+              }
+              .body<UpdateCourtImageEnvelopeDto>()
+
+      val data =
+          response.data
+              ?: throw AppApiException(
+                  statusCode = 502,
+                  message = "No se recibió la respuesta esperada del API.",
+              )
+
+      return data.court.toDomain()
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
+
   override suspend fun getMyComplexHub(): MyComplexHub {
     return try {
       val response = httpClient.get("/v1/complexes/my-hub").body<MyComplexHubEnvelopeDto>()
@@ -192,6 +222,7 @@ class ComplexRemoteDataSource(
                               name = court.name,
                               status = court.status,
                               availabilityStatus = court.availabilityStatus,
+                              imageUrl = court.imageUrl,
                           )
                         },
                 )
@@ -202,6 +233,15 @@ class ComplexRemoteDataSource(
     }
   }
 }
+
+private fun io.github.themonstersp4.mejengueros.data.remote.dto.MyComplexHubCourtDto.toDomain() =
+    MyComplexHubCourt(
+        id = id,
+        name = name,
+        status = status,
+        availabilityStatus = availabilityStatus,
+        imageUrl = imageUrl,
+    )
 
 class AppApiException(
     val statusCode: Int,

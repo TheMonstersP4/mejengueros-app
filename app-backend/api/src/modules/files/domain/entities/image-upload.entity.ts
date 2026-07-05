@@ -164,6 +164,10 @@ export class ImageUploadEntity {
       return FilePurpose.CourtImage;
     }
 
+    if (value === FilePurpose.ReviewEvidenceImage) {
+      return FilePurpose.ReviewEvidenceImage;
+    }
+
     return FilePurpose.ProfileImage;
   }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,12 +25,12 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,9 +38,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.github.themonstersp4.mejengueros.domain.model.CourtAvailabilitySetupStatus
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
@@ -48,6 +49,7 @@ import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiSta
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListGroup
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItem
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosListItemCustomContent
@@ -110,9 +112,13 @@ fun ComplexDetailScreen(
     complex: MyComplexHubComplex?,
     isLoading: Boolean,
     errorMessage: String?,
+    courtImageErrorMessage: String? = null,
+    isCourtImagePickerAvailable: Boolean = false,
+    isUpdatingCourtImage: Boolean = false,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -130,7 +136,11 @@ fun ComplexDetailScreen(
           ComplexDetailContent(
               complex = complex,
               isRefreshing = isLoading,
+              courtImageErrorMessage = courtImageErrorMessage,
+              isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+              isUpdatingCourtImage = isUpdatingCourtImage,
               onConfigureAvailability = onConfigureAvailability,
+              onPickCourtImage = onPickCourtImage,
           )
       isLoading -> LoadingState()
       errorMessage != null -> ErrorState(errorMessage, onRetry)
@@ -141,28 +151,15 @@ fun ComplexDetailScreen(
 
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
-  Column(
-      modifier = modifier.fillMaxWidth(),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(12.dp),
+  Box(
+      modifier = modifier.fillMaxSize(),
+      contentAlignment = Alignment.Center,
   ) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-      Column(
-          horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.spacedBy(12.dp),
-      ) {
-        CircularProgressIndicator(modifier = Modifier.testTag("my_complex_loading_indicator"))
-        Text(
-            text = "Cargando tu hub de complejos...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-        )
-      }
-    }
+    MejenguerosInlineLoadingState(
+        text = "Cargando tu hub de complejos…",
+        containerTestTag = "my_complex_loading",
+        indicatorTestTag = "my_complex_loading_indicator",
+    )
   }
 }
 
@@ -282,7 +279,11 @@ private fun ComplexListState(
 private fun ComplexDetailContent(
     complex: MyComplexHubComplex,
     isRefreshing: Boolean,
+    courtImageErrorMessage: String?,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     if (isRefreshing) {
@@ -293,9 +294,18 @@ private fun ComplexDetailContent(
       )
     }
 
+    courtImageErrorMessage?.let { message ->
+      MejenguerosErrorText(
+          text = message,
+          modifier = Modifier.testTag("complex_detail_image_error"),
+      )
+    }
     ComplexHubSection(
         complex = complex,
+        isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+        isUpdatingCourtImage = isUpdatingCourtImage,
         onConfigureAvailability = onConfigureAvailability,
+        onPickCourtImage = onPickCourtImage,
     )
   }
 }
@@ -303,12 +313,21 @@ private fun ComplexDetailContent(
 @Composable
 private fun ComplexHubSection(
     complex: MyComplexHubComplex,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
     SectionLabel(text = "TUS CANCHAS")
-    CourtsGroup(complex = complex, onConfigureAvailability = onConfigureAvailability)
+    CourtsGroup(
+        complex = complex,
+        isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+        isUpdatingCourtImage = isUpdatingCourtImage,
+        onConfigureAvailability = onConfigureAvailability,
+        onPickCourtImage = onPickCourtImage,
+    )
     Spacer(modifier = Modifier.height(8.dp))
     ActivitySection()
   }
@@ -374,7 +393,10 @@ private fun ComplexSummaryCard(complex: MyComplexHubComplex) {
 @Composable
 private fun CourtsGroup(
     complex: MyComplexHubComplex,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   if (complex.courts.isEmpty()) {
     MejenguerosListGroup {
@@ -395,8 +417,11 @@ private fun CourtsGroup(
       CourtRow(
           complexName = complex.name,
           court = court,
+          isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+          isUpdatingCourtImage = isUpdatingCourtImage,
           showDivider = index < complex.courts.lastIndex,
           onConfigureAvailability = onConfigureAvailability,
+          onPickCourtImage = onPickCourtImage,
       )
     }
   }
@@ -406,8 +431,11 @@ private fun CourtsGroup(
 private fun CourtRow(
     complexName: String,
     court: MyComplexHubCourt,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
     showDivider: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit,
 ) {
   MejenguerosListItem(
       content =
@@ -423,16 +451,17 @@ private fun CourtRow(
                 )
               },
               supportingContent = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                   Text(
                       text = court.toSupportingText(),
-                      modifier = Modifier.weight(1f),
                       style = MaterialTheme.typography.bodyMedium,
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                  CourtImageManagementSection(
+                      court = court,
+                      isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+                      isUpdatingCourtImage = isUpdatingCourtImage,
+                      onPickCourtImage = onPickCourtImage,
                   )
                   Row(
                       modifier = Modifier.testTag("my_complex_court_trailing_${court.id}"),
@@ -443,44 +472,26 @@ private fun CourtRow(
                         text = court.availabilityStatus.toPillLabel(),
                         style = court.availabilityStatus.toPillStyle(),
                     )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    TextButton(
+                        onClick = {
+                          onConfigureAvailability(
+                              OwnerCourtAvailabilityEntrypoint(
+                                  courtId = court.id,
+                                  courtName = court.name,
+                                  complexName = complexName,
+                              )
+                          )
+                        },
+                        modifier =
+                            Modifier.testTag("my_complex_court_availability_button_${court.id}"),
+                    ) {
+                      Text(text = "Disponibilidad")
+                    }
                   }
                 }
               },
           ),
       modifier = Modifier.testTag("my_complex_court_row_${court.id}"),
-      leading = {
-        Box(modifier = Modifier.testTag("my_complex_court_icon_${court.id}")) {
-          Surface(
-              modifier = Modifier.size(36.dp),
-              shape = CircleShape,
-              color = MaterialTheme.colorScheme.surfaceContainerHighest,
-              contentColor = MaterialTheme.colorScheme.primary,
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Icon(
-                  imageVector = Icons.Filled.LocationOn,
-                  contentDescription = null,
-                  modifier = Modifier.size(18.dp),
-              )
-            }
-          }
-        }
-      },
-      onClick = {
-        onConfigureAvailability(
-            OwnerCourtAvailabilityEntrypoint(
-                courtId = court.id,
-                courtName = court.name,
-                complexName = complexName,
-            )
-        )
-      },
       style =
           MejenguerosListItemStyle(
               showDivider = showDivider,
@@ -488,6 +499,68 @@ private fun CourtRow(
               dividerModifier = Modifier.testTag("my_complex_court_divider_${court.id}"),
           ),
   )
+}
+
+@Composable
+private fun CourtImageManagementSection(
+    court: MyComplexHubCourt,
+    isCourtImagePickerAvailable: Boolean,
+    isUpdatingCourtImage: Boolean,
+    onPickCourtImage: (String) -> Unit,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    CourtImagePreview(court = court)
+
+    if (isCourtImagePickerAvailable) {
+      TextButton(
+          onClick = { onPickCourtImage(court.id) },
+          enabled = !isUpdatingCourtImage,
+          modifier = Modifier.testTag("my_complex_court_image_button_${court.id}"),
+      ) {
+        Text(text = if (court.imageUrl.isNullOrBlank()) "Agregar imagen" else "Cambiar imagen")
+      }
+    }
+  }
+}
+
+@Composable
+private fun CourtImagePreview(court: MyComplexHubCourt) {
+  Surface(
+      modifier =
+          Modifier.fillMaxWidth()
+              .aspectRatio(16f / 9f)
+              .testTag("my_complex_court_image_container_${court.id}"),
+      shape = RoundedCornerShape(16.dp),
+      color = MaterialTheme.colorScheme.surfaceContainerHighest,
+      border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+  ) {
+    if (court.imageUrl.isNullOrBlank()) {
+      Column(
+          modifier = Modifier.fillMaxSize().padding(16.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center,
+      ) {
+        Icon(
+            imageVector = Icons.Filled.LocationOn,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Sin imagen",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+      }
+    } else {
+      AsyncImage(
+          model = court.imageUrl,
+          contentDescription = "Imagen de ${court.name}",
+          modifier = Modifier.fillMaxSize().testTag("my_complex_court_image_${court.id}"),
+      )
+    }
+  }
 }
 
 @Composable

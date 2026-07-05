@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
@@ -16,9 +17,11 @@ actual fun rememberCourtImagePicker(
     onImagePicked: (LocalCourtImage) -> Unit,
 ): CourtImagePickerController {
   val context = LocalContext.current
+  val callbackRelay = remember { CourtImagePickedCallbackRelay(onImagePicked) }
+  SideEffect { callbackRelay.update(onImagePicked) }
   val launcher =
       rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.toLocalCourtImage(context.contentResolver)?.let(onImagePicked)
+        uri?.toLocalCourtImage(context.contentResolver)?.let(callbackRelay::dispatch)
       }
 
   return remember(launcher) {
@@ -28,6 +31,18 @@ actual fun rememberCourtImagePicker(
           launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
     )
+  }
+}
+
+internal class CourtImagePickedCallbackRelay(initialCallback: (LocalCourtImage) -> Unit) {
+  private var callback: (LocalCourtImage) -> Unit = initialCallback
+
+  fun update(latestCallback: (LocalCourtImage) -> Unit) {
+    callback = latestCallback
+  }
+
+  fun dispatch(image: LocalCourtImage) {
+    callback(image)
   }
 }
 

@@ -4,20 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.auth.AuthCallbackBus
 import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
+import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.model.UserRoleKind
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
+import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
+import io.github.themonstersp4.mejengueros.monitoring.NoOpErrorReporter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val authRepository: IAuthRepository,
     private val oauthBrowser: IOAuthBrowser,
+    private val errorReporter: ErrorReporter = NoOpErrorReporter(),
     private val callbackUrls: SharedFlow<String> = AuthCallbackBus.callbackUrls,
     private val markCallbackConsumed: (String) -> Unit = AuthCallbackBus::markConsumed,
     coroutineScope: CoroutineScope? = null,
@@ -39,12 +46,33 @@ class AuthViewModel(
     startSignIn(AuthProvider.Microsoft)
   }
 
+  fun cancelExternalAuth() {
+    val state = _uiState.value
+    if (!state.isExternalAuthInProgress) {
+      return
+    }
+
+    errorReporter.reportRecoverableFailure(
+        name = "auth_external_signin_cancelled",
+        attributes =
+            externalAuthReportAttributes(
+                operation = "cancel_external_signin",
+                provider = state.pendingProvider,
+                stage = "pending_callback",
+                outcome = "user_cancelled",
+            ),
+    )
+
+    clearExternalAuthProgress()
+  }
+
   fun clearFeedback() {
     _uiState.value =
         _uiState.value.copy(
             errorMessage = null,
             successMessage = null,
             pendingProvider = null,
+            isExternalAuthInProgress = false,
         )
   }
 
@@ -54,6 +82,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa tu correo y contraseña para continuar.",
           )
       return
@@ -76,6 +105,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa nombre, correo y contraseña para crear la cuenta.",
           )
       return
@@ -104,6 +134,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa el código enviado a tu correo.",
           )
       return
@@ -129,6 +160,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa tu correo para reenviar el código.",
           )
       return
@@ -154,6 +186,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa tu correo para recuperar el acceso.",
           )
       return
@@ -183,6 +216,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = false,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = "Ingresa el código y la nueva contraseña.",
           )
       return
@@ -209,24 +243,76 @@ class AuthViewModel(
   fun signOut() {
     coroutineScope.launch {
       val signOutRequest = authRepository.signOut()
-      _uiState.value = AuthUiState()
+      _uiState.value = AuthUiState(isRestoringSession = false)
       runCatching { oauthBrowser.open(signOutRequest.logoutUrl) }
     }
   }
 
   fun refreshProfileAfterOwnerTransition() {
-    coroutineScope.launch {
-      runCatching { authRepository.refreshUserProfile() }
-          .onSuccess {
-            val profile = authRepository.getUserProfile()
-            val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
-            _uiState.value = _uiState.value.copy(isOwner = isOwner)
-          }
-    }
+    launchProfileRefresh(
+        reportName = "auth_profile_refresh_failed",
+        operation = "owner_transition",
+    )
   }
 
   private fun restoreSession() {
-    coroutineScope.launch { authRepository.getSession()?.let(::applyAuthenticatedSession) }
+    coroutineScope.launch {
+      try {
+        val session = authRepository.getSession()
+        if (session != null) {
+          applyAuthenticatedSession(session, isRestoredSession = true)
+          refreshRestoredProfile()
+        } else {
+          clearStartupGates()
+        }
+      } catch (error: CancellationException) {
+        if (currentCoroutineContext().isActive) {
+          clearStartupGates()
+        } else {
+          throw error
+        }
+        return@launch
+      } catch (error: Throwable) {
+        errorReporter.reportRecoverableFailure(
+            name = "auth_session_restore_failed",
+            attributes = error.toReportAttributes(operation = "restore_session"),
+        )
+        clearStartupGates()
+      }
+    }
+  }
+
+  private fun refreshRestoredProfile() {
+    launchProfileRefresh(
+        reportName = "auth_restore_profile_sync_failed",
+        operation = "restore_profile_sync",
+        clearAuthenticatedStartupGateOnCompletion = true,
+    )
+  }
+
+  private fun launchProfileRefresh(
+      reportName: String,
+      operation: String,
+      clearAuthenticatedStartupGateOnCompletion: Boolean = false,
+  ) {
+    coroutineScope.launch {
+      try {
+        refreshProfileAndApplyOwnerRole()
+      } catch (error: CancellationException) {
+        if (!currentCoroutineContext().isActive) {
+          throw error
+        }
+      } catch (error: Throwable) {
+        errorReporter.reportRecoverableFailure(
+            name = reportName,
+            attributes = error.toReportAttributes(operation = operation),
+        )
+      } finally {
+        if (clearAuthenticatedStartupGateOnCompletion && currentCoroutineContext().isActive) {
+          finishAuthenticatedStartupResolution()
+        }
+      }
+    }
   }
 
   private fun startSignIn(provider: AuthProvider) {
@@ -235,6 +321,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = true,
               pendingProvider = provider,
+              isExternalAuthInProgress = true,
               errorMessage = null,
               successMessage = null,
           )
@@ -243,10 +330,19 @@ class AuthViewModel(
             oauthBrowser.open(request.authorizationUrl)
           }
           .onFailure { error ->
+            reportExternalAuthFailure(
+                error = error,
+                provider = provider,
+                stage = "start",
+                failureName = "auth_external_signin_start_failed",
+                cancellationName = "auth_external_signin_start_cancelled",
+                operation = "start_external_signin",
+            )
             _uiState.value =
                 _uiState.value.copy(
                     isLoading = false,
                     pendingProvider = null,
+                    isExternalAuthInProgress = false,
                     errorMessage = resolveAuthErrorMessage(error, "No se pudo iniciar sesión."),
                 )
           }
@@ -259,6 +355,7 @@ class AuthViewModel(
           _uiState.value.copy(
               isLoading = true,
               pendingProvider = null,
+              isExternalAuthInProgress = false,
               errorMessage = null,
               successMessage = null,
           )
@@ -268,6 +365,7 @@ class AuthViewModel(
                 _uiState.value.copy(
                     isLoading = false,
                     pendingProvider = null,
+                    isExternalAuthInProgress = false,
                     errorMessage =
                         resolveAuthErrorMessage(error, "No se pudo completar la solicitud."),
                 )
@@ -278,14 +376,29 @@ class AuthViewModel(
   private fun observeCallbacks() {
     coroutineScope.launch {
       callbackUrls.collect { callbackUrl ->
-        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        _uiState.value =
+            _uiState.value.copy(
+                isLoading = true,
+                isExternalAuthInProgress = true,
+                errorMessage = null,
+                successMessage = null,
+            )
         runCatching { authRepository.handleCallback(callbackUrl) }
             .onSuccess(::applyAuthenticatedSession)
             .onFailure { error ->
+              reportExternalAuthFailure(
+                  error = error,
+                  provider = _uiState.value.pendingProvider,
+                  stage = "callback",
+                  failureName = "auth_external_signin_callback_failed",
+                  cancellationName = "auth_external_signin_callback_cancelled",
+                  operation = "handle_external_signin_callback",
+              )
               _uiState.value =
                   _uiState.value.copy(
                       isLoading = false,
                       pendingProvider = null,
+                      isExternalAuthInProgress = false,
                       errorMessage =
                           resolveAuthErrorMessage(
                               error,
@@ -298,7 +411,10 @@ class AuthViewModel(
     }
   }
 
-  private fun applyAuthenticatedSession(session: AuthSession) {
+  private fun applyAuthenticatedSession(
+      session: AuthSession,
+      isRestoredSession: Boolean = false,
+  ) {
     val profile = authRepository.getUserProfile()
     val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
     _uiState.value =
@@ -307,13 +423,46 @@ class AuthViewModel(
             email = session.email,
             displayName = session.displayName,
             provider = session.provider,
+            isRestoringSession = false,
+            isResolvingAuthenticatedStartup = isRestoredSession,
             isAuthenticated = true,
             isOwner = isOwner,
             isLoading = false,
             pendingProvider = null,
+            isExternalAuthInProgress = false,
             errorMessage = null,
             successMessage = null,
         )
+  }
+
+  private fun clearStartupGates() {
+    _uiState.value =
+        _uiState.value.copy(
+            isRestoringSession = false,
+            isResolvingAuthenticatedStartup = false,
+        )
+  }
+
+  private fun finishAuthenticatedStartupResolution() {
+    _uiState.value = _uiState.value.copy(isResolvingAuthenticatedStartup = false)
+  }
+
+  private fun clearExternalAuthProgress() {
+    _uiState.value =
+        _uiState.value.copy(
+            isLoading = false,
+            pendingProvider = null,
+            isExternalAuthInProgress = false,
+            errorMessage = null,
+            successMessage = null,
+        )
+  }
+
+  private suspend fun refreshProfileAndApplyOwnerRole() {
+    authRepository.refreshUserProfile()
+    val profile = authRepository.getUserProfile()
+    val isOwner = profile?.roles?.contains(UserRoleKind.OWNER) == true
+    _uiState.value = _uiState.value.copy(isOwner = isOwner)
   }
 
   private fun resolveAuthErrorMessage(error: Throwable, fallback: String): String {
@@ -328,5 +477,58 @@ class AuthViewModel(
       message.isBlank() -> fallback
       else -> message
     }
+  }
+
+  private fun reportExternalAuthFailure(
+      error: Throwable,
+      provider: AuthProvider?,
+      stage: String,
+      failureName: String,
+      cancellationName: String,
+      operation: String,
+  ) {
+    if (error is CancellationException && !coroutineScope.isActive) {
+      throw error
+    }
+
+    val isCancellation = error is CancellationException
+    errorReporter.reportRecoverableFailure(
+        name = if (isCancellation) cancellationName else failureName,
+        attributes =
+            externalAuthReportAttributes(
+                operation = operation,
+                provider = provider,
+                stage = stage,
+                outcome = if (isCancellation) "cancelled" else "failed",
+            ) +
+                if (isCancellation) mapOf("error_source" to "cancellation")
+                else error.toReportAttributes(operation),
+    )
+  }
+}
+
+private fun externalAuthReportAttributes(
+    operation: String,
+    provider: AuthProvider?,
+    stage: String,
+    outcome: String,
+): Map<String, String> = buildMap {
+  put("operation", operation)
+  put("stage", stage)
+  put("outcome", outcome)
+  provider?.let { put("provider", it.name.lowercase()) }
+}
+
+private fun Throwable.toReportAttributes(operation: String): Map<String, String> {
+  val baseAttributes = mapOf("operation" to operation)
+
+  return when (this) {
+    is AppApiException ->
+        baseAttributes +
+            mapOf(
+                "error_source" to "app_api",
+                "status_code" to statusCode.toString(),
+            )
+    else -> baseAttributes + mapOf("error_source" to "unexpected")
   }
 }

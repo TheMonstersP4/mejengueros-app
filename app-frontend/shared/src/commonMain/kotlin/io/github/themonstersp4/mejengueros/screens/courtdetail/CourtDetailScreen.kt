@@ -38,6 +38,7 @@ import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailS
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
@@ -209,10 +210,11 @@ private fun DisponibilidadSection(
 
     when {
       state.isLoadingSlots -> {
-        Text(
+        MejenguerosInlineLoadingState(
             text = "Cargando disponibilidad…",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            containerTestTag = "court_detail_loading_slots",
+            indicatorTestTag = "court_detail_loading_slots_indicator",
         )
       }
 
@@ -233,15 +235,16 @@ private fun DisponibilidadSection(
 
       state.slots.isEmpty() -> {
         MejenguerosStateContent(
-            title = "Sin horarios disponibles",
-            description = "No hay horarios disponibles para reservar hoy.",
+            title = "Sin horarios próximos",
+            description =
+                "No encontramos horarios disponibles en los próximos días. Tocá \"Reservar cancha\" para revisar más fechas.",
             variant = MejenguerosStateVariant.Empty,
             modifier = Modifier.testTag("court_detail_no_slots_state"),
         )
       }
 
       else -> {
-        AvailableTodayPill()
+        AvailabilityPill(label = state.availabilityHeadline ?: "Próximo horario disponible")
         SlotGrid(slots = state.slots)
       }
     }
@@ -249,7 +252,7 @@ private fun DisponibilidadSection(
 }
 
 @Composable
-private fun AvailableTodayPill() {
+private fun AvailabilityPill(label: String) {
   Surface(
       shape = RoundedCornerShape(999.dp),
       color = MaterialTheme.colorScheme.primaryContainer,
@@ -269,7 +272,7 @@ private fun AvailableTodayPill() {
                   )
       )
       Text(
-          text = "Hoy · slots de 1 hora",
+          text = label,
           style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
       )
     }

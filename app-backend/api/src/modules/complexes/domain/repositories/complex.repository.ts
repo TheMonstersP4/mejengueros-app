@@ -41,6 +41,13 @@ export interface ICreateOwnedComplexCourtCommand {
   court: ICreateFirstCourtInput;
 }
 
+export interface IUpdateOwnedCourtImageCommand {
+  ownerIdentity: IMyComplexHubOwnerIdentity;
+  complexId: string;
+  courtId: string;
+  imageUploadId: string;
+}
+
 /**
  * Repository command for atomic complex creation.
  */
@@ -104,6 +111,7 @@ export interface IMyComplexHubCourtSnapshot {
   name: string;
   status: string;
   availabilityStatus: IMyComplexCourtAvailabilityStatus;
+  imageUrl?: string | null;
 }
 
 export interface IMyComplexHubComplexSnapshot {
@@ -133,6 +141,10 @@ export interface IComplexRepository {
   ): Promise<ICreateComplexWithFirstCourtResult>;
 
   createOwnedComplexCourt(command: ICreateOwnedComplexCourtCommand): Promise<ICreatedCourtSnapshot>;
+
+  updateOwnedCourtImage(
+    command: IUpdateOwnedCourtImageCommand
+  ): Promise<IMyComplexHubCourtSnapshot>;
 
   getMyComplexHub(query: IGetMyComplexHubQuery): Promise<IGetMyComplexHubResult>;
 }

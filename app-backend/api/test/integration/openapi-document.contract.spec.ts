@@ -11,13 +11,13 @@ type OpenApiMethod = 'get' | 'post';
 type SchemaRecord = Record<string, unknown>;
 
 describe('OpenAPI document contract', () => {
+  const TEST_DATABASE_URL = 'file:memory:';
   const originalDatabaseUrl = process.env.DATABASE_URL;
   let app: NestFastifyApplication;
   let document: OpenAPIObject;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL =
-      'postgresql://test:test@localhost:5432/test?schema=mejengueros';
+    process.env.DATABASE_URL = TEST_DATABASE_URL;
 
     const { AppModule } = await import('@/app.module');
     const moduleRef = await Test.createTestingModule({
@@ -63,7 +63,10 @@ describe('OpenAPI document contract', () => {
     expect(responseSchema('/v1/complexes/my-hub', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/complexes/{complexId}/courts', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/reservations', 'post', '201')).toBeDefined();
+    expect(responseSchema('/v1/reviews/latest-eligible-reservation', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/reviews', 'post', '201')).toBeDefined();
     expect(responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200')).toBeDefined();
+    expect(responseSchema('/v1/courts/{courtId}/reservable-days', 'get', '200')).toBeDefined();
     expect(responseSchema('/v1/files/uploads', 'post', '201')).toBeDefined();
 
     expectSuccessEnvelopeSchema(responseSchema('/v1/auth/me', 'get', '200'));
@@ -102,9 +105,21 @@ describe('OpenAPI document contract', () => {
       responseSchema('/v1/reservations', 'post', '201'),
       '#/components/schemas/CreateReservationResponse'
     );
+    expectNullableObjectEnvelopeSchema(
+      responseSchema('/v1/reviews/latest-eligible-reservation', 'get', '200'),
+      '#/components/schemas/LatestReviewableReservationResponse'
+    );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/reviews', 'post', '201'),
+      '#/components/schemas/CreateReviewResponse'
+    );
     expectObjectEnvelopeSchema(
       responseSchema('/v1/courts/{courtId}/reservable-slots', 'get', '200'),
       '#/components/schemas/ReservableSlotsResponse'
+    );
+    expectObjectEnvelopeSchema(
+      responseSchema('/v1/courts/{courtId}/reservable-days', 'get', '200'),
+      '#/components/schemas/ReservableDaysResponse'
     );
     expectErrorEnvelopeSchema('/v1/auth/me', 'get', '401');
     expectErrorEnvelopeSchema('/v1/complexes/my-hub', 'get', '401');
@@ -115,9 +130,17 @@ describe('OpenAPI document contract', () => {
     expectErrorEnvelopeSchema('/v1/reservations', 'post', '401');
     expectErrorEnvelopeSchema('/v1/reservations', 'post', '404');
     expectErrorEnvelopeSchema('/v1/reservations', 'post', '409');
+    expectErrorEnvelopeSchema('/v1/reviews/latest-eligible-reservation', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/reviews', 'post', '400');
+    expectErrorEnvelopeSchema('/v1/reviews', 'post', '401');
+    expectErrorEnvelopeSchema('/v1/reviews', 'post', '404');
+    expectErrorEnvelopeSchema('/v1/reviews', 'post', '409');
     expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '400');
     expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '401');
     expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-slots', 'get', '404');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-days', 'get', '400');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-days', 'get', '401');
+    expectErrorEnvelopeSchema('/v1/courts/{courtId}/reservable-days', 'get', '404');
     expectErrorEnvelopeSchema('/v1/services', 'get', '400');
     expectErrorEnvelopeSchema('/v1/courts/catalog', 'get', '400');
     expectErrorEnvelopeSchema(
@@ -131,6 +154,22 @@ describe('OpenAPI document contract', () => {
       'get',
       'courtId'
     );
+    expectOperationHasPathUuidParameter(
+      '/v1/courts/{courtId}/reservable-days',
+      'get',
+      'courtId'
+    );
+    expectOperationHasQueryParameter('/v1/courts/{courtId}/reservable-days', 'get', 'from', {
+      required: true,
+      type: 'string'
+    });
+    expectOperationHasQueryParameter('/v1/courts/{courtId}/reservable-days', 'get', 'days', {
+      required: false,
+      type: 'number',
+      minimum: 1,
+      maximum: 31,
+      default: 14
+    });
   });
 
   it('documents reservation startsAt as an explicit UTC whole-hour datetime with Z', () => {
@@ -140,10 +179,39 @@ describe('OpenAPI document contract', () => {
     expect(startsAt).toEqual(
       expect.objectContaining({
         description:
-          'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour.',
+          'Reservation start time as a real UTC ISO datetime with explicit Z aligned to a whole hour. Same-day reservations must start more than 30 minutes after the current UTC time.',
         example: '2026-07-01T18:00:00.000Z',
         format: 'date-time',
         pattern: UTC_RESERVATION_STARTS_AT_SCHEMA_PATTERN
+      })
+    );
+  });
+
+  it('documents the reservable slot and day discovery threshold behavior in public contracts', () => {
+    expect(operationDescription('/v1/courts/{courtId}/reservable-slots', 'get')).toContain(
+      '30-minute minimum advance threshold'
+    );
+    expect(operationDescription('/v1/courts/{courtId}/reservable-slots', 'get')).toContain(
+      'America/Costa_Rica civil date'
+    );
+    expect(operationDescription('/v1/courts/{courtId}/reservable-days', 'get')).toContain(
+      'same-day 30-minute minimum advance threshold'
+    );
+    expect(operationDescription('/v1/courts/{courtId}/reservable-days', 'get')).toContain(
+      'Costa Rica business calendar dates'
+    );
+    expect(
+      schemaProperty(componentSchema('ReservableSlotsResponse'), 'slots')
+    ).toEqual(
+      expect.objectContaining({
+        description: expect.stringContaining('Costa Rica business date')
+      })
+    );
+    expect(
+      schemaProperty(componentSchema('ReservableDaysResponse'), 'reservableDays')
+    ).toEqual(
+      expect.objectContaining({
+        description: expect.stringContaining('Costa Rica business dates')
       })
     );
   });
@@ -165,7 +233,50 @@ describe('OpenAPI document contract', () => {
     expect(required).not.toContain('imageUploadId');
     expect(purpose).toEqual(
       expect.objectContaining({
-        enum: expect.arrayContaining(['profile-image', 'court-image'])
+        enum: expect.arrayContaining([
+          'profile-image',
+          'court-image',
+          'review-evidence-image'
+        ])
+      })
+    );
+  });
+
+  it('documents the review request and response contracts', () => {
+    const createReviewRequest = componentSchema('CreateReviewRequest');
+    const rating = schemaProperty(createReviewRequest, 'rating');
+    const evidenceImageUploadId = schemaProperty(
+      createReviewRequest,
+      'evidenceImageUploadId'
+    );
+    const latestReviewableReservationResponse = componentSchema(
+      'LatestReviewableReservationResponse'
+    );
+    const createReviewResponse = componentSchema('CreateReviewResponse');
+
+    expect(rating).toEqual(
+      expect.objectContaining({ minimum: 1, maximum: 5, type: 'number' })
+    );
+    expect(evidenceImageUploadId).toEqual(
+      expect.objectContaining({ format: 'uuid', type: 'string' })
+    );
+    expect(schemaProperty(latestReviewableReservationResponse, 'reservationId')).toEqual(
+      expect.objectContaining({ type: 'string' })
+    );
+    expect(schemaProperty(createReviewResponse, 'evidenceImageUploadId')).toEqual(
+      expect.objectContaining({ format: 'uuid', type: 'string' })
+    );
+  });
+
+  it('documents the latest eligible reservation response as nullable data', () => {
+    expect(dataSchema(responseSchema('/v1/reviews/latest-eligible-reservation', 'get', '200'))).toEqual(
+      expect.objectContaining({
+        nullable: true,
+        allOf: expect.arrayContaining([
+          expect.objectContaining({
+            $ref: '#/components/schemas/LatestReviewableReservationResponse'
+          })
+        ])
       })
     );
   });
@@ -244,6 +355,23 @@ describe('OpenAPI document contract', () => {
     );
   }
 
+  function expectNullableObjectEnvelopeSchema(
+    schema: SchemaRecord,
+    objectRef: string
+  ): void {
+    expectSuccessEnvelopeSchema(schema);
+    expect(dataSchema(schema)).toEqual(
+      expect.objectContaining({
+        nullable: true,
+        allOf: expect.arrayContaining([
+          expect.objectContaining({
+            $ref: objectRef
+          })
+        ])
+      })
+    );
+  }
+
   function expectErrorEnvelopeSchema(
     path: string,
     method: OpenApiMethod,
@@ -273,6 +401,39 @@ describe('OpenAPI document contract', () => {
         })
       ])
     );
+  }
+
+  function expectOperationHasQueryParameter(
+    path: string,
+    method: OpenApiMethod,
+    parameterName: string,
+    expectedSchema: Record<string, unknown> & { required: boolean }
+  ): void {
+    const { required, ...schema } = expectedSchema;
+    const operation = document.paths[path]?.[method] as
+      | { parameters?: Array<Record<string, unknown>> }
+      | undefined;
+
+    expect(operation?.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: parameterName,
+          in: 'query',
+          required,
+          schema: expect.objectContaining(schema)
+        })
+      ])
+    );
+  }
+
+  function operationDescription(path: string, method: OpenApiMethod): string {
+    const operation = document.paths[path]?.[method] as
+      | { description?: string }
+      | undefined;
+
+    expect(operation?.description).toBeDefined();
+
+    return operation?.description as string;
   }
 
   function dataSchema(schema: SchemaRecord): unknown {

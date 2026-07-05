@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
@@ -45,6 +46,9 @@ fun MejenguerosRating(
     selectedColor: Color = ReviewRatingSelectedColor,
     unselectedColor: Color = MaterialTheme.colorScheme.outlineVariant,
     showValueLabel: Boolean = true,
+    buttonSize: Dp = 44.dp,
+    iconSize: Dp = 36.dp,
+    itemSpacing: Dp = 4.dp,
 ) {
   val safeMaxRating = maxRating.coerceAtLeast(1)
   val safeValue = value.coerceIn(0, safeMaxRating)
@@ -56,7 +60,7 @@ fun MejenguerosRating(
   ) {
     Row(
         modifier = Modifier.semantics { selectableGroup() },
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
       (1..safeMaxRating).forEach { rating ->
@@ -66,7 +70,7 @@ fun MejenguerosRating(
             onClick = { onValueChange(rating) },
             enabled = enabled,
             modifier =
-                Modifier.size(44.dp).semantics {
+                Modifier.size(buttonSize).semantics {
                   role = Role.RadioButton
                   selected = isCurrentRating
                   contentDescription =
@@ -82,7 +86,7 @@ fun MejenguerosRating(
           Icon(
               imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
               contentDescription = null,
-              modifier = Modifier.size(36.dp),
+              modifier = Modifier.size(iconSize),
               tint = if (filled) selectedColor else unselectedColor,
           )
         }
@@ -278,12 +282,12 @@ fun MejenguerosReviewCommentField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Comentario",
-    optionalLabel: String = "Opcional",
+    label: String = "COMENTARIO",
+    optionalLabel: String = "· opcional",
     enabled: Boolean = true,
     isError: Boolean = false,
     supportingText: String? = null,
-    placeholderLabel: String = "Cuéntanos cómo estuvo la cancha, la atención o el partido",
+    placeholderLabel: String = "Contá tu experiencia: la cancha, la superficie, el ambiente...",
 ) {
   Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
     Row(
@@ -307,12 +311,14 @@ fun MejenguerosReviewCommentField(
     MejenguerosTextArea(
         value = value,
         onValueChange = onValueChange,
-        label = placeholderLabel,
+        label = label,
+        placeholder = placeholderLabel,
         enabled = enabled,
         isError = isError,
         supportingText = supportingText,
         minLines = 4,
         maxLines = 6,
+        showLabel = false,
     )
   }
 }

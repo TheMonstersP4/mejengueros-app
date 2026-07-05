@@ -220,6 +220,10 @@ export class ImageUploadPolicyService {
       return FilePurpose.CourtImage;
     }
 
+    if (purpose === FilePurpose.ReviewEvidenceImage) {
+      return FilePurpose.ReviewEvidenceImage;
+    }
+
     throw new InvalidFilePurposeError(purpose);
   }
 

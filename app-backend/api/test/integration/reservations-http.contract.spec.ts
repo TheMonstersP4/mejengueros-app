@@ -115,7 +115,7 @@ describe('reservations HTTP contract', () => {
       headers: { Authorization: 'Bearer valid-token' },
       payload: {
         courtId,
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       }
     });
 
@@ -124,8 +124,8 @@ describe('reservations HTTP contract', () => {
       data: {
         userId: 'user-id',
         courtId,
-        startsAt: new Date('2026-07-01T18:00:00.000Z'),
-        endsAt: new Date('2026-07-01T19:00:00.000Z'),
+        startsAt: new Date('2026-07-02T00:00:00.000Z'),
+        endsAt: new Date('2026-07-02T01:00:00.000Z'),
         status: 'CONFIRMED'
       }
     });
@@ -134,8 +134,8 @@ describe('reservations HTTP contract', () => {
       data: {
         id: 'reservation-id',
         courtId,
-        startsAt: '2026-07-01T18:00:00.000Z',
-        endsAt: '2026-07-01T19:00:00.000Z',
+        startsAt: '2026-07-02T00:00:00.000Z',
+        endsAt: '2026-07-02T01:00:00.000Z',
         status: 'CONFIRMED'
       },
       errors: [],
@@ -152,7 +152,7 @@ describe('reservations HTTP contract', () => {
       headers: { Authorization: 'Bearer valid-token' },
       payload: {
         courtId,
-        startsAt: '2026-07-01T18:00:00.000Z'
+        startsAt: '2026-07-02T00:00:00.000Z'
       }
     });
 
@@ -187,8 +187,8 @@ describe('reservations HTTP contract', () => {
     expect(prismaService.reservation.create).not.toHaveBeenCalled();
   });
 
-  it('rejects stale or current same-day reservation creation before touching persistence', async () => {
-    currentNow = new Date('2026-07-01T18:00:00.000Z');
+  it('rejects same-day reservation creation that does not clear the 30-minute threshold before touching persistence', async () => {
+    currentNow = new Date('2026-07-01T17:30:00.000Z');
 
     const response = await app.inject({
       method: 'POST',
@@ -209,7 +209,7 @@ describe('reservations HTTP contract', () => {
       errors: [
         {
           code: APP_ERROR_CODES.VALIDATION_FAILED,
-          message: 'Reservation start time must be strictly in the future.',
+          message: 'Same-day reservation start time must be more than 30 minutes in the future.',
           status: 400,
           type: 'urn:problem-type:backend:validation-failed'
         }
@@ -341,12 +341,62 @@ describe('reservations HTTP contract', () => {
         availabilityStatus: 'AVAILABLE',
         slots: [
           {
-            startsAt: '2026-07-01T18:00:00.000Z',
-            endsAt: '2026-07-01T19:00:00.000Z'
+            startsAt: '2026-07-02T00:00:00.000Z',
+            endsAt: '2026-07-02T01:00:00.000Z'
           },
           {
-            startsAt: '2026-07-01T20:00:00.000Z',
-            endsAt: '2026-07-01T21:00:00.000Z'
+            startsAt: '2026-07-02T01:00:00.000Z',
+            endsAt: '2026-07-02T02:00:00.000Z'
+          },
+          {
+            startsAt: '2026-07-02T02:00:00.000Z',
+            endsAt: '2026-07-02T03:00:00.000Z'
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reservable-slots?date=2026-07-01`
+      })
+    });
+  });
+
+  it('excludes same-day slots at or inside the 30-minute threshold from the public reservable slots response while keeping later slots', async () => {
+    currentNow = new Date('2026-07-02T00:30:00.000Z');
+    prismaService.court.findFirst.mockResolvedValueOnce({
+      id: courtId,
+      name: 'Cancha 1',
+      status: 'ACTIVE',
+      complex: { status: 'ACTIVE' },
+      availability: {
+        startTime: new Date('1970-01-01T18:00:00.000Z'),
+        endTime: new Date('1970-01-01T21:00:00.000Z'),
+        days: [{ day: 'WEDNESDAY' }]
+      },
+      reservations: []
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-slots?date=2026-07-01`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: courtId,
+          name: 'Cancha 1',
+          status: 'ACTIVE'
+        },
+        date: '2026-07-01',
+        availabilityStatus: 'AVAILABLE',
+        slots: [
+          {
+            startsAt: '2026-07-02T02:00:00.000Z',
+            endsAt: '2026-07-02T03:00:00.000Z'
           }
         ]
       },
@@ -403,6 +453,204 @@ describe('reservations HTTP contract', () => {
       })
     });
   });
+
+  it('returns reservable day discovery in the standard envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=3`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: courtId,
+          name: 'Cancha 1',
+          status: 'ACTIVE'
+        },
+        from: '2026-07-01',
+        days: 3,
+        reservableDays: [
+          {
+            date: '2026-07-01',
+            availabilityStatus: 'AVAILABLE',
+            availableSlotsCount: 3
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=3`
+      })
+    });
+  });
+
+  it('defaults omitted reservable day range to the safe bounded window', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: courtId,
+          name: 'Cancha 1',
+          status: 'ACTIVE'
+        },
+        from: '2026-07-01',
+        days: 14,
+        reservableDays: [
+          {
+            date: '2026-07-01',
+            availabilityStatus: 'AVAILABLE',
+            availableSlotsCount: 3
+          },
+          {
+            date: '2026-07-08',
+            availabilityStatus: 'AVAILABLE',
+            availableSlotsCount: 3
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reservable-days?from=2026-07-01`
+      })
+    });
+  });
+
+  it('rejects reservable day queries without the required from date', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?days=14`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid reservable day start dates', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-02-31&days=14`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid reservable day ranges', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=0`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects reservable day ranges above the bounded maximum', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=32`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects unauthenticated reservable day queries', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=3`
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('returns not found when the reservable days court does not exist', async () => {
+    prismaService.court.findFirst.mockResolvedValueOnce(null);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=3`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      success: false,
+      data: null,
+      errors: [
+        {
+          code: APP_ERROR_CODES.RESOURCE_NOT_FOUND,
+          message: 'Court not found.',
+          status: 404,
+          type: 'urn:problem-type:backend:resource-not-found'
+        }
+      ],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=3`
+      })
+    });
+  });
+
+  it('omits today from reservable day counts in the real HTTP response when every same-day slot is inside the threshold', async () => {
+    currentNow = new Date('2026-07-02T02:30:00.000Z');
+    prismaService.court.findFirst.mockResolvedValue({
+      id: courtId,
+      name: 'Cancha 1',
+      status: 'ACTIVE',
+      complex: { status: 'ACTIVE' },
+      availability: {
+        startTime: new Date('1970-01-01T18:00:00.000Z'),
+        endTime: new Date('1970-01-01T21:00:00.000Z'),
+        days: [{ day: 'WEDNESDAY' }, { day: 'THURSDAY' }]
+      },
+      reservations: []
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=2`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: courtId,
+          name: 'Cancha 1',
+          status: 'ACTIVE'
+        },
+        from: '2026-07-01',
+        days: 2,
+        reservableDays: [
+          {
+            date: '2026-07-02',
+            availabilityStatus: 'AVAILABLE',
+            availableSlotsCount: 3
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reservable-days?from=2026-07-01&days=2`
+      })
+    });
+  });
 });
 
 function createPrismaMock() {
@@ -426,8 +674,8 @@ function createPrismaMock() {
         id: 'reservation-id',
         userId: 'user-id',
         courtId,
-        startsAt: new Date('2026-07-01T18:00:00.000Z'),
-        endsAt: new Date('2026-07-01T19:00:00.000Z'),
+        startsAt: new Date('2026-07-02T00:00:00.000Z'),
+        endsAt: new Date('2026-07-02T01:00:00.000Z'),
         status: 'CONFIRMED'
       })
     }

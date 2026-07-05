@@ -238,10 +238,64 @@ class AuthenticatedNavigationStateTest {
                 complexId = "complex-id",
                 complexName = "Mejengas CR",
                 courtName = "Cancha 1",
+                attemptId = 1,
             ),
         ),
         state.currentBackStack.toList(),
     )
+  }
+
+  @Test
+  fun reopeningCatalogReservationForSameCourtAssignsFreshAttemptRoute() {
+    val state = testNavigationState()
+
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+    val firstAttempt = state.currentBackStack.last() as CatalogReservationRoute
+
+    state.returnToSearchRoot()
+    state.openCatalogCourtDetail(sampleCatalogDetailRoute())
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+    val secondAttempt = state.currentBackStack.last() as CatalogReservationRoute
+
+    assertEquals(1L, firstAttempt.attemptId)
+    assertEquals(2L, secondAttempt.attemptId)
+    assertEquals(
+        listOf(SearchRoute, sampleCatalogDetailRoute(), secondAttempt),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
+  fun returnToSearchRootClearsReservationFlowBackToCatalogRoot() {
+    val state = testNavigationState()
+
+    state.openCatalogReservation(
+        CatalogReservationRoute(
+            courtId = "court-id",
+            complexId = "complex-id",
+            complexName = "Mejengas CR",
+            courtName = "Cancha 1",
+        )
+    )
+
+    state.returnToSearchRoot()
+
+    assertEquals(AuthenticatedTopLevelRoute.Search, state.selectedRoute)
+    assertEquals(listOf(SearchRoute), state.currentBackStack.toList())
   }
 
   @Test
@@ -726,6 +780,30 @@ class AuthenticatedNavigationStateTest {
     coordinator.hydrate(AuthStateFactory.owner(userId = "owner-1"))
 
     assertEquals(listOf("owner-1"), storage.readUserIds)
+    assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
+    assertEquals(false, state.viewingAsPlayer)
+    assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())
+  }
+
+  @Test
+  fun coordinatorDefersOwnerPreferenceHydrationUntilAuthenticatedStartupResolves() = runTest {
+    val state = testNavigationState().apply { switchToOwnerView() }
+    val storage =
+        RecordingOwnerViewPreferenceStorage(
+            ownerPreferences = mapOf("owner-1" to OwnerViewPreference.OWNER)
+        )
+    val coordinator = OwnerViewPreferenceCoordinator(state, storage, this)
+
+    coordinator.hydrate(
+        io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState(
+            userId = "owner-1",
+            isAuthenticated = true,
+            isOwner = false,
+            isResolvingAuthenticatedStartup = true,
+        )
+    )
+
+    assertEquals(emptyList(), storage.readUserIds)
     assertEquals(AuthenticatedTopLevelRoute.MyComplex, state.selectedRoute)
     assertEquals(false, state.viewingAsPlayer)
     assertEquals(listOf(MyComplexRoute), state.currentBackStack.toList())

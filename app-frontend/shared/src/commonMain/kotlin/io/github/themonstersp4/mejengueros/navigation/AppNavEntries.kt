@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -26,6 +27,10 @@ import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexV
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
+import io.github.themonstersp4.mejengueros.presentation.review.ReviewUiState
+import io.github.themonstersp4.mejengueros.presentation.review.ReviewViewModel
 import io.github.themonstersp4.mejengueros.screens.auth.ForgotPasswordScreen
 import io.github.themonstersp4.mejengueros.screens.auth.LoginScreen
 import io.github.themonstersp4.mejengueros.screens.auth.PasswordResetScreen
@@ -42,13 +47,27 @@ import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
+import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
+import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewReservationContext
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewScreen
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewScreenActions
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewUiMode
+import io.github.themonstersp4.mejengueros.screens.review.LeaveReviewUiState
+import io.github.themonstersp4.mejengueros.screens.review.ReservationsReviewLauncherScreen
 import io.github.themonstersp4.mejengueros.ui.components.CourtImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.DefaultMejenguerosLocationPickerCenter
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLoadingDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerActions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
+import io.github.themonstersp4.mejengueros.ui.components.PlatformBackHandler
+import io.github.themonstersp4.mejengueros.ui.components.ReviewEvidenceImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import io.github.themonstersp4.mejengueros.ui.components.rememberCourtImagePicker
+import io.github.themonstersp4.mejengueros.ui.components.rememberReviewEvidenceImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -141,6 +160,7 @@ private fun LoginEntry(
       onEmailSignIn = authViewModel::signInWithEmail,
       onGoogleSignIn = authViewModel::signInWithGoogle,
       onMicrosoftSignIn = authViewModel::signInWithMicrosoft,
+      onCancelExternalAuth = authViewModel::cancelExternalAuth,
       onForgotPassword = loginActions.openForgotPassword,
       onRegister = loginActions.openRegister,
   )
@@ -276,7 +296,7 @@ internal fun SearchCatalogEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Buscar",
+      chrome = AuthenticatedScaffoldChrome(title = "Buscar"),
       topBarActions = {
         if (!shellActions.isOwner) {
           IconButton(onClick = shellActions.openCreateComplex) {
@@ -345,8 +365,11 @@ internal fun CatalogCourtDetailEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = route.complexName,
+      chrome =
+          AuthenticatedScaffoldChrome(
+              title = "Detalle de cancha",
+              onNavigateBack = shellActions.closeCurrentDetail,
+          ),
   ) { contentPadding ->
     CourtDetailScreen(
         courtName = route.courtName,
@@ -366,6 +389,8 @@ internal fun CatalogCourtDetailEntryContent(
                   complexId = route.complexId,
                   complexName = route.complexName,
                   courtName = route.courtName,
+                  provinceName = route.provinceName,
+                  cantonName = route.cantonName,
               )
           )
         },
@@ -379,6 +404,13 @@ internal fun CatalogReservationEntry(
     route: CatalogReservationRoute,
     shellActions: AuthenticatedShellActions,
 ) {
+  val viewModel =
+      koinViewModel<ReservationViewModel>(
+          key = "catalog-reservation-${route.courtId}-${route.attemptId}",
+          parameters = { parametersOf(route.toReservationContext()) },
+      )
+  val state by viewModel.uiState.collectAsState()
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Search,
       onSearchSelected = shellActions.selectSearch,
@@ -390,20 +422,75 @@ internal fun CatalogReservationEntry(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      onNavigateBack = shellActions.closeCurrentDetail,
-      title = "Reserva",
+      chrome =
+          AuthenticatedScaffoldChrome(
+              title = "Reservar",
+              onNavigateBack = shellActions.closeCurrentDetail,
+              showBottomBar = false,
+          ),
   ) { contentPadding ->
-    ProductPlaceholderScreen(
-        title = "Reserva pendiente",
-        description =
-            "El handoff desde Buscar ya llega hasta el scope de reserva para ${route.courtName}, pero la reserva real se implementa aparte en #50.",
+    ReservationScreen(
+        state = state,
         contentPadding = contentPadding,
+        actions =
+            ReservationScreenActions(
+                onDateSelected = viewModel::selectDate,
+                onSlotSelected = viewModel::selectSlot,
+                onConfirmReservation = viewModel::confirmReservation,
+                onRetryLoad = viewModel::retryLoad,
+                onViewOtherHours = viewModel::viewOtherHours,
+                onViewReservations = {
+                  shellActions.returnToSearchRoot()
+                  shellActions.selectReservations()
+                },
+                onReturnToCatalog = shellActions.returnToSearchRoot,
+            ),
     )
   }
 }
 
 @Composable
 private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
+  ReservationsEntryContent(shellActions = shellActions, viewModel = koinViewModel())
+}
+
+@Composable
+internal fun ReservationsEntryContent(
+    shellActions: AuthenticatedShellActions,
+    viewModel: ReviewViewModel,
+    reviewEvidenceImagePickerController: ReviewEvidenceImagePickerController? = null,
+) {
+  val state by viewModel.uiState.collectAsState()
+  val reviewEvidenceImagePicker =
+      reviewEvidenceImagePickerController
+          ?: rememberReviewEvidenceImagePicker(viewModel::updateSelectedEvidenceImage)
+
+  LaunchedEffect(reviewEvidenceImagePicker.isAvailable) {
+    viewModel.updateEvidenceImagePickerAvailability(reviewEvidenceImagePicker.isAvailable)
+  }
+
+  var reviewEntryMode by rememberSaveable {
+    mutableStateOf(ReservationReviewEntryMode.Launcher.name)
+  }
+  val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
+  val reviewState = state.toLeaveReviewUiState(currentMode)
+
+  LaunchedEffect(state.submittedReview?.id) {
+    if (state.submittedReview != null) {
+      reviewEntryMode = ReservationReviewEntryMode.Success.name
+    }
+  }
+
+  fun resetReviewFlow() {
+    reviewEntryMode = ReservationReviewEntryMode.Launcher.name
+    viewModel.resetFlow()
+  }
+
+  PlatformBackHandler(
+      enabled = currentMode != ReservationReviewEntryMode.Launcher,
+      onBack = ::resetReviewFlow,
+  )
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Reservations,
       onSearchSelected = shellActions.selectSearch,
@@ -415,16 +502,129 @@ private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Reservas",
+      chrome =
+          when (currentMode) {
+            ReservationReviewEntryMode.Launcher ->
+                AuthenticatedScaffoldChrome(title = "Mis reservas")
+            ReservationReviewEntryMode.Form ->
+                AuthenticatedScaffoldChrome(
+                    title = "DEJAR RESEÑA",
+                    onNavigateBack = ::resetReviewFlow,
+                    showBottomBar = false,
+                )
+            ReservationReviewEntryMode.Success ->
+                AuthenticatedScaffoldChrome(
+                    title = "DEJAR RESEÑA",
+                    onNavigateBack = ::resetReviewFlow,
+                    showBottomBar = false,
+                )
+          },
   ) { contentPadding ->
-    ProductPlaceholderScreen(
-        title = "Reservas",
-        description =
-            "Pronto vas a poder revisar tus reservas activas e historial desde aquí. Por ahora esta área es un placeholder controlado.",
-        contentPadding = contentPadding,
-    )
+    when (currentMode) {
+      ReservationReviewEntryMode.Launcher ->
+          ReservationsLauncherContent(
+              state = state,
+              contentPadding = contentPadding,
+              onStartReview = {
+                viewModel.startReview()
+                reviewEntryMode = ReservationReviewEntryMode.Form.name
+              },
+              onRetryLoad = viewModel::refreshLatestReviewableReservation,
+          )
+      ReservationReviewEntryMode.Form,
+      ReservationReviewEntryMode.Success ->
+          reviewState?.let { currentReviewState ->
+            LeaveReviewScreen(
+                state = currentReviewState,
+                contentPadding = contentPadding,
+                actions =
+                    LeaveReviewScreenActions(
+                        onRatingSelected = viewModel::updateRating,
+                        onCommentChanged = viewModel::updateComment,
+                        onPickEvidenceImage = reviewEvidenceImagePicker.launch,
+                        onClearEvidenceImage = viewModel::clearSelectedEvidenceImage,
+                        onSubmit = viewModel::submit,
+                        onReturnToReservations = ::resetReviewFlow,
+                        onExploreCourts = {
+                          resetReviewFlow()
+                          shellActions.selectSearch()
+                        },
+                    ),
+            )
+          }
+    }
   }
 }
+
+@Composable
+private fun ReservationsLauncherContent(
+    state: ReviewUiState,
+    contentPadding: PaddingValues,
+    onStartReview: () -> Unit,
+    onRetryLoad: () -> Unit,
+) {
+  when {
+    state.isLoading ->
+        ProductPlaceholderScreen(
+            title = "Mis reservas",
+            description = "Estamos buscando tu última reserva pendiente de reseña.",
+            contentPadding = contentPadding,
+        )
+    state.loadErrorMessage != null ->
+        ProductPlaceholderScreen(
+            title = "Mis reservas",
+            description = state.loadErrorMessage,
+            contentPadding = contentPadding,
+            actions = {
+              MejenguerosFullWidthPrimaryButton(text = "REINTENTAR", onClick = onRetryLoad)
+            },
+        )
+    state.reviewableReservation == null ->
+        ProductPlaceholderScreen(
+            title = "Mis reservas",
+            description =
+                "Todavía no tenés reservas completadas pendientes de reseña. Cuando terminés una mejenga, la vas a ver aquí.",
+            contentPadding = contentPadding,
+        )
+    else ->
+        ReservationsReviewLauncherScreen(
+            reservationContext = state.reviewableReservation.toReservationContext(),
+            contentPadding = contentPadding,
+            onStartReview = onStartReview,
+        )
+  }
+}
+
+private enum class ReservationReviewEntryMode {
+  Launcher,
+  Form,
+  Success,
+}
+
+private fun ReviewUiState.toLeaveReviewUiState(
+    currentMode: ReservationReviewEntryMode
+): LeaveReviewUiState? {
+  val reservation = reviewableReservation ?: return null
+
+  return LeaveReviewUiState(
+      reservationContext = reservation.toReservationContext(),
+      selectedRating = selectedRating,
+      comment = comment,
+      selectedEvidenceImage = selectedEvidenceImage,
+      isEvidenceImagePickerAvailable = isEvidenceImagePickerAvailable,
+      isSubmitting = isSubmitting,
+      submitErrorMessage = submitErrorMessage,
+      mode =
+          if (currentMode == ReservationReviewEntryMode.Success) {
+            LeaveReviewUiMode.Success
+          } else {
+            LeaveReviewUiMode.Form
+          },
+  )
+}
+
+private fun io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
+    .toReservationContext(): LeaveReviewReservationContext = toLeaveReviewReservationContext()
 
 @Composable
 private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
@@ -439,7 +639,7 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      title = "Notificaciones",
+      chrome = AuthenticatedScaffoldChrome(title = "Notificaciones"),
   ) { contentPadding ->
     ProductPlaceholderScreen(
         title = "Notificaciones",
@@ -491,7 +691,7 @@ internal fun MyComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        title = "Mi complejo",
+        chrome = AuthenticatedScaffoldChrome(title = "Mi complejo"),
     ) { contentPadding ->
       MyComplexEntryContent(
           state = state,
@@ -529,6 +729,17 @@ private fun ComplexDetailEntry(
 ) {
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
+  val pickerCoordinator =
+      remember(route.complexId, myComplexViewModel) {
+        ComplexDetailCourtImagePickerCoordinator(
+            complexId = route.complexId,
+            updateCourtImage = myComplexViewModel::updateCourtImage,
+        )
+      }
+  val courtImagePicker = rememberCourtImagePicker(pickerCoordinator::onImagePicked)
+  LaunchedEffect(courtImagePicker.isAvailable) {
+    myComplexViewModel.updateCourtImagePickerAvailability(courtImagePicker.isAvailable)
+  }
   MyComplexInitialRefreshEffect(state = state, onInitialLoadRequested = myComplexViewModel::refresh)
   MyComplexHubReloadEffect(
       reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
@@ -540,6 +751,10 @@ private fun ComplexDetailEntry(
       state = state,
       shellActions = shellActions,
       onRetry = myComplexViewModel::refresh,
+      onAcknowledgeCourtImageSuccess = myComplexViewModel::acknowledgeCourtImageSuccess,
+      onPickCourtImage = { courtId ->
+        pickerCoordinator.onPickCourtImage(courtId, courtImagePicker.launch)
+      },
   )
 }
 
@@ -549,6 +764,8 @@ internal fun ComplexDetailRouteContent(
     state: MyComplexUiState,
     shellActions: AuthenticatedShellActions,
     onRetry: () -> Unit,
+    onAcknowledgeCourtImageSuccess: () -> Unit = {},
+    onPickCourtImage: (String) -> Unit = {},
 ) {
   OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
     val complex = state.complexes.firstOrNull { it.id == route.complexId }
@@ -564,8 +781,11 @@ internal fun ComplexDetailRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = "Mi complejo",
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Mi complejo",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
         topBarActions = {
           if (
               complex != null &&
@@ -589,10 +809,31 @@ internal fun ComplexDetailRouteContent(
           complex = complex,
           isLoading = state.isLoading,
           errorMessage = state.errorMessage,
+          courtImageErrorMessage = state.courtImageErrorMessage,
+          isCourtImagePickerAvailable = state.isCourtImagePickerAvailable,
+          isUpdatingCourtImage = state.isUpdatingCourtImage,
           contentPadding = contentPadding,
           onRetry = onRetry,
           onConfigureAvailability = shellActions.openCourtAvailability,
+          onPickCourtImage = onPickCourtImage,
       )
+
+      MejenguerosLoadingDialog(
+          visible = state.isUpdatingCourtImage,
+          title = "Actualizando imagen",
+          message = "Estamos subiendo y asociando la imagen de la cancha.",
+      )
+
+      state.courtImageSuccessMessage?.let { message ->
+        MejenguerosConfirmationDialog(
+            title = "Imagen actualizada",
+            message = message,
+            confirmText = "Aceptar",
+            onConfirm = onAcknowledgeCourtImageSuccess,
+            onDismissRequest = {},
+            modifier = Modifier.testTag("complex_detail_image_success_dialog"),
+        )
+      }
     }
   }
 }
@@ -602,17 +843,25 @@ internal fun ComplexDetailEntryContent(
     complex: io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex?,
     isLoading: Boolean,
     errorMessage: String?,
+    courtImageErrorMessage: String? = null,
+    isCourtImagePickerAvailable: Boolean = false,
+    isUpdatingCourtImage: Boolean = false,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onPickCourtImage: (String) -> Unit = {},
 ) {
   ComplexDetailScreen(
       complex = complex,
       isLoading = isLoading,
       errorMessage = errorMessage,
+      courtImageErrorMessage = courtImageErrorMessage,
+      isCourtImagePickerAvailable = isCourtImagePickerAvailable,
+      isUpdatingCourtImage = isUpdatingCourtImage,
       contentPadding = contentPadding,
       onRetry = onRetry,
       onConfigureAvailability = onConfigureAvailability,
+      onPickCourtImage = onPickCourtImage,
   )
 }
 
@@ -660,8 +909,11 @@ internal fun AddCourtEntryContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = "Agregar cancha",
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Agregar cancha",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
     ) { contentPadding ->
       AddCourtScreen(
           state = state,
@@ -850,8 +1102,11 @@ internal fun CreateComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = "Mi complejo",
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Mi complejo",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
         overlayVisible = overlayVisible,
         overlayContent = overlayContent,
     ) { contentPadding ->
@@ -925,8 +1180,11 @@ internal fun CourtAvailabilityRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
-        onNavigateBack = shellActions.closeCurrentDetail,
-        title = state.appBarTitle,
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = state.appBarTitle,
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
     ) { contentPadding ->
       CourtAvailabilityScreen(
           state = state,
@@ -948,6 +1206,16 @@ internal fun CourtAvailabilityRouteContent(
     }
   }
 }
+
+private fun CatalogReservationRoute.toReservationContext(): ReservationContext =
+    ReservationContext(
+        courtId = courtId,
+        complexId = complexId,
+        complexName = complexName,
+        courtName = courtName,
+        provinceName = provinceName,
+        cantonName = cantonName,
+    )
 
 @Composable
 private fun OwnerRouteGuard(

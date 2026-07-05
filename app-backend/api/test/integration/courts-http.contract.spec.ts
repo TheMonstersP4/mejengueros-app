@@ -13,6 +13,7 @@ import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
 describe('public court catalog HTTP contract', () => {
   const fixedMonday = new Date('2026-06-22T12:00:00.000Z');
+  let currentNow = fixedMonday;
   const originalEnv = {
     DATABASE_URL: process.env.DATABASE_URL,
     AWS_REGION: process.env.AWS_REGION,
@@ -55,7 +56,7 @@ describe('public court catalog HTTP contract', () => {
       imports: [AppModule]
     })
       .overrideProvider(COURT_CATALOG_TODAY_PROVIDER)
-      .useValue(() => fixedMonday)
+      .useValue(() => currentNow)
       .overrideProvider(FILE_READ_URL_PORT)
       .useValue(fileReadUrl)
       .overrideProvider(PrismaService)
@@ -73,6 +74,7 @@ describe('public court catalog HTTP contract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    currentNow = fixedMonday;
     prismaService = Object.assign(prismaService, createPrismaMock());
     fileReadUrl.createReadUrl.mockResolvedValue(
       'https://read.example.test/courts/court-id.jpg'
@@ -178,6 +180,73 @@ describe('public court catalog HTTP contract', () => {
       })
     });
     expect(fileReadUrl.createReadUrl).not.toHaveBeenCalled();
+  });
+
+  it('keeps Costa Rica same-day reservability at the UTC rollover boundary when a later slot still clears the minimum advance threshold', async () => {
+    currentNow = new Date('2026-07-05T00:45:00.000Z');
+    prismaService.court.findMany.mockResolvedValue([
+      createCatalogCourtRow({
+        availabilityDays: ['SATURDAY'],
+        availabilityStartTime: '1970-01-01T19:00:00.000Z',
+        availabilityEndTime: '1970-01-01T21:00:00.000Z'
+      })
+    ]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?q=utc-rollover-boundary'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          reservations: {
+            where: {
+              status: 'CONFIRMED',
+              startsAt: {
+                gte: new Date('2026-07-04T06:00:00.000Z'),
+                lt: new Date('2026-07-05T06:00:00.000Z')
+              }
+            },
+            select: {
+              startsAt: true
+            }
+          }
+        })
+      })
+    );
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: true,
+        data: [expect.objectContaining({ isReservableToday: true })]
+      })
+    );
+  });
+
+  it('returns isReservableToday false at the UTC rollover boundary when the only threshold-clearing same-day slot is already booked', async () => {
+    currentNow = new Date('2026-07-05T00:45:00.000Z');
+    prismaService.court.findMany.mockResolvedValue([
+      createCatalogCourtRow({
+        availabilityDays: ['SATURDAY'],
+        availabilityStartTime: '1970-01-01T19:00:00.000Z',
+        availabilityEndTime: '1970-01-01T21:00:00.000Z',
+        reservations: [{ startsAt: new Date('2026-07-05T02:00:00.000Z') }]
+      })
+    ]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?q=utc-rollover-booked-boundary'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: true,
+        data: [expect.objectContaining({ isReservableToday: false })]
+      })
+    );
   });
 
   it('rejects a canton filter that does not belong to the selected province', async () => {
@@ -348,7 +417,12 @@ describe('public court catalog HTTP contract', () => {
     };
   }
 
-  function createCatalogCourtRow() {
+  function createCatalogCourtRow({
+    availabilityDays = ['MONDAY'],
+    availabilityStartTime = '1970-01-01T18:00:00.000Z',
+    availabilityEndTime = '1970-01-01T21:00:00.000Z',
+    reservations = [] as Array<{ startsAt: Date }>
+  } = {}) {
     return {
       id: 'court-id',
       name: 'Cancha 1',
@@ -370,12 +444,11 @@ describe('public court catalog HTTP contract', () => {
         services: [{ serviceCatalog: { name: 'Parqueo' } }]
       },
       availability: {
-        days: [
-          {
-            day: 'MONDAY'
-          }
-        ]
+        startTime: new Date(availabilityStartTime),
+        endTime: new Date(availabilityEndTime),
+        days: availabilityDays.map((day) => ({ day }))
       },
+      reservations,
       imageUpload: {
         objectKey: 'test/uploads/court-image/court-id.jpg'
       }

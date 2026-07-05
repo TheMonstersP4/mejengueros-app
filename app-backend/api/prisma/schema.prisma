@@ -125,6 +125,7 @@ model ImageUpload {
   contentType     String
   sizeBytes       Int
   courtImageFor   Court?   @relation("CourtImage")
+  reviewEvidenceFor Review? @relation("ReviewEvidenceImage")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -333,9 +334,11 @@ model Notification {
 model Review {
   id            String       @id @default(uuid())
   reservationId String       @unique
+  evidenceImageUploadId String? @unique
   rating        Int
   comment       String?
   reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  evidenceImageUpload ImageUpload? @relation("ReviewEvidenceImage", fields: [evidenceImageUploadId], references: [id], onDelete: SetNull)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
