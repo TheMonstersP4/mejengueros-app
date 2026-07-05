@@ -7,6 +7,7 @@ import { parseUtcReservationStartsAt } from '../../shared/utc-reservation-starts
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MINUTES_PER_HOUR = 60;
+export const SAME_DAY_RESERVATION_MINIMUM_ADVANCE_MINUTES = 30;
 
 export type IReservableSlotsAvailabilityStatus =
   | 'AVAILABLE'
@@ -43,7 +44,7 @@ export function resolveReservationTime(startsAt: string): IResolvedReservationTi
   };
 }
 
-export function assertReservationStartsInFuture(
+export function assertReservationStartsWithMinimumAdvance(
   resolved: IResolvedReservationTime,
   now: Date
 ): void {
@@ -51,6 +52,22 @@ export function assertReservationStartsInFuture(
     throw InvalidReservationRequestError.startedAtOrBeforeNow(
       resolved.startsAt.toISOString(),
       now.toISOString()
+    );
+  }
+
+  if (!isSameUtcDate(resolved.startsAt, now)) {
+    return;
+  }
+
+  const minimumReservableStartsAt = new Date(
+    now.getTime() + SAME_DAY_RESERVATION_MINIMUM_ADVANCE_MINUTES * 60_000
+  );
+
+  if (resolved.startsAt.getTime() <= minimumReservableStartsAt.getTime()) {
+    throw InvalidReservationRequestError.sameDayAdvanceThresholdNotMet(
+      resolved.startsAt.toISOString(),
+      now.toISOString(),
+      SAME_DAY_RESERVATION_MINIMUM_ADVANCE_MINUTES
     );
   }
 }
@@ -116,7 +133,10 @@ export function buildReservableSlots(
   const availabilityEnd = minutesFromTimeOnly(window.availability.endTime);
   const slots: IReservableSlot[] = [];
   const confirmedStartsAt = new Set(window.confirmedStartsAt);
-  const shouldExcludeStartedSlots = isSameUtcDate(day, now);
+  const shouldApplySameDayAdvanceThreshold = isSameUtcDate(day, now);
+  const minimumReservableStartsAt = new Date(
+    now.getTime() + SAME_DAY_RESERVATION_MINIMUM_ADVANCE_MINUTES * 60_000
+  );
 
   for (
     let startMinutes = availabilityStart;
@@ -126,7 +146,10 @@ export function buildReservableSlots(
     const startsAt = utcDateFromMinutes(day, startMinutes);
     const endsAt = utcDateFromMinutes(day, startMinutes + MINUTES_PER_HOUR);
 
-    if (shouldExcludeStartedSlots && startsAt.getTime() <= now.getTime()) {
+    if (
+      shouldApplySameDayAdvanceThreshold &&
+      startsAt.getTime() <= minimumReservableStartsAt.getTime()
+    ) {
       continue;
     }
 

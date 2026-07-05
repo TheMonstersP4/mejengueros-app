@@ -176,8 +176,8 @@ const runLiveDatabaseHttpIntegration =
     });
   });
 
-  it('rejects stale or current same-day reservation creation before persistence', async () => {
-    currentNow = new Date('2026-07-01T18:00:00.000Z');
+  it('rejects same-day reservation creation at or inside the 30-minute threshold before persistence', async () => {
+    currentNow = new Date('2026-07-01T17:30:00.000Z');
     const reservationCreateSpy = jest.spyOn(prismaService.reservation, 'create');
 
     const response = await app.inject({
@@ -198,7 +198,7 @@ const runLiveDatabaseHttpIntegration =
       errors: [
         {
           code: APP_ERROR_CODES.VALIDATION_FAILED,
-          message: 'Reservation start time must be strictly in the future.',
+          message: 'Same-day reservation start time must be more than 30 minutes in the future.',
           status: 400,
           type: 'urn:problem-type:backend:validation-failed'
         }

@@ -25,7 +25,7 @@ export class ReservationsController {
   @ApiOperation({
     summary: 'Create one confirmed reservation.',
     description:
-      'Creates a one-hour confirmed reservation for the authenticated player when the selected court slot is reservable and not already booked.'
+      'Creates a one-hour confirmed reservation for the authenticated player when the selected court slot is reservable, not already booked, and satisfies the same-day 30-minute minimum advance threshold.'
   })
   @ApiBody({ type: CreateReservationRequest })
   @ApiEnvelopeCreated(

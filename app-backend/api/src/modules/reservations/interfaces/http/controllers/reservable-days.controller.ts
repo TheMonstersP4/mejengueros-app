@@ -38,7 +38,7 @@ export class ReservableDaysController {
   @ApiOperation({
     summary: 'List upcoming court dates that still have reservable one-hour slots.',
     description:
-      'Returns only UTC calendar dates that currently have at least one future one-hour reservation slot after applying court status, weekday availability, existing confirmed reservations, and same-day started-slot filtering.'
+      'Returns only UTC calendar dates that currently have at least one reservable one-hour slot after applying court status, weekday availability, existing confirmed reservations, and the same-day 30-minute minimum advance threshold.'
   })
   @ApiParam({ name: 'courtId', description: 'Court identifier.', format: 'uuid' })
   @ApiQuery({

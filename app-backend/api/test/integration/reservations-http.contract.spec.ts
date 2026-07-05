@@ -187,8 +187,8 @@ describe('reservations HTTP contract', () => {
     expect(prismaService.reservation.create).not.toHaveBeenCalled();
   });
 
-  it('rejects stale or current same-day reservation creation before touching persistence', async () => {
-    currentNow = new Date('2026-07-01T18:00:00.000Z');
+  it('rejects same-day reservation creation that does not clear the 30-minute threshold before touching persistence', async () => {
+    currentNow = new Date('2026-07-01T17:30:00.000Z');
 
     const response = await app.inject({
       method: 'POST',
@@ -209,7 +209,7 @@ describe('reservations HTTP contract', () => {
       errors: [
         {
           code: APP_ERROR_CODES.VALIDATION_FAILED,
-          message: 'Reservation start time must be strictly in the future.',
+          message: 'Same-day reservation start time must be more than 30 minutes in the future.',
           status: 400,
           type: 'urn:problem-type:backend:validation-failed'
         }
@@ -343,6 +343,56 @@ describe('reservations HTTP contract', () => {
           {
             startsAt: '2026-07-01T18:00:00.000Z',
             endsAt: '2026-07-01T19:00:00.000Z'
+          },
+          {
+            startsAt: '2026-07-01T20:00:00.000Z',
+            endsAt: '2026-07-01T21:00:00.000Z'
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reservable-slots?date=2026-07-01`
+      })
+    });
+  });
+
+  it('excludes same-day slots at or inside the 30-minute threshold from the public reservable slots response while keeping later slots', async () => {
+    currentNow = new Date('2026-07-01T17:30:00.000Z');
+    prismaService.court.findFirst.mockResolvedValueOnce({
+      id: courtId,
+      name: 'Cancha 1',
+      status: 'ACTIVE',
+      complex: { status: 'ACTIVE' },
+      availability: {
+        startTime: new Date('1970-01-01T18:00:00.000Z'),
+        endTime: new Date('1970-01-01T21:00:00.000Z'),
+        days: [{ day: 'WEDNESDAY' }]
+      },
+      reservations: []
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reservable-slots?date=2026-07-01`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        court: {
+          id: courtId,
+          name: 'Cancha 1',
+          status: 'ACTIVE'
+        },
+        date: '2026-07-01',
+        availabilityStatus: 'AVAILABLE',
+        slots: [
+          {
+            startsAt: '2026-07-01T19:00:00.000Z',
+            endsAt: '2026-07-01T20:00:00.000Z'
           },
           {
             startsAt: '2026-07-01T20:00:00.000Z',
@@ -555,7 +605,7 @@ describe('reservations HTTP contract', () => {
     });
   });
 
-  it('excludes same-day started slots from reservable day counts in the real HTTP response', async () => {
+  it('omits today from reservable day counts in the real HTTP response when every same-day slot is inside the threshold', async () => {
     currentNow = new Date('2026-07-01T19:30:00.000Z');
     prismaService.court.findFirst.mockResolvedValue({
       id: courtId,
@@ -588,11 +638,6 @@ describe('reservations HTTP contract', () => {
         from: '2026-07-01',
         days: 2,
         reservableDays: [
-          {
-            date: '2026-07-01',
-            availabilityStatus: 'AVAILABLE',
-            availableSlotsCount: 1
-          },
           {
             date: '2026-07-02',
             availabilityStatus: 'AVAILABLE',

@@ -11,7 +11,7 @@ function trimText(value: unknown): unknown {
 export class GetReservableSlotsRequest {
   @ApiProperty({
     description:
-      'Reservation date in UTC calendar format. When the date is today in UTC, only slots with a strictly future start time are returned.',
+      'Reservation date in UTC calendar format. When the date is today in UTC, only slots with a start time more than 30 minutes in the future are returned.',
     example: '2026-07-01'
   })
   @Transform(({ value }) => trimText(value))

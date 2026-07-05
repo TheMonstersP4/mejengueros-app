@@ -15,7 +15,7 @@ import {
 } from '@/modules/reservations/interfaces/http/dto/reservable-days.request';
 import type { IClock } from '@/shared/application/clock/clock.port';
 import {
-  assertReservationStartsInFuture,
+  assertReservationStartsWithMinimumAdvance,
   assertCourtCanBeReserved,
   buildReservableSlots,
   parseDateOnly,
@@ -133,7 +133,7 @@ describe('reservations module behavior', () => {
     expect(repository.createConfirmedReservation).not.toHaveBeenCalled();
   });
 
-  it('rejects same-day reservation creation when the slot starts exactly now in UTC', async () => {
+  it('rejects same-day reservation creation when the slot starts exactly at the 30-minute threshold', async () => {
     const repository: IReservationRepository = {
       getReservationWindow: jest.fn(),
       createConfirmedReservation: jest.fn()
@@ -147,7 +147,7 @@ describe('reservations module behavior', () => {
     const useCase = new CreateReservationUseCase(
       repository,
       syncAuthenticatedUser,
-      fixedClock('2026-07-01T18:00:00.000Z')
+      fixedClock('2026-07-01T17:30:00.000Z')
     );
 
     await expect(
@@ -155,7 +155,9 @@ describe('reservations module behavior', () => {
         courtId: 'court-id',
         startsAt: '2026-07-01T18:00:00.000Z'
       })
-    ).rejects.toThrow('Reservation start time must be strictly in the future.');
+    ).rejects.toThrow(
+      'Same-day reservation start time must be more than 30 minutes in the future.'
+    );
     expect(syncAuthenticatedUser.execute).not.toHaveBeenCalled();
     expect(repository.getReservationWindow).not.toHaveBeenCalled();
     expect(repository.createConfirmedReservation).not.toHaveBeenCalled();
@@ -188,7 +190,7 @@ describe('reservations module behavior', () => {
     expect(repository.createConfirmedReservation).not.toHaveBeenCalled();
   });
 
-  it('allows same-day future reservation creation when availability permits it', async () => {
+  it('allows same-day reservation creation beyond the 30-minute threshold when availability permits it', async () => {
     const repository: IReservationRepository = {
       getReservationWindow: jest.fn().mockResolvedValue(reservationWindow),
       createConfirmedReservation: jest.fn().mockResolvedValue({
@@ -209,7 +211,7 @@ describe('reservations module behavior', () => {
     const useCase = new CreateReservationUseCase(
       repository,
       syncAuthenticatedUser,
-      fixedClock('2026-07-01T17:30:00.000Z')
+      fixedClock('2026-07-01T17:29:00.000Z')
     );
 
     await expect(
@@ -381,14 +383,14 @@ describe('reservations module behavior', () => {
     });
   });
 
-  it('excludes same-day slots whose start time has already passed in UTC', async () => {
+  it('excludes same-day slots whose start time is within the 30-minute threshold in UTC', async () => {
     const repository: IReservationRepository = {
       getReservationWindow: jest.fn().mockResolvedValue(reservationWindow),
       createConfirmedReservation: jest.fn()
     };
     const useCase = new GetReservableSlotsUseCase(
       repository,
-      fixedClock('2026-07-01T19:30:00.000Z')
+      fixedClock('2026-07-01T18:30:00.000Z')
     );
 
     await expect(useCase.execute('court-id', '2026-07-01')).resolves.toEqual({
@@ -408,7 +410,7 @@ describe('reservations module behavior', () => {
     });
   });
 
-  it('omits today from reservable day discovery when no future same-day slots remain', async () => {
+  it('omits today from reservable day discovery when all same-day slots are inside the 30-minute threshold', async () => {
     const repository: IReservationRepository = {
       getReservationWindow: jest
         .fn()
@@ -425,7 +427,7 @@ describe('reservations module behavior', () => {
     };
     const useCase = new GetReservableDaysUseCase(
       repository,
-      fixedClock('2026-07-01T20:30:00.000Z')
+      fixedClock('2026-07-01T19:31:00.000Z')
     );
 
     await expect(useCase.execute('court-id', '2026-07-01', 2)).resolves.toEqual({
@@ -441,6 +443,34 @@ describe('reservations module behavior', () => {
           date: '2026-07-02',
           availabilityStatus: 'AVAILABLE',
           availableSlotsCount: 2
+        }
+      ]
+    });
+  });
+
+  it('keeps today in reservable day discovery when a same-day slot remains beyond the 30-minute threshold', async () => {
+    const repository: IReservationRepository = {
+      getReservationWindow: jest.fn().mockResolvedValue(reservationWindow),
+      createConfirmedReservation: jest.fn()
+    };
+    const useCase = new GetReservableDaysUseCase(
+      repository,
+      fixedClock('2026-07-01T18:31:00.000Z')
+    );
+
+    await expect(useCase.execute('court-id', '2026-07-01', 1)).resolves.toEqual({
+      court: {
+        id: 'court-id',
+        name: 'Cancha 1',
+        status: 'ACTIVE'
+      },
+      from: '2026-07-01',
+      days: 1,
+      reservableDays: [
+        {
+          date: '2026-07-01',
+          availabilityStatus: 'AVAILABLE',
+          availableSlotsCount: 1
         }
       ]
     });
@@ -578,20 +608,16 @@ describe('reservations module behavior', () => {
     });
   });
 
-  it('excludes the current whole-hour slot when its UTC start time is not strictly in the future', () => {
+  it('excludes current-day slots whose UTC start time is less than or equal to the 30-minute threshold', () => {
     expect(
       buildReservableSlots(
         reservationWindow,
         '2026-07-01',
-        new Date('2026-07-01T18:00:00.000Z')
+        new Date('2026-07-01T18:30:00.000Z')
       )
     ).toEqual({
       availabilityStatus: 'AVAILABLE',
       slots: [
-        {
-          startsAt: '2026-07-01T19:00:00.000Z',
-          endsAt: '2026-07-01T20:00:00.000Z'
-        },
         {
           startsAt: '2026-07-01T20:00:00.000Z',
           endsAt: '2026-07-01T21:00:00.000Z'
@@ -606,13 +632,22 @@ describe('reservations module behavior', () => {
     );
   });
 
-  it('rejects reservation times whose UTC start is not strictly in the future', () => {
+  it('rejects reservation times whose same-day UTC start does not clear the 30-minute threshold', () => {
     expect(() =>
-      assertReservationStartsInFuture(
+      assertReservationStartsWithMinimumAdvance(
         resolveReservationTime('2026-07-01T18:00:00.000Z'),
-        new Date('2026-07-01T18:00:00.000Z')
+        new Date('2026-07-01T17:30:00.000Z')
       )
-    ).toThrow('Reservation start time must be strictly in the future.');
+    ).toThrow('Same-day reservation start time must be more than 30 minutes in the future.');
+  });
+
+  it('allows reservation times that clear the same-day 30-minute threshold', () => {
+    expect(() =>
+      assertReservationStartsWithMinimumAdvance(
+        resolveReservationTime('2026-07-01T18:00:00.000Z'),
+        new Date('2026-07-01T17:29:00.000Z')
+      )
+    ).not.toThrow();
   });
 
   it('maps prisma unique conflicts to a safe reservation business error', async () => {

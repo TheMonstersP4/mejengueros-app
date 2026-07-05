@@ -39,7 +39,7 @@ export class ReservableDaysResponse {
   @ApiProperty({
     type: [ReservableDayResponse],
     description:
-      'Upcoming UTC dates that still have at least one future reservable one-hour slot after applying court availability and confirmed reservation filtering.'
+      'Upcoming UTC dates that still have at least one future reservable one-hour slot after applying court availability, confirmed reservation filtering, and the same-day 30-minute minimum advance threshold.'
   })
   reservableDays!: ReservableDayResponse[];
 }
