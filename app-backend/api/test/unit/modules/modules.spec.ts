@@ -6,6 +6,7 @@ import { FilesModule } from '@/modules/files/files.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { LocationsModule } from '@/modules/locations/locations.module';
 import { ReservationsModule } from '@/modules/reservations/reservations.module';
+import { ReviewsModule } from '@/modules/reviews/reviews.module';
 import { ServiceCatalogModule } from '@/modules/service-catalog/service-catalog.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { PrismaModule } from '@/shared/infrastructure/database/prisma.module';
@@ -43,6 +44,7 @@ describe('Nest modules', () => {
     expect(HealthModule).toBeDefined();
     expect(LocationsModule).toBeDefined();
     expect(ReservationsModule).toBeDefined();
+    expect(ReviewsModule).toBeDefined();
     expect(ServiceCatalogModule).toBeDefined();
     expect(UsersModule).toBeDefined();
     expect(PrismaModule).toBeDefined();

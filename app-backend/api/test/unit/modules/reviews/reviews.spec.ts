@@ -1,0 +1,584 @@
+import {
+  ListOwnerCourtReviewsUseCase,
+  OWNER_REVIEWS_DEFAULT_PAGE_SIZE,
+  OWNER_REVIEWS_MAX_PAGE,
+  OWNER_REVIEWS_MAX_PAGE_SIZE
+} from '@/modules/reviews/application/use-cases/list-owner-court-reviews.use-case';
+import {
+  buildReviewerDisplayName,
+  buildReviewerInitials
+} from '@/modules/reviews/application/services/format-reviewer-identity';
+import { OwnerReviewCourtNotAccessibleError } from '@/modules/reviews/domain/errors/owner-review-court-not-accessible.error';
+import type {
+  IListOwnerCourtReviewsQuery,
+  IListOwnerCourtReviewsResult,
+  IReviewRepository
+} from '@/modules/reviews/domain/repositories/review.repository';
+import { PrismaReviewRepository } from '@/modules/reviews/infrastructure/persistence/prisma-review.repository';
+import { OwnerReviewsController } from '@/modules/reviews/interfaces/http/controllers/owner-reviews.controller';
+import { ListOwnerCourtReviewsQuery } from '@/modules/reviews/interfaces/http/dto/list-owner-court-reviews.query';
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+
+describe('reviews module behavior', () => {
+  const authenticatedUser = {
+    sub: 'owner-sub',
+    email: 'owner@example.test',
+    emailVerified: true,
+    name: 'Owner User',
+    pictureUrl: 'https://example.test/owner.png',
+    provider: 'Google',
+    groups: ['owners']
+  };
+
+  const pageResult: IListOwnerCourtReviewsResult = {
+    summary: {
+      selectedCourtId: null,
+      totalReviews: 1,
+      averageRating: 4.5
+    },
+    items: [
+      {
+        reviewId: 'review-id',
+        rating: 5,
+        comment: 'Great court',
+        createdAt: '2026-07-01T18:00:00.000Z',
+        court: { id: 'court-id', name: 'Court A' },
+        reviewer: { displayName: 'Diego R.', initials: 'DR' }
+      }
+    ],
+    totalItems: 1,
+    page: 1,
+    pageSize: 10
+  };
+
+  it('formats display names with first name plus last initial', () => {
+    expect(buildReviewerDisplayName('Diego Rivera')).toBe('Diego R.');
+    expect(buildReviewerDisplayName('María Solís Vargas')).toBe('María V.');
+  });
+
+  it('falls back to "Player" when the reviewer has no stored name', () => {
+    expect(buildReviewerDisplayName(null)).toBe('Player');
+    expect(buildReviewerDisplayName('')).toBe('Player');
+    expect(buildReviewerDisplayName('   ')).toBe('Player');
+  });
+
+  it('uses just the first name when there is no surname', () => {
+    expect(buildReviewerDisplayName('Diego')).toBe('Diego.');
+  });
+
+  it('builds two-letter uppercase initials from the stored name', () => {
+    expect(buildReviewerInitials('Diego Rivera')).toBe('DR');
+    expect(buildReviewerInitials('María Solís Vargas')).toBe('MV');
+  });
+
+  it('pads single-name initials to two characters', () => {
+    expect(buildReviewerInitials('Diego')).toBe('DD');
+  });
+
+  it('falls back to a stable "PP" initial when the reviewer has no stored name', () => {
+    expect(buildReviewerInitials(null)).toBe('PP');
+    expect(buildReviewerInitials('')).toBe('PP');
+    expect(buildReviewerInitials('   ')).toBe('PP');
+  });
+
+  it('forwards the owner reviews query through the repository port', async () => {
+    const repository = {
+      listOwnerCourtReviews: jest.fn().mockResolvedValue(pageResult)
+    } satisfies IReviewRepository;
+    const useCase = new ListOwnerCourtReviewsUseCase(repository);
+
+    await expect(
+      useCase.execute(authenticatedUser, {
+        page: 2,
+        pageSize: 5,
+        courtId: 'court-id'
+      })
+    ).resolves.toEqual(pageResult);
+
+    expect(repository.listOwnerCourtReviews).toHaveBeenCalledWith({
+      ownerIdentity: {
+        sub: 'owner-sub',
+        provider: 'Google'
+      },
+      court: { courtId: 'court-id' },
+      pagination: { page: 2, pageSize: 5 }
+    });
+  });
+
+  it('omits the court filter from the repository query when not provided', async () => {
+    const repository = {
+      listOwnerCourtReviews: jest.fn().mockResolvedValue({
+        ...pageResult,
+        items: [],
+        totalItems: 0,
+        summary: { selectedCourtId: null, totalReviews: 0, averageRating: null }
+      })
+    } satisfies IReviewRepository;
+    const useCase = new ListOwnerCourtReviewsUseCase(repository);
+
+    await useCase.execute(authenticatedUser, {
+      page: 1,
+      pageSize: OWNER_REVIEWS_DEFAULT_PAGE_SIZE
+    });
+
+    const callArg = repository.listOwnerCourtReviews.mock.calls[0]?.[0] as
+      | IListOwnerCourtReviewsQuery
+      | undefined;
+    expect(callArg).toBeDefined();
+    expect(callArg).not.toHaveProperty('court');
+    expect(callArg?.pagination).toEqual({ page: 1, pageSize: OWNER_REVIEWS_DEFAULT_PAGE_SIZE });
+  });
+
+  it('builds the owner reviews HTTP response with pagination metadata', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue({
+        ...pageResult,
+        totalItems: 25,
+        page: 2,
+        pageSize: 10
+      })
+    } as unknown as ListOwnerCourtReviewsUseCase;
+    const controller = new OwnerReviewsController(useCase);
+
+    const response = await controller.list(authenticatedUser, {
+      page: 2,
+      pageSize: 10
+    });
+
+    expect(response.data).toEqual({
+      summary: pageResult.summary,
+      items: pageResult.items
+    });
+    expect(response.meta?.pagination).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalItems: 25,
+      totalPages: 3
+    });
+    expect(useCase.execute).toHaveBeenCalledWith(authenticatedUser, {
+      page: 2,
+      pageSize: 10,
+      courtId: undefined
+    });
+  });
+
+  it('renders an empty owner reviews response with zero totals and null average', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue({
+        summary: { selectedCourtId: null, totalReviews: 0, averageRating: null },
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 10
+      })
+    } as unknown as ListOwnerCourtReviewsUseCase;
+    const controller = new OwnerReviewsController(useCase);
+
+    const response = await controller.list(authenticatedUser, {
+      page: 1,
+      pageSize: 10
+    });
+
+    expect(response.data).toEqual({
+      summary: { selectedCourtId: null, totalReviews: 0, averageRating: null },
+      items: []
+    });
+    expect(response.meta?.pagination).toEqual({
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 0
+    });
+  });
+
+  it('treats the per-court summary scope as the selected court identifier', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue({
+        summary: { selectedCourtId: 'court-id', totalReviews: 3, averageRating: 5 },
+        items: [],
+        totalItems: 3,
+        page: 1,
+        pageSize: 10
+      })
+    } as unknown as ListOwnerCourtReviewsUseCase;
+    const controller = new OwnerReviewsController(useCase);
+
+    const response = await controller.list(authenticatedUser, {
+      page: 1,
+      pageSize: 10,
+      courtId: 'court-id'
+    });
+
+    expect(response.data.summary.selectedCourtId).toBe('court-id');
+  });
+
+  it('caps the page size at 50 and defaults to 10', () => {
+    expect(OWNER_REVIEWS_MAX_PAGE_SIZE).toBe(50);
+    expect(OWNER_REVIEWS_DEFAULT_PAGE_SIZE).toBe(10);
+  });
+
+  it('caps the page number at 10000 to prevent huge offset abuse', async () => {
+    expect(OWNER_REVIEWS_MAX_PAGE).toBe(10_000);
+
+    const oversized = plainToInstance(ListOwnerCourtReviewsQuery, {
+      page: OWNER_REVIEWS_MAX_PAGE + 1,
+      pageSize: 10
+    });
+    const errors = await validate(oversized);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe('page');
+    expect(errors[0]?.constraints?.max).toBeDefined();
+
+    const atLimit = plainToInstance(ListOwnerCourtReviewsQuery, {
+      page: OWNER_REVIEWS_MAX_PAGE,
+      pageSize: 10
+    });
+    await expect(validate(atLimit)).resolves.toEqual([]);
+  });
+
+  it('returns an empty result when the owner has no courts', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([])
+      },
+      review: {
+        findMany: jest.fn(),
+        count: jest.fn()
+      },
+      $queryRaw: jest.fn()
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(
+      repository.listOwnerCourtReviews({
+        ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+        pagination: { page: 1, pageSize: 10 }
+      })
+    ).resolves.toEqual({
+      summary: { selectedCourtId: null, totalReviews: 0, averageRating: null },
+      items: [],
+      totalItems: 0,
+      page: 1,
+      pageSize: 10
+    });
+
+    expect(prisma.review.findMany).not.toHaveBeenCalled();
+    expect(prisma.review.count).not.toHaveBeenCalled();
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('returns reviews for every owned court when no court filter is provided', async () => {
+    const ownedCourts = [{ id: 'court-a' }, { id: 'court-b' }];
+    const reviewRows = [
+      {
+        id: 'review-a',
+        rating: 4,
+        comment: 'Good court',
+        createdAt: new Date('2026-07-02T18:00:00.000Z'),
+        reservation: {
+          court: { id: 'court-a', name: 'Court A' },
+          user: { name: 'Diego Rivera', email: 'diego@example.test' }
+        }
+      },
+      {
+        id: 'review-b',
+        rating: 5,
+        comment: null,
+        createdAt: new Date('2026-07-01T18:00:00.000Z'),
+        reservation: {
+          court: { id: 'court-b', name: 'Court B' },
+          user: { name: 'María Solís', email: 'maria@example.test' }
+        }
+      }
+    ];
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue(ownedCourts)
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue(reviewRows),
+        count: jest.fn().mockResolvedValue(2)
+      },
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValue([{ average: 4.5 }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(
+      repository.listOwnerCourtReviews({
+        ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+        pagination: { page: 1, pageSize: 10 }
+      })
+    ).resolves.toEqual({
+      summary: {
+        selectedCourtId: null,
+        totalReviews: 2,
+        averageRating: 4.5
+      },
+      items: [
+        {
+          reviewId: 'review-a',
+          rating: 4,
+          comment: 'Good court',
+          createdAt: '2026-07-02T18:00:00.000Z',
+          court: { id: 'court-a', name: 'Court A' },
+          reviewer: { displayName: 'Diego R.', initials: 'DR' }
+        },
+        {
+          reviewId: 'review-b',
+          rating: 5,
+          comment: null,
+          createdAt: '2026-07-01T18:00:00.000Z',
+          court: { id: 'court-b', name: 'Court B' },
+          reviewer: { displayName: 'María S.', initials: 'MS' }
+        }
+      ],
+      totalItems: 2,
+      page: 1,
+      pageSize: 10
+    });
+
+    expect(prisma.court.findMany).toHaveBeenCalledWith({
+      where: {
+        deletedAt: null,
+        complex: {
+          deletedAt: null,
+          owner: {
+            identities: {
+              some: {
+                provider: 'Google',
+                providerSubject: 'owner-sub'
+              }
+            }
+          }
+        }
+      },
+      select: { id: true }
+    });
+    expect(prisma.review.findMany).toHaveBeenCalledWith({
+      where: { reservation: { courtId: { in: ['court-a', 'court-b'] } } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: 0,
+      take: 10,
+      select: expect.objectContaining({
+        reservation: {
+          select: {
+            court: { select: { id: true, name: true } },
+            user: { select: { name: true } }
+          }
+        }
+      })
+    });
+    expect(prisma.review.findMany.mock.calls[0]?.[0].select).not.toHaveProperty(
+      'reservation.pictureUrl'
+    );
+    // Privacy guard: the repository must not pull reviewer PII that is not
+    // surfaced in the response.
+    expect(
+      prisma.review.findMany.mock.calls[0]?.[0].select?.reservation?.select?.user
+    ).not.toHaveProperty('email');
+    expect(
+      prisma.review.findMany.mock.calls[0]?.[0].select?.reservation?.select?.user
+    ).not.toHaveProperty('pictureUrl');
+    expect(prisma.review.count).toHaveBeenCalledWith({
+      where: { reservation: { courtId: { in: ['court-a', 'court-b'] } } }
+    });
+  });
+
+  it('scopes the listing to a single court when courtId is provided and owned', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'court-a' }, { id: 'court-b' }])
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: null }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    const result = await repository.listOwnerCourtReviews({
+      ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+      court: { courtId: 'court-a' },
+      pagination: { page: 1, pageSize: 10 }
+    });
+
+    expect(result.summary.selectedCourtId).toBe('court-a');
+    expect(result.items).toEqual([]);
+    expect(prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { reservation: { courtId: { in: ['court-a'] } } }
+      })
+    );
+    expect(prisma.review.count).toHaveBeenCalledWith({
+      where: { reservation: { courtId: { in: ['court-a'] } } }
+    });
+
+    // The aggregate call must receive only the selected court scope; a
+    // regression that still bound every owned court would surface here
+    // even if `findMany`/`count` were independently scoped correctly.
+    const aggregateCall = prisma.$queryRaw.mock.calls[0]?.[0] as
+      | { values?: ReadonlyArray<unknown> }
+      | undefined;
+    expect(aggregateCall).toBeDefined();
+    expect(aggregateCall?.values).toEqual(['court-a']);
+  });
+
+  it('throws a not-accessible error when the requested court is not owned', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'court-a' }])
+      },
+      review: {
+        findMany: jest.fn(),
+        count: jest.fn()
+      },
+      $queryRaw: jest.fn()
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(
+      repository.listOwnerCourtReviews({
+        ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+        court: { courtId: 'foreign-court-id' },
+        pagination: { page: 1, pageSize: 10 }
+      })
+    ).rejects.toBeInstanceOf(OwnerReviewCourtNotAccessibleError);
+
+    expect(prisma.review.findMany).not.toHaveBeenCalled();
+    expect(prisma.review.count).not.toHaveBeenCalled();
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('throws a not-accessible error when a courtId is provided but the owner has no courts', async () => {
+    // Regression guard: previously the repository returned an empty result
+    // whenever the owner owned zero courts, even when the caller pinned a
+    // specific `courtId`. That masked foreign-court lookups as 200/empty
+    // instead of 404. The check must run BEFORE the empty-owned-courts
+    // shortcut.
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([])
+      },
+      review: {
+        findMany: jest.fn(),
+        count: jest.fn()
+      },
+      $queryRaw: jest.fn()
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(
+      repository.listOwnerCourtReviews({
+        ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+        court: { courtId: 'some-court-id' },
+        pagination: { page: 1, pageSize: 10 }
+      })
+    ).rejects.toBeInstanceOf(OwnerReviewCourtNotAccessibleError);
+
+    expect(prisma.review.findMany).not.toHaveBeenCalled();
+    expect(prisma.review.count).not.toHaveBeenCalled();
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('applies pagination skip and take derived from page and pageSize', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'court-a' }])
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: null }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await repository.listOwnerCourtReviews({
+      ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+      pagination: { page: 3, pageSize: 5 }
+    });
+
+    expect(prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 10, take: 5 })
+    );
+  });
+
+  it('falls back to the Cognito native provider when none is supplied', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([])
+      },
+      review: {
+        findMany: jest.fn(),
+        count: jest.fn()
+      },
+      $queryRaw: jest.fn()
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await repository.listOwnerCourtReviews({
+      ownerIdentity: { sub: 'owner-sub' },
+      pagination: { page: 1, pageSize: 10 }
+    });
+
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          complex: expect.objectContaining({
+            owner: expect.objectContaining({
+              identities: expect.objectContaining({
+                some: { provider: 'Cognito', providerSubject: 'owner-sub' }
+              })
+            })
+          })
+        })
+      })
+    );
+  });
+
+  it('rounds the aggregate average to one decimal place', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'court-a' }])
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: 4.6666666 }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    const result = await repository.listOwnerCourtReviews({
+      ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+      pagination: { page: 1, pageSize: 10 }
+    });
+
+    expect(result.summary.averageRating).toBe(4.7);
+  });
+
+  it('returns null average when the aggregate average is null', async () => {
+    const prisma = {
+      court: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'court-a' }])
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: null }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    const result = await repository.listOwnerCourtReviews({
+      ownerIdentity: { sub: 'owner-sub', provider: 'Google' },
+      pagination: { page: 1, pageSize: 10 }
+    });
+
+    expect(result.summary.averageRating).toBeNull();
+  });
+});
