@@ -173,8 +173,7 @@ class MyReservationsViewModelTest {
         val firstLoad = CompletableDeferred<Result<MyReservations>>()
         val secondLoad = CompletableDeferred<Result<MyReservations>>()
         val errorReporter = FakeErrorReporter()
-        val reservationRepository =
-            SequencedReservationRepository(listOf(firstLoad, secondLoad))
+        val reservationRepository = SequencedReservationRepository(listOf(firstLoad, secondLoad))
         val viewModel =
             MyReservationsViewModel(
                 reservationRepository = reservationRepository,
@@ -224,8 +223,7 @@ class MyReservationsViewModelTest {
         val secondLoad = CompletableDeferred<Result<MyReservations>>()
         val errorReporter = FakeErrorReporter()
         val latestReservations = sampleReservations(finalizedId = "fresh-success-id")
-        val reservationRepository =
-            SequencedReservationRepository(listOf(firstLoad, secondLoad))
+        val reservationRepository = SequencedReservationRepository(listOf(firstLoad, secondLoad))
         val viewModel =
             MyReservationsViewModel(
                 reservationRepository = reservationRepository,
