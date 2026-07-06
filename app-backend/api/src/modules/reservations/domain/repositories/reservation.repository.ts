@@ -63,6 +63,10 @@ export interface IFindMyReservationsQuery {
   finalizedLimit: number;
 }
 
+export interface ICompleteExpiredReservationsCommand {
+  now: Date;
+}
+
 export interface IMyReservationsSnapshotGroups {
   upcoming: IMyReservationSnapshot[];
   finalized: IMyReservationSnapshot[];
@@ -80,6 +84,10 @@ export interface IReservationRepository {
   findMyReservationsByUserId(
     query: IFindMyReservationsQuery
   ): Promise<IMyReservationsSnapshotGroups>;
+
+  completeExpiredReservations(
+    command: ICompleteExpiredReservationsCommand
+  ): Promise<number>;
 }
 
 export const RESERVATION_REPOSITORY = Symbol('RESERVATION_REPOSITORY');

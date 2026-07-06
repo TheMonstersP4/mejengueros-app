@@ -65,5 +65,11 @@ jobs:
           PRISMA_MIGRATION_CONTRACT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mejengueros_ci
         run: npx jest --config ./jest.integration.config.cjs test/integration/prisma-relational-schema.contract.spec.ts --runInBand
 
+      - name: Reservation completion worker DB proof
+        env:
+          RUN_PRISMA_RESERVATION_REPOSITORY_DB_TESTS: 'true'
+          PRISMA_RESERVATION_REPOSITORY_DB_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mejengueros_ci
+        run: npm run test:reservation-completion:db
+
       - name: Build
         run: npm run build

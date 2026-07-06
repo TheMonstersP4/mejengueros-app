@@ -5,6 +5,7 @@ import { SystemClock } from '@/shared/infrastructure/clock/system-clock.service'
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { CreateReservationUseCase } from './application/use-cases/create-reservation.use-case';
+import { CompleteExpiredReservationsUseCase } from './application/use-cases/complete-expired-reservations.use-case';
 import { GetReservableDaysUseCase } from './application/use-cases/get-reservable-days.use-case';
 import { GetReservableSlotsUseCase } from './application/use-cases/get-reservable-slots.use-case';
 import { ListMyReservationsUseCase } from './application/use-cases/list-my-reservations.use-case';
@@ -23,6 +24,7 @@ import { ReservableSlotsController } from './interfaces/http/controllers/reserva
   ],
   providers: [
     CreateReservationUseCase,
+    CompleteExpiredReservationsUseCase,
     GetReservableDaysUseCase,
     GetReservableSlotsUseCase,
     ListMyReservationsUseCase,

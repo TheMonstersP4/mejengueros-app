@@ -1,10 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '@/generated/prisma/client';
 import { costaRicaBusinessDayBounds } from '@/shared/domain/time/costa-rica-business-time';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { ReservationConflictError } from '../../domain/errors/reservation-conflict.error';
 import { ReservationCourtNotFoundError } from '../../domain/errors/reservation-court-not-found.error';
 import type {
   ICreateConfirmedReservationCommand,
+  ICompleteExpiredReservationsCommand,
   IFindMyReservationsQuery,
   IMyReservationSnapshot,
   IMyReservationsSnapshotGroups,
@@ -15,6 +17,7 @@ import type {
 } from '../../domain/repositories/reservation.repository';
 
 interface IReservationPersistenceClient {
+  $executeRaw: PrismaService['$executeRaw'];
   court: {
     findFirst: PrismaService['court']['findFirst'];
   };
@@ -104,7 +107,9 @@ export class PrismaReservationRepository implements IReservationRepository {
               startTime: formatTimeOnly(court.availability.startTime),
               endTime: formatTimeOnly(court.availability.endTime)
             },
-      confirmedStartsAt: court.reservations.map(({ startsAt }) => startsAt.toISOString())
+      confirmedStartsAt: (court.reservations as Array<{ startsAt: Date }>).map(({ startsAt }) =>
+        startsAt.toISOString()
+      )
     };
   }
 
@@ -235,7 +240,27 @@ export class PrismaReservationRepository implements IReservationRepository {
       finalized: mapMyReservationSnapshots(finalizedReservations)
     };
   }
+
+  async completeExpiredReservations(
+    command: ICompleteExpiredReservationsCommand
+  ): Promise<number> {
+    return this.prisma.$executeRaw(
+      Prisma.sql`
+        UPDATE "mejengueros_dev"."Reservation"
+        SET
+          "status" = CAST(${PRISMA_COMPLETED_RESERVATION_STATUS} AS "mejengueros_dev"."ReservationStatus"),
+          "completedAt" = "endsAt",
+          "updatedAt" = CURRENT_TIMESTAMP
+        WHERE
+          "status" = CAST(${PRISMA_CONFIRMED_RESERVATION_STATUS} AS "mejengueros_dev"."ReservationStatus")
+          AND "endsAt" <= ${command.now}
+      `
+    );
+  }
 }
+
+const PRISMA_CONFIRMED_RESERVATION_STATUS = 'CONFIRMED';
+const PRISMA_COMPLETED_RESERVATION_STATUS = 'COMPLETED';
 
 function mapMyReservationSnapshots(
   reservations: Array<{

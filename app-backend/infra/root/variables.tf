@@ -417,6 +417,60 @@ variable "api_lambda_timeout" {
   default     = 30
 }
 
+variable "reservation_completion_worker_enabled" {
+  description = "Create the scheduled reservation completion worker Lambda when a deployment zip is provided."
+  type        = bool
+  default     = false
+}
+
+variable "reservation_completion_worker_package_filename" {
+  description = "Path to the reservation completion worker deployment zip. Leave empty to skip the worker Lambda."
+  type        = string
+  default     = ""
+}
+
+variable "reservation_completion_worker_package_source_code_hash" {
+  description = "Base64-encoded hash of the reservation completion worker deployment zip."
+  type        = string
+  default     = ""
+}
+
+variable "reservation_completion_worker_runtime" {
+  description = "Runtime used by the reservation completion worker zip Lambda."
+  type        = string
+  default     = "nodejs22.x"
+}
+
+variable "reservation_completion_worker_memory_size" {
+  description = "Reservation completion worker Lambda memory size in MB."
+  type        = number
+  default     = 512
+}
+
+variable "reservation_completion_worker_timeout" {
+  description = "Reservation completion worker Lambda timeout in seconds."
+  type        = number
+  default     = 30
+}
+
+variable "reservation_completion_worker_schedule_expression" {
+  description = "EventBridge schedule expression for the reservation completion worker."
+  type        = string
+  default     = "rate(5 minutes)"
+}
+
+variable "reservation_completion_worker_log_retention_days" {
+  description = "CloudWatch log retention in days for the reservation completion worker Lambda."
+  type        = number
+  default     = 14
+}
+
+variable "reservation_completion_worker_alarm_actions" {
+  description = "Optional CloudWatch alarm action ARNs for reservation completion worker failure alarms."
+  type        = list(string)
+  default     = []
+}
+
 variable "api_lambda_vpc_enabled" {
   description = "Attach the HTTP API Lambda to private subnets so it can reach private RDS. This does not create a NAT gateway."
   type        = bool

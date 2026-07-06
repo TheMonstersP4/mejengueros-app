@@ -19,6 +19,7 @@ Cloudflare stays optional. Terraform still configures the provider during valida
 - `module.api_gateway_account_cloudwatch` when API Gateway access logs are enabled
 - `module.api_lambda`
 - `module.http_api`
+- `module.reservation_completion_worker_lambda` when the reservation completion worker is enabled
 - `module.websocket_api`
 
 ## Inputs
@@ -69,6 +70,15 @@ Cloudflare stays optional. Terraform still configures the provider during valida
 | `ecr_keep_last_images` | Number of recent ECR images to keep. |
 | `api_http_enabled` | Creates the public HTTP API and Lambda container integration. |
 | `api_lambda_image_tag` | ECR image tag used by the HTTP API Lambda. The repository URL is derived from the project ECR repository. |
+| `reservation_completion_worker_enabled` | Creates the scheduled reservation completion worker Lambda when a deployment zip is provided. |
+| `reservation_completion_worker_package_filename` | Path to the reservation completion worker deployment zip. Leave empty to skip the worker Lambda. |
+| `reservation_completion_worker_package_source_code_hash` | Optional Base64-encoded hash for the reservation completion worker deployment zip. |
+| `reservation_completion_worker_runtime` | Runtime used by the reservation completion worker zip Lambda. |
+| `reservation_completion_worker_memory_size` | Reservation completion worker Lambda memory size in MB. |
+| `reservation_completion_worker_timeout` | Reservation completion worker Lambda timeout in seconds. |
+| `reservation_completion_worker_schedule_expression` | EventBridge schedule expression for the reservation completion worker. |
+| `reservation_completion_worker_log_retention_days` | CloudWatch log retention in days for the reservation completion worker Lambda. |
+| `reservation_completion_worker_alarm_actions` | Optional CloudWatch alarm action ARNs for reservation completion worker failure alarms. |
 | `api_lambda_vpc_enabled` | Attaches the HTTP API Lambda to private subnets. Keep false unless it must reach private RDS because this stack does not create NAT. |
 | `api_database_secret_enabled` | Creates an AWS Secrets Manager secret for an external API database URL. |
 | `api_database_secret_arn` | Existing AWS Secrets Manager secret ARN containing the API database URL. |
@@ -107,7 +117,12 @@ Cloudflare stays optional. Terraform still configures the provider during valida
 | `ecr_repository_name` | ECR repository name. |
 | `ecr_repository_url` | ECR repository URL for Docker pushes. |
 | `ecr_repository_arn` | ECR repository ARN. |
+| `reservation_completion_worker_function_name` | Expected reservation completion worker Lambda function name. |
+| `reservation_completion_worker_schedule_rule_name` | EventBridge rule name for the reservation completion worker schedule. |
+| `reservation_completion_worker_lambda_error_alarm_name` | CloudWatch alarm name for reservation completion worker Lambda errors. |
+| `reservation_completion_worker_failed_invocations_alarm_name` | CloudWatch alarm name for reservation completion worker EventBridge failed invocations. |
 | `deploy_config.DATABASE_SECRET_ARN` | Secrets Manager ARN used by GitHub Actions and the API Lambda. |
+| `deploy_config.RESERVATION_COMPLETION_WORKER_FUNCTION_NAME` | Lambda name used by GitHub Actions to deploy the reservation completion worker. |
 | `websocket_api_id` | API Gateway WebSocket API ID. |
 | `websocket_url` | Full WebSocket URL including stage. |
 | `websocket_access_log_group_name` | CloudWatch access log group name for the WebSocket API. |
