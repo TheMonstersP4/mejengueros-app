@@ -75,6 +75,52 @@ export interface IListOwnerCourtReviewsResult {
   pageSize: number;
 }
 
+/**
+ * Pagination window for the public court reviews read.
+ */
+export interface IPublicCourtReviewsPagination {
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Query that powers the public court reviews endpoint.
+ */
+export interface IListPublicCourtReviewsQuery {
+  courtId: string;
+  pagination: IPublicCourtReviewsPagination;
+}
+
+/**
+ * Single public-review row returned to the HTTP boundary.
+ */
+export interface IPublicCourtReviewItem {
+  reviewId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  reviewer: IReviewerDisplay;
+}
+
+/**
+ * Aggregate summary for a court's public reviews.
+ */
+export interface IPublicCourtReviewsSummary {
+  totalReviews: number;
+  averageRating: number | null;
+}
+
+/**
+ * Final result returned by the public court reviews use case.
+ */
+export interface IListPublicCourtReviewsResult {
+  summary: IPublicCourtReviewsSummary;
+  items: IPublicCourtReviewItem[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface IReviewableReservationSnapshot {
   reservationId: string;
   complexName: string;
@@ -116,6 +162,17 @@ export interface IReviewRepository {
   listOwnerCourtReviews(
     query: IListOwnerCourtReviewsQuery
   ): Promise<IListOwnerCourtReviewsResult>;
+
+  /**
+   * Returns the id of a court that is publicly visible (active, published,
+   * not deleted, inside an active/published/non-deleted complex), or null
+   * when the court does not exist or is not publicly visible.
+   */
+  findPubliclyVisibleCourtId(courtId: string): Promise<string | null>;
+
+  listPublicCourtReviews(
+    query: IListPublicCourtReviewsQuery
+  ): Promise<IListPublicCourtReviewsResult>;
 
   findLatestReviewableReservationForUser(
     userId: string

@@ -14,17 +14,27 @@ import {
 } from '@/modules/reviews/application/services/format-reviewer-identity';
 import { CreateReviewUseCase } from '@/modules/reviews/application/use-cases/create-review.use-case';
 import { GetLatestReviewableReservationUseCase } from '@/modules/reviews/application/use-cases/get-latest-reviewable-reservation.use-case';
+import {
+  ListPublicCourtReviewsUseCase,
+  PUBLIC_COURT_REVIEWS_DEFAULT_PAGE_SIZE,
+  PUBLIC_COURT_REVIEWS_MAX_PAGE,
+  PUBLIC_COURT_REVIEWS_MAX_PAGE_SIZE
+} from '@/modules/reviews/application/use-cases/list-public-court-reviews.use-case';
 import { OwnerReviewCourtNotAccessibleError } from '@/modules/reviews/domain/errors/owner-review-court-not-accessible.error';
+import { PublicCourtReviewsCourtNotFoundError } from '@/modules/reviews/domain/errors/public-court-not-found.error';
 import type {
   IListOwnerCourtReviewsQuery,
   IListOwnerCourtReviewsResult,
+  IListPublicCourtReviewsResult,
   IReviewRepository,
   IReviewableReservationSnapshot,
   IReservationForReviewSnapshot
 } from '@/modules/reviews/domain/repositories/review.repository';
 import { PrismaReviewRepository } from '@/modules/reviews/infrastructure/persistence/prisma-review.repository';
 import { OwnerReviewsController } from '@/modules/reviews/interfaces/http/controllers/owner-reviews.controller';
+import { PublicCourtReviewsController } from '@/modules/reviews/interfaces/http/controllers/public-court-reviews.controller';
 import { ListOwnerCourtReviewsQuery } from '@/modules/reviews/interfaces/http/dto/list-owner-court-reviews.query';
+import { ListPublicCourtReviewsQuery } from '@/modules/reviews/interfaces/http/dto/list-public-court-reviews.query';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
@@ -922,5 +932,265 @@ describe('reviews module — create review and latest reviewable reservation', (
       endsAt: '2026-07-02T21:00:00.000Z',
       imageUrl: undefined
     });
+  });
+});
+
+describe('public court reviews', () => {
+  const courtId = '0dd3a274-7d7b-45c6-a90d-4d14298ae7aa';
+
+  const publicResult: IListPublicCourtReviewsResult = {
+    summary: { totalReviews: 2, averageRating: 4.5 },
+    items: [
+      {
+        reviewId: 'review-a',
+        rating: 5,
+        comment: 'Great court and lighting.',
+        createdAt: '2026-07-02T18:00:00.000Z',
+        reviewer: { displayName: 'Diego R.', initials: 'DR' }
+      }
+    ],
+    totalItems: 2,
+    page: 1,
+    pageSize: 10
+  };
+
+  it('forwards the visible court query through the repository port', async () => {
+    const repository = {
+      findPubliclyVisibleCourtId: jest.fn().mockResolvedValue(courtId),
+      listPublicCourtReviews: jest.fn().mockResolvedValue(publicResult)
+    } satisfies Partial<IReviewRepository>;
+    const useCase = new ListPublicCourtReviewsUseCase(
+      repository as unknown as IReviewRepository
+    );
+
+    await expect(
+      useCase.execute({ courtId, page: 2, pageSize: 5 })
+    ).resolves.toEqual(publicResult);
+
+    expect(repository.findPubliclyVisibleCourtId).toHaveBeenCalledWith(courtId);
+    expect(repository.listPublicCourtReviews).toHaveBeenCalledWith({
+      courtId,
+      pagination: { page: 2, pageSize: 5 }
+    });
+  });
+
+  it('throws a not-found error when the court is not publicly visible', async () => {
+    const repository = {
+      findPubliclyVisibleCourtId: jest.fn().mockResolvedValue(null),
+      listPublicCourtReviews: jest.fn()
+    } satisfies Partial<IReviewRepository>;
+    const useCase = new ListPublicCourtReviewsUseCase(
+      repository as unknown as IReviewRepository
+    );
+
+    await expect(
+      useCase.execute({ courtId, page: 1, pageSize: 10 })
+    ).rejects.toBeInstanceOf(PublicCourtReviewsCourtNotFoundError);
+
+    expect(repository.listPublicCourtReviews).not.toHaveBeenCalled();
+  });
+
+  it('resolves the visible court only against active, published, non-deleted scopes', async () => {
+    const prisma = {
+      court: {
+        findFirst: jest.fn().mockResolvedValue({ id: courtId })
+      },
+      review: { findMany: jest.fn(), count: jest.fn() },
+      $queryRaw: jest.fn()
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(repository.findPubliclyVisibleCourtId(courtId)).resolves.toBe(courtId);
+
+    expect(prisma.court.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: courtId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        isPublished: true,
+        complex: {
+          status: 'ACTIVE',
+          deletedAt: null,
+          isPublished: true
+        }
+      },
+      select: { id: true }
+    });
+  });
+
+  it('returns null when no publicly visible court matches', async () => {
+    const prisma = {
+      court: { findFirst: jest.fn().mockResolvedValue(null) },
+      review: { findMany: jest.fn(), count: jest.fn() },
+      $queryRaw: jest.fn()
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(repository.findPubliclyVisibleCourtId(courtId)).resolves.toBeNull();
+  });
+
+  it('maps public review rows and aggregate into the read model', async () => {
+    const reviewRows = [
+      {
+        id: 'review-a',
+        rating: 5,
+        comment: 'Great court and lighting.',
+        createdAt: new Date('2026-07-02T18:00:00.000Z'),
+        reservation: { user: { name: 'Diego Rivera' } }
+      },
+      {
+        id: 'review-b',
+        rating: 4,
+        comment: null,
+        createdAt: new Date('2026-07-01T18:00:00.000Z'),
+        reservation: { user: { name: null } }
+      }
+    ];
+    const prisma = {
+      court: { findFirst: jest.fn() },
+      review: {
+        findMany: jest.fn().mockResolvedValue(reviewRows),
+        count: jest.fn().mockResolvedValue(2)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: 4.5 }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(
+      repository.listPublicCourtReviews({
+        courtId,
+        pagination: { page: 1, pageSize: 10 }
+      })
+    ).resolves.toEqual({
+      summary: { totalReviews: 2, averageRating: 4.5 },
+      items: [
+        {
+          reviewId: 'review-a',
+          rating: 5,
+          comment: 'Great court and lighting.',
+          createdAt: '2026-07-02T18:00:00.000Z',
+          reviewer: { displayName: 'Diego R.', initials: 'DR' }
+        },
+        {
+          reviewId: 'review-b',
+          rating: 4,
+          comment: null,
+          createdAt: '2026-07-01T18:00:00.000Z',
+          reviewer: { displayName: 'Player', initials: 'PP' }
+        }
+      ],
+      totalItems: 2,
+      page: 1,
+      pageSize: 10
+    });
+
+    expect(prisma.review.count).toHaveBeenCalledWith({
+      where: { reservation: { courtId } }
+    });
+    // Privacy guard: only the reviewer name is pulled, never PII columns.
+    const selectedUser =
+      prisma.review.findMany.mock.calls[0]?.[0].select?.reservation?.select?.user;
+    expect(selectedUser).not.toHaveProperty('email');
+    expect(selectedUser).not.toHaveProperty('pictureUrl');
+
+    // The aggregate call must be scoped to the single requested court.
+    const aggregateCall = prisma.$queryRaw.mock.calls[0]?.[0] as
+      | { values?: ReadonlyArray<unknown> }
+      | undefined;
+    expect(aggregateCall?.values).toEqual([courtId]);
+  });
+
+  it('returns an empty summary and list when the court has no reviews', async () => {
+    const prisma = {
+      court: { findFirst: jest.fn() },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: null }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await expect(
+      repository.listPublicCourtReviews({
+        courtId,
+        pagination: { page: 1, pageSize: 10 }
+      })
+    ).resolves.toEqual({
+      summary: { totalReviews: 0, averageRating: null },
+      items: [],
+      totalItems: 0,
+      page: 1,
+      pageSize: 10
+    });
+  });
+
+  it('applies pagination skip and take derived from page and pageSize', async () => {
+    const prisma = {
+      court: { findFirst: jest.fn() },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0)
+      },
+      $queryRaw: jest.fn().mockResolvedValue([{ average: null }])
+    };
+    const repository = new PrismaReviewRepository(prisma as never);
+
+    await repository.listPublicCourtReviews({
+      courtId,
+      pagination: { page: 3, pageSize: 5 }
+    });
+
+    expect(prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 10, take: 5 })
+    );
+  });
+
+  it('builds the public reviews HTTP response with pagination metadata', async () => {
+    const useCase = {
+      execute: jest.fn().mockResolvedValue({
+        ...publicResult,
+        totalItems: 25,
+        page: 2,
+        pageSize: 10
+      })
+    } as unknown as ListPublicCourtReviewsUseCase;
+    const controller = new PublicCourtReviewsController(useCase);
+
+    const response = await controller.list(courtId, { page: 2, pageSize: 10 });
+
+    expect(response.data).toEqual({
+      summary: publicResult.summary,
+      items: publicResult.items
+    });
+    expect(response.meta?.pagination).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalItems: 25,
+      totalPages: 3
+    });
+    expect(useCase.execute).toHaveBeenCalledWith({
+      courtId,
+      page: 2,
+      pageSize: 10
+    });
+  });
+
+  it('caps the page size at 50 and defaults to 10', () => {
+    expect(PUBLIC_COURT_REVIEWS_MAX_PAGE_SIZE).toBe(50);
+    expect(PUBLIC_COURT_REVIEWS_DEFAULT_PAGE_SIZE).toBe(10);
+  });
+
+  it('caps the page number at 10000 to prevent huge offset abuse', async () => {
+    expect(PUBLIC_COURT_REVIEWS_MAX_PAGE).toBe(10_000);
+
+    const oversized = plainToInstance(ListPublicCourtReviewsQuery, {
+      page: PUBLIC_COURT_REVIEWS_MAX_PAGE + 1,
+      pageSize: 10
+    });
+    const errors = await validate(oversized);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe('page');
+    expect(errors[0]?.constraints?.max).toBeDefined();
   });
 });
