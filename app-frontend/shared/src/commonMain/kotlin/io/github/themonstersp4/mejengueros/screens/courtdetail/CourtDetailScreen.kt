@@ -40,6 +40,7 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomAction
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReceivedReviewCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosThumbnail
@@ -59,6 +60,7 @@ fun CourtDetailScreen(
     contentPadding: PaddingValues,
     onReserve: () -> Unit,
     onRetrySlots: () -> Unit,
+    onRetryReviews: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   Column(modifier = modifier.fillMaxSize().padding(contentPadding)) {
@@ -94,6 +96,13 @@ fun CourtDetailScreen(
       UbicacionSection(
           provinceName = provinceName,
           cantonName = cantonName,
+      )
+
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+      ReseñasSection(
+          state = state,
+          onRetry = onRetryReviews,
       )
 
       Spacer(modifier = Modifier.height(8.dp))
@@ -408,6 +417,77 @@ private fun UbicacionSection(
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
+    }
+  }
+}
+
+@Composable
+private fun ReseñasSection(
+    state: CourtDetailUiState,
+    onRetry: () -> Unit,
+) {
+  Column(
+      modifier =
+          Modifier.fillMaxWidth()
+              .padding(horizontal = 20.dp, vertical = 20.dp)
+              .testTag("court_detail_resenas_section"),
+      verticalArrangement = Arrangement.spacedBy(14.dp),
+  ) {
+    Text(
+        text = "Reseñas",
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+
+    when {
+      state.isLoadingReviews -> {
+        MejenguerosInlineLoadingState(
+            text = "Cargando reseñas…",
+            modifier = Modifier.fillMaxWidth(),
+            containerTestTag = "court_detail_loading_reviews",
+            indicatorTestTag = "court_detail_loading_reviews_indicator",
+        )
+      }
+
+      state.reviewsErrorMessage != null -> {
+        MejenguerosStateContent(
+            title = "No pudimos cargar las reseñas",
+            description = state.reviewsErrorMessage,
+            variant = MejenguerosStateVariant.Error,
+            actions = {
+              MejenguerosOutlinedButton(
+                  text = "Reintentar",
+                  onClick = onRetry,
+                  modifier = Modifier.testTag("court_detail_retry_reviews_button"),
+              )
+            },
+        )
+      }
+
+      state.reviews.isEmpty() -> {
+        MejenguerosStateContent(
+            title = "Todavía no hay reseñas",
+            description =
+                "Esta cancha aún no tiene reseñas. Sé el primero en dejar una después de jugar acá.",
+            variant = MejenguerosStateVariant.Empty,
+            modifier = Modifier.testTag("court_detail_no_reviews_state"),
+        )
+      }
+
+      else -> {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          state.reviews.forEach { review ->
+            MejenguerosReceivedReviewCard(
+                author = review.authorName,
+                date = review.dateLabel.orEmpty(),
+                rating = review.rating,
+                comment = review.comment.orEmpty(),
+                avatarInitials = review.authorInitials,
+                modifier = Modifier.testTag("court_detail_review_${review.id}"),
+            )
+          }
+        }
+      }
     }
   }
 }

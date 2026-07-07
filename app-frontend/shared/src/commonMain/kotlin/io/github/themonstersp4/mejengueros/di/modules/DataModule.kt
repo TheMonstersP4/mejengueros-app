@@ -21,6 +21,7 @@ import io.github.themonstersp4.mejengueros.data.remote.CourtAvailabilityRemoteDa
 import io.github.themonstersp4.mejengueros.data.remote.CourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CourtDetailRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.CourtImageUploadRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.CourtReviewsRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IAuthenticatedUserRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICognitoNativeAuthDataSource
@@ -29,6 +30,7 @@ import io.github.themonstersp4.mejengueros.data.remote.ICourtAvailabilityRemoteD
 import io.github.themonstersp4.mejengueros.data.remote.ICourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICourtDetailRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICourtImageUploadRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ICourtReviewsRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReviewEvidenceUploadRemoteDataSource
@@ -44,6 +46,7 @@ import io.github.themonstersp4.mejengueros.data.repository.CourtAvailabilityRepo
 import io.github.themonstersp4.mejengueros.data.repository.CourtCatalogRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtDetailRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtImageUploadRepository
+import io.github.themonstersp4.mejengueros.data.repository.CourtReviewsRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReservationRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReviewEvidenceUploadRepository
@@ -54,6 +57,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.ICourtAvailabilityR
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IPokemonRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
@@ -112,6 +116,10 @@ val dataModule = module {
   }
   single<IReviewEvidenceUploadRepository> { ReviewEvidenceUploadRepository(get()) }
   single<ICourtDetailRepository> { CourtDetailRepository(get()) }
+  single<ICourtReviewsRemoteDataSource> {
+    CourtReviewsRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
+  }
+  single<ICourtReviewsRepository> { CourtReviewsRepository(get()) }
   single<IPokemonRemoteDataSource> { PokemonRemoteDataSource(get()) }
   single<IPokemonLocalDataSource> { PokemonLocalDataSource(get()) }
   single<IPokemonRepository> { PokemonRepository(get(), get()) }
