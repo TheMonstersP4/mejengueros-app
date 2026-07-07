@@ -16,6 +16,7 @@ import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
 const reservationId = '38fad3d5-0f6a-4c8a-a49a-c3dce07af6cf';
 const evidenceImageUploadId = '6f554321-6df0-43c4-b310-f3d7e6bf00a1';
+const courtId = '0dd3a274-7d7b-45c6-a90d-4d14298ae7aa';
 const TEST_DATABASE_URL = 'file:memory:';
 
 describe('reviews HTTP contract', () => {
@@ -424,6 +425,115 @@ describe('reviews HTTP contract', () => {
     );
   });
 
+  it('exposes public court reviews without authentication in the standard envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reviews`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.court.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: courtId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        isPublished: true,
+        complex: {
+          status: 'ACTIVE',
+          deletedAt: null,
+          isPublished: true
+        }
+      },
+      select: { id: true }
+    });
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        summary: { totalReviews: 2, averageRating: 4.5 },
+        items: [
+          {
+            reviewId: 'review-a',
+            rating: 5,
+            comment: 'Great court and lighting.',
+            createdAt: '2026-07-02T18:00:00.000Z',
+            reviewer: { displayName: 'Diego R.', initials: 'DR' }
+          },
+          {
+            reviewId: 'review-b',
+            rating: 4,
+            comment: null,
+            createdAt: '2026-07-01T18:00:00.000Z',
+            reviewer: { displayName: 'Player', initials: 'PP' }
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reviews`,
+        pagination: { page: 1, pageSize: 10, totalItems: 2, totalPages: 1 }
+      })
+    });
+  });
+
+  it('returns an empty public reviews envelope when the court has no reviews', async () => {
+    prismaService.review.count.mockResolvedValueOnce(0);
+    prismaService.review.findMany.mockResolvedValueOnce([]);
+    prismaService.$queryRaw.mockResolvedValueOnce([{ average: null }]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reviews`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        summary: { totalReviews: 0, averageRating: null },
+        items: []
+      },
+      errors: [],
+      meta: expect.objectContaining({
+        path: `/v1/courts/${courtId}/reviews`
+      })
+    });
+  });
+
+  it('returns 404 when the court is not publicly visible', async () => {
+    prismaService.court.findFirst.mockResolvedValueOnce(null);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/courts/${courtId}/reviews`
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(prismaService.review.findMany).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: [
+          expect.objectContaining({
+            code: APP_ERROR_CODES.RESOURCE_NOT_FOUND,
+            status: 404
+          })
+        ]
+      })
+    );
+  });
+
+  it('rejects a malformed court id before touching persistence', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/not-a-uuid/reviews'
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findFirst).not.toHaveBeenCalled();
+    expect(prismaService.review.findMany).not.toHaveBeenCalled();
+  });
+
   it('maps a unique evidence-image persistence collision back to the review validation error', async () => {
     prismaService.review.create.mockRejectedValueOnce({
       code: 'P2002',
@@ -488,6 +598,23 @@ function createPrismaMock() {
     },
     review: {
       findFirst: jest.fn().mockResolvedValue(null),
+      count: jest.fn().mockResolvedValue(2),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'review-a',
+          rating: 5,
+          comment: 'Great court and lighting.',
+          createdAt: new Date('2026-07-02T18:00:00.000Z'),
+          reservation: { user: { name: 'Diego Rivera' } }
+        },
+        {
+          id: 'review-b',
+          rating: 4,
+          comment: null,
+          createdAt: new Date('2026-07-01T18:00:00.000Z'),
+          reservation: { user: { name: null } }
+        }
+      ]),
       create: jest.fn().mockResolvedValue({
         id: 'review-id',
         reservationId,
@@ -497,6 +624,10 @@ function createPrismaMock() {
         createdAt: new Date('2026-07-03T02:00:00.000Z')
       })
     },
+    court: {
+      findFirst: jest.fn().mockResolvedValue({ id: courtId })
+    },
+    $queryRaw: jest.fn().mockResolvedValue([{ average: 4.5 }]),
     onModuleInit: jest.fn(),
     onModuleDestroy: jest.fn()
   };
