@@ -3,14 +3,23 @@ package io.github.themonstersp4.mejengueros.data.remote
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReviewEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReviewRequestDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.LatestReviewableReservationEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReceivedReviewItemDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReceivedReviewSummaryDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReceivedReviewsEnvelopeDto
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReview
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewCourt
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewer
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewsSummary
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -72,4 +81,64 @@ class ReviewRemoteDataSource(
       throw error.toAppApiException(json)
     }
   }
+
+  override suspend fun getOwnerReceivedReviews(
+      courtId: String?,
+      page: Int,
+      pageSize: Int,
+  ): ReceivedReviewPage {
+    return try {
+      val response =
+          httpClient
+              .get("/v1/owners/me/reviews") {
+                courtId?.takeIf { it.isNotBlank() }?.let { parameter("courtId", it) }
+                parameter("page", page)
+                parameter("pageSize", pageSize)
+              }
+              .body<OwnerReceivedReviewsEnvelopeDto>()
+
+      val data = response.data
+      val pagination = response.meta?.pagination
+      val items = data?.items.orEmpty().map { it.toDomain() }
+      val summary = (data?.summary ?: OwnerReceivedReviewSummaryDto()).toDomain()
+      val resolvedPage = pagination?.page ?: page
+      val resolvedPageSize = pagination?.pageSize ?: pageSize
+      val resolvedTotalItems = pagination?.totalItems ?: items.size
+      val resolvedTotalPages = pagination?.totalPages ?: 0
+      val resolvedHasNextPage = resolvedPage < resolvedTotalPages
+
+      ReceivedReviewPage(
+          items = items,
+          summary = summary,
+          page = resolvedPage,
+          pageSize = resolvedPageSize,
+          totalItems = resolvedTotalItems,
+          totalPages = resolvedTotalPages,
+          hasNextPage = resolvedHasNextPage,
+      )
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
 }
+
+private fun OwnerReceivedReviewItemDto.toDomain(): ReceivedReview =
+    ReceivedReview(
+        reviewId = reviewId,
+        rating = rating,
+        comment = comment,
+        createdAt = createdAt,
+        court = ReceivedReviewCourt(id = court.id, name = court.name),
+        reviewer =
+            ReceivedReviewer(
+                displayName = reviewer.displayName,
+                initials = reviewer.initials,
+            ),
+    )
+
+private fun OwnerReceivedReviewSummaryDto.toDomain(): ReceivedReviewsSummary =
+    ReceivedReviewsSummary(
+        selectedCourtId = selectedCourtId,
+        totalReviews = totalReviews,
+        averageRating = averageRating,
+    )

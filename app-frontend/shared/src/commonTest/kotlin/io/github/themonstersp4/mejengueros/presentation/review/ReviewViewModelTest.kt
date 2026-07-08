@@ -5,6 +5,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ConfirmedReviewEvidenceI
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewRepository
@@ -349,6 +350,12 @@ class ReviewViewModelTest {
           createdAt = "2026-07-03T02:00:00.000Z",
       )
     }
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class FakeReviewEvidenceUploadRepository : IReviewEvidenceUploadRepository {
@@ -408,6 +415,12 @@ class ReviewViewModelTest {
           createdAt = "2026-07-03T02:00:00.000Z",
       )
     }
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class SuspendedCreateReviewRepository(
@@ -418,6 +431,12 @@ class ReviewViewModelTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         createResult.await().getOrThrow()
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class RefreshingSuspendedCreateReviewRepository(
@@ -439,6 +458,12 @@ class ReviewViewModelTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         createResult.await().getOrThrow()
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class SuspendedReviewEvidenceUploadRepository(
@@ -454,6 +479,12 @@ class ReviewViewModelTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         error("Should not create a review when no reservation is available.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class RefreshingReviewRepository(
@@ -474,6 +505,12 @@ class ReviewViewModelTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         error("Should not create a review in upload cancellation tests.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class FailLatestReservationOnceReviewRepository : IReviewRepository {
@@ -489,6 +526,12 @@ class ReviewViewModelTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         error("Should not create a review in load retry tests.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class RecordingReviewRepository : IReviewRepository {
@@ -501,6 +544,12 @@ class ReviewViewModelTest {
       createCalls += 1
       return sampleCreatedReview()
     }
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private class FailingReviewEvidenceUploadRepository(private val failure: Throwable) :
@@ -559,6 +608,12 @@ class ReviewViewModelTest {
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview {
       throw AppApiException(statusCode = statusCode, message = "HTTP $statusCode")
     }
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
   private fun sampleEvidenceImage() =
