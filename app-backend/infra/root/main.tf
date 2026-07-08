@@ -6,6 +6,9 @@ locals {
   api_lambda_image_uri                   = "${module.ecr_api.repository_url}:${var.api_lambda_image_tag}"
   api_http_deploy_enabled                = var.api_http_enabled
   api_lambda_vpc_enabled                 = local.api_http_deploy_enabled && var.api_lambda_vpc_enabled
+  reservation_completion_worker_deploy_enabled = var.reservation_completion_worker_enabled && var.reservation_completion_worker_package_filename != ""
+  reservation_completion_worker_vpc_enabled    = local.reservation_completion_worker_deploy_enabled && var.api_lambda_vpc_enabled
+  reservation_completion_worker_source_code_hash = local.reservation_completion_worker_deploy_enabled ? (var.reservation_completion_worker_package_source_code_hash != "" ? var.reservation_completion_worker_package_source_code_hash : filebase64sha256(var.reservation_completion_worker_package_filename)) : null
   api_gateway_access_logs_enabled        = (local.api_http_deploy_enabled && var.http_api_access_log_enabled) || var.websocket_access_log_enabled
   api_database_secret_arn                = var.api_database_secret_arn != "" ? var.api_database_secret_arn : (var.api_database_secret_enabled ? aws_secretsmanager_secret.database_url[0].arn : "")
   websocket_lambda_deploy_enabled        = var.websocket_lambda_enabled && var.websocket_lambda_package_filename != ""
@@ -48,6 +51,25 @@ resource "terraform_data" "websocket_lambda_configuration_guard" {
     precondition {
       condition     = !var.websocket_lambda_enabled || fileexists(var.websocket_lambda_package_filename)
       error_message = "websocket_lambda_package_filename does not exist. Run npm run build and npm run lambda:package:websocket from api/."
+    }
+  }
+}
+
+resource "terraform_data" "reservation_completion_worker_configuration_guard" {
+  input = {
+    reservation_completion_worker_enabled          = var.reservation_completion_worker_enabled
+    reservation_completion_worker_package_filename = var.reservation_completion_worker_package_filename
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.reservation_completion_worker_enabled || var.reservation_completion_worker_package_filename != ""
+      error_message = "reservation_completion_worker_enabled=true requires reservation_completion_worker_package_filename. Run npm run build and npm run lambda:package:reservation-completion from api/."
+    }
+
+    precondition {
+      condition     = !var.reservation_completion_worker_enabled || fileexists(var.reservation_completion_worker_package_filename)
+      error_message = "reservation_completion_worker_package_filename does not exist. Run npm run build and npm run lambda:package:reservation-completion from api/."
     }
   }
 }
@@ -176,6 +198,59 @@ resource "aws_iam_role" "websocket_lambda" {
         Action = "sts:AssumeRole"
       }
     ]
+  })
+}
+
+resource "aws_iam_role" "reservation_completion_worker_lambda" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  name = "${local.name_prefix}-reservation-completion"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "reservation_completion_worker_basic_execution" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  role       = aws_iam_role.reservation_completion_worker_lambda[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "reservation_completion_worker_vpc_access" {
+  count = local.reservation_completion_worker_vpc_enabled ? 1 : 0
+
+  role       = aws_iam_role.reservation_completion_worker_lambda[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy" "reservation_completion_worker_runtime" {
+  count = local.reservation_completion_worker_deploy_enabled && local.api_database_secret_arn != "" ? 1 : 0
+
+  name = "${local.name_prefix}-reservation-completion-runtime"
+  role = aws_iam_role.reservation_completion_worker_lambda[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = local.api_database_secret_arn != "" ? [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = local.api_database_secret_arn
+      }
+    ] : []
   })
 }
 
@@ -328,6 +403,123 @@ module "api_lambda_security_group" {
   name        = "${local.name_prefix}-http-lambda"
   description = "HTTP Lambda access"
   vpc_id      = module.network.vpc_id
+}
+
+module "reservation_completion_worker_lambda_logs" {
+  source = "../modules/aws/cloudwatch_log_group"
+  count  = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  name              = "/aws/lambda/${local.name_prefix}-reservation-completion"
+  retention_in_days = var.reservation_completion_worker_log_retention_days
+}
+
+module "reservation_completion_worker_lambda" {
+  source = "../modules/aws/lambda_function"
+  count  = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  function_name    = "${local.name_prefix}-reservation-completion"
+  role_arn         = aws_iam_role.reservation_completion_worker_lambda[0].arn
+  package_type     = "Zip"
+  filename         = var.reservation_completion_worker_package_filename
+  source_code_hash = local.reservation_completion_worker_source_code_hash
+  handler          = "functions/reservations/completion.handler"
+  runtime          = var.reservation_completion_worker_runtime
+  timeout          = var.reservation_completion_worker_timeout
+  memory_size      = var.reservation_completion_worker_memory_size
+
+  subnet_ids         = local.reservation_completion_worker_vpc_enabled ? module.network.private_subnet_ids : []
+  security_group_ids = local.reservation_completion_worker_vpc_enabled ? [module.api_lambda_security_group[0].security_group_id] : []
+
+  environment_variables = merge(
+    {
+      LOG_LEVEL = var.api_log_level
+      NODE_ENV  = "production"
+    },
+    var.postgres_enabled && local.api_database_secret_arn == "" ? {
+      DATABASE_URL = local.database_url
+    } : {},
+    local.api_database_secret_arn != "" ? {
+      DATABASE_SECRET_ARN = local.api_database_secret_arn
+    } : {},
+    var.error_documentation_base_url != "" ? {
+      ERROR_DOCUMENTATION_BASE_URL = var.error_documentation_base_url
+    } : {}
+  )
+
+  depends_on = [
+    module.reservation_completion_worker_lambda_logs,
+    aws_iam_role_policy.reservation_completion_worker_runtime,
+    aws_iam_role_policy_attachment.reservation_completion_worker_basic_execution,
+    aws_iam_role_policy_attachment.reservation_completion_worker_vpc_access
+  ]
+}
+
+resource "aws_cloudwatch_event_rule" "reservation_completion_worker" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  name                = "${local.name_prefix}-reservation-completion"
+  description         = "Triggers the reservation completion worker for expired confirmed reservations."
+  schedule_expression = var.reservation_completion_worker_schedule_expression
+}
+
+resource "aws_cloudwatch_event_target" "reservation_completion_worker" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  rule      = aws_cloudwatch_event_rule.reservation_completion_worker[0].name
+  target_id = "reservation-completion-worker"
+  arn       = module.reservation_completion_worker_lambda[0].function_arn
+}
+
+resource "aws_lambda_permission" "reservation_completion_worker_events" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  statement_id  = "AllowExecutionFromEventBridgeReservationCompletion"
+  action        = "lambda:InvokeFunction"
+  function_name = module.reservation_completion_worker_lambda[0].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.reservation_completion_worker[0].arn
+}
+
+resource "aws_cloudwatch_metric_alarm" "reservation_completion_worker_lambda_errors" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-reservation-completion-errors"
+  alarm_description   = "Reservation completion worker Lambda reported invocation errors."
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.reservation_completion_worker_alarm_actions
+  ok_actions          = var.reservation_completion_worker_alarm_actions
+
+  dimensions = {
+    FunctionName = module.reservation_completion_worker_lambda[0].function_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "reservation_completion_worker_failed_invocations" {
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-reservation-completion-eventbridge-failures"
+  alarm_description   = "Reservation completion worker EventBridge target reported failed invocations."
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "FailedInvocations"
+  namespace           = "AWS/Events"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.reservation_completion_worker_alarm_actions
+  ok_actions          = var.reservation_completion_worker_alarm_actions
+
+  dimensions = {
+    RuleName = aws_cloudwatch_event_rule.reservation_completion_worker[0].name
+  }
 }
 
 module "postgres_subnet_group" {
@@ -623,6 +815,9 @@ module "github_oidc_deploy" {
   ] : []
   lambda_function_arns = compact(concat(
     local.api_http_deploy_enabled ? [module.api_lambda[0].function_arn] : [],
+    local.reservation_completion_worker_deploy_enabled ? [
+      module.reservation_completion_worker_lambda[0].function_arn
+    ] : [],
     local.websocket_lambda_deploy_enabled ? [
       module.websocket_connect_lambda[0].function_arn,
       module.websocket_disconnect_lambda[0].function_arn,

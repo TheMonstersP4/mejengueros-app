@@ -309,6 +309,7 @@ model Reservation {
   @@index([courtId])
   @@index([startsAt])
   @@index([status])
+  @@index([status, endsAt])
   @@index([courtId, startsAt])
   @@schema("mejengueros_dev")
 }

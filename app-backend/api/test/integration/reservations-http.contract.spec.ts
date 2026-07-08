@@ -3,6 +3,8 @@ import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import type { ITokenVerifierPort } from '@/modules/auth/application/ports/token-verifier.port';
 import { TOKEN_VERIFIER_PORT } from '@/modules/auth/application/ports/token-verifier.port';
+import type { IFileReadUrlPort } from '@/modules/files/application/ports/file-read-url.port';
+import { FILE_READ_URL_PORT } from '@/modules/files/application/ports/file-read-url.port';
 import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
 import { configureValidation } from '@/bootstrap/validation';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
@@ -10,6 +12,14 @@ import { CLOCK, type IClock } from '@/shared/application/clock/clock.port';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
 const courtId = '38fad3d5-0f6a-4c8a-a49a-c3dce07af6cf';
+const signedCourtImageUrls: Record<string, string> = {
+  'uploads/court-image/player-sub/2026/07/court-a.png':
+    'https://read.example.test/court-a.png',
+  'uploads/court-image/player-sub/2026/07/court-b.png':
+    'https://read.example.test/court-b.png',
+  'uploads/court-image/player-sub/2026/07/court-c.png':
+    'https://read.example.test/court-c.png'
+};
 
 describe('reservations HTTP contract', () => {
   const originalEnv = {
@@ -28,6 +38,7 @@ describe('reservations HTTP contract', () => {
   let prismaService: ReturnType<typeof createPrismaMock>;
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
   let syncAuthenticatedUser: jest.Mocked<SyncAuthenticatedUserUseCase>;
+  let fileReadUrl: jest.Mocked<IFileReadUrlPort>;
   let currentNow: Date;
 
   beforeAll(async () => {
@@ -62,6 +73,11 @@ describe('reservations HTTP contract', () => {
         roles: []
       })
     } as unknown as jest.Mocked<SyncAuthenticatedUserUseCase>;
+    fileReadUrl = {
+      createReadUrl: jest.fn().mockImplementation(async (objectKey: string) => {
+        return signedCourtImageUrls[objectKey] ?? `https://read.example.test/${objectKey}`;
+      })
+    } as jest.Mocked<IFileReadUrlPort>;
     const clock: IClock = {
       now: () => currentNow
     };
@@ -75,6 +91,8 @@ describe('reservations HTTP contract', () => {
       .useValue(tokenVerifier)
       .overrideProvider(SyncAuthenticatedUserUseCase)
       .useValue(syncAuthenticatedUser)
+      .overrideProvider(FILE_READ_URL_PORT)
+      .useValue(fileReadUrl)
       .compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(
@@ -94,6 +112,9 @@ describe('reservations HTTP contract', () => {
       id: 'user-id',
       email: 'player@example.test',
       roles: []
+    });
+    fileReadUrl.createReadUrl.mockImplementation(async (objectKey: string) => {
+      return signedCourtImageUrls[objectKey] ?? `https://read.example.test/${objectKey}`;
     });
   });
 
@@ -141,6 +162,210 @@ describe('reservations HTTP contract', () => {
       errors: [],
       meta: expect.objectContaining({ path: '/v1/reservations' })
     });
+  });
+
+  it('returns grouped my reservations in the standard envelope', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/reservations/my',
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(syncAuthenticatedUser.execute).toHaveBeenCalledWith({
+      sub: 'player-sub',
+      email: 'player@example.test',
+      emailVerified: true,
+      name: 'Player One',
+      pictureUrl: 'https://example.test/player.png',
+      provider: 'Google',
+      groups: ['players']
+    });
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        upcoming: [
+          {
+            id: 'upcoming-reservation-id',
+            complexName: 'Moravia FC',
+            courtName: 'Cancha A',
+            imageUrl: 'https://read.example.test/court-a.png',
+            startsAt: '2026-07-10T18:00:00.000Z',
+            endsAt: '2026-07-10T19:00:00.000Z',
+            status: 'CONFIRMED',
+            section: 'UPCOMING',
+            reviewStatus: 'NOT_APPLICABLE',
+            canReview: false,
+            hasReview: false
+          }
+        ],
+        finalized: [
+          {
+            id: 'completed-reviewed-id',
+            complexName: 'Moravia FC',
+            courtName: 'Cancha C',
+            imageUrl: 'https://read.example.test/court-c.png',
+            startsAt: '2026-07-04T18:00:00.000Z',
+            endsAt: '2026-07-04T19:00:00.000Z',
+            status: 'COMPLETED',
+            section: 'FINALIZED',
+            reviewStatus: 'REVIEWED',
+            canReview: false,
+            hasReview: true,
+            indicatorKey: 'already_reviewed',
+            indicatorLabel: 'Ya dejaste tu reseña'
+          },
+          {
+            id: 'completed-pending-review-id',
+            complexName: 'Moravia FC',
+            courtName: 'Cancha B',
+            imageUrl: 'https://read.example.test/court-b.png',
+            startsAt: '2026-07-03T18:00:00.000Z',
+            endsAt: '2026-07-03T19:00:00.000Z',
+            status: 'COMPLETED',
+            section: 'FINALIZED',
+            reviewStatus: 'PENDING_REVIEW',
+            canReview: true,
+            hasReview: false,
+            primaryActionKey: 'leave_review',
+            primaryActionLabel: 'Dejar reseña'
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({ path: '/v1/reservations/my' })
+    });
+    expect(response.json().data.upcoming).toEqual(
+      expect.not.arrayContaining([
+        expect.objectContaining({ id: 'cancelled-reservation-id' })
+      ])
+    );
+    expect(response.json().data.finalized).toEqual(
+      expect.not.arrayContaining([
+        expect.objectContaining({ id: 'completed-missing-completed-at-id' })
+      ])
+    );
+  });
+
+  it('returns empty arrays when the authenticated user has no reservations', async () => {
+    prismaService.reservation.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/reservations/my',
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        upcoming: [],
+        finalized: []
+      },
+      errors: [],
+      meta: expect.objectContaining({ path: '/v1/reservations/my' })
+    });
+  });
+
+  it('returns a bounded my reservations screen snapshot capped to 20 upcoming and 20 finalized cards', async () => {
+    const upcomingRecords = Array.from({ length: 24 }, (_, index) =>
+      createReservationRecord({
+        id: `upcoming-${String(index + 1).padStart(2, '0')}`,
+        startsAt: new Date('2026-07-10T18:00:00.000Z'),
+        endsAt: new Date('2026-07-10T19:00:00.000Z'),
+        status: 'CONFIRMED',
+        completedAt: null,
+        review: null,
+        courtName: `Cancha U${index + 1}`,
+        imageObjectKey: `uploads/court-image/player-sub/2026/07/upcoming-${index + 1}.png`
+      })
+    );
+    const finalizedRecords = Array.from({ length: 24 }, (_, index) =>
+      createReservationRecord({
+        id: `finalized-${String(index + 1).padStart(2, '0')}`,
+        startsAt: new Date('2026-07-05T18:00:00.000Z'),
+        endsAt: new Date('2026-07-05T19:00:00.000Z'),
+        status: 'COMPLETED',
+        completedAt: new Date('2026-07-05T19:05:00.000Z'),
+        review: index % 2 === 0 ? null : { id: `review-${index + 1}` },
+        courtName: `Cancha F${index + 1}`,
+        imageObjectKey: `uploads/court-image/player-sub/2026/07/finalized-${index + 1}.png`
+      })
+    );
+
+    prismaService.reservation.findMany.mockImplementation(
+      async (query?: { where?: { status?: string }; take?: number; orderBy?: ReservationOrderBy }) => {
+        const status = query?.where?.status;
+        const source = status === 'CONFIRMED' ? upcomingRecords : finalizedRecords;
+
+        return applyReservationQuery(source, query);
+      }
+    );
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/reservations/my',
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.upcoming).toHaveLength(20);
+    expect(response.json().data.finalized).toHaveLength(20);
+    expect(response.json().data.upcoming.map((reservation: { id: string }) => reservation.id)).toEqual(
+      Array.from({ length: 20 }, (_, index) => `upcoming-${String(index + 1).padStart(2, '0')}`)
+    );
+    expect(response.json().data.finalized.map((reservation: { id: string }) => reservation.id)).toEqual(
+      Array.from({ length: 20 }, (_, index) => `finalized-${String(index + 1).padStart(2, '0')}`)
+    );
+  });
+
+  it('keeps my reservations cards when image URL signing fails by omitting imageUrl', async () => {
+    fileReadUrl.createReadUrl.mockImplementation(async (objectKey: string) => {
+      if (objectKey === 'uploads/court-image/player-sub/2026/07/court-c.png') {
+        throw new Error('signed URL unavailable');
+      }
+
+      return signedCourtImageUrls[objectKey] ?? `https://read.example.test/${objectKey}`;
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/reservations/my',
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: true,
+      data: {
+        upcoming: [
+          {
+            id: 'upcoming-reservation-id',
+            imageUrl: 'https://read.example.test/court-a.png'
+          }
+        ],
+        finalized: [
+          {
+            id: 'completed-reviewed-id'
+          },
+          {
+            id: 'completed-pending-review-id',
+            imageUrl: 'https://read.example.test/court-b.png'
+          }
+        ]
+      }
+    });
+    expect(response.json().data.finalized[0]).not.toHaveProperty('imageUrl');
+  });
+
+  it('rejects unauthenticated my reservations access', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/reservations/my'
+    });
+
+    expect(response.statusCode).toBe(401);
   });
 
   it('returns a safe conflict when the slot is already confirmed', async () => {
@@ -654,6 +879,59 @@ describe('reservations HTTP contract', () => {
 });
 
 function createPrismaMock() {
+  const reservationRecords = [
+    createReservationRecord({
+      id: 'upcoming-reservation-id',
+      startsAt: new Date('2026-07-10T18:00:00.000Z'),
+      endsAt: new Date('2026-07-10T19:00:00.000Z'),
+      status: 'CONFIRMED',
+      completedAt: null,
+      review: null,
+      courtName: 'Cancha A',
+      imageObjectKey: 'uploads/court-image/player-sub/2026/07/court-a.png'
+    }),
+    createReservationRecord({
+      id: 'completed-pending-review-id',
+      startsAt: new Date('2026-07-03T18:00:00.000Z'),
+      endsAt: new Date('2026-07-03T19:00:00.000Z'),
+      status: 'COMPLETED',
+      completedAt: new Date('2026-07-03T19:05:00.000Z'),
+      review: null,
+      courtName: 'Cancha B',
+      imageObjectKey: 'uploads/court-image/player-sub/2026/07/court-b.png'
+    }),
+    createReservationRecord({
+      id: 'completed-reviewed-id',
+      startsAt: new Date('2026-07-04T18:00:00.000Z'),
+      endsAt: new Date('2026-07-04T19:00:00.000Z'),
+      status: 'COMPLETED',
+      completedAt: new Date('2026-07-04T19:05:00.000Z'),
+      review: { id: 'review-id' },
+      courtName: 'Cancha C',
+      imageObjectKey: 'uploads/court-image/player-sub/2026/07/court-c.png'
+    }),
+    createReservationRecord({
+      id: 'completed-missing-completed-at-id',
+      startsAt: new Date('2026-07-02T18:00:00.000Z'),
+      endsAt: new Date('2026-07-02T19:00:00.000Z'),
+      status: 'COMPLETED',
+      completedAt: null,
+      review: null,
+      courtName: 'Cancha E',
+      imageObjectKey: null
+    }),
+    createReservationRecord({
+      id: 'cancelled-reservation-id',
+      startsAt: new Date('2026-07-05T18:00:00.000Z'),
+      endsAt: new Date('2026-07-05T19:00:00.000Z'),
+      status: 'CANCELLED',
+      completedAt: null,
+      review: null,
+      courtName: 'Cancha D',
+      imageObjectKey: null
+    })
+  ];
+
   return {
     court: {
       findFirst: jest.fn().mockResolvedValue({
@@ -670,6 +948,29 @@ function createPrismaMock() {
       })
     },
     reservation: {
+      findMany: jest.fn().mockImplementation(
+        async (query?: {
+          where?: { status?: string; completedAt?: { not: null } };
+          take?: number;
+          orderBy?: ReservationOrderBy;
+        }) => {
+          const status = query?.where?.status;
+          const requiresCompletedAt = query?.where?.completedAt != null;
+          const filtered = reservationRecords.filter((reservation) => {
+            if (status != null && reservation.status !== status) {
+              return false;
+            }
+
+            if (requiresCompletedAt && reservation.completedAt == null) {
+              return false;
+            }
+
+            return true;
+          });
+
+          return applyReservationQuery(filtered, query);
+        }
+      ),
       create: jest.fn().mockResolvedValue({
         id: 'reservation-id',
         userId: 'user-id',
@@ -680,4 +981,111 @@ function createPrismaMock() {
       })
     }
   };
+}
+
+type ReservationRecord = {
+  id: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: string;
+  completedAt: Date | null;
+  review: { id: string } | null;
+  court: {
+    name: string;
+    imageUpload: {
+      objectKey: string;
+    } | null;
+    complex: {
+      name: string;
+    };
+  };
+};
+
+type ReservationOrderBy =
+  | { startsAt?: 'asc' | 'desc'; completedAt?: 'asc' | 'desc'; id?: 'asc' | 'desc' }
+  | Array<{ startsAt?: 'asc' | 'desc'; completedAt?: 'asc' | 'desc'; id?: 'asc' | 'desc' }>;
+
+function createReservationRecord(input: {
+  id: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: string;
+  completedAt: Date | null;
+  review: { id: string } | null;
+  courtName: string;
+  imageObjectKey: string | null;
+}): ReservationRecord {
+  return {
+    id: input.id,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    status: input.status,
+    completedAt: input.completedAt,
+    review: input.review,
+    court: {
+      name: input.courtName,
+      imageUpload:
+        input.imageObjectKey == null
+          ? null
+          : {
+              objectKey: input.imageObjectKey
+            },
+      complex: {
+        name: 'Moravia FC'
+      }
+    }
+  };
+}
+
+function applyReservationQuery(
+  reservations: ReservationRecord[],
+  query?: { take?: number; orderBy?: ReservationOrderBy }
+): ReservationRecord[] {
+  const sorted = [...reservations];
+  const orderBy = Array.isArray(query?.orderBy)
+    ? query.orderBy
+    : query?.orderBy == null
+      ? []
+      : [query.orderBy];
+
+  sorted.sort((left, right) => compareReservationRecords(left, right, orderBy));
+
+  return sorted.slice(0, query?.take ?? sorted.length);
+}
+
+function compareReservationRecords(
+  left: ReservationRecord,
+  right: ReservationRecord,
+  orderBy: Array<{ startsAt?: 'asc' | 'desc'; completedAt?: 'asc' | 'desc'; id?: 'asc' | 'desc' }>
+): number {
+  for (const order of orderBy) {
+    const [field, direction] = Object.entries(order)[0] ?? [];
+
+    if (field == null || direction == null) {
+      continue;
+    }
+
+    const comparison = compareOrderField(left, right, field as 'startsAt' | 'completedAt' | 'id');
+
+    if (comparison !== 0) {
+      return direction === 'asc' ? comparison : -comparison;
+    }
+  }
+
+  return 0;
+}
+
+function compareOrderField(
+  left: ReservationRecord,
+  right: ReservationRecord,
+  field: 'startsAt' | 'completedAt' | 'id'
+): number {
+  if (field === 'id') {
+    return left.id.localeCompare(right.id);
+  }
+
+  const leftValue = left[field]?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const rightValue = right[field]?.getTime() ?? Number.NEGATIVE_INFINITY;
+
+  return leftValue - rightValue;
 }

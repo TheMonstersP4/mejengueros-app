@@ -1,10 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '@/generated/prisma/client';
 import { costaRicaBusinessDayBounds } from '@/shared/domain/time/costa-rica-business-time';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { ReservationConflictError } from '../../domain/errors/reservation-conflict.error';
 import { ReservationCourtNotFoundError } from '../../domain/errors/reservation-court-not-found.error';
 import type {
   ICreateConfirmedReservationCommand,
+  ICompleteExpiredReservationsCommand,
+  IFindMyReservationsQuery,
+  IMyReservationSnapshot,
+  IMyReservationsSnapshotGroups,
   IReservationRepository,
   IReservationSnapshot,
   IReservationWindowQuery,
@@ -12,11 +17,13 @@ import type {
 } from '../../domain/repositories/reservation.repository';
 
 interface IReservationPersistenceClient {
+  $executeRaw: PrismaService['$executeRaw'];
   court: {
     findFirst: PrismaService['court']['findFirst'];
   };
   reservation: {
     create: PrismaService['reservation']['create'];
+    findMany: PrismaService['reservation']['findMany'];
   };
 }
 
@@ -100,7 +107,9 @@ export class PrismaReservationRepository implements IReservationRepository {
               startTime: formatTimeOnly(court.availability.startTime),
               endTime: formatTimeOnly(court.availability.endTime)
             },
-      confirmedStartsAt: court.reservations.map(({ startsAt }) => startsAt.toISOString())
+      confirmedStartsAt: (court.reservations as Array<{ startsAt: Date }>).map(({ startsAt }) =>
+        startsAt.toISOString()
+      )
     };
   }
 
@@ -134,6 +143,153 @@ export class PrismaReservationRepository implements IReservationRepository {
       throw error;
     }
   }
+
+  async findMyReservationsByUserId(
+    query: IFindMyReservationsQuery
+  ): Promise<IMyReservationsSnapshotGroups> {
+    const [upcomingReservations, finalizedReservations] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where: {
+          userId: query.userId,
+          status: 'CONFIRMED',
+          court: {
+            deletedAt: null,
+            complex: {
+              deletedAt: null
+            }
+          }
+        },
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        take: query.upcomingLimit,
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          completedAt: true,
+          review: {
+            select: {
+              id: true
+            }
+          },
+          court: {
+            select: {
+              name: true,
+              imageUpload: {
+                select: {
+                  objectKey: true
+                }
+              },
+              complex: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      this.prisma.reservation.findMany({
+        where: {
+          userId: query.userId,
+          status: 'COMPLETED',
+          completedAt: {
+            not: null
+          },
+          court: {
+            deletedAt: null,
+            complex: {
+              deletedAt: null
+            }
+          }
+        },
+        orderBy: [{ completedAt: 'desc' }, { startsAt: 'desc' }, { id: 'asc' }],
+        take: query.finalizedLimit,
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          completedAt: true,
+          review: {
+            select: {
+              id: true
+            }
+          },
+          court: {
+            select: {
+              name: true,
+              imageUpload: {
+                select: {
+                  objectKey: true
+                }
+              },
+              complex: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        }
+      })
+    ]);
+
+    return {
+      upcoming: mapMyReservationSnapshots(upcomingReservations),
+      finalized: mapMyReservationSnapshots(finalizedReservations)
+    };
+  }
+
+  async completeExpiredReservations(
+    command: ICompleteExpiredReservationsCommand
+  ): Promise<number> {
+    return this.prisma.$executeRaw(
+      Prisma.sql`
+        UPDATE "mejengueros_dev"."Reservation"
+        SET
+          "status" = CAST(${PRISMA_COMPLETED_RESERVATION_STATUS} AS "mejengueros_dev"."ReservationStatus"),
+          "completedAt" = "endsAt",
+          "updatedAt" = CURRENT_TIMESTAMP
+        WHERE
+          "status" = CAST(${PRISMA_CONFIRMED_RESERVATION_STATUS} AS "mejengueros_dev"."ReservationStatus")
+          AND "endsAt" <= ${command.now}
+      `
+    );
+  }
+}
+
+const PRISMA_CONFIRMED_RESERVATION_STATUS = 'CONFIRMED';
+const PRISMA_COMPLETED_RESERVATION_STATUS = 'COMPLETED';
+
+function mapMyReservationSnapshots(
+  reservations: Array<{
+    id: string;
+    startsAt: Date;
+    endsAt: Date;
+    status: IMyReservationSnapshot['status'];
+    completedAt: Date | null;
+    review: { id: string } | null;
+    court: {
+      name: string;
+      imageUpload: { objectKey: string } | null;
+      complex: {
+        name: string;
+      };
+    };
+  }>
+): IMyReservationSnapshot[] {
+  return reservations.map((reservation) => ({
+    id: reservation.id,
+    complexName: reservation.court.complex.name,
+    courtName: reservation.court.name,
+    imageObjectKey: reservation.court.imageUpload?.objectKey ?? undefined,
+    startsAt: reservation.startsAt.toISOString(),
+    endsAt: reservation.endsAt.toISOString(),
+    status: reservation.status,
+    completedAt: reservation.completedAt?.toISOString() ?? null,
+    reviewId: reservation.review?.id ?? null
+  }));
 }
 
 function formatTimeOnly(value: Date): string {

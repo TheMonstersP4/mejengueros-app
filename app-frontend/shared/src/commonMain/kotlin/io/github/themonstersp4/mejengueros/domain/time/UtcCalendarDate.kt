@@ -149,6 +149,18 @@ internal fun String.toCostaRicaDateLabel(): String =
 internal fun String.toCostaRicaTimeLabel(): String =
     parseUtcInstantToCostaRicaDateTimeOrNull()?.toTimeLabel() ?: this
 
+/**
+ * Formats an ISO-8601 instant (or plain `YYYY-MM-DD` date) into a readable Costa Rica date label
+ * such as "2 de julio de 2026". Returns null when the value is missing or cannot be parsed, so
+ * callers can hide the date.
+ */
+internal fun monthDayYearLabelOrNull(value: String?): String? {
+  if (value.isNullOrBlank()) return null
+  val isoDate = value.toCostaRicaDateLabel()
+  val calendar = runCatching { parseUtcCalendarDate(isoDate) }.getOrNull() ?: return null
+  return "${calendar.day} de ${calendar.monthName()} de ${calendar.year}"
+}
+
 private data class CostaRicaDateTime(
     val date: UtcCalendarDate,
     val hour: Int,

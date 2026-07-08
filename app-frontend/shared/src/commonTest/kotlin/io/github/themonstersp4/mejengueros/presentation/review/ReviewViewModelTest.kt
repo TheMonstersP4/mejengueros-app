@@ -233,6 +233,37 @@ class ReviewViewModelTest {
   }
 
   @Test
+  fun startReviewWithExplicitReservationIgnoresLateInitialLatestReservationLoad() = runTest {
+    val initialLoad = CompletableDeferred<ReviewableReservation?>()
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel =
+        ReviewViewModel(
+            reviewRepository = DelayedLatestReservationReviewRepository(initialLoad),
+            reviewEvidenceUploadRepository = FakeReviewEvidenceUploadRepository(),
+            coroutineScope = scope,
+        )
+
+    val manuallySelectedReservation =
+        sampleReservation(
+            reservationId = "manual-reservation-id",
+            complexName = "Complejo manual",
+            courtName = "Cancha manual",
+        )
+
+    viewModel.startReview(manuallySelectedReservation)
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertNull(viewModel.uiState.value.loadErrorMessage)
+    assertEquals(manuallySelectedReservation, viewModel.uiState.value.reviewableReservation)
+
+    initialLoad.complete(sampleReservation(reservationId = "late-reservation-id"))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(manuallySelectedReservation, viewModel.uiState.value.reviewableReservation)
+  }
+
+  @Test
   fun submitMapsUploadFailureToEvidenceMessage() = runTest {
     val evidenceRepository =
         FailingReviewEvidenceUploadRepository(
@@ -487,6 +518,22 @@ class ReviewViewModelTest {
     ): ReceivedReviewPage = error("Not used in leave-review tests.")
   }
 
+  private class DelayedLatestReservationReviewRepository(
+      private val latestReservation: CompletableDeferred<ReviewableReservation?>
+  ) : IReviewRepository {
+    override suspend fun getLatestReviewableReservation(): ReviewableReservation? =
+        latestReservation.await()
+
+    override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
+        error("Should not create a review in delayed latest reservation tests.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in leave-review tests.")
+  }
+
   private class RefreshingReviewRepository(
       latestReservations: List<ReviewableReservation?>,
   ) : IReviewRepository {
@@ -625,11 +672,15 @@ class ReviewViewModelTest {
       )
 }
 
-private fun sampleReservation() =
+private fun sampleReservation(
+    reservationId: String = "reservation-id",
+    complexName: String = "Moravia FC",
+    courtName: String = "Cancha A",
+) =
     ReviewableReservation(
-        reservationId = "reservation-id",
-        complexName = "Moravia FC",
-        courtName = "Cancha A",
+        reservationId = reservationId,
+        complexName = complexName,
+        courtName = courtName,
         startsAt = "2026-07-02T20:00:00.000Z",
         endsAt = "2026-07-02T21:00:00.000Z",
         imageUrl = "https://read.example.test/court-a.png",

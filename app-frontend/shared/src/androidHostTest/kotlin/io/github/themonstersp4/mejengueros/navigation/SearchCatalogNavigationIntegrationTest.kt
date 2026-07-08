@@ -20,12 +20,14 @@ import androidx.navigation3.runtime.NavKey
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CourtReview
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
+import io.github.themonstersp4.mejengueros.domain.model.MyReservations
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
@@ -37,6 +39,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
@@ -149,6 +152,7 @@ class SearchCatalogNavigationIntegrationTest {
         CourtDetailViewModel(
             courtId = "court-id",
             repository = FakeCourtDetailRepository(),
+            reviewsRepository = FakeCourtReviewsRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
     startKoin {
@@ -262,6 +266,7 @@ class SearchCatalogNavigationIntegrationTest {
         CourtDetailViewModel(
             courtId = "court-id",
             repository = FakeCourtDetailRepository(),
+            reviewsRepository = FakeCourtReviewsRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
     startKoin {
@@ -383,6 +388,7 @@ class SearchCatalogNavigationIntegrationTest {
         CourtDetailViewModel(
             courtId = "court-id",
             repository = FakeCourtDetailRepository(),
+            reviewsRepository = FakeCourtReviewsRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
     startKoin {
@@ -912,6 +918,10 @@ private fun localCourtImage(fileName: String) =
         previewUrl = "content://$fileName",
     )
 
+private class FakeCourtReviewsRepository : ICourtReviewsRepository {
+  override suspend fun getCourtReviews(courtId: String) = emptyList<CourtReview>()
+}
+
 private class FakeCourtDetailRepository : ICourtDetailRepository {
   override suspend fun getUpcomingReservableSlotsPreview(
       courtId: String,
@@ -996,4 +1006,7 @@ private class FakeReservationRepository(
           endsAtUtc = startsAtUtc.replace("T18:00:00.000Z", "T19:00:00.000Z"),
           status = "CONFIRMED",
       )
+
+  override suspend fun getMyReservations(): MyReservations =
+      MyReservations(emptyList(), emptyList())
 }

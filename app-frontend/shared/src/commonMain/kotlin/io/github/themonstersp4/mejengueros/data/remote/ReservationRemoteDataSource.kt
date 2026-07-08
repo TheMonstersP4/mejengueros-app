@@ -2,8 +2,12 @@ package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReservationEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReservationRequestDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.MyReservationCardDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.MyReservationsEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ReservableDaysEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ReservableSlotsEnvelopeDto
+import io.github.themonstersp4.mejengueros.domain.model.MyReservationCard
+import io.github.themonstersp4.mejengueros.domain.model.MyReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
@@ -110,4 +114,41 @@ class ReservationRemoteDataSource(
       throw error.toAppApiException(json)
     }
   }
+
+  override suspend fun getMyReservations(): MyReservations {
+    return try {
+      val data =
+          httpClient.get("/v1/reservations/my").body<MyReservationsEnvelopeDto>().data
+              ?: throw AppApiException(
+                  statusCode = 502,
+                  message = "No se recibió la respuesta esperada del API.",
+              )
+
+      MyReservations(
+          upcoming = data.upcoming.map(MyReservationCardDto::toDomain),
+          finalized = data.finalized.map(MyReservationCardDto::toDomain),
+      )
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
 }
+
+private fun MyReservationCardDto.toDomain(): MyReservationCard =
+    MyReservationCard(
+        id = id,
+        complexName = complexName,
+        courtName = courtName,
+        imageUrl = imageUrl,
+        startsAt = startsAt,
+        endsAt = endsAt,
+        status = status,
+        section = section,
+        reviewStatus = reviewStatus,
+        canReview = canReview,
+        hasReview = hasReview,
+        primaryActionKey = primaryActionKey,
+        primaryActionLabel = primaryActionLabel,
+        indicatorKey = indicatorKey,
+        indicatorLabel = indicatorLabel,
+    )

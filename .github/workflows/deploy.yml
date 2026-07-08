@@ -45,6 +45,20 @@ jobs:
     if: needs.changes.outputs.api == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mejengueros_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mejengueros_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,6 +81,19 @@ jobs:
       - name: Test API
         working-directory: app-backend/api
         run: npm run test:ci
+
+      - name: Apply Prisma migrations
+        working-directory: app-backend/api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mejengueros_ci
+        run: npx prisma migrate deploy
+
+      - name: Reservation completion worker DB proof
+        working-directory: app-backend/api
+        env:
+          RUN_PRISMA_RESERVATION_REPOSITORY_DB_TESTS: 'true'
+          PRISMA_RESERVATION_REPOSITORY_DB_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mejengueros_ci
+        run: npm run test:reservation-completion:db
 
       - name: Build API
         working-directory: app-backend/api
@@ -153,6 +180,43 @@ jobs:
 
       - name: Deploy WebSocket Lambdas
         run: bash .github/scripts/deploy-websocket-lambdas.sh
+
+  deploy-reservation-completion-worker:
+    name: Deploy reservation completion worker
+    needs:
+      - changes
+      - quality-api
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load deploy config
+        env:
+          DEPLOY_CONFIG: ${{ secrets.DEPLOY_DEV_CONFIG }}
+        run: bash .github/scripts/load-deploy-config.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-backend/api/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: deploy-reservation-completion-${{ github.run_id }}
+
+      - name: Package reservation completion worker
+        run: bash .github/scripts/package-reservation-completion-worker.sh
+
+      - name: Deploy reservation completion worker
+        run: bash .github/scripts/deploy-reservation-completion-worker.sh
 
   deploy-poc:
     name: Deploy POC site

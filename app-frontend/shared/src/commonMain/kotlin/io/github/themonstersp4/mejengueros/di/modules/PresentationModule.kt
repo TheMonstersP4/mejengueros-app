@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewMo
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
@@ -19,7 +20,7 @@ import org.koin.dsl.module
 val presentationModule = module {
   viewModel { AuthViewModel(get(), get(), get()) }
   viewModel { CourtCatalogViewModel(get()) }
-  viewModel { parameters -> CourtDetailViewModel(parameters.get(), get()) }
+  viewModel { parameters -> CourtDetailViewModel(parameters.get(), get(), get()) }
   viewModel { CreateComplexViewModel(get(), get()) }
   viewModel { parameters ->
     AddCourtViewModel(parameters.get(), parameters.get(), get(), get(), get())
@@ -36,6 +37,8 @@ val presentationModule = module {
     )
   }
   viewModel { ReviewViewModel(get(), get(), get()) }
+  viewModel { OwnerReceivedReviewsViewModel(get(), get(), get()) }
+  viewModel { MyReservationsViewModel(get(), get()) }
   viewModel { OwnerReceivedReviewsViewModel(get(), get(), get()) }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }
