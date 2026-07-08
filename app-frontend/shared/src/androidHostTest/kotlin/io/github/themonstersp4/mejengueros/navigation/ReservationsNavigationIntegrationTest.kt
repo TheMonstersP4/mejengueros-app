@@ -19,13 +19,12 @@ import io.github.themonstersp4.mejengueros.domain.model.ConfirmedReviewEvidenceI
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
-import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.MyReservationCard
 import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
-import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
