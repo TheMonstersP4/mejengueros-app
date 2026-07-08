@@ -18,6 +18,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ConfirmedReviewEvidenceI
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewRepository
@@ -388,6 +389,12 @@ class ReservationsNavigationIntegrationTest {
                     evidenceImageUploadId = request.evidenceImageUploadId,
                     createdAt = "2026-07-03T02:00:00.000Z",
                 )
+
+            override suspend fun getOwnerReceivedReviews(
+                courtId: String?,
+                page: Int,
+                pageSize: Int,
+            ): ReceivedReviewPage = error("Not used in reservations navigation tests.")
           },
       reviewEvidenceUploadRepository: IReviewEvidenceUploadRepository =
           object : IReviewEvidenceUploadRepository {
@@ -415,6 +422,12 @@ class ReservationsNavigationIntegrationTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         error("Should not create review in launcher loading test.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in launcher loading test.")
   }
 
   private class EmptyLatestReservationReviewRepository : IReviewRepository {
@@ -422,6 +435,12 @@ class ReservationsNavigationIntegrationTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         error("Should not create review in empty launcher test.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in empty launcher test.")
   }
 
   private class RetryableLatestReservationReviewRepository : IReviewRepository {
@@ -437,6 +456,12 @@ class ReservationsNavigationIntegrationTest {
 
     override suspend fun createReview(request: CreateReviewRequest): CreatedReview =
         error("Should not create review in launcher retry test.")
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in launcher retry test.")
   }
 }
 
