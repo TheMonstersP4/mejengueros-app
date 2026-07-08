@@ -414,6 +414,111 @@ export async function seed(prisma: PrismaClient): Promise<void> {
       comment: 'Excelente cancha, muy bien mantenida.'
     }
   });
+
+  // Extra published courts so the public catalog spans several pages and the
+  // frontend infinite scroll / pagination can be exercised end to end. Ratings
+  // and review counts vary across courts so the catalog cards are distinct.
+  await seedCatalogPaginationCourts(prisma, {
+    complexId: complex.id,
+    surfaceServiceIds: [svcSintetico.id, svcNatural.id, svcHibrido.id],
+    extraServiceIds: [svcIluminacion.id, svcParqueo.id],
+    reviewers: [player1, player2]
+  });
+}
+
+/**
+ * Number of extra demo courts added to the catalog. Chosen so the public
+ * catalog needs more than one page at the default page size (20), letting the
+ * frontend infinite scroll load a genuine second page.
+ */
+const CATALOG_PAGINATION_COURT_COUNT = 30;
+
+const CATALOG_REVIEW_COMMENTS = [
+  'Cancha impecable, volveria sin dudarlo.',
+  'Buena iluminacion pero el parqueo es chico.',
+  'El cesped estaba un poco descuidado.',
+  'Excelente atencion del complejo.',
+  'Precio justo para la calidad.',
+  'Se inunda un poco cuando llueve.'
+] as const;
+
+interface CatalogPaginationSeedOptions {
+  complexId: string;
+  surfaceServiceIds: string[];
+  extraServiceIds: string[];
+  reviewers: Array<{ id: string }>;
+}
+
+/**
+ * Creates a batch of published courts under a complex, each with weekday
+ * availability and a varying number of completed reservations + reviews so the
+ * catalog shows different ratings per card.
+ */
+export async function seedCatalogPaginationCourts(
+  prisma: PrismaClient,
+  options: CatalogPaginationSeedOptions
+): Promise<void> {
+  const { complexId, surfaceServiceIds, extraServiceIds, reviewers } = options;
+
+  for (let index = 0; index < CATALOG_PAGINATION_COURT_COUNT; index += 1) {
+    const label = String(index + 1).padStart(2, '0');
+    const surfaceServiceId = surfaceServiceIds[index % surfaceServiceIds.length];
+    const extraServiceId = extraServiceIds[index % extraServiceIds.length];
+
+    const demoCourt = await prisma.court.create({
+      data: {
+        complexId,
+        name: `Cancha Demo ${label}`,
+        isPublished: true,
+        services: {
+          create: [{ serviceCatalogId: surfaceServiceId }, { serviceCatalogId: extraServiceId }]
+        },
+        availability: {
+          create: {
+            startTime: timeAt(8),
+            endTime: timeAt(22),
+            days: {
+              create: [
+                { day: 'MONDAY' },
+                { day: 'TUESDAY' },
+                { day: 'WEDNESDAY' },
+                { day: 'THURSDAY' },
+                { day: 'FRIDAY' },
+                { day: 'SATURDAY' }
+              ]
+            }
+          }
+        }
+      }
+    });
+
+    // Vary the review volume (0..5) and rating (3..5) so catalog cards differ.
+    const reviewCount = index % 6;
+    for (let reviewIndex = 0; reviewIndex < reviewCount; reviewIndex += 1) {
+      const reviewer = reviewers[(index + reviewIndex) % reviewers.length];
+      const start = daysAgoAt(7 + index, 8 + reviewIndex);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+      const reservation = await prisma.reservation.create({
+        data: {
+          userId: reviewer.id,
+          courtId: demoCourt.id,
+          startsAt: start,
+          endsAt: end,
+          status: 'COMPLETED',
+          completedAt: end
+        }
+      });
+
+      await prisma.review.create({
+        data: {
+          reservationId: reservation.id,
+          rating: 3 + ((index + reviewIndex) % 3),
+          comment: CATALOG_REVIEW_COMMENTS[(index + reviewIndex) % CATALOG_REVIEW_COMMENTS.length]
+        }
+      });
+    }
+  }
 }
 
 async function main(): Promise<void> {
@@ -434,6 +539,9 @@ async function main(): Promise<void> {
     console.log(`  Owner:    ${DEMO_OWNER_SUBJECT}`);
     console.log(`  Player 1: ${DEMO_PLAYER_1_SUBJECT}  (holds next Saturday 10:00 UTC)`);
     console.log(`  Player 2: ${DEMO_PLAYER_2_SUBJECT}  (completed reservation last week)`);
+    console.log(
+      `  Catalog:  ${CATALOG_PAGINATION_COURT_COUNT + 1} published courts (multi-page, for infinite scroll)`
+    );
   } finally {
     await prisma.$disconnect();
     await pool.end();
