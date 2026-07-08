@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.data.repository
 
 import io.github.themonstersp4.mejengueros.data.remote.ICourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
@@ -12,25 +13,43 @@ class CourtCatalogRepositoryTest {
     val remoteDataSource = FakeCourtCatalogRemoteDataSource()
     val repository = CourtCatalogRepository(remoteDataSource)
 
-    val courts = repository.getCatalogCourts("nogales", "province-id", "canton-id")
+    val page =
+        repository.getCatalogCourts("nogales", "province-id", "canton-id", page = 2, pageSize = 20)
 
     assertEquals(
-        listOf<Triple<String?, String?, String?>>(Triple("nogales", "province-id", "canton-id")),
+        listOf(CatalogRequest("nogales", "province-id", "canton-id", 2, 20)),
         remoteDataSource.requests,
     )
-    assertEquals(listOf(fakeCourt), courts)
+    assertEquals(listOf(fakeCourt), page.items)
+    assertEquals(2, page.page)
   }
 
+  private data class CatalogRequest(
+      val searchQuery: String?,
+      val provinceId: String?,
+      val cantonId: String?,
+      val page: Int,
+      val pageSize: Int,
+  )
+
   private class FakeCourtCatalogRemoteDataSource : ICourtCatalogRemoteDataSource {
-    val requests = mutableListOf<Triple<String?, String?, String?>>()
+    val requests = mutableListOf<CatalogRequest>()
 
     override suspend fun getCatalogCourts(
         searchQuery: String?,
         provinceId: String?,
         cantonId: String?,
-    ): List<CourtCatalogItem> {
-      requests += Triple(searchQuery, provinceId, cantonId)
-      return listOf(fakeCourt)
+        page: Int,
+        pageSize: Int,
+    ): CourtCatalogPage {
+      requests += CatalogRequest(searchQuery, provinceId, cantonId, page, pageSize)
+      return CourtCatalogPage(
+          items = listOf(fakeCourt),
+          page = page,
+          pageSize = pageSize,
+          totalItems = 1,
+          totalPages = page,
+      )
     }
   }
 

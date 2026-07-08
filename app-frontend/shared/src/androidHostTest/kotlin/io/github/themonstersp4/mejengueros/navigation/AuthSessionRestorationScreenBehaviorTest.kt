@@ -13,7 +13,7 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthSession
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignInRequest
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
 import io.github.themonstersp4.mejengueros.domain.model.Canton
-import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
 import io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreateCourtRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
@@ -471,7 +471,9 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
-  ): List<CourtCatalogItem> = emptyList()
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage = CourtCatalogPage.empty(pageSize)
 }
 
 private class FakeComplexRepository : IComplexRepository {
