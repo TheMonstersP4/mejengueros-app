@@ -14,10 +14,9 @@ import { InvalidCourtCatalogLocationFilterError } from '../../domain/errors/inva
 import type {
   ICourtCatalogFilters,
   ICourtCatalogItem,
+  ICourtCatalogPage,
   ICourtCatalogRepository
 } from '../../domain/repositories/court-catalog.repository';
-
-const PUBLIC_COURT_CATALOG_TAKE = 50;
 
 export const COURT_CATALOG_TODAY_PROVIDER = Symbol('COURT_CATALOG_TODAY_PROVIDER');
 
@@ -97,6 +96,7 @@ interface ICourtCatalogPersistenceClient {
   };
   court: {
     findMany(args: Prisma.CourtFindManyArgs): Promise<PublicCourtCatalogRow[]>;
+    count(args: Prisma.CourtCountArgs): Promise<number>;
   };
 }
 
@@ -138,53 +138,31 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
     }
   }
 
-  async listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogItem[]> {
+  async listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogPage> {
     const normalizedQuery = filters.q?.trim();
     const now = this.todayProvider();
     const todayBusinessDate = formatCostaRicaBusinessDate(now);
     const todayBusinessDayBounds = costaRicaBusinessDayBounds(todayBusinessDate);
-    const courts = (await this.prisma.court.findMany({
-      where: {
+    const { page, pageSize } = filters.pagination;
+    const skip = (page - 1) * pageSize;
+
+    // Shared filter used by both the count and the page read so the total and
+    // the returned items always describe the same result set.
+    const where: Prisma.CourtWhereInput = {
+      status: 'ACTIVE',
+      deletedAt: null,
+      isPublished: true,
+      complex: {
         status: 'ACTIVE',
         deletedAt: null,
         isPublished: true,
-        complex: {
-          status: 'ACTIVE',
-          deletedAt: null,
-          isPublished: true,
-          provinceId: filters.provinceId,
-          cantonId: filters.cantonId,
-          province: {
-            isNot: null
-          },
-          canton: {
-            isNot: null
-          },
-          ...(normalizedQuery
-            ? {
-                OR: [
-                  {
-                    name: {
-                      contains: normalizedQuery,
-                      mode: 'insensitive'
-                    }
-                  },
-                  {
-                    courts: {
-                      some: {
-                        name: {
-                          contains: normalizedQuery,
-                          mode: 'insensitive'
-                        },
-                        status: 'ACTIVE',
-                        deletedAt: null,
-                        isPublished: true
-                      }
-                    }
-                  }
-                ]
-              }
-            : {})
+        provinceId: filters.provinceId,
+        cantonId: filters.cantonId,
+        province: {
+          isNot: null
+        },
+        canton: {
+          isNot: null
         },
         ...(normalizedQuery
           ? {
@@ -196,10 +174,15 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
                   }
                 },
                 {
-                  complex: {
-                    name: {
-                      contains: normalizedQuery,
-                      mode: 'insensitive'
+                  courts: {
+                    some: {
+                      name: {
+                        contains: normalizedQuery,
+                        mode: 'insensitive'
+                      },
+                      status: 'ACTIVE',
+                      deletedAt: null,
+                      isPublished: true
                     }
                   }
                 }
@@ -207,24 +190,54 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
             }
           : {})
       },
-      take: PUBLIC_COURT_CATALOG_TAKE,
-      orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
-      select: {
-        ...PUBLIC_COURT_CATALOG_SELECT,
-        reservations: {
-          where: {
-            status: 'CONFIRMED',
-            startsAt: {
-              gte: todayBusinessDayBounds.start,
-              lt: todayBusinessDayBounds.end
+      ...(normalizedQuery
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: normalizedQuery,
+                  mode: 'insensitive'
+                }
+              },
+              {
+                complex: {
+                  name: {
+                    contains: normalizedQuery,
+                    mode: 'insensitive'
+                  }
+                }
+              }
+            ]
+          }
+        : {})
+    };
+
+    const [totalItems, courts] = await Promise.all([
+      this.prisma.court.count({ where }),
+      this.prisma.court.findMany({
+        where,
+        skip,
+        take: pageSize,
+        // The trailing `id` keeps the ordering deterministic so courts are
+        // never skipped or duplicated across incremental page reads.
+        orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }, { id: 'asc' }],
+        select: {
+          ...PUBLIC_COURT_CATALOG_SELECT,
+          reservations: {
+            where: {
+              status: 'CONFIRMED',
+              startsAt: {
+                gte: todayBusinessDayBounds.start,
+                lt: todayBusinessDayBounds.end
+              }
+            },
+            select: {
+              startsAt: true
             }
-          },
-          select: {
-            startsAt: true
           }
         }
-      }
-    })) as PublicCourtCatalogRow[];
+      }) as Promise<PublicCourtCatalogRow[]>
+    ]);
 
     const catalogCourts = courts.filter(
       (court) => court.complex.province !== null && court.complex.canton !== null
@@ -233,7 +246,7 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
       catalogCourts.map((court) => court.id)
     );
 
-    return Promise.all(
+    const items = await Promise.all(
       catalogCourts.map(async (court) => {
         const rating = ratingsByCourtId.get(court.id) ?? { average: null, count: 0 };
         const services = uniqueSortedServices([
@@ -266,6 +279,13 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
         } satisfies ICourtCatalogItem;
       })
     );
+
+    return {
+      items,
+      totalItems,
+      page,
+      pageSize
+    };
   }
 
   private async createImageUrl(objectKey: string | null): Promise<string | null> {
