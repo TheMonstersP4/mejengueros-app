@@ -7,9 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -195,6 +197,7 @@ class SearchCatalogNavigationIntegrationTest {
       }
 
       composeRule.onNodeWithText("Canchas").assertExists()
+      composeRule.onAllNodesWithText("Canchas").assertCountEquals(1)
       composeRule.onNodeWithText("Home").assertDoesNotExist()
       composeRule.onNodeWithText("Demo").assertDoesNotExist()
       composeRule
