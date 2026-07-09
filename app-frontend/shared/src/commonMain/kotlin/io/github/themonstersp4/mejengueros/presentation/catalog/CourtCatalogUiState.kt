@@ -12,10 +12,27 @@ data class CourtCatalogUiState(
     val visibleCourts: List<CourtCatalogItem> = emptyList(),
     val allCourts: List<CourtCatalogItem> = emptyList(),
     val loadErrorMessage: String? = null,
+    val currentPage: Int = 0,
+    val hasNextPage: Boolean = false,
+    val isLoadingNextPage: Boolean = false,
+    val nextPageErrorMessage: String? = null,
+    val totalCourts: Int = 0,
 ) {
   val selectedProvince: CatalogFilterOption?
     get() = availableProvinces.firstOrNull { it.id == selectedProvinceId }
 
   val selectedCanton: CatalogFilterOption?
     get() = availableCantons.firstOrNull { it.id == selectedCantonId }
+
+  /**
+   * True when the catalog can request the next page right now: there is another page, the first
+   * page already loaded, and no other load is in flight.
+   */
+  val canLoadNextPage: Boolean
+    get() =
+        hasNextPage &&
+            !isLoading &&
+            !isLoadingNextPage &&
+            loadErrorMessage == null &&
+            nextPageErrorMessage == null
 }

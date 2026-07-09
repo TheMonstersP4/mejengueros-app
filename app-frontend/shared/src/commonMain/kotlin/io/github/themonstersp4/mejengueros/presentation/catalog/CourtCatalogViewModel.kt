@@ -3,6 +3,7 @@ package io.github.themonstersp4.mejengueros.presentation.catalog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +22,7 @@ class CourtCatalogViewModel(
   private val _uiState = MutableStateFlow(CourtCatalogUiState())
   private var loadJob: Job? = null
   private var searchJob: Job? = null
+  private var nextPageJob: Job? = null
   val uiState: StateFlow<CourtCatalogUiState> = _uiState.asStateFlow()
 
   init {
@@ -30,6 +32,67 @@ class CourtCatalogViewModel(
   fun retryLoad() {
     searchJob?.cancel()
     loadCatalog()
+  }
+
+  /**
+   * Loads the next catalog page and appends it to the already visible courts. No-ops when there is
+   * no next page or another load is already running, so repeated scroll triggers cannot fire
+   * overlapping requests.
+   */
+  fun loadNextPage() {
+    val current = _uiState.value
+    if (!current.canLoadNextPage) {
+      return
+    }
+
+    val targetPage = current.currentPage + 1
+    nextPageJob?.cancel()
+    nextPageJob =
+        scope.launch {
+          _uiState.value =
+              _uiState.value.copy(isLoadingNextPage = true, nextPageErrorMessage = null)
+          try {
+            val page =
+                repository.getCatalogCourts(
+                    searchQuery = current.searchQuery,
+                    provinceId = current.selectedProvinceId,
+                    cantonId = current.selectedCantonId,
+                    page = targetPage,
+                    pageSize = PageSize,
+                )
+            val accumulated = (current.allCourts + page.items).distinctBy(CourtCatalogItem::id)
+            _uiState.value =
+                buildCourtCatalogState(
+                    accumulatedCourts = accumulated,
+                    page = page,
+                    searchQuery = current.searchQuery,
+                    selectedProvinceId = current.selectedProvinceId,
+                    selectedCantonId = current.selectedCantonId,
+                    fallbackProvinces = current.availableProvinces,
+                    fallbackCantons = current.availableCantons,
+                )
+          } catch (error: Throwable) {
+            if (error is CancellationException) {
+              throw error
+            }
+
+            _uiState.value =
+                _uiState.value.copy(
+                    isLoadingNextPage = false,
+                    nextPageErrorMessage = "No pudimos cargar más canchas. Intentá nuevamente.",
+                )
+          }
+        }
+  }
+
+  /** Retries the failed next-page load without discarding the loaded courts. */
+  fun retryNextPage() {
+    if (_uiState.value.isLoadingNextPage) {
+      return
+    }
+
+    _uiState.value = _uiState.value.copy(nextPageErrorMessage = null)
+    loadNextPage()
   }
 
   fun updateSearchQuery(value: String) {
@@ -75,20 +138,32 @@ class CourtCatalogViewModel(
 
   private fun loadCatalog() {
     loadJob?.cancel()
+    // A fresh first-page load (search/filter change or retry) supersedes any
+    // in-flight next-page request so pages from different filters never mix.
+    nextPageJob?.cancel()
     loadJob =
         scope.launch {
           val currentFilters = _uiState.value
-          _uiState.value = currentFilters.copy(isLoading = true, loadErrorMessage = null)
+          _uiState.value =
+              currentFilters.copy(
+                  isLoading = true,
+                  loadErrorMessage = null,
+                  isLoadingNextPage = false,
+                  nextPageErrorMessage = null,
+              )
           try {
-            val allCourts =
+            val firstPage =
                 repository.getCatalogCourts(
                     searchQuery = currentFilters.searchQuery,
                     provinceId = currentFilters.selectedProvinceId,
                     cantonId = currentFilters.selectedCantonId,
+                    page = 1,
+                    pageSize = PageSize,
                 )
             _uiState.value =
                 buildCourtCatalogState(
-                    allCourts = allCourts,
+                    accumulatedCourts = firstPage.items,
+                    page = firstPage,
                     searchQuery = currentFilters.searchQuery,
                     selectedProvinceId = currentFilters.selectedProvinceId,
                     selectedCantonId = currentFilters.selectedCantonId,
@@ -112,18 +187,22 @@ class CourtCatalogViewModel(
 
   companion object {
     private const val SearchDebounceMillis = 300L
+    private const val PageSize = CourtCatalogPage.DEFAULT_PAGE_SIZE
   }
 }
 
 private fun buildCourtCatalogState(
-    allCourts: List<CourtCatalogItem>,
+    accumulatedCourts: List<CourtCatalogItem>,
+    page: CourtCatalogPage,
     searchQuery: String = "",
     selectedProvinceId: String? = null,
     selectedCantonId: String? = null,
     fallbackProvinces: List<CatalogFilterOption> = emptyList(),
     fallbackCantons: List<CatalogFilterOption> = emptyList(),
 ): CourtCatalogUiState {
-  val responseProvinces = buildAvailableProvinces(allCourts)
+  // Filter options are derived from every court loaded so far, so the province
+  // and canton dropdowns keep growing as more pages stream in.
+  val responseProvinces = buildAvailableProvinces(accumulatedCourts)
   val resolvedSelectedProvince =
       selectedProvinceId?.let { provinceId ->
         responseProvinces.firstOrNull { it.id == provinceId }
@@ -131,7 +210,7 @@ private fun buildCourtCatalogState(
       }
   val availableProvinces = responseProvinces.preservingSelection(resolvedSelectedProvince)
   val normalizedProvinceId = resolvedSelectedProvince?.id
-  val responseCantons = buildAvailableCantons(allCourts, normalizedProvinceId)
+  val responseCantons = buildAvailableCantons(accumulatedCourts, normalizedProvinceId)
   val resolvedSelectedCanton =
       selectedCantonId?.let { cantonId ->
         responseCantons.firstOrNull { it.id == cantonId }
@@ -147,8 +226,14 @@ private fun buildCourtCatalogState(
       selectedCantonId = normalizedCantonId,
       availableProvinces = availableProvinces,
       availableCantons = availableCantons,
-      visibleCourts = allCourts,
-      allCourts = allCourts,
+      visibleCourts = accumulatedCourts,
+      allCourts = accumulatedCourts,
+      loadErrorMessage = null,
+      currentPage = page.page,
+      hasNextPage = page.hasNextPage,
+      isLoadingNextPage = false,
+      nextPageErrorMessage = null,
+      totalCourts = page.totalItems,
   )
 }
 

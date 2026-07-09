@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.data.remote.dto.CourtCatalogEnvelopeDto
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
@@ -17,17 +18,23 @@ class CourtCatalogRemoteDataSource(
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
-  ): List<CourtCatalogItem> {
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage {
     return try {
-      httpClient
-          .get("/v1/courts/catalog") {
-            searchQuery?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("q", it) }
-            provinceId?.let { parameter("provinceId", it) }
-            cantonId?.let { parameter("cantonId", it) }
-          }
-          .body<CourtCatalogEnvelopeDto>()
-          .data
-          .map { court ->
+      val envelope =
+          httpClient
+              .get("/v1/courts/catalog") {
+                searchQuery?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("q", it) }
+                provinceId?.let { parameter("provinceId", it) }
+                cantonId?.let { parameter("cantonId", it) }
+                parameter("page", page)
+                parameter("pageSize", pageSize)
+              }
+              .body<CourtCatalogEnvelopeDto>()
+
+      val items =
+          envelope.data.map { court ->
             CourtCatalogItem(
                 id = court.courtId,
                 complexId = court.complexId,
@@ -44,6 +51,18 @@ class CourtCatalogRemoteDataSource(
                 isReservableToday = court.isReservableToday,
             )
           }
+
+      // Fall back to the requested window when the server omits pagination
+      // metadata so the catalog never loops asking for a next page that the
+      // response cannot describe.
+      val pagination = envelope.meta.pagination
+      CourtCatalogPage(
+          items = items,
+          page = pagination?.page ?: page,
+          pageSize = pagination?.pageSize ?: pageSize,
+          totalItems = pagination?.totalItems ?: items.size,
+          totalPages = pagination?.totalPages ?: if (items.isEmpty()) 0 else page,
+      )
     } catch (error: ResponseException) {
       throw error.toAppApiException(json)
     }
