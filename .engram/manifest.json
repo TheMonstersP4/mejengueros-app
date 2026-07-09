@@ -96,6 +96,14 @@
       "sessions": 69,
       "memories": 664,
       "prompts": 421
+    },
+    {
+      "id": "716ef795",
+      "created_by": "screi",
+      "created_at": "2026-07-09T16:06:26Z",
+      "sessions": 0,
+      "memories": 2,
+      "prompts": 1
     }
   ]
 }
