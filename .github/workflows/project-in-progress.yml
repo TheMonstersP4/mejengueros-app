@@ -1,0 +1,351 @@
+name: Project In Progress
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: project-in-progress-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  move-referenced-issues-to-in-progress:
+    name: Move referenced issues to In progress
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN || github.token }}
+      PROJECT_ORG: TheMonstersP4
+      PROJECT_NUMBER: '1'
+      PROJECT_ID: PVT_kwDOEUJAlM4BZWNS
+      STATUS_FIELD_ID: PVTSSF_lADOEUJAlM4BZWNSzhUVdlM
+      IN_PROGRESS_OPTION_ID: 47fc9ee4
+    steps:
+      - name: Move referenced issues to In progress
+        # Safety invariant: this privileged workflow intentionally pins github-script to the reviewed major tag.
+        # If you change this reference, also update .github/scripts/check-workflow-safety.sh in the same change.
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ env.PROJECTS_TOKEN }}
+          script: |
+            const TRUSTED_PERMISSIONS = new Set(['admin', 'maintain', 'write']);
+            const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            function isRetryable(error) {
+              const status = error.status ?? error.response?.status;
+              if (RETRYABLE_STATUS_CODES.has(status)) {
+                return true;
+              }
+
+              const message = error.message ?? '';
+              return /ECONNRESET|ETIMEDOUT|socket hang up|fetch failed/i.test(message);
+            }
+
+            async function withRetry(label, fn, maxAttempts = 3) {
+              let lastError;
+
+              for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  lastError = error;
+                  if (attempt >= maxAttempts || !isRetryable(error)) {
+                    throw error;
+                  }
+
+                  const retryAfterSeconds = Number(error.response?.headers?.['retry-after'] ?? error.headers?.['retry-after']);
+                  const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+                    ? retryAfterSeconds * 1000
+                    : attempt * 2000;
+
+                  core.warning(
+                    `${label} failed on attempt ${attempt}/${maxAttempts} with ${error.message}. Retrying in ${delayMs}ms.`
+                  );
+                  await sleep(delayMs);
+                }
+              }
+
+              throw lastError;
+            }
+
+            const pr = context.payload.pull_request;
+            const prAuthor = pr.user?.login;
+
+            if (!prAuthor) {
+              core.setFailed('The pull_request_target payload did not include a PR author login. Refusing to mutate Project state.');
+              return;
+            }
+
+            let permissionLevel;
+            try {
+              const permissionResponse = await withRetry('Load collaborator permission', () =>
+                github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  username: prAuthor,
+                })
+              );
+
+              permissionLevel = permissionResponse.data?.permission ?? 'none';
+            } catch (error) {
+              if ((error.status ?? error.response?.status) === 404) {
+                core.info(
+                  `Skipping Project mutation because PR actor ${prAuthor} is not a trusted collaborator on ${context.repo.owner}/${context.repo.repo}.`
+                );
+                return;
+              }
+
+              core.setFailed(
+                `Unable to verify repository permission for PR actor ${prAuthor}. Refusing to mutate Project state until trust can be confirmed. GitHub API error: ${error.message}`
+              );
+              return;
+            }
+
+            if (!TRUSTED_PERMISSIONS.has(permissionLevel)) {
+              core.info(
+                `Skipping Project mutation because PR actor ${prAuthor} has repository permission ${permissionLevel}, which is outside the trusted set: ${Array.from(TRUSTED_PERMISSIONS).join(', ')}.`
+              );
+              return;
+            }
+
+            core.info(`Verified trusted PR actor ${prAuthor} with repository permission ${permissionLevel}.`);
+
+            const body = pr.body ?? '';
+            const closePattern = /\b(?:closes|fixes|resolves)\s+#(\d+)\b/gi;
+            const issueNumbers = Array.from(
+              new Set(Array.from(body.matchAll(closePattern), (match) => Number(match[1])))
+            ).sort((a, b) => a - b);
+
+            if (issueNumbers.length === 0) {
+              core.info(
+                'No referenced issues found in the PR body. Add "Closes #123", "Fixes #123", or "Resolves #123" to trigger Project status automation.'
+              );
+              return;
+            }
+
+            const projectNumber = Number(process.env.PROJECT_NUMBER);
+            const expectedProjectId = process.env.PROJECT_ID;
+            const statusFieldId = process.env.STATUS_FIELD_ID;
+            const inProgressOptionId = process.env.IN_PROGRESS_OPTION_ID;
+
+            const projectQuery = `
+              query GetProject($org: String!, $number: Int!) {
+                organization(login: $org) {
+                  projectV2(number: $number) {
+                    id
+                    title
+                    number
+                  }
+                }
+              }
+            `;
+
+            let project;
+            try {
+              const projectResult = await withRetry('Load Project v2 metadata', () =>
+                github.graphql(projectQuery, {
+                  org: process.env.PROJECT_ORG,
+                  number: projectNumber,
+                })
+              );
+              project = projectResult.organization?.projectV2;
+            } catch (error) {
+              core.setFailed(
+                `Unable to load organization Project v2 ${process.env.PROJECT_ORG}/${projectNumber}. ` +
+                  'Provide a PROJECTS_TOKEN secret with organization Projects read/write access, or grant the workflow token equivalent permissions. ' +
+                  `GitHub API error: ${error.message}`
+              );
+              return;
+            }
+
+            if (!project) {
+              core.setFailed(
+                `Organization Project v2 ${process.env.PROJECT_ORG}/${projectNumber} was not found. Verify the organization, project number, and token access.`
+              );
+              return;
+            }
+
+            if (project.id !== expectedProjectId) {
+              core.setFailed(
+                `Project lookup mismatch. Expected project id ${expectedProjectId} but GraphQL returned ${project.id}. Update the workflow constants before continuing.`
+              );
+              return;
+            }
+
+            core.info(`Using Project ${project.title} (#${project.number}) for referenced issues: ${issueNumbers.join(', ')}`);
+
+            const issueQuery = `
+              query GetIssue($owner: String!, $repo: String!, $issueNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $issueNumber) {
+                     id
+                     number
+                     url
+                     # High cap keeps idempotency deterministic for this workflow without extra pagination state.
+                     projectItems(first: 100) {
+                       nodes {
+                         id
+                         project {
+                           id
+                           title
+                        }
+                        fieldValueByName(name: "Status") {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            optionId
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const addItemMutation = `
+              mutation AddProjectItem($projectId: ID!, $contentId: ID!) {
+                addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                  item {
+                    id
+                  }
+                }
+              }
+            `;
+
+            const updateStatusMutation = `
+              mutation UpdateProjectStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { singleSelectOptionId: $optionId }
+                  }
+                ) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+            `;
+
+            const results = [];
+            const failures = [];
+
+            async function loadIssue(issueNumber) {
+              const issueResult = await withRetry(`Load issue #${issueNumber}`, () =>
+                github.graphql(issueQuery, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issueNumber,
+                })
+              );
+
+              return issueResult.repository?.issue ?? null;
+            }
+
+            function findProjectItem(issue) {
+              return issue.projectItems?.nodes?.find((item) => item.project?.id === project.id) ?? null;
+            }
+
+            function isDuplicateProjectItemError(error) {
+              const message = error.message ?? '';
+              return /already exists|already added|Duplicate/i.test(message);
+            }
+
+            for (const issueNumber of issueNumbers) {
+              try {
+                let issue = await loadIssue(issueNumber);
+                if (!issue) {
+                  failures.push(`#${issueNumber} was not found in ${context.repo.owner}/${context.repo.repo}.`);
+                  continue;
+                }
+
+                let projectItem = findProjectItem(issue);
+                let itemId = projectItem?.id ?? null;
+                let currentStatus = projectItem?.fieldValueByName?.name ?? null;
+
+                if (!itemId) {
+                  let addedToProject = false;
+                  try {
+                    const addResult = await withRetry(`Add issue #${issue.number} to Project`, () =>
+                      github.graphql(addItemMutation, {
+                        projectId: project.id,
+                        contentId: issue.id,
+                      })
+                    );
+
+                    itemId = addResult.addProjectV2ItemById?.item?.id ?? null;
+                    addedToProject = Boolean(itemId);
+                  } catch (error) {
+                    if (!isDuplicateProjectItemError(error)) {
+                      throw error;
+                    }
+
+                    core.warning(
+                      `Issue #${issue.number} add returned a duplicate-item error. Re-querying Project membership before continuing.`
+                    );
+                  }
+
+                  issue = await loadIssue(issueNumber);
+                  projectItem = findProjectItem(issue);
+                  itemId = projectItem?.id ?? itemId ?? null;
+                  currentStatus = projectItem?.fieldValueByName?.name ?? currentStatus;
+
+                  if (!itemId) {
+                    throw new Error(`Issue #${issue.number} could not be added to Project ${project.title}.`);
+                  }
+
+                  if (addedToProject) {
+                    results.push(`#${issue.number}: added to Project ${project.title}`);
+                  }
+                }
+
+                if (currentStatus === 'In progress') {
+                  results.push(`#${issue.number}: already In progress`);
+                  continue;
+                }
+
+                await withRetry(`Set issue #${issue.number} status to In progress`, () =>
+                  github.graphql(updateStatusMutation, {
+                    projectId: project.id,
+                    itemId,
+                    fieldId: statusFieldId,
+                    optionId: inProgressOptionId,
+                  })
+                );
+
+                results.push(
+                  currentStatus
+                    ? `#${issue.number}: status ${currentStatus} -> In progress`
+                    : `#${issue.number}: status set to In progress`
+                );
+              } catch (error) {
+                failures.push(
+                  `#${issueNumber} failed to update Project status. Ensure the token can read and write organization Project v2 items. GitHub API error: ${error.message}`
+                );
+              }
+            }
+
+            for (const line of results) {
+              core.info(line);
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(failures.join(' '));
+              return;
+            }
+
+            core.info('Referenced issues are aligned to Project status In progress.');
