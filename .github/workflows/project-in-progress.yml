@@ -24,14 +24,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN || github.token }}
+      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+      HAS_PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN != '' }}
       PROJECT_ORG: TheMonstersP4
       PROJECT_NUMBER: '1'
       PROJECT_ID: PVT_kwDOEUJAlM4BZWNS
       STATUS_FIELD_ID: PVTSSF_lADOEUJAlM4BZWNSzhUVdlM
       IN_PROGRESS_OPTION_ID: 47fc9ee4
     steps:
+      - name: Skip Project mutation when PROJECTS_TOKEN is unavailable
+        if: ${{ env.HAS_PROJECTS_TOKEN != 'true' }}
+        run: |
+          echo "::warning::PROJECTS_TOKEN is not configured. Skipping Project status automation instead of failing the pull request."
+
       - name: Move referenced issues to In progress
+        if: ${{ env.HAS_PROJECTS_TOKEN == 'true' }}
         # Safety invariant: this privileged workflow intentionally pins github-script to the reviewed major tag.
         # If you change this reference, also update .github/scripts/check-workflow-safety.sh in the same change.
         uses: actions/github-script@v7
