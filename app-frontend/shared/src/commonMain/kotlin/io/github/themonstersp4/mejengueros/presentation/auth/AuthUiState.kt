@@ -21,6 +21,7 @@ data class AuthUiState(
     val codeInput: String = "",
     val newPasswordInput: String = "",
     val successMessage: String? = null,
+    val isPasswordResetConfirmed: Boolean = false,
 ) {
   val title: String
     get() = displayName ?: email
