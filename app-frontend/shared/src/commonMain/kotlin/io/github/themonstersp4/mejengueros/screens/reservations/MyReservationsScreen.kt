@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationCardUiModel
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsUiState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosButtonSize
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
@@ -215,6 +216,7 @@ private fun MyReservationCard(
             MejenguerosFullWidthPrimaryButton(
                 text = label,
                 onClick = { actions.onReviewRequested(card) },
+                size = MejenguerosButtonSize.Compact,
                 modifier = Modifier.testTag("my_reservation_action_${card.id}"),
             )
           }
