@@ -11,6 +11,8 @@ import { ListActiveServicesUseCase } from '@/modules/service-catalog/application
 import { PrismaServiceCatalogRepository } from '@/modules/service-catalog/infrastructure/persistence/prisma-service-catalog.repository';
 import { ServiceCatalogController } from '@/modules/service-catalog/interfaces/http/controllers/service-catalog.controller';
 
+
+const DEFAULT_PAGINATION = { page: 1, pageSize: 20 };
 const FIXED_MONDAY = new Date('2026-06-22T12:00:00.000Z');
 const CATALOG_IMAGE_READ_URL = 'https://read.example.test/courts/court-id.jpg';
 const COSTA_RICA_UTC_ROLLOVER_INSTANT = '2026-07-05T02:24:00.000Z';
@@ -109,35 +111,52 @@ describe('catalog modules behavior', () => {
     });
   });
 
-  it('validates province/canton filters and delegates public court catalog listing', async () => {
+  it('validates province/canton filters and delegates paginated public court catalog listing', async () => {
     const repository = {
       assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
-      listPublicCatalog: jest.fn().mockResolvedValue([
-        {
-          courtId: 'court-id',
-          courtName: 'Court A',
-          complexId: 'complex-id',
-          complexName: 'North Sports Center',
-          province: { id: 'province-id', name: 'San José' },
-          canton: { id: 'canton-id', name: 'Escazú' },
-          services: ['Sintetico'],
-          rating: { average: 4.5, count: 2 },
-          isReservableToday: true,
-          imageUrl: null
-        }
-      ])
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [
+          {
+            courtId: 'court-id',
+            courtName: 'Court A',
+            complexId: 'complex-id',
+            complexName: 'North Sports Center',
+            province: { id: 'province-id', name: 'San José' },
+            canton: { id: 'canton-id', name: 'Escazú' },
+            services: ['Sintetico'],
+            rating: { average: 4.5, count: 2 },
+            isReservableToday: true,
+            imageUrl: null
+          }
+        ],
+        totalItems: 42,
+        page: 2,
+        pageSize: 20
+      })
     };
     const useCase = new ListPublicCourtCatalogUseCase(repository);
     const controller = new CourtsController(useCase);
 
-    await expect(
-      controller.listCatalog({ q: 'north', provinceId: 'province-id', cantonId: 'canton-id' })
-    ).resolves.toEqual([
+    const response = await controller.listCatalog({
+      q: 'north',
+      provinceId: 'province-id',
+      cantonId: 'canton-id',
+      page: 2,
+      pageSize: 20
+    });
+
+    expect(response.data).toEqual([
       expect.objectContaining({
         courtId: 'court-id',
         services: ['Sintetico']
       })
     ]);
+    expect(response.meta?.pagination).toEqual({
+      page: 2,
+      pageSize: 20,
+      totalItems: 42,
+      totalPages: 3
+    });
     expect(repository.assertProvinceAndCantonMatch).toHaveBeenCalledWith(
       'province-id',
       'canton-id'
@@ -145,8 +164,35 @@ describe('catalog modules behavior', () => {
     expect(repository.listPublicCatalog).toHaveBeenCalledWith({
       q: 'north',
       provinceId: 'province-id',
-      cantonId: 'canton-id'
+      cantonId: 'canton-id',
+      pagination: { page: 2, pageSize: 20 }
     });
+  });
+
+  it('exposes empty pagination metadata when the catalog has no matches', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 20
+      })
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    const response = await controller.listCatalog({ page: 1, pageSize: 20 });
+
+    expect(response.data).toEqual([]);
+    expect(response.meta?.pagination).toEqual({
+      page: 1,
+      pageSize: 20,
+      totalItems: 0,
+      totalPages: 0
+    });
+    // No location pair is provided, so the province/canton guard is skipped.
+    expect(repository.assertProvinceAndCantonMatch).not.toHaveBeenCalled();
   });
 
   it('builds Prisma queries for the public court catalog and validates province/canton pairs', async () => {
@@ -157,6 +203,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'canton-id' })
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           {
             id: 'court-id',
@@ -193,20 +240,35 @@ describe('catalog modules behavior', () => {
       repository.listPublicCatalog({
         q: 'north',
         provinceId: 'province-id',
-        cantonId: 'canton-id'
+        cantonId: 'canton-id',
+        pagination: { page: 2, pageSize: 20 }
       })
-    ).resolves.toEqual([
-      expect.objectContaining({
-        courtId: 'court-id',
-        rating: { average: 4.5, count: 2 },
-        isReservableToday: true
-      })
-    ]);
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          courtId: 'court-id',
+          rating: { average: 4.5, count: 2 },
+          isReservableToday: true
+        })
+      ],
+      totalItems: 1,
+      page: 2,
+      pageSize: 20
+    });
 
     expect(prisma.canton.findFirst).toHaveBeenCalledWith({
       where: { id: 'canton-id', provinceId: 'province-id' },
       select: { id: true }
     });
+    expect(prisma.court.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'ACTIVE',
+          deletedAt: null,
+          isPublished: true
+        })
+      })
+    );
     expect(prisma.court.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -221,8 +283,9 @@ describe('catalog modules behavior', () => {
             cantonId: 'canton-id'
           })
         }),
-        take: 50,
-        orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }],
+        skip: 20,
+        take: 20,
+        orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }, { id: 'asc' }],
         select: expect.objectContaining({
           complex: expect.any(Object),
           services: expect.any(Object),
@@ -252,6 +315,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'canton-id' })
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           {
             id: 'court-id',
@@ -273,14 +337,18 @@ describe('catalog modules behavior', () => {
     };
     const repository = new PrismaCourtCatalogRepository(prisma as never, fileStorage);
 
-    await expect(repository.listPublicCatalog({})).resolves.toEqual([
-      expect.objectContaining({
+    await expect(
+      repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })
+    ).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
         courtId: 'court-id',
         rating: { average: null, count: 0 },
         isReservableToday: false,
         imageUrl: null
-      })
-    ]);
+        })
+      ]
+    });
     expect(fileStorage.createReadUrl).not.toHaveBeenCalled();
   });
 
@@ -297,6 +365,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn()
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           createCatalogCourtRow({
             id: 'court-a',
@@ -313,8 +382,11 @@ describe('catalog modules behavior', () => {
     };
     const repository = new PrismaCourtCatalogRepository(prisma as never, fileStorage);
 
-    await expect(repository.listPublicCatalog({})).resolves.toEqual([
-      expect.objectContaining({
+    await expect(
+      repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })
+    ).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
         courtId: 'court-a',
         imageUrl: 'https://read.example.test/courts/court-a.jpg'
       }),
@@ -322,7 +394,8 @@ describe('catalog modules behavior', () => {
         courtId: 'court-b',
         imageUrl: 'https://read.example.test/courts/court-b.jpg'
       })
-    ]);
+      ]
+    });
     expect(fileStorage.createReadUrl.mock.calls).toEqual([
       ['test/uploads/court-image/court-a.jpg'],
       ['test/uploads/court-image/court-b.jpg']
@@ -340,6 +413,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn()
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           createCatalogCourtRow({
             id: 'court-id',
@@ -351,7 +425,7 @@ describe('catalog modules behavior', () => {
     };
     const repository = new PrismaCourtCatalogRepository(prisma as never, fileStorage);
 
-    await expect(repository.listPublicCatalog({})).rejects.toThrow(StorageInspectionError);
+    await expect(repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })).rejects.toThrow(StorageInspectionError);
   });
 
   it('calculates isReservableToday from the injected date provider', async () => {
@@ -362,6 +436,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn()
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           {
             id: 'court-id',
@@ -391,12 +466,16 @@ describe('catalog modules behavior', () => {
       () => FIXED_MONDAY
     );
 
-    await expect(repository.listPublicCatalog({})).resolves.toEqual([
-      expect.objectContaining({
+    await expect(
+      repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })
+    ).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
         courtId: 'court-id',
         isReservableToday: false
-      })
-    ]);
+        })
+      ]
+    });
   });
 
   it('uses the Costa Rica business weekday for isReservableToday near UTC rollover boundaries', async () => {
@@ -407,6 +486,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn()
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           {
             id: 'court-id',
@@ -436,12 +516,16 @@ describe('catalog modules behavior', () => {
       () => new Date('2026-06-23T00:30:00.000Z')
     );
 
-    await expect(repository.listPublicCatalog({})).resolves.toEqual([
-      expect.objectContaining({
+    await expect(
+      repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })
+    ).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
         courtId: 'court-id',
         isReservableToday: true
-      })
-    ]);
+        })
+      ]
+    });
   });
 
   it('uses real same-day slot availability when calculating isReservableToday', async () => {
@@ -452,6 +536,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn()
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([
           {
             id: 'court-id',
@@ -481,12 +566,16 @@ describe('catalog modules behavior', () => {
       () => new Date('2026-06-22T23:45:00.000Z')
     );
 
-    await expect(repository.listPublicCatalog({})).resolves.toEqual([
-      expect.objectContaining({
+    await expect(
+      repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })
+    ).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
         courtId: 'court-id',
         isReservableToday: true
-      })
-    ]);
+        })
+      ]
+    });
   });
 
   it('locks catalog reservation queries to Costa Rica day bounds near UTC rollover', async () => {
@@ -518,6 +607,7 @@ describe('catalog modules behavior', () => {
         findFirst: jest.fn()
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany
       }
     };
@@ -527,12 +617,16 @@ describe('catalog modules behavior', () => {
       () => new Date(COSTA_RICA_UTC_ROLLOVER_INSTANT)
     );
 
-    await expect(repository.listPublicCatalog({})).resolves.toEqual([
-      expect.objectContaining({
+    await expect(
+      repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION })
+    ).resolves.toMatchObject({
+      items: [
+        expect.objectContaining({
         courtId: 'court-id',
         isReservableToday: true
-      })
-    ]);
+        })
+      ]
+    });
 
     const startsAtBounds = findMany.mock.calls[0]?.[0]?.select?.reservations?.where?.startsAt;
 

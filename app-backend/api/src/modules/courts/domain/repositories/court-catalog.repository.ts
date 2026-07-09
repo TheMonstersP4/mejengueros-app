@@ -1,7 +1,13 @@
+export interface ICourtCatalogPagination {
+  page: number;
+  pageSize: number;
+}
+
 export interface ICourtCatalogFilters {
   q?: string;
   provinceId?: string;
   cantonId?: string;
+  pagination: ICourtCatalogPagination;
 }
 
 export interface ICourtCatalogLocationItem {
@@ -27,9 +33,16 @@ export interface ICourtCatalogItem {
   imageUrl: string | null;
 }
 
+export interface ICourtCatalogPage {
+  items: ICourtCatalogItem[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface ICourtCatalogRepository {
   assertProvinceAndCantonMatch(provinceId: string, cantonId: string): Promise<void>;
-  listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogItem[]>;
+  listPublicCatalog(filters: ICourtCatalogFilters): Promise<ICourtCatalogPage>;
 }
 
 export const COURT_CATALOG_REPOSITORY = Symbol('COURT_CATALOG_REPOSITORY');
