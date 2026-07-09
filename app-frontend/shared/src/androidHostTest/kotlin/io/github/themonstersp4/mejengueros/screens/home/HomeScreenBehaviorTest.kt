@@ -62,6 +62,27 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
+  fun searchHeaderKeepsSearchAndPrimaryFilters() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state = CourtCatalogUiState(isLoading = false),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Buscar cancha o complejo").assertExists()
+    composeRule.onNodeWithText("Provincia").assertExists()
+    composeRule.onNodeWithText("Cantón").assertExists()
+  }
+
+  @Test
   fun playerCatalogDoesNotContainProminentOwnerCtaCard() {
     composeRule.setContent {
       MejenguerosTheme {
