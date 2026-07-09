@@ -11,7 +11,12 @@ if [ ! -f "$zip_file" ]; then
 fi
 
 if [ -z "$function_name" ]; then
-  echo "RESERVATION_COMPLETION_WORKER_FUNCTION_NAME is empty. Enable the worker in Terraform first." >&2
+  echo "RESERVATION_COMPLETION_WORKER_FUNCTION_NAME is empty. Reservation completion worker deploy skipped."
+  exit 0
+fi
+
+if ! aws lambda get-function --function-name "$function_name" --region "$region" >/dev/null 2>&1; then
+  echo "Lambda function $function_name does not exist yet. Apply Terraform with reservation_completion_worker_enabled=true first." >&2
   exit 1
 fi
 

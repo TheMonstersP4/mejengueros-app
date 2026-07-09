@@ -49,7 +49,7 @@ fun PasswordResetScreen(
   var newPassword by rememberSaveable { mutableStateOf("") }
   val sanitizedCode = code.filter { it.isDigit() }.take(6)
   val formEnabled = !state.isLoading
-  val passwordWasUpdated = state.successMessage != null
+  val passwordWasUpdated = state.isPasswordResetConfirmed
 
   Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
     Column(

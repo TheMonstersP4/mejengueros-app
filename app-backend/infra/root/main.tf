@@ -1,21 +1,21 @@
 locals {
   name_prefix = "${var.project}-${var.env}"
 
-  cognito_domain_prefix                  = "${local.name_prefix}-auth"
-  cognito_identity_provider_redirect_url = "https://${local.cognito_domain_prefix}.auth.${var.aws_region}.amazoncognito.com/oauth2/idpresponse"
-  api_lambda_image_uri                   = "${module.ecr_api.repository_url}:${var.api_lambda_image_tag}"
-  api_http_deploy_enabled                = var.api_http_enabled
-  api_lambda_vpc_enabled                 = local.api_http_deploy_enabled && var.api_lambda_vpc_enabled
-  reservation_completion_worker_deploy_enabled = var.reservation_completion_worker_enabled && var.reservation_completion_worker_package_filename != ""
-  reservation_completion_worker_vpc_enabled    = local.reservation_completion_worker_deploy_enabled && var.api_lambda_vpc_enabled
+  cognito_domain_prefix                          = "${local.name_prefix}-auth"
+  cognito_identity_provider_redirect_url         = "https://${local.cognito_domain_prefix}.auth.${var.aws_region}.amazoncognito.com/oauth2/idpresponse"
+  api_lambda_image_uri                           = "${module.ecr_api.repository_url}:${var.api_lambda_image_tag}"
+  api_http_deploy_enabled                        = var.api_http_enabled
+  api_lambda_vpc_enabled                         = local.api_http_deploy_enabled && var.api_lambda_vpc_enabled
+  reservation_completion_worker_deploy_enabled   = var.reservation_completion_worker_enabled && var.reservation_completion_worker_package_filename != ""
+  reservation_completion_worker_vpc_enabled      = local.reservation_completion_worker_deploy_enabled && var.api_lambda_vpc_enabled
   reservation_completion_worker_source_code_hash = local.reservation_completion_worker_deploy_enabled ? (var.reservation_completion_worker_package_source_code_hash != "" ? var.reservation_completion_worker_package_source_code_hash : filebase64sha256(var.reservation_completion_worker_package_filename)) : null
-  api_gateway_access_logs_enabled        = (local.api_http_deploy_enabled && var.http_api_access_log_enabled) || var.websocket_access_log_enabled
-  api_database_secret_arn                = var.api_database_secret_arn != "" ? var.api_database_secret_arn : (var.api_database_secret_enabled ? aws_secretsmanager_secret.database_url[0].arn : "")
-  websocket_lambda_deploy_enabled        = var.websocket_lambda_enabled && var.websocket_lambda_package_filename != ""
-  websocket_lambda_source_code_hash      = local.websocket_lambda_deploy_enabled ? (var.websocket_lambda_package_source_code_hash != "" ? var.websocket_lambda_package_source_code_hash : filebase64sha256(var.websocket_lambda_package_filename)) : null
-  websocket_connections_table_name       = var.websocket_connections_table_name != "" ? var.websocket_connections_table_name : "${local.name_prefix}-ws-connections"
-  poc_site_domain                        = var.poc_site_subdomain != "" ? "${var.poc_site_subdomain}.${var.poc_site_domain_name}" : var.poc_site_domain_name
-  github_deploy_repositories             = distinct(compact(concat(var.github_repository != "" ? [var.github_repository] : [], var.github_repositories)))
+  api_gateway_access_logs_enabled                = (local.api_http_deploy_enabled && var.http_api_access_log_enabled) || var.websocket_access_log_enabled
+  api_database_secret_arn                        = var.api_database_secret_arn != "" ? var.api_database_secret_arn : (var.api_database_secret_enabled ? aws_secretsmanager_secret.database_url[0].arn : "")
+  websocket_lambda_deploy_enabled                = var.websocket_lambda_enabled && var.websocket_lambda_package_filename != ""
+  websocket_lambda_source_code_hash              = local.websocket_lambda_deploy_enabled ? (var.websocket_lambda_package_source_code_hash != "" ? var.websocket_lambda_package_source_code_hash : filebase64sha256(var.websocket_lambda_package_filename)) : null
+  websocket_connections_table_name               = var.websocket_connections_table_name != "" ? var.websocket_connections_table_name : "${local.name_prefix}-ws-connections"
+  poc_site_domain                                = var.poc_site_subdomain != "" ? "${var.poc_site_subdomain}.${var.poc_site_domain_name}" : var.poc_site_domain_name
+  github_deploy_repositories                     = distinct(compact(concat(var.github_repository != "" ? [var.github_repository] : [], var.github_repositories)))
 
   database_url = var.postgres_enabled ? "postgresql://${var.postgres_master_username}:${urlencode(module.postgres[0].master_password)}@${module.postgres[0].endpoint}:${module.postgres[0].port}/${module.postgres[0].db_name}?schema=public" : ""
 
@@ -454,30 +454,19 @@ module "reservation_completion_worker_lambda" {
   ]
 }
 
-resource "aws_cloudwatch_event_rule" "reservation_completion_worker" {
-  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
+module "reservation_completion_worker_schedule" {
+  source = "../modules/aws/eventbridge_scheduled_lambda"
+  count  = local.reservation_completion_worker_deploy_enabled ? 1 : 0
 
-  name                = "${local.name_prefix}-reservation-completion"
-  description         = "Triggers the reservation completion worker for expired confirmed reservations."
-  schedule_expression = var.reservation_completion_worker_schedule_expression
-}
-
-resource "aws_cloudwatch_event_target" "reservation_completion_worker" {
-  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
-
-  rule      = aws_cloudwatch_event_rule.reservation_completion_worker[0].name
-  target_id = "reservation-completion-worker"
-  arn       = module.reservation_completion_worker_lambda[0].function_arn
-}
-
-resource "aws_lambda_permission" "reservation_completion_worker_events" {
-  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
-
-  statement_id  = "AllowExecutionFromEventBridgeReservationCompletion"
-  action        = "lambda:InvokeFunction"
-  function_name = module.reservation_completion_worker_lambda[0].function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.reservation_completion_worker[0].arn
+  name                             = "${local.name_prefix}-reservation-completion"
+  description                      = "Triggers the reservation completion worker for expired confirmed reservations."
+  schedule_expression              = var.reservation_completion_worker_schedule_expression
+  target_id                        = "reservation-completion-worker"
+  lambda_function_name             = module.reservation_completion_worker_lambda[0].function_name
+  lambda_function_arn              = module.reservation_completion_worker_lambda[0].function_arn
+  permission_statement_id          = "AllowExecutionFromEventBridgeReservationCompletion"
+  failed_invocations_alarm_name    = "${local.name_prefix}-reservation-completion-eventbridge-failures"
+  failed_invocations_alarm_actions = var.reservation_completion_worker_alarm_actions
 }
 
 resource "aws_cloudwatch_metric_alarm" "reservation_completion_worker_lambda_errors" {
@@ -498,27 +487,6 @@ resource "aws_cloudwatch_metric_alarm" "reservation_completion_worker_lambda_err
 
   dimensions = {
     FunctionName = module.reservation_completion_worker_lambda[0].function_name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "reservation_completion_worker_failed_invocations" {
-  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
-
-  alarm_name          = "${local.name_prefix}-reservation-completion-eventbridge-failures"
-  alarm_description   = "Reservation completion worker EventBridge target reported failed invocations."
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = 1
-  metric_name         = "FailedInvocations"
-  namespace           = "AWS/Events"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 1
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = var.reservation_completion_worker_alarm_actions
-  ok_actions          = var.reservation_completion_worker_alarm_actions
-
-  dimensions = {
-    RuleName = aws_cloudwatch_event_rule.reservation_completion_worker[0].name
   }
 }
 

@@ -71,6 +71,7 @@ class AuthViewModel(
         _uiState.value.copy(
             errorMessage = null,
             successMessage = null,
+            isPasswordResetConfirmed = false,
             pendingProvider = null,
             isExternalAuthInProgress = false,
         )
@@ -200,6 +201,7 @@ class AuthViewModel(
               emailInput = email.trim(),
               successMessage = "Si la cuenta existe, enviamos un código de recuperación.",
               errorMessage = null,
+              isPasswordResetConfirmed = false,
           )
       onCodeSent()
     }
@@ -235,6 +237,7 @@ class AuthViewModel(
               newPasswordInput = "",
               successMessage = "Contraseña actualizada. Ya puedes iniciar sesión.",
               errorMessage = null,
+              isPasswordResetConfirmed = true,
           )
       onConfirmed()
     }
@@ -324,6 +327,7 @@ class AuthViewModel(
               isExternalAuthInProgress = true,
               errorMessage = null,
               successMessage = null,
+              isPasswordResetConfirmed = false,
           )
       runCatching {
             val request = authRepository.createSignInRequest(provider)
@@ -358,6 +362,7 @@ class AuthViewModel(
               isExternalAuthInProgress = false,
               errorMessage = null,
               successMessage = null,
+              isPasswordResetConfirmed = false,
           )
       runCatching { action() }
           .onFailure { error ->
@@ -368,6 +373,7 @@ class AuthViewModel(
                     isExternalAuthInProgress = false,
                     errorMessage =
                         resolveAuthErrorMessage(error, "No se pudo completar la solicitud."),
+                    isPasswordResetConfirmed = false,
                 )
           }
     }
@@ -382,6 +388,7 @@ class AuthViewModel(
                 isExternalAuthInProgress = true,
                 errorMessage = null,
                 successMessage = null,
+                isPasswordResetConfirmed = false,
             )
         runCatching { authRepository.handleCallback(callbackUrl) }
             .onSuccess(::applyAuthenticatedSession)
@@ -432,6 +439,7 @@ class AuthViewModel(
             isExternalAuthInProgress = false,
             errorMessage = null,
             successMessage = null,
+            isPasswordResetConfirmed = false,
         )
   }
 
@@ -455,6 +463,7 @@ class AuthViewModel(
             isExternalAuthInProgress = false,
             errorMessage = null,
             successMessage = null,
+            isPasswordResetConfirmed = false,
         )
   }
 

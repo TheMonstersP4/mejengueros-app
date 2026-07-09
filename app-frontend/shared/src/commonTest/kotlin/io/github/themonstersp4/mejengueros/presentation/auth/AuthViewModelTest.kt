@@ -842,6 +842,8 @@ class AuthViewModelTest {
         onCodeSent = { resetOpenedCount++ },
     )
     advanceUntilIdle()
+    assertFalse(viewModel.uiState.value.isPasswordResetConfirmed)
+
     viewModel.confirmPasswordReset(
         code = "123456",
         newPassword = "new-password",
@@ -852,6 +854,7 @@ class AuthViewModelTest {
     assertEquals("player@example.com", repository.receivedForgotEmail)
     assertEquals("player@example.com", repository.receivedResetEmail)
     assertEquals("123456", repository.receivedResetCode)
+    assertTrue(viewModel.uiState.value.isPasswordResetConfirmed)
     assertEquals(1, resetOpenedCount)
     assertEquals(1, loginOpenedCount)
     scope.cancel()
