@@ -299,7 +299,7 @@ internal fun SearchCatalogEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
-      chrome = AuthenticatedScaffoldChrome(title = "Buscar"),
+      chrome = AuthenticatedScaffoldChrome(title = "Canchas"),
       topBarActions = {
         if (!shellActions.isOwner) {
           IconButton(onClick = shellActions.openCreateComplex) {
