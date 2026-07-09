@@ -9,8 +9,11 @@ import {
   type ICreateReviewCommand,
   type IListOwnerCourtReviewsQuery,
   type IListOwnerCourtReviewsResult,
+  type IListPublicCourtReviewsQuery,
+  type IListPublicCourtReviewsResult,
   type IOwnerCourtReviewItem,
   type IOwnerCourtReviewsSummary,
+  type IPublicCourtReviewItem,
   type IReservationForReviewSnapshot,
   type IReviewRepository,
   type IReviewableReservationSnapshot
@@ -32,12 +35,25 @@ interface IOwnerReviewRawClient {
 interface IOwnerReviewPersistenceClient extends IOwnerReviewRawClient {
   court: {
     findMany: PrismaService['court']['findMany'];
+    findFirst: PrismaService['court']['findFirst'];
   };
   review: {
     findMany: PrismaService['review']['findMany'];
     count: PrismaService['review']['count'];
   };
 }
+
+type PublicReviewRow = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: Date;
+  reservation: {
+    user: {
+      name: string | null;
+    };
+  };
+};
 
 interface IOwnerReviewsAggregateRow {
   average: number | string | null;
@@ -153,6 +169,87 @@ export class PrismaReviewRepository implements IReviewRepository {
 
     return {
       summary,
+      items,
+      totalItems,
+      page,
+      pageSize
+    };
+  }
+
+  async findPubliclyVisibleCourtId(courtId: string): Promise<string | null> {
+    const court = await this.prisma.court.findFirst({
+      where: {
+        id: courtId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        isPublished: true,
+        complex: {
+          status: 'ACTIVE',
+          deletedAt: null,
+          isPublished: true
+        }
+      },
+      select: { id: true }
+    });
+
+    return court?.id ?? null;
+  }
+
+  async listPublicCourtReviews(
+    query: IListPublicCourtReviewsQuery
+  ): Promise<IListPublicCourtReviewsResult> {
+    const { page, pageSize } = query.pagination;
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const [totalItems, rows, aggregate] = await Promise.all([
+      this.prisma.review.count({
+        where: {
+          reservation: {
+            courtId: query.courtId
+          }
+        }
+      }),
+      this.prisma.review.findMany({
+        where: {
+          reservation: {
+            courtId: query.courtId
+          }
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          reservation: {
+            select: {
+              user: { select: { name: true } }
+            }
+          }
+        }
+      }),
+      this.loadAggregateRating([query.courtId])
+    ]);
+
+    const items: IPublicCourtReviewItem[] = (rows as PublicReviewRow[]).map((row) => ({
+      reviewId: row.id,
+      rating: row.rating,
+      comment: row.comment,
+      createdAt: row.createdAt.toISOString(),
+      reviewer: {
+        displayName: buildReviewerDisplayName(row.reservation.user.name),
+        initials: buildReviewerInitials(row.reservation.user.name)
+      }
+    }));
+
+    return {
+      summary: {
+        totalReviews: totalItems,
+        averageRating: this.normalizeAverage(aggregate?.average)
+      },
       items,
       totalItems,
       page,

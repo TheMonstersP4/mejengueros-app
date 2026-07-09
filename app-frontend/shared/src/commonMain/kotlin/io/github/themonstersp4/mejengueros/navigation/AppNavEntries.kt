@@ -385,6 +385,7 @@ internal fun CatalogCourtDetailEntryContent(
         imageUrl = route.imageUrl,
         state = state,
         contentPadding = contentPadding,
+        onRetryReviews = viewModel::retryLoadReviews,
         onReserve = {
           shellActions.openCatalogReservation(
               CatalogReservationRoute(

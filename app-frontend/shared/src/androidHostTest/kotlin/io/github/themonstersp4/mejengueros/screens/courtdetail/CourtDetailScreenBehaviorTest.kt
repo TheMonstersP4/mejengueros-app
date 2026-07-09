@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import io.github.themonstersp4.mejengueros.domain.model.CourtReview
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailSlot
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailUiState
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
@@ -43,6 +44,7 @@ class CourtDetailScreenBehaviorTest {
             contentPadding = PaddingValues(),
             onReserve = {},
             onRetrySlots = {},
+            onRetryReviews = {},
         )
       }
     }
@@ -77,6 +79,7 @@ class CourtDetailScreenBehaviorTest {
             contentPadding = PaddingValues(),
             onReserve = {},
             onRetrySlots = {},
+            onRetryReviews = {},
         )
       }
     }
@@ -113,6 +116,7 @@ class CourtDetailScreenBehaviorTest {
             contentPadding = PaddingValues(),
             onReserve = {},
             onRetrySlots = {},
+            onRetryReviews = {},
         )
       }
     }
@@ -138,6 +142,7 @@ class CourtDetailScreenBehaviorTest {
             contentPadding = PaddingValues(),
             onReserve = {},
             onRetrySlots = {},
+            onRetryReviews = {},
         )
       }
     }
@@ -171,11 +176,87 @@ class CourtDetailScreenBehaviorTest {
             contentPadding = PaddingValues(),
             onReserve = {},
             onRetrySlots = {},
+            onRetryReviews = {},
         )
       }
     }
 
     composeRule.onNodeWithTag("court_detail_retry_slots_button").assertExists()
     composeRule.onNodeWithText("Sin disponibilidad").assertExists()
+  }
+
+  @Test
+  fun detailScreenRendersReviewsSectionWithPublishedReviews() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = 4.5,
+            ratingCount = 8,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    isLoadingReviews = false,
+                    reviews =
+                        listOf(
+                            CourtReview(
+                                id = "review-a",
+                                rating = 5,
+                                comment = "Cancha impecable, volvería.",
+                                authorName = "Diego R.",
+                                authorInitials = "DR",
+                                dateLabel = "2 de julio de 2026",
+                            ),
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_detail_resenas_section").assertExists()
+    composeRule.onNodeWithTag("court_detail_review_review-a").assertExists()
+    composeRule.onNodeWithText("Diego R.").assertExists()
+    composeRule.onNodeWithText("Cancha impecable, volvería.").assertExists()
+    composeRule.onNodeWithTag("court_detail_no_reviews_state").assertDoesNotExist()
+  }
+
+  @Test
+  fun detailScreenRendersEmptyReviewsStateWhenCourtHasNoReviews() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    isLoadingReviews = false,
+                    reviews = emptyList(),
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_detail_no_reviews_state").assertExists()
+    composeRule.onNodeWithText("Todavía no hay reseñas").assertExists()
   }
 }

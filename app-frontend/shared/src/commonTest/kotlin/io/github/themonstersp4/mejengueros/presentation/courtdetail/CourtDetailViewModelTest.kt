@@ -1,9 +1,11 @@
 package io.github.themonstersp4.mejengueros.presentation.courtdetail
 
+import io.github.themonstersp4.mejengueros.domain.model.CourtReview
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationAvailabilityStatus
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -32,6 +34,7 @@ class CourtDetailViewModelTest {
               CourtDetailViewModel(
                   courtId = "court-1",
                   repository = repository,
+                  reviewsRepository = FakeCourtReviewsRepository(),
                   coroutineScope = this,
               )
 
@@ -61,6 +64,7 @@ class CourtDetailViewModelTest {
               CourtDetailViewModel(
                   courtId = "court-1",
                   repository = repository,
+                  reviewsRepository = FakeCourtReviewsRepository(),
                   coroutineScope = this,
               )
 
@@ -84,6 +88,7 @@ class CourtDetailViewModelTest {
               CourtDetailViewModel(
                   courtId = "court-1",
                   repository = FailingCourtDetailRepository(),
+                  reviewsRepository = FakeCourtReviewsRepository(),
                   coroutineScope = this,
               )
 
@@ -107,6 +112,7 @@ class CourtDetailViewModelTest {
               CourtDetailViewModel(
                   courtId = "court-1",
                   repository = repository,
+                  reviewsRepository = FakeCourtReviewsRepository(),
                   coroutineScope = this,
               )
 
@@ -142,6 +148,7 @@ class CourtDetailViewModelTest {
               CourtDetailViewModel(
                   courtId = "court-1",
                   repository = repository,
+                  reviewsRepository = FakeCourtReviewsRepository(),
                   coroutineScope = this,
               )
 
@@ -175,12 +182,115 @@ class CourtDetailViewModelTest {
               CourtDetailViewModel(
                   courtId = "court-1",
                   repository = repository,
+                  reviewsRepository = FakeCourtReviewsRepository(),
                   coroutineScope = this,
               )
 
           advanceUntilIdle()
 
           assertEquals("Hoy · slots de 1 hora", viewModel.uiState.value.availabilityHeadline)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun initLoadsPublishedReviewsAndExposesThem() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(reviews = defaultReviews),
+                  coroutineScope = this,
+              )
+
+          assertTrue(viewModel.uiState.value.isLoadingReviews)
+
+          advanceUntilIdle()
+
+          assertFalse(viewModel.uiState.value.isLoadingReviews)
+          assertNull(viewModel.uiState.value.reviewsErrorMessage)
+          assertEquals(
+              listOf("Diego R.", "María S."),
+              viewModel.uiState.value.reviews.map { it.authorName },
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun initWithNoReviewsExposesEmptyReviewsWithoutError() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(reviews = emptyList()),
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+
+          assertFalse(viewModel.uiState.value.isLoadingReviews)
+          assertNull(viewModel.uiState.value.reviewsErrorMessage)
+          assertTrue(viewModel.uiState.value.reviews.isEmpty())
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun reviewsFailureExposesErrorWithoutBreakingSlots() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FailingCourtReviewsRepository(),
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+
+          assertNotNull(viewModel.uiState.value.reviewsErrorMessage)
+          assertTrue(viewModel.uiState.value.reviews.isEmpty())
+          // A reviews failure must not blank out the availability slots.
+          assertEquals(3, viewModel.uiState.value.slots.size)
+          assertNull(viewModel.uiState.value.slotsErrorMessage)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun retryLoadReviewsClearsErrorAndRestoresReviewsAfterTransientFailure() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FlakyCourtReviewsRepository(reviews = defaultReviews),
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+          assertNotNull(viewModel.uiState.value.reviewsErrorMessage)
+
+          viewModel.retryLoadReviews()
+          advanceUntilIdle()
+
+          assertNull(viewModel.uiState.value.reviewsErrorMessage)
+          assertEquals(2, viewModel.uiState.value.reviews.size)
         } finally {
           Dispatchers.resetMain()
         }
@@ -237,5 +347,49 @@ private class FlakyCourtDetailRepository(
     attempts += 1
     if (attempts == 1) throw IllegalStateException("transient failure")
     return availabilityPreview
+  }
+}
+
+private val defaultReviews =
+    listOf(
+        CourtReview(
+            id = "review-a",
+            rating = 5,
+            comment = "Cancha impecable, volvería.",
+            authorName = "Diego R.",
+            authorInitials = "DR",
+            dateLabel = "2 de julio de 2026",
+        ),
+        CourtReview(
+            id = "review-b",
+            rating = 4,
+            comment = null,
+            authorName = "María S.",
+            authorInitials = "MS",
+            dateLabel = "1 de julio de 2026",
+        ),
+    )
+
+private class FakeCourtReviewsRepository(
+    private val reviews: List<CourtReview> = emptyList(),
+) : ICourtReviewsRepository {
+  override suspend fun getCourtReviews(courtId: String): List<CourtReview> = reviews
+}
+
+private class FailingCourtReviewsRepository : ICourtReviewsRepository {
+  override suspend fun getCourtReviews(courtId: String): List<CourtReview> {
+    throw IllegalStateException("network error")
+  }
+}
+
+private class FlakyCourtReviewsRepository(
+    private val reviews: List<CourtReview>,
+) : ICourtReviewsRepository {
+  private var attempts = 0
+
+  override suspend fun getCourtReviews(courtId: String): List<CourtReview> {
+    attempts += 1
+    if (attempts == 1) throw IllegalStateException("transient failure")
+    return reviews
   }
 }
