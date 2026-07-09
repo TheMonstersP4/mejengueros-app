@@ -2,7 +2,7 @@
 
 Deploys are intentionally script-driven. GitHub Actions only handles checkout, OIDC auth, and job routing.
 
-API, WebSocket, and reservation worker deploy jobs depend on the API quality gate: lint, unit tests, and build must pass before code is published.
+API, WebSocket, and reservation worker deploy jobs depend on the API quality gate: lint, unit tests, and build must pass before code is published. The web deploy job depends on the web quality gate: tests and production build must pass before static files are published.
 
 ## GitHub Secrets
 
@@ -39,7 +39,7 @@ shared Azure database, keep `schema=mejengueros_dev` in the query string.
 - `.github/scripts/run-api-migrations.sh`: runs Prisma migrations when `DATABASE_URL` is configured.
 - `.github/scripts/package-websocket-lambdas.sh`: builds the API package and creates `app-backend/api/.lambda/websocket.zip`.
 - `.github/scripts/deploy-websocket-lambdas.sh`: updates the three WebSocket route Lambdas from the zip.
-- `.github/scripts/deploy-poc-site.sh`: syncs `app-backend/poc/web-chat` to S3.
+- `.github/scripts/deploy-web-site.sh`: builds `app-web` and syncs `app-web/dist` to S3.
 
 ## Reservation Completion Worker
 
@@ -120,7 +120,7 @@ If the redeploy still fails, leave the schedule disabled and fix forward again i
 
 ## Bootstrap Order
 
-1. Apply Terraform with ECR and POC site enabled.
+1. Apply Terraform with ECR and the static web site enabled.
 2. Store `AWS_ROLE_ARN_DEV` and `DEPLOY_DEV_CONFIG` in GitHub.
 3. Store `DATABASE_URL` in the `dev` GitHub environment if the API should use PostgreSQL.
 4. Push to `main`.
