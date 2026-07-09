@@ -126,12 +126,12 @@ output "api_lambda_function_name" {
 
 output "reservation_completion_worker_function_name" {
   description = "Expected reservation completion worker Lambda function name."
-  value       = "${local.name_prefix}-reservation-completion"
+  value       = local.reservation_completion_worker_deploy_enabled ? module.reservation_completion_worker_lambda[0].function_name : null
 }
 
 output "reservation_completion_worker_schedule_rule_name" {
   description = "EventBridge rule name for the reservation completion worker schedule."
-  value       = local.reservation_completion_worker_deploy_enabled ? aws_cloudwatch_event_rule.reservation_completion_worker[0].name : null
+  value       = local.reservation_completion_worker_deploy_enabled ? module.reservation_completion_worker_schedule[0].rule_name : null
 }
 
 output "reservation_completion_worker_lambda_error_alarm_name" {
@@ -141,7 +141,7 @@ output "reservation_completion_worker_lambda_error_alarm_name" {
 
 output "reservation_completion_worker_failed_invocations_alarm_name" {
   description = "CloudWatch alarm name for reservation completion worker EventBridge failed invocations."
-  value       = local.reservation_completion_worker_deploy_enabled ? aws_cloudwatch_metric_alarm.reservation_completion_worker_failed_invocations[0].alarm_name : null
+  value       = local.reservation_completion_worker_deploy_enabled ? module.reservation_completion_worker_schedule[0].failed_invocations_alarm_name : null
 }
 
 output "websocket_api_id" {
@@ -193,21 +193,21 @@ output "deploy_config" {
   description = "Deployment values for GitHub Actions."
   sensitive   = true
   value = {
-    API_LAMBDA_BOOTSTRAP_IMAGE_URI     = local.api_lambda_image_uri
-    API_LAMBDA_FUNCTION_NAME           = "${local.name_prefix}-http"
-    AWS_REGION                         = var.aws_region
-    COGNITO_CLIENT_ID                  = module.cognito.user_pool_client_id
-    COGNITO_DOMAIN_URL                 = module.cognito.domain_url
-    DATABASE_SECRET_ARN                = local.api_database_secret_arn
-    ECR_REPOSITORY_NAME                = module.ecr_api.repository_name
-    ECR_REPOSITORY_URI                 = module.ecr_api.repository_url
-    HTTP_API_ENDPOINT                  = local.api_http_deploy_enabled ? module.http_api[0].api_endpoint : ""
-    POC_SITE_BUCKET                    = var.poc_site_enabled ? module.poc_site[0].bucket_name : ""
-    POC_SITE_URL                       = var.poc_site_enabled ? "https://${local.poc_site_domain}" : ""
-    RESERVATION_COMPLETION_WORKER_FUNCTION_NAME = "${local.name_prefix}-reservation-completion"
-    WEBSOCKET_CONNECT_FUNCTION_NAME    = local.websocket_lambda_deploy_enabled ? module.websocket_connect_lambda[0].function_name : ""
-    WEBSOCKET_DEFAULT_FUNCTION_NAME    = local.websocket_lambda_deploy_enabled ? module.websocket_default_lambda[0].function_name : ""
-    WEBSOCKET_DISCONNECT_FUNCTION_NAME = local.websocket_lambda_deploy_enabled ? module.websocket_disconnect_lambda[0].function_name : ""
-    WEBSOCKET_URL                      = module.websocket_api.websocket_url
+    API_LAMBDA_BOOTSTRAP_IMAGE_URI              = local.api_lambda_image_uri
+    API_LAMBDA_FUNCTION_NAME                    = "${local.name_prefix}-http"
+    AWS_REGION                                  = var.aws_region
+    COGNITO_CLIENT_ID                           = module.cognito.user_pool_client_id
+    COGNITO_DOMAIN_URL                          = module.cognito.domain_url
+    DATABASE_SECRET_ARN                         = local.api_database_secret_arn
+    ECR_REPOSITORY_NAME                         = module.ecr_api.repository_name
+    ECR_REPOSITORY_URI                          = module.ecr_api.repository_url
+    HTTP_API_ENDPOINT                           = local.api_http_deploy_enabled ? module.http_api[0].api_endpoint : ""
+    POC_SITE_BUCKET                             = var.poc_site_enabled ? module.poc_site[0].bucket_name : ""
+    POC_SITE_URL                                = var.poc_site_enabled ? "https://${local.poc_site_domain}" : ""
+    RESERVATION_COMPLETION_WORKER_FUNCTION_NAME = local.reservation_completion_worker_deploy_enabled ? module.reservation_completion_worker_lambda[0].function_name : ""
+    WEBSOCKET_CONNECT_FUNCTION_NAME             = local.websocket_lambda_deploy_enabled ? module.websocket_connect_lambda[0].function_name : ""
+    WEBSOCKET_DEFAULT_FUNCTION_NAME             = local.websocket_lambda_deploy_enabled ? module.websocket_default_lambda[0].function_name : ""
+    WEBSOCKET_DISCONNECT_FUNCTION_NAME          = local.websocket_lambda_deploy_enabled ? module.websocket_disconnect_lambda[0].function_name : ""
+    WEBSOCKET_URL                               = module.websocket_api.websocket_url
   }
 }

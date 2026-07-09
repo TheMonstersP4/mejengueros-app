@@ -62,6 +62,23 @@ class PasswordResetScreenBehaviorTest {
   }
 
   @Test
+  fun passwordResetKeepsFormVisibleAfterCodeSentMessage() {
+    composeRule.setPasswordResetScreenContent(
+        state =
+            AuthUiState(
+                emailInput = "david@example.com",
+                successMessage = "Si la cuenta existe, enviamos un código de recuperación.",
+                isPasswordResetConfirmed = false,
+            )
+    )
+
+    composeRule.screenText("Recuperar acceso").assertExists()
+    composeRule.inputField("Código de recuperación").assertExists()
+    composeRule.inputField("Nueva contraseña").assertExists()
+    composeRule.screenText("Contraseña actualizada").assertDoesNotExist()
+  }
+
+  @Test
   fun passwordResetSuccessRequiresExplicitReturnToLogin() {
     var backToLoginClicks = 0
 
@@ -70,6 +87,7 @@ class PasswordResetScreenBehaviorTest {
             AuthUiState(
                 emailInput = "david@example.com",
                 successMessage = "Ya puedes iniciar sesión con tu nueva contraseña.",
+                isPasswordResetConfirmed = true,
             ),
         onBackToLogin = { backToLoginClicks++ },
     )

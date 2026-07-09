@@ -27,4 +27,13 @@ resource "aws_lambda_function" "function" {
       security_group_ids = var.security_group_ids
     }
   }
+
+  lifecycle {
+    # Deployment pipelines own ZIP code updates after Terraform creates the function.
+    ignore_changes = [
+      filename,
+      image_uri,
+      source_code_hash
+    ]
+  }
 }
