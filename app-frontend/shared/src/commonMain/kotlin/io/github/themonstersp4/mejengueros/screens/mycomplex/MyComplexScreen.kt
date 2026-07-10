@@ -65,6 +65,7 @@ fun MyComplexScreen(
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
     onOpenComplexDetail: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -101,6 +102,7 @@ fun MyComplexScreen(
                   complexes = state.complexes,
                   onOpenComplexDetail = onOpenComplexDetail,
               )
+              ActivitySection(onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews)
             }
       }
     }
@@ -119,6 +121,7 @@ fun ComplexDetailScreen(
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onPickCourtImage: (String) -> Unit = {},
+    onOpenOwnerReceivedReviews: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -141,6 +144,7 @@ fun ComplexDetailScreen(
               isUpdatingCourtImage = isUpdatingCourtImage,
               onConfigureAvailability = onConfigureAvailability,
               onPickCourtImage = onPickCourtImage,
+              onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
           )
       isLoading -> LoadingState()
       errorMessage != null -> ErrorState(errorMessage, onRetry)
@@ -284,6 +288,7 @@ private fun ComplexDetailContent(
     isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     if (isRefreshing) {
@@ -306,6 +311,7 @@ private fun ComplexDetailContent(
         isUpdatingCourtImage = isUpdatingCourtImage,
         onConfigureAvailability = onConfigureAvailability,
         onPickCourtImage = onPickCourtImage,
+        onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
     )
   }
 }
@@ -317,6 +323,7 @@ private fun ComplexHubSection(
     isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
@@ -329,7 +336,7 @@ private fun ComplexHubSection(
         onPickCourtImage = onPickCourtImage,
     )
     Spacer(modifier = Modifier.height(8.dp))
-    ActivitySection()
+    ActivitySection(onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews)
   }
 }
 
@@ -576,23 +583,24 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun ActivitySection() {
+private fun ActivitySection(onOpenOwnerReceivedReviews: () -> Unit) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     SectionLabel(text = "ACTIVIDAD")
     MejenguerosListGroup(modifier = Modifier.testTag("activity_section_root")) {
-      ActivityPlaceholderRow(
+      ActivityNavigationRow(
           icon = Icons.Filled.Star,
           iconDescription = "Reseñas",
           title = "Reseñas recibidas",
           subtitle = "Lo que opinan los mejengueros",
           testTag = "activity_resenas_row",
+          onClick = onOpenOwnerReceivedReviews,
           showDivider = true,
       )
       ActivityPlaceholderRow(
           icon = Icons.Filled.Check,
           iconDescription = "Reservas",
           title = "Reservas de mis canchas",
-          subtitle = "Próximas y pasadas",
+          subtitle = "Próximamente",
           testTag = "activity_reservas_row",
           showDivider = false,
       )
@@ -638,6 +646,56 @@ private fun ActivityPlaceholderRow(
             style = MejenguerosStatusPillStyle.Neutral,
         )
       },
+      style =
+          MejenguerosListItemStyle(
+              showDivider = showDivider,
+              shape = RectangleShape,
+          ),
+  )
+}
+
+@Composable
+private fun ActivityNavigationRow(
+    icon: ImageVector,
+    iconDescription: String?,
+    title: String,
+    subtitle: String,
+    testTag: String,
+    onClick: () -> Unit,
+    showDivider: Boolean,
+) {
+  MejenguerosListItem(
+      text =
+          MejenguerosListItemText(
+              title = title,
+              supportingText = subtitle,
+          ),
+      modifier = Modifier.testTag(testTag),
+      leading = {
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.primary,
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = iconDescription,
+                modifier = Modifier.size(18.dp),
+            )
+          }
+        }
+      },
+      trailing = {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      },
+      onClick = onClick,
       style =
           MejenguerosListItemStyle(
               showDivider = showDivider,

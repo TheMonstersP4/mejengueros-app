@@ -202,7 +202,8 @@ private fun AppRoute.toLegacyAuthenticatedTopLevelRouteName(): String =
       is ComplexDetailRoute,
       is AddCourtRoute,
       CreateComplexRoute,
-      is CourtAvailabilityRoute -> AuthenticatedTopLevelRoute.MyComplex.name
+      is CourtAvailabilityRoute,
+      OwnerReceivedReviewsRoute -> AuthenticatedTopLevelRoute.MyComplex.name
       KitRoute,
       AvailabilitySelectorsRoute -> "Kit"
       PokedexRoute,
@@ -288,6 +289,7 @@ private fun AppRoute.normalizeForMyComplexStack(): AppRoute? =
       is AddCourtRoute -> this
       CreateComplexRoute -> CreateComplexRoute
       is CourtAvailabilityRoute -> this
+      OwnerReceivedReviewsRoute -> OwnerReceivedReviewsRoute
       else -> null
     }
 
@@ -417,6 +419,13 @@ class AuthenticatedNavigationState(
     val route = ComplexDetailRoute(complexId)
     if (myComplexBackStack.lastOrNull() != route) {
       myComplexBackStack.add(route)
+    }
+  }
+
+  fun openOwnerReceivedReviews() {
+    navigateTo(AuthenticatedTopLevelRoute.MyComplex)
+    if (myComplexBackStack.lastOrNull() != OwnerReceivedReviewsRoute) {
+      myComplexBackStack.add(OwnerReceivedReviewsRoute)
     }
   }
 

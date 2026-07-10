@@ -58,6 +58,8 @@ fun AuthenticatedScaffold(
     // Called when an owner-in-player-mode taps "Mi complejo" in the top bar to return to owner
     // mode.
     onSwitchToOwnerView: () -> Unit = {},
+    // Called when the owner taps the "Reseñas" entry in the drawer.
+    onOwnerReceivedReviewsSelected: () -> Unit = {},
     chrome: AuthenticatedScaffoldChrome = AuthenticatedScaffoldChrome(),
     topBarActions: @Composable RowScope.() -> Unit = {},
     overlayVisible: Boolean = false,
@@ -101,7 +103,10 @@ fun AuthenticatedScaffold(
               NavigationDrawerItem(
                   label = { Text("Reseñas") },
                   selected = false,
-                  onClick = { drawerScope.launch { drawerState.close() } },
+                  onClick = {
+                    drawerScope.launch { drawerState.close() }
+                    onOwnerReceivedReviewsSelected()
+                  },
                   modifier = Modifier.padding(horizontal = 12.dp),
               )
             }

@@ -70,6 +70,8 @@ data class CourtAvailabilityRoute(
     val complexName: String,
 ) : AppRoute
 
+@Serializable data object OwnerReceivedReviewsRoute : AppRoute
+
 @Serializable data object PokedexRoute : AppRoute
 
 @Serializable data class PokemonDetailRoute(val id: Int) : AppRoute
