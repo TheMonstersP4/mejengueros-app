@@ -39,6 +39,7 @@ class MyComplexScreenBehaviorTest {
             onCreateComplex = {},
             onRetry = {},
             onOpenComplexDetail = {},
+            onOpenOwnerReceivedReviews = {},
         )
       }
     }
@@ -65,6 +66,7 @@ class MyComplexScreenBehaviorTest {
             onCreateComplex = { createClicks += 1 },
             onRetry = {},
             onOpenComplexDetail = {},
+            onOpenOwnerReceivedReviews = {},
         )
       }
     }
@@ -78,6 +80,7 @@ class MyComplexScreenBehaviorTest {
   @Test
   fun loadedStateShowsOwnerComplexListAndOpensSelectedDetail() {
     var selectedComplexId: String? = null
+    var ownerReceivedReviewsClicks = 0
     val longComplexName =
         "North Sports Center with a very long owner-facing name that must keep wrapping"
 
@@ -125,6 +128,7 @@ class MyComplexScreenBehaviorTest {
             onCreateComplex = {},
             onRetry = {},
             onOpenComplexDetail = { selectedComplexId = it },
+            onOpenOwnerReceivedReviews = { ownerReceivedReviewsClicks += 1 },
             modifier = Modifier.width(280.dp),
         )
       }
@@ -172,6 +176,13 @@ class MyComplexScreenBehaviorTest {
     composeRule.onNodeWithTag("my_complex_list_item_complex-id").assertExists().performClick()
 
     composeRule.runOnIdle { assertEquals("complex-id", selectedComplexId) }
+
+    composeRule
+        .onNodeWithTag("activity_resenas_row", useUnmergedTree = true)
+        .assertExists()
+        .performClick()
+
+    composeRule.runOnIdle { assertEquals(1, ownerReceivedReviewsClicks) }
   }
 
   @Test
@@ -186,6 +197,7 @@ class MyComplexScreenBehaviorTest {
             onCreateComplex = {},
             onRetry = { retryClicks += 1 },
             onOpenComplexDetail = {},
+            onOpenOwnerReceivedReviews = {},
         )
       }
     }

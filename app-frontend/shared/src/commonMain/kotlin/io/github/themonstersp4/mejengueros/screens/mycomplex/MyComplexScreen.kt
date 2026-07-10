@@ -65,6 +65,8 @@ fun MyComplexScreen(
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
     onOpenComplexDetail: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -101,6 +103,10 @@ fun MyComplexScreen(
                   complexes = state.complexes,
                   onOpenComplexDetail = onOpenComplexDetail,
               )
+              ActivitySection(
+                  onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+                  onOpenOwnerReservations = onOpenOwnerReservations,
+              )
             }
       }
     }
@@ -118,7 +124,9 @@ fun ComplexDetailScreen(
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onOpenOwnerReceivedReviews: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -140,7 +148,9 @@ fun ComplexDetailScreen(
               isCourtImagePickerAvailable = isCourtImagePickerAvailable,
               isUpdatingCourtImage = isUpdatingCourtImage,
               onConfigureAvailability = onConfigureAvailability,
+              onOpenOwnerReservations = onOpenOwnerReservations,
               onPickCourtImage = onPickCourtImage,
+              onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
           )
       isLoading -> LoadingState()
       errorMessage != null -> ErrorState(errorMessage, onRetry)
@@ -283,7 +293,9 @@ private fun ComplexDetailContent(
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     if (isRefreshing) {
@@ -305,7 +317,9 @@ private fun ComplexDetailContent(
         isCourtImagePickerAvailable = isCourtImagePickerAvailable,
         isUpdatingCourtImage = isUpdatingCourtImage,
         onConfigureAvailability = onConfigureAvailability,
+        onOpenOwnerReservations = onOpenOwnerReservations,
         onPickCourtImage = onPickCourtImage,
+        onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
     )
   }
 }
@@ -316,7 +330,9 @@ private fun ComplexHubSection(
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
@@ -329,7 +345,10 @@ private fun ComplexHubSection(
         onPickCourtImage = onPickCourtImage,
     )
     Spacer(modifier = Modifier.height(8.dp))
-    ActivitySection()
+    ActivitySection(
+        onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+        onOpenOwnerReservations = onOpenOwnerReservations,
+    )
   }
 }
 
@@ -576,38 +595,44 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun ActivitySection() {
+private fun ActivitySection(
+    onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit,
+) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     SectionLabel(text = "ACTIVIDAD")
     MejenguerosListGroup(modifier = Modifier.testTag("activity_section_root")) {
-      ActivityPlaceholderRow(
+      ActivityRow(
           icon = Icons.Filled.Star,
           iconDescription = "Reseñas",
           title = "Reseñas recibidas",
           subtitle = "Lo que opinan los mejengueros",
           testTag = "activity_resenas_row",
+          onClick = onOpenOwnerReceivedReviews,
           showDivider = true,
       )
-      ActivityPlaceholderRow(
+      ActivityRow(
           icon = Icons.Filled.Check,
           iconDescription = "Reservas",
           title = "Reservas de mis canchas",
           subtitle = "Próximas y pasadas",
           testTag = "activity_reservas_row",
           showDivider = false,
+          onClick = onOpenOwnerReservations,
       )
     }
   }
 }
 
 @Composable
-private fun ActivityPlaceholderRow(
+private fun ActivityRow(
     icon: ImageVector,
     iconDescription: String?,
     title: String,
     subtitle: String,
     testTag: String,
     showDivider: Boolean,
+    onClick: (() -> Unit)? = null,
 ) {
   MejenguerosListItem(
       text =
@@ -633,11 +658,21 @@ private fun ActivityPlaceholderRow(
         }
       },
       trailing = {
-        MejenguerosStatusPill(
-            text = "Próximamente",
-            style = MejenguerosStatusPillStyle.Neutral,
-        )
+        if (onClick != null) {
+          Icon(
+              imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        } else {
+          MejenguerosStatusPill(
+              text = "Próximamente",
+              style = MejenguerosStatusPillStyle.Neutral,
+          )
+        }
       },
+      onClick = onClick,
       style =
           MejenguerosListItemStyle(
               showDivider = showDivider,

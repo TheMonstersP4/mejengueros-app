@@ -21,6 +21,8 @@ import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
 import io.github.themonstersp4.mejengueros.domain.model.MyReservationCard
 import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.OwnerReservations
+import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
@@ -575,6 +577,12 @@ class ReservationsNavigationIntegrationTest {
             evidenceImageUploadId = request.evidenceImageUploadId,
             createdAt = "2026-07-03T02:00:00.000Z",
         )
+
+    override suspend fun getOwnerReceivedReviews(
+        courtId: String?,
+        page: Int,
+        pageSize: Int,
+    ): ReceivedReviewPage = error("Not used in reservations navigation tests.")
   }
 
   private class FixedReservationRepository(
@@ -597,6 +605,9 @@ class ReservationsNavigationIntegrationTest {
     ): ReservationConfirmation = error("Unused in test")
 
     override suspend fun getMyReservations(): MyReservations = myReservations
+
+    override suspend fun getOwnerReservations(courtId: String?): OwnerReservations =
+        error("Unused in test")
   }
 
   private class SequencedReservationRepository(
@@ -628,6 +639,9 @@ class ReservationsNavigationIntegrationTest {
       getMyReservationsCalls += 1
       return result.getOrThrow()
     }
+
+    override suspend fun getOwnerReservations(courtId: String?): OwnerReservations =
+        error("Unused in test")
   }
 
   private class DelayedReservationRepository(
@@ -650,6 +664,9 @@ class ReservationsNavigationIntegrationTest {
     ): ReservationConfirmation = error("Unused in test")
 
     override suspend fun getMyReservations(): MyReservations = myReservationsResult.await()
+
+    override suspend fun getOwnerReservations(courtId: String?): OwnerReservations =
+        error("Unused in test")
   }
 }
 

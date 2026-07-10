@@ -72,6 +72,50 @@ export interface IMyReservationsSnapshotGroups {
   finalized: IMyReservationSnapshot[];
 }
 
+/**
+ * Authenticated owner identity used to scope owner-only reservation reads.
+ */
+export interface IOwnerReservationsIdentity {
+  sub: string;
+  provider?: string;
+}
+
+/**
+ * Optional court filter applied to an owner reservations query.
+ */
+export interface IOwnerReservationCourtFilter {
+  courtId: string;
+}
+
+/**
+ * Query that powers the owner reservations endpoint. Lists reservations booked
+ * by other players on courts the authenticated owner owns or administers.
+ */
+export interface IListOwnerReservationsQuery {
+  ownerIdentity: IOwnerReservationsIdentity;
+  court?: IOwnerReservationCourtFilter;
+  upcomingLimit: number;
+  finalizedLimit: number;
+}
+
+/**
+ * A single owner-facing reservation row returned to the application layer.
+ */
+export interface IOwnerReservationSnapshot {
+  id: string;
+  complexName: string;
+  courtName: string;
+  imageObjectKey?: string;
+  startsAt: string;
+  endsAt: string;
+  status: ReservationStatus;
+}
+
+export interface IOwnerReservationsSnapshotGroups {
+  upcoming: IOwnerReservationSnapshot[];
+  finalized: IOwnerReservationSnapshot[];
+}
+
 export interface IReservationRepository {
   getReservationWindow(
     query: IReservationWindowQuery
@@ -84,6 +128,10 @@ export interface IReservationRepository {
   findMyReservationsByUserId(
     query: IFindMyReservationsQuery
   ): Promise<IMyReservationsSnapshotGroups>;
+
+  listOwnerReservations(
+    query: IListOwnerReservationsQuery
+  ): Promise<IOwnerReservationsSnapshotGroups>;
 
   completeExpiredReservations(
     command: ICompleteExpiredReservationsCommand

@@ -368,6 +368,109 @@ describe('reservations HTTP contract', () => {
     expect(response.statusCode).toBe(401);
   });
 
+  it('returns owner reservations grouped and scoped to owned courts without review actions', async () => {
+    prismaService.court.findMany = jest.fn().mockResolvedValue([{ id: courtId }]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/owners/me/reservations',
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      success: true,
+      data: {
+        selectedCourtId: null,
+        upcoming: [
+          {
+            id: 'upcoming-reservation-id',
+            complexName: 'Moravia FC',
+            courtName: 'Cancha A',
+            imageUrl: 'https://read.example.test/court-a.png',
+            startsAt: '2026-07-10T18:00:00.000Z',
+            endsAt: '2026-07-10T19:00:00.000Z',
+            status: 'CONFIRMED',
+            section: 'UPCOMING'
+          }
+        ],
+        finalized: [
+          {
+            id: 'completed-reviewed-id',
+            complexName: 'Moravia FC',
+            courtName: 'Cancha C',
+            imageUrl: 'https://read.example.test/court-c.png',
+            startsAt: '2026-07-04T18:00:00.000Z',
+            endsAt: '2026-07-04T19:00:00.000Z',
+            status: 'COMPLETED',
+            section: 'FINALIZED'
+          },
+          {
+            id: 'completed-pending-review-id',
+            complexName: 'Moravia FC',
+            courtName: 'Cancha B',
+            imageUrl: 'https://read.example.test/court-b.png',
+            startsAt: '2026-07-03T18:00:00.000Z',
+            endsAt: '2026-07-03T19:00:00.000Z',
+            status: 'COMPLETED',
+            section: 'FINALIZED'
+          }
+        ]
+      },
+      errors: [],
+      meta: expect.objectContaining({ path: '/v1/owners/me/reservations' })
+    });
+  });
+
+  it('applies the court filter and echoes the selected court id', async () => {
+    prismaService.court.findMany = jest.fn().mockResolvedValue([{ id: courtId }]);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/owners/me/reservations?courtId=${courtId}`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.selectedCourtId).toBe(courtId);
+  });
+
+  it('returns 404 when filtering by a court the owner does not own', async () => {
+    prismaService.court.findMany = jest.fn().mockResolvedValue([]);
+    const foreignCourtId = '11111111-1111-4111-8111-111111111111';
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/owners/me/reservations?courtId=${foreignCourtId}`,
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().errors[0].code).toBe(APP_ERROR_CODES.RESOURCE_NOT_FOUND);
+  });
+
+  it('rejects a malformed court id before touching persistence', async () => {
+    prismaService.court.findMany = jest.fn();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/owners/me/reservations?courtId=not-a-uuid',
+      headers: { Authorization: 'Bearer valid-token' }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects unauthenticated owner reservations access', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/owners/me/reservations'
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
   it('returns a safe conflict when the slot is already confirmed', async () => {
     prismaService.reservation.create.mockRejectedValue({ code: 'P2002' });
 
@@ -945,7 +1048,8 @@ function createPrismaMock() {
           days: [{ day: 'WEDNESDAY' }]
         },
         reservations: [{ startsAt: new Date('2026-07-01T19:00:00.000Z') }]
-      })
+      }),
+      findMany: jest.fn().mockResolvedValue([])
     },
     reservation: {
       findMany: jest.fn().mockImplementation(
