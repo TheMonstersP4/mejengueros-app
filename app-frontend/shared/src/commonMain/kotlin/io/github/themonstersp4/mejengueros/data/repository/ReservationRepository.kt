@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.data.repository
 
 import io.github.themonstersp4.mejengueros.data.remote.IReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.OwnerReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
@@ -27,4 +28,7 @@ class ReservationRepository(
   ): ReservationConfirmation = remoteDataSource.createReservation(courtId, startsAtUtc)
 
   override suspend fun getMyReservations(): MyReservations = remoteDataSource.getMyReservations()
+
+  override suspend fun getOwnerReservations(courtId: String?): OwnerReservations =
+      remoteDataSource.getOwnerReservations(courtId)
 }

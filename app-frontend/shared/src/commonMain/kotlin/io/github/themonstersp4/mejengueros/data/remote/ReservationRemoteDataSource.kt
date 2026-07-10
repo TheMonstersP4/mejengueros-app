@@ -4,10 +4,14 @@ import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReservationEnve
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateReservationRequestDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.MyReservationCardDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.MyReservationsEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReservationCardDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReservationsEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ReservableDaysEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ReservableSlotsEnvelopeDto
 import io.github.themonstersp4.mejengueros.domain.model.MyReservationCard
 import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.OwnerReservationCard
+import io.github.themonstersp4.mejengueros.domain.model.OwnerReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservableDay
 import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
@@ -132,7 +136,43 @@ class ReservationRemoteDataSource(
       throw error.toAppApiException(json)
     }
   }
+
+  override suspend fun getOwnerReservations(courtId: String?): OwnerReservations {
+    return try {
+      val data =
+          httpClient
+              .get("/v1/owners/me/reservations") {
+                if (courtId != null) parameter("courtId", courtId)
+              }
+              .body<OwnerReservationsEnvelopeDto>()
+              .data
+              ?: throw AppApiException(
+                  statusCode = 502,
+                  message = "No se recibió la respuesta esperada del API.",
+              )
+
+      OwnerReservations(
+          selectedCourtId = data.selectedCourtId,
+          upcoming = data.upcoming.map(OwnerReservationCardDto::toDomain),
+          finalized = data.finalized.map(OwnerReservationCardDto::toDomain),
+      )
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
 }
+
+private fun OwnerReservationCardDto.toDomain(): OwnerReservationCard =
+    OwnerReservationCard(
+        id = id,
+        complexName = complexName,
+        courtName = courtName,
+        imageUrl = imageUrl,
+        startsAt = startsAt,
+        endsAt = endsAt,
+        status = status,
+        section = section,
+    )
 
 private fun MyReservationCardDto.toDomain(): MyReservationCard =
     MyReservationCard(

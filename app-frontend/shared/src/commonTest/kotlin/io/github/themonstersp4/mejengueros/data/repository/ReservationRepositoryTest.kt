@@ -3,6 +3,7 @@ package io.github.themonstersp4.mejengueros.data.repository
 import io.github.themonstersp4.mejengueros.data.remote.IReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.MyReservationCard
 import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.OwnerReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
@@ -77,4 +78,7 @@ private class FakeReservationRemoteDataSource(
   ): ReservationConfirmation = error("Unused in test")
 
   override suspend fun getMyReservations(): MyReservations = myReservations
+
+  override suspend fun getOwnerReservations(courtId: String?): OwnerReservations =
+      error("Unused in test")
 }
