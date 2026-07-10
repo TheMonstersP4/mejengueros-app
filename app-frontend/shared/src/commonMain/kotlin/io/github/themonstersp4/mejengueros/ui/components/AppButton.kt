@@ -14,7 +14,42 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+/**
+ * Visual size of a Mejengueros button.
+ *
+ * [Default] is the full-height action used for primary screen-level actions. [Compact] is a lighter
+ * variant for actions embedded inside dense surfaces such as list cards, where the default height
+ * feels too heavy.
+ */
+enum class MejenguerosButtonSize {
+  Default,
+  Compact,
+}
+
+private val MejenguerosButtonSize.height: Dp
+  get() =
+      when (this) {
+        MejenguerosButtonSize.Default -> 48.dp
+        MejenguerosButtonSize.Compact -> 44.dp
+      }
+
+private val MejenguerosButtonSize.horizontalPadding: Dp
+  get() =
+      when (this) {
+        MejenguerosButtonSize.Default -> 28.dp
+        MejenguerosButtonSize.Compact -> 24.dp
+      }
+
+@Composable
+private fun MejenguerosButtonSize.textStyle(): TextStyle =
+    when (this) {
+      MejenguerosButtonSize.Default -> MaterialTheme.typography.titleMedium
+      MejenguerosButtonSize.Compact -> MaterialTheme.typography.labelLarge
+    }
 
 @Composable
 fun MejenguerosPrimaryButton(
@@ -22,14 +57,15 @@ fun MejenguerosPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    size: MejenguerosButtonSize = MejenguerosButtonSize.Default,
     leadingContent: (@Composable () -> Unit)? = null,
 ) {
   Button(
       onClick = onClick,
       enabled = enabled,
-      modifier = modifier.height(48.dp),
+      modifier = modifier.height(size.height),
       shape = CircleShape,
-      contentPadding = PaddingValues(horizontal = 28.dp),
+      contentPadding = PaddingValues(horizontal = size.horizontalPadding),
       colors =
           ButtonDefaults.buttonColors(
               containerColor = MaterialTheme.colorScheme.primary,
@@ -39,7 +75,7 @@ fun MejenguerosPrimaryButton(
     ButtonLeadingContent(leadingContent = leadingContent)
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = size.textStyle(),
     )
   }
 }
@@ -50,12 +86,14 @@ fun MejenguerosFullWidthPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    size: MejenguerosButtonSize = MejenguerosButtonSize.Default,
     leadingContent: (@Composable () -> Unit)? = null,
 ) {
   MejenguerosPrimaryButton(
       text = text,
       onClick = onClick,
       enabled = enabled,
+      size = size,
       modifier = modifier.fillMaxWidth(),
       leadingContent = leadingContent,
   )
