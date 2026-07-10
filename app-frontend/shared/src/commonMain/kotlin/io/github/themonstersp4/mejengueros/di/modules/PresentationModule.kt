@@ -39,7 +39,6 @@ val presentationModule = module {
   viewModel { ReviewViewModel(get(), get(), get()) }
   viewModel { OwnerReceivedReviewsViewModel(get(), get(), get()) }
   viewModel { MyReservationsViewModel(get(), get()) }
-  viewModel { OwnerReceivedReviewsViewModel(get(), get(), get()) }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }
 }
