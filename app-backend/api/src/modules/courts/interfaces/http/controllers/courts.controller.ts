@@ -4,6 +4,7 @@ import {
   ApiEnvelopeArrayOk,
   ApiEnvelopeErrors
 } from '../../../../../shared/interfaces/http/swagger/api-envelope.decorators';
+import { withApiMeta } from '@/shared/interfaces/http/responses/api-response';
 import { ListPublicCourtCatalogUseCase } from '../../../application/use-cases/list-public-court-catalog.use-case';
 import { CourtCatalogResponse } from '../dto/court-catalog.response';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
@@ -21,16 +22,34 @@ export class CourtsController {
   @ApiOperation({
     summary: 'List the public court catalog.',
     description:
-      'Returns active and published catalog courts, optionally filtered by text, province, and canton.'
+      'Returns active and published catalog courts, optionally filtered by text, province, and canton. Results are paginated so clients can load the catalog incrementally.'
   })
   @ApiEnvelopeArrayOk(
     CourtCatalogResponse,
-    'Public court catalog items wrapped in the API response envelope.'
+    'Public court catalog items wrapped in the API response envelope with pagination metadata.'
   )
   @ApiEnvelopeErrors(400, 502)
   async listCatalog(
     @Query() query: ListCourtCatalogQuery
-  ): Promise<CourtCatalogResponse[]> {
-    return this.listPublicCourtCatalog.execute(query);
+  ): Promise<ReturnType<typeof withApiMeta<CourtCatalogResponse[]>>> {
+    const result = await this.listPublicCourtCatalog.execute({
+      q: query.q,
+      provinceId: query.provinceId,
+      cantonId: query.cantonId,
+      page: query.page,
+      pageSize: query.pageSize
+    });
+
+    const totalPages =
+      result.pageSize > 0 ? Math.ceil(result.totalItems / result.pageSize) : 0;
+
+    return withApiMeta(result.items as CourtCatalogResponse[], {
+      pagination: {
+        page: result.page,
+        pageSize: result.pageSize,
+        totalItems: result.totalItems,
+        totalPages
+      }
+    });
   }
 }

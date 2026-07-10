@@ -109,7 +109,8 @@ describe('public court catalog HTTP contract', () => {
     });
     expect(prismaService.court.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        take: 50,
+        skip: 0,
+        take: 10,
         where: expect.objectContaining({
           status: 'ACTIVE',
           isPublished: true
@@ -144,12 +145,52 @@ describe('public court catalog HTTP contract', () => {
       ],
       errors: [],
       meta: expect.objectContaining({
-        path: '/v1/courts/catalog?q=nogales&provinceId=3f91fe4d-a23b-4f85-ae1a-90db47d624f1&cantonId=1f6adf24-ea42-4c49-9179-c5f73fef7a41'
+        path: '/v1/courts/catalog?q=nogales&provinceId=3f91fe4d-a23b-4f85-ae1a-90db47d624f1&cantonId=1f6adf24-ea42-4c49-9179-c5f73fef7a41',
+        pagination: {
+          page: 1,
+          pageSize: 10,
+          totalItems: 1,
+          totalPages: 1
+        }
       })
     });
     expect(fileReadUrl.createReadUrl).toHaveBeenCalledWith(
       'test/uploads/court-image/court-id.jpg'
     );
+  });
+
+  it('applies the requested pagination window and reports next-page metadata', async () => {
+    prismaService.court.count.mockResolvedValue(45);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?page=2&pageSize=20'
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(prismaService.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 20,
+        take: 20,
+        orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }, { id: 'asc' }]
+      })
+    );
+    expect(response.json().meta.pagination).toEqual({
+      page: 2,
+      pageSize: 20,
+      totalItems: 45,
+      totalPages: 3
+    });
+  });
+
+  it('rejects a pageSize above the allowed maximum', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/courts/catalog?pageSize=51'
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(prismaService.court.findMany).not.toHaveBeenCalled();
   });
 
   it('returns imageUrl null and does not request a read URL when a catalog court has no image upload', async () => {
@@ -410,6 +451,7 @@ describe('public court catalog HTTP contract', () => {
         findFirst: jest.fn().mockResolvedValue({ id: '1f6adf24-ea42-4c49-9179-c5f73fef7a41' })
       },
       court: {
+        count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([createCatalogCourtRow()])
       },
       onModuleInit: jest.fn(),

@@ -280,6 +280,8 @@ private fun SearchEntry(
       onProvinceSelected = courtCatalogViewModel::selectProvince,
       onCantonSelected = courtCatalogViewModel::selectCanton,
       onRetryLoad = courtCatalogViewModel::retryLoad,
+      onLoadNextPage = courtCatalogViewModel::loadNextPage,
+      onRetryNextPage = courtCatalogViewModel::retryNextPage,
   )
 }
 
@@ -291,6 +293,8 @@ internal fun SearchCatalogEntryContent(
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
+    onLoadNextPage: () -> Unit = {},
+    onRetryNextPage: () -> Unit = {},
 ) {
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Search,
@@ -304,7 +308,7 @@ internal fun SearchCatalogEntryContent(
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
       onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
-      chrome = AuthenticatedScaffoldChrome(title = "Buscar"),
+      chrome = AuthenticatedScaffoldChrome(title = "Canchas"),
       topBarActions = {
         if (!shellActions.isOwner) {
           IconButton(onClick = shellActions.openCreateComplex) {
@@ -320,6 +324,8 @@ internal fun SearchCatalogEntryContent(
         onProvinceSelected = onProvinceSelected,
         onCantonSelected = onCantonSelected,
         onRetryLoad = onRetryLoad,
+        onLoadNextPage = onLoadNextPage,
+        onRetryNextPage = onRetryNextPage,
         onOpenCourtDetail = { court ->
           shellActions.openCatalogCourtDetail(
               CatalogCourtDetailRoute(

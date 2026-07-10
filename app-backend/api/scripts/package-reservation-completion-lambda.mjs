@@ -112,8 +112,7 @@ function copyDependency(dependencyName, copiedDependencyNames) {
   const manifest = readInstalledPackageManifest(dependencyName);
   const nestedDependencyNames = [
     ...Object.keys(manifest.dependencies ?? {}),
-    ...Object.keys(manifest.optionalDependencies ?? {}),
-    ...Object.keys(manifest.peerDependencies ?? {})
+    ...Object.keys(manifest.optionalDependencies ?? {})
   ];
 
   for (const nestedDependencyName of nestedDependencyNames) {

@@ -9,14 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
@@ -29,6 +27,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +39,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
@@ -49,6 +48,13 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButt
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
 import kotlin.math.roundToInt
+
+/**
+ * The next page loads once the user actually reaches the end of the list (the last item becomes
+ * visible) rather than prefetching ahead, so each page load is a perceptible "reached the bottom ->
+ * load more" event with a visible loading footer.
+ */
+private const val NextPageLoadThreshold = 1
 
 @Composable
 fun HomeScreen(
@@ -60,9 +66,31 @@ fun HomeScreen(
     onRetryLoad: () -> Unit,
     onOpenCourtDetail: (CourtCatalogItem) -> Unit,
     modifier: Modifier = Modifier,
+    onLoadNextPage: () -> Unit = {},
+    onRetryNextPage: () -> Unit = {},
 ) {
   val hasCourts =
       !state.isLoading && state.loadErrorMessage == null && state.visibleCourts.isNotEmpty()
+  // Intentionally not rememberSaveable: the catalog refetches from page 1 on a
+  // cold start, so restoring a deep scroll position would make the list chase
+  // it by loading every intermediate page at once. Start fresh at the top.
+  val listState = remember { LazyListState() }
+
+  // Load the next page only once the user reaches the end of the list, so the
+  // catalog paginates in perceptible steps instead of streaming ahead.
+  val shouldLoadNextPage by remember {
+    derivedStateOf {
+      val layoutInfo = listState.layoutInfo
+      val totalItems = layoutInfo.totalItemsCount
+      val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+      totalItems > 0 && lastVisibleIndex >= totalItems - NextPageLoadThreshold
+    }
+  }
+  LaunchedEffect(shouldLoadNextPage, state.canLoadNextPage) {
+    if (shouldLoadNextPage && state.canLoadNextPage) {
+      onLoadNextPage()
+    }
+  }
 
   Column(
       modifier =
@@ -74,6 +102,7 @@ fun HomeScreen(
     if (hasCourts) {
       // The header scrolls together with the court list in a single scroll container.
       LazyColumn(
+          state = listState,
           modifier = Modifier.fillMaxSize().testTag("catalog_court_list"),
           contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
           verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -105,6 +134,21 @@ fun HomeScreen(
                       },
               onClick = { onOpenCourtDetail(court) },
           )
+        }
+        // Only surface the footer once it has something to say: a page is
+        // loading, a page failed, or the user reached the end after paging.
+        val reachedEndAfterPaging = !state.hasNextPage && state.currentPage > 1
+        if (
+            state.isLoadingNextPage || state.nextPageErrorMessage != null || reachedEndAfterPaging
+        ) {
+          item {
+            CatalogPaginationFooter(
+                isLoadingNextPage = state.isLoadingNextPage,
+                nextPageErrorMessage = state.nextPageErrorMessage,
+                hasNextPage = state.hasNextPage,
+                onRetryNextPage = onRetryNextPage,
+            )
+          }
         }
       }
     } else {
@@ -157,6 +201,63 @@ fun HomeScreen(
   }
 }
 
+/**
+ * Trailing item of the catalog list. Surfaces the incremental-load lifecycle: a spinner while the
+ * next page loads, an inline retry when it fails, and an end-of-list marker once every page has
+ * been consumed.
+ */
+@Composable
+private fun CatalogPaginationFooter(
+    isLoadingNextPage: Boolean,
+    nextPageErrorMessage: String?,
+    hasNextPage: Boolean,
+    onRetryNextPage: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  Box(
+      modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+      contentAlignment = Alignment.Center,
+  ) {
+    when {
+      isLoadingNextPage ->
+          MejenguerosInlineLoadingState(
+              text = "Cargando más canchas…",
+              modifier = Modifier.fillMaxWidth(),
+              containerTestTag = "catalog_next_page_loading",
+              indicatorTestTag = "catalog_next_page_loading_indicator",
+          )
+
+      nextPageErrorMessage != null ->
+          Column(
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Text(
+                text = nextPageErrorMessage,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            MejenguerosOutlinedButton(
+                text = "Reintentar",
+                onClick = onRetryNextPage,
+                modifier =
+                    Modifier.testTag("catalog_next_page_retry_button").semantics {
+                      contentDescription = "Reintentar carga de más canchas"
+                    },
+            )
+          }
+
+      !hasNextPage ->
+          Text(
+              text = "No hay más canchas.",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.testTag("catalog_end_of_list"),
+          )
+    }
+  }
+}
+
 @Composable
 private fun CatalogHeader(
     state: CourtCatalogUiState,
@@ -172,20 +273,6 @@ private fun CatalogHeader(
       modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
-    Text(
-        text = "Canchas",
-        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.onSurface,
-    )
-    Box(
-        modifier =
-            Modifier.width(40.dp)
-                .height(3.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(999.dp),
-                )
-    )
     SearchPill(
         query = state.searchQuery,
         onQueryChange = onSearchQueryChange,
@@ -245,6 +332,14 @@ private fun CatalogHeader(
           }
         }
       }
+    }
+    if (state.totalCourts > 0) {
+      Text(
+          text = "Mostrando ${state.visibleCourts.size} de ${state.totalCourts} canchas",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.testTag("catalog_count_indicator"),
+      )
     }
   }
 }
