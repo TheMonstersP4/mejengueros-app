@@ -31,6 +31,7 @@ import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReserva
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsUiState
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreservations.OwnerReservationsViewModel
+import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import io.github.themonstersp4.mejengueros.presentation.review.ReviewUiState
@@ -52,6 +53,8 @@ import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreenActions
+import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreen
+import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreenActions
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
@@ -150,6 +153,7 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CourtAvailabilityRoute> { route ->
     CourtAvailabilityEntry(route = route, shellActions = shellActions)
   }
+  entry<OwnerReceivedReviewsRoute> { OwnerReceivedReviewsEntry(shellActions = shellActions) }
 }
 
 @Composable
@@ -306,6 +310,7 @@ internal fun SearchCatalogEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome = AuthenticatedScaffoldChrome(title = "Canchas"),
       topBarActions = {
         if (!shellActions.isOwner) {
@@ -377,6 +382,7 @@ internal fun CatalogCourtDetailEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome =
           AuthenticatedScaffoldChrome(
               title = "Detalle de cancha",
@@ -435,6 +441,7 @@ internal fun CatalogReservationEntry(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome =
           AuthenticatedScaffoldChrome(
               title = "Reservar",
@@ -564,6 +571,7 @@ internal fun ReservationsEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome =
           when (currentMode) {
             ReservationReviewEntryMode.Launcher ->
@@ -693,6 +701,7 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome = AuthenticatedScaffoldChrome(title = "Notificaciones"),
   ) { contentPadding ->
     ProductPlaceholderScreen(
@@ -745,6 +754,7 @@ internal fun MyComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome = AuthenticatedScaffoldChrome(title = "Mi complejo"),
     ) { contentPadding ->
       MyComplexEntryContent(
@@ -753,6 +763,8 @@ internal fun MyComplexRouteContent(
           onCreateComplex = shellActions.openCreateComplex,
           onRetry = onRetry,
           onOpenComplexDetail = shellActions.openComplexDetail,
+          onOpenOwnerReceivedReviews = shellActions.openOwnerReceivedReviews,
+          onOpenOwnerReservations = shellActions.selectReservations,
       )
     }
   }
@@ -765,6 +777,8 @@ internal fun MyComplexEntryContent(
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
     onOpenComplexDetail: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
 ) {
   MyComplexScreen(
       state = state,
@@ -772,6 +786,8 @@ internal fun MyComplexEntryContent(
       onCreateComplex = onCreateComplex,
       onRetry = onRetry,
       onOpenComplexDetail = onOpenComplexDetail,
+      onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+      onOpenOwnerReservations = onOpenOwnerReservations,
   )
 }
 
@@ -809,6 +825,7 @@ private fun ComplexDetailEntry(
       onPickCourtImage = { courtId ->
         pickerCoordinator.onPickCourtImage(courtId, courtImagePicker.launch)
       },
+      onOpenOwnerReceivedReviews = shellActions.openOwnerReceivedReviews,
   )
 }
 
@@ -820,6 +837,7 @@ internal fun ComplexDetailRouteContent(
     onRetry: () -> Unit,
     onAcknowledgeCourtImageSuccess: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onOpenOwnerReceivedReviews: () -> Unit = {},
 ) {
   OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
     val complex = state.complexes.firstOrNull { it.id == route.complexId }
@@ -835,6 +853,7 @@ internal fun ComplexDetailRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
                 title = "Mi complejo",
@@ -871,6 +890,7 @@ internal fun ComplexDetailRouteContent(
           onConfigureAvailability = shellActions.openCourtAvailability,
           onOpenOwnerReservations = shellActions.selectReservations,
           onPickCourtImage = onPickCourtImage,
+          onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
       )
 
       MejenguerosLoadingDialog(
@@ -906,6 +926,7 @@ internal fun ComplexDetailEntryContent(
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onOpenOwnerReceivedReviews: () -> Unit = {},
 ) {
   ComplexDetailScreen(
       complex = complex,
@@ -919,6 +940,7 @@ internal fun ComplexDetailEntryContent(
       onConfigureAvailability = onConfigureAvailability,
       onOpenOwnerReservations = onOpenOwnerReservations,
       onPickCourtImage = onPickCourtImage,
+      onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
   )
 }
 
@@ -966,6 +988,7 @@ internal fun AddCourtEntryContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
                 title = "Agregar cancha",
@@ -1159,6 +1182,7 @@ internal fun CreateComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
                 title = "Mi complejo",
@@ -1237,6 +1261,7 @@ internal fun CourtAvailabilityRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
                 title = state.appBarTitle,
@@ -1364,4 +1389,76 @@ private fun LocationPickerOverlayHost(
           ),
       actions = coordinator.actions,
   )
+}
+
+@Composable
+private fun OwnerReceivedReviewsEntry(shellActions: AuthenticatedShellActions) {
+  val viewModel = koinViewModel<OwnerReceivedReviewsViewModel>()
+  OwnerReceivedReviewsEntryContent(
+      viewModel = viewModel,
+      shellActions = shellActions,
+  )
+}
+
+@Composable
+internal fun OwnerReceivedReviewsEntryContent(
+    viewModel: OwnerReceivedReviewsViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
+  val state by viewModel.uiState.collectAsState()
+  OwnerReceivedReviewsRouteContent(
+      state = state,
+      shellActions = shellActions,
+      onSelectCourt = viewModel::selectCourt,
+      onLoadMore = viewModel::loadNextPage,
+      onRetryLoadMore = viewModel::retryLoadMore,
+      onRetry = viewModel::refresh,
+      onAcknowledgeError = viewModel::acknowledgeError,
+  )
+}
+
+@Composable
+internal fun OwnerReceivedReviewsRouteContent(
+    state:
+        io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsUiState,
+    shellActions: AuthenticatedShellActions,
+    onSelectCourt: (String?) -> Unit,
+    onLoadMore: () -> Unit,
+    onRetryLoadMore: () -> Unit,
+    onRetry: () -> Unit,
+    onAcknowledgeError: () -> Unit,
+) {
+  OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
+    AuthenticatedScaffold(
+        selectedRoute = AuthenticatedTopLevelRoute.MyComplex,
+        onSearchSelected = shellActions.selectSearch,
+        onReservationsSelected = shellActions.selectReservations,
+        onNotificationsSelected = shellActions.selectNotifications,
+        onMyComplexSelected = shellActions.returnToMyComplexRoot,
+        onSignOut = shellActions.signOut,
+        isOwner = shellActions.isOwner,
+        viewingAsPlayer = shellActions.viewingAsPlayer,
+        onSwitchToPlayerView = shellActions.switchToPlayerView,
+        onSwitchToOwnerView = shellActions.switchToOwnerView,
+        onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
+        chrome =
+            AuthenticatedScaffoldChrome(
+                title = "Reseñas recibidas",
+                onNavigateBack = shellActions.closeCurrentDetail,
+            ),
+    ) { contentPadding ->
+      OwnerReceivedReviewsScreen(
+          state = state,
+          contentPadding = contentPadding,
+          actions =
+              OwnerReceivedReviewsScreenActions(
+                  onCourtSelected = onSelectCourt,
+                  onLoadMore = onLoadMore,
+                  onRetryLoadMore = onRetryLoadMore,
+                  onRetry = onRetry,
+                  onAcknowledgeError = onAcknowledgeError,
+              ),
+      )
+    }
+  }
 }

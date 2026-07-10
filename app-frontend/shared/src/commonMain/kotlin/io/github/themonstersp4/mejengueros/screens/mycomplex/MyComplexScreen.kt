@@ -65,6 +65,8 @@ fun MyComplexScreen(
     onCreateComplex: () -> Unit,
     onRetry: () -> Unit,
     onOpenComplexDetail: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -101,6 +103,10 @@ fun MyComplexScreen(
                   complexes = state.complexes,
                   onOpenComplexDetail = onOpenComplexDetail,
               )
+              ActivitySection(
+                  onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+                  onOpenOwnerReservations = onOpenOwnerReservations,
+              )
             }
       }
     }
@@ -120,6 +126,7 @@ fun ComplexDetailScreen(
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onOpenOwnerReceivedReviews: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -143,6 +150,7 @@ fun ComplexDetailScreen(
               onConfigureAvailability = onConfigureAvailability,
               onOpenOwnerReservations = onOpenOwnerReservations,
               onPickCourtImage = onPickCourtImage,
+              onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
           )
       isLoading -> LoadingState()
       errorMessage != null -> ErrorState(errorMessage, onRetry)
@@ -287,6 +295,7 @@ private fun ComplexDetailContent(
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     if (isRefreshing) {
@@ -310,6 +319,7 @@ private fun ComplexDetailContent(
         onConfigureAvailability = onConfigureAvailability,
         onOpenOwnerReservations = onOpenOwnerReservations,
         onPickCourtImage = onPickCourtImage,
+        onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
     )
   }
 }
@@ -322,6 +332,7 @@ private fun ComplexHubSection(
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     ComplexSummaryCard(complex = complex)
@@ -334,7 +345,10 @@ private fun ComplexHubSection(
         onPickCourtImage = onPickCourtImage,
     )
     Spacer(modifier = Modifier.height(8.dp))
-    ActivitySection(onOpenOwnerReservations = onOpenOwnerReservations)
+    ActivitySection(
+        onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+        onOpenOwnerReservations = onOpenOwnerReservations,
+    )
   }
 }
 
@@ -581,7 +595,10 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun ActivitySection(onOpenOwnerReservations: () -> Unit) {
+private fun ActivitySection(
+    onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit,
+) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     SectionLabel(text = "ACTIVIDAD")
     MejenguerosListGroup(modifier = Modifier.testTag("activity_section_root")) {
@@ -591,6 +608,7 @@ private fun ActivitySection(onOpenOwnerReservations: () -> Unit) {
           title = "Reseñas recibidas",
           subtitle = "Lo que opinan los mejengueros",
           testTag = "activity_resenas_row",
+          onClick = onOpenOwnerReceivedReviews,
           showDivider = true,
       )
       ActivityRow(

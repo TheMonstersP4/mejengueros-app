@@ -116,7 +116,7 @@ class ComplexDetailScreenBehaviorTest {
   }
 
   @Test
-  fun activitySectionExposesReviewsPlaceholderAndActionableReservationsRow() {
+  fun activitySectionReservationsRowNavigatesToOwnerReservations() {
     var openedOwnerReservations = false
     composeRule.setContent {
       MejenguerosTheme {
@@ -131,14 +131,6 @@ class ComplexDetailScreenBehaviorTest {
         )
       }
     }
-
-    composeRule
-        .onNodeWithTag("complex_detail_root")
-        .performScrollToNode(hasTestTag("activity_resenas_row"))
-    composeRule.onNodeWithTag("activity_resenas_row").assertExists()
-    composeRule.onNodeWithText("Reseñas recibidas").assertExists()
-    // Reviews remain a placeholder until their own feature lands.
-    composeRule.onAllNodesWithText("Próximamente")[0].assertExists()
 
     composeRule
         .onNodeWithTag("complex_detail_root")
