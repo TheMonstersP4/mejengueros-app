@@ -30,6 +30,7 @@ import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewM
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationCardUiModel
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsUiState
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
+import io.github.themonstersp4.mejengueros.presentation.ownerreservations.OwnerReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
@@ -50,6 +51,8 @@ import io.github.themonstersp4.mejengueros.screens.courtdetail.CourtDetailScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
+import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreen
+import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreenActions
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreenActions
 import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
@@ -468,11 +471,53 @@ internal fun CatalogReservationEntry(
 
 @Composable
 private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
-  ReservationsEntryContent(
-      shellActions = shellActions,
-      reservationsViewModel = koinViewModel(),
-      reviewViewModel = koinViewModel(),
-  )
+  // The Reservations top-level route is shared: owners viewing their own shell see the
+  // reservations booked on their courts, while players (and owners browsing as
+  // mejenguero) see their personal reservations.
+  if (shellActions.isOwner && !shellActions.viewingAsPlayer) {
+    OwnerReservationsEntryContent(
+        shellActions = shellActions,
+        ownerReservationsViewModel = koinViewModel(),
+    )
+  } else {
+    ReservationsEntryContent(
+        shellActions = shellActions,
+        reservationsViewModel = koinViewModel(),
+        reviewViewModel = koinViewModel(),
+    )
+  }
+}
+
+@Composable
+internal fun OwnerReservationsEntryContent(
+    shellActions: AuthenticatedShellActions,
+    ownerReservationsViewModel: OwnerReservationsViewModel,
+) {
+  val ownerReservationsState by ownerReservationsViewModel.uiState.collectAsState()
+
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Reservations,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
+      chrome = AuthenticatedScaffoldChrome(title = "Reservas de mis canchas"),
+  ) { contentPadding ->
+    OwnerReservationsScreen(
+        state = ownerReservationsState,
+        contentPadding = contentPadding,
+        actions =
+            OwnerReservationsScreenActions(
+                onCourtSelected = ownerReservationsViewModel::selectCourt,
+                onRetryLoad = ownerReservationsViewModel::refresh,
+            ),
+    )
+  }
 }
 
 @Composable
@@ -719,6 +764,7 @@ internal fun MyComplexRouteContent(
           onRetry = onRetry,
           onOpenComplexDetail = shellActions.openComplexDetail,
           onOpenOwnerReceivedReviews = shellActions.openOwnerReceivedReviews,
+          onOpenOwnerReservations = shellActions.selectReservations,
       )
     }
   }
@@ -732,6 +778,7 @@ internal fun MyComplexEntryContent(
     onRetry: () -> Unit,
     onOpenComplexDetail: (String) -> Unit,
     onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
 ) {
   MyComplexScreen(
       state = state,
@@ -740,6 +787,7 @@ internal fun MyComplexEntryContent(
       onRetry = onRetry,
       onOpenComplexDetail = onOpenComplexDetail,
       onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+      onOpenOwnerReservations = onOpenOwnerReservations,
   )
 }
 
@@ -840,6 +888,7 @@ internal fun ComplexDetailRouteContent(
           contentPadding = contentPadding,
           onRetry = onRetry,
           onConfigureAvailability = shellActions.openCourtAvailability,
+          onOpenOwnerReservations = shellActions.selectReservations,
           onPickCourtImage = onPickCourtImage,
           onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
       )
@@ -875,6 +924,7 @@ internal fun ComplexDetailEntryContent(
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
     onOpenOwnerReceivedReviews: () -> Unit = {},
 ) {
@@ -888,6 +938,7 @@ internal fun ComplexDetailEntryContent(
       contentPadding = contentPadding,
       onRetry = onRetry,
       onConfigureAvailability = onConfigureAvailability,
+      onOpenOwnerReservations = onOpenOwnerReservations,
       onPickCourtImage = onPickCourtImage,
       onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
   )

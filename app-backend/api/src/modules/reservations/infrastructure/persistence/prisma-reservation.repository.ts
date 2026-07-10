@@ -2,14 +2,18 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@/generated/prisma/client';
 import { costaRicaBusinessDayBounds } from '@/shared/domain/time/costa-rica-business-time';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
+import { OwnerReservationCourtNotAccessibleError } from '../../domain/errors/owner-reservation-court-not-accessible.error';
 import { ReservationConflictError } from '../../domain/errors/reservation-conflict.error';
 import { ReservationCourtNotFoundError } from '../../domain/errors/reservation-court-not-found.error';
 import type {
   ICreateConfirmedReservationCommand,
   ICompleteExpiredReservationsCommand,
   IFindMyReservationsQuery,
+  IListOwnerReservationsQuery,
   IMyReservationSnapshot,
   IMyReservationsSnapshotGroups,
+  IOwnerReservationSnapshot,
+  IOwnerReservationsSnapshotGroups,
   IReservationRepository,
   IReservationSnapshot,
   IReservationWindowQuery,
@@ -20,12 +24,15 @@ interface IReservationPersistenceClient {
   $executeRaw: PrismaService['$executeRaw'];
   court: {
     findFirst: PrismaService['court']['findFirst'];
+    findMany: PrismaService['court']['findMany'];
   };
   reservation: {
     create: PrismaService['reservation']['create'];
     findMany: PrismaService['reservation']['findMany'];
   };
 }
+
+const OWNER_RESERVATIONS_COGNITO_NATIVE_PROVIDER = 'Cognito';
 
 @Injectable()
 export class PrismaReservationRepository implements IReservationRepository {
@@ -241,6 +248,94 @@ export class PrismaReservationRepository implements IReservationRepository {
     };
   }
 
+  async listOwnerReservations(
+    query: IListOwnerReservationsQuery
+  ): Promise<IOwnerReservationsSnapshotGroups> {
+    const ownedCourtIds = await this.loadOwnedCourtIds(query);
+
+    if (query.court != null && !ownedCourtIds.includes(query.court.courtId)) {
+      throw new OwnerReservationCourtNotAccessibleError(query.court.courtId);
+    }
+
+    if (ownedCourtIds.length === 0) {
+      return { upcoming: [], finalized: [] };
+    }
+
+    // Narrow the read scope to the selected court when the filter is provided;
+    // otherwise the scope remains the full set of owned court IDs.
+    const scopedCourtIds =
+      query.court != null ? [query.court.courtId] : ownedCourtIds;
+
+    const [upcomingReservations, finalizedReservations] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where: {
+          courtId: { in: scopedCourtIds },
+          status: 'CONFIRMED',
+          court: {
+            deletedAt: null,
+            complex: {
+              deletedAt: null
+            }
+          }
+        },
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        take: query.upcomingLimit,
+        select: OWNER_RESERVATION_CARD_SELECT
+      }),
+      this.prisma.reservation.findMany({
+        where: {
+          courtId: { in: scopedCourtIds },
+          status: 'COMPLETED',
+          completedAt: {
+            not: null
+          },
+          court: {
+            deletedAt: null,
+            complex: {
+              deletedAt: null
+            }
+          }
+        },
+        orderBy: [{ completedAt: 'desc' }, { startsAt: 'desc' }, { id: 'asc' }],
+        take: query.finalizedLimit,
+        select: OWNER_RESERVATION_CARD_SELECT
+      })
+    ]);
+
+    return {
+      upcoming: mapOwnerReservationSnapshots(upcomingReservations),
+      finalized: mapOwnerReservationSnapshots(finalizedReservations)
+    };
+  }
+
+  private async loadOwnedCourtIds(
+    query: IListOwnerReservationsQuery
+  ): Promise<string[]> {
+    const provider =
+      query.ownerIdentity.provider ?? OWNER_RESERVATIONS_COGNITO_NATIVE_PROVIDER;
+    const providerSubject = query.ownerIdentity.sub;
+
+    const courts: { id: string }[] = await this.prisma.court.findMany({
+      where: {
+        deletedAt: null,
+        complex: {
+          deletedAt: null,
+          owner: {
+            identities: {
+              some: {
+                provider,
+                providerSubject
+              }
+            }
+          }
+        }
+      },
+      select: { id: true }
+    });
+
+    return courts.map((court) => court.id);
+  }
+
   async completeExpiredReservations(
     command: ICompleteExpiredReservationsCommand
   ): Promise<number> {
@@ -261,6 +356,56 @@ export class PrismaReservationRepository implements IReservationRepository {
 
 const PRISMA_CONFIRMED_RESERVATION_STATUS = 'CONFIRMED';
 const PRISMA_COMPLETED_RESERVATION_STATUS = 'COMPLETED';
+
+const OWNER_RESERVATION_CARD_SELECT = {
+  id: true,
+  startsAt: true,
+  endsAt: true,
+  status: true,
+  completedAt: true,
+  court: {
+    select: {
+      name: true,
+      imageUpload: {
+        select: {
+          objectKey: true
+        }
+      },
+      complex: {
+        select: {
+          name: true
+        }
+      }
+    }
+  }
+} as const;
+
+function mapOwnerReservationSnapshots(
+  reservations: Array<{
+    id: string;
+    startsAt: Date;
+    endsAt: Date;
+    status: IOwnerReservationSnapshot['status'];
+    completedAt: Date | null;
+    court: {
+      name: string;
+      imageUpload: { objectKey: string } | null;
+      complex: {
+        name: string;
+      };
+    };
+  }>
+): IOwnerReservationSnapshot[] {
+  return reservations.map((reservation) => ({
+    id: reservation.id,
+    complexName: reservation.court.complex.name,
+    courtName: reservation.court.name,
+    imageObjectKey: reservation.court.imageUpload?.objectKey ?? undefined,
+    startsAt: reservation.startsAt.toISOString(),
+    endsAt: reservation.endsAt.toISOString(),
+    status: reservation.status
+  }));
+}
 
 function mapMyReservationSnapshots(
   reservations: Array<{

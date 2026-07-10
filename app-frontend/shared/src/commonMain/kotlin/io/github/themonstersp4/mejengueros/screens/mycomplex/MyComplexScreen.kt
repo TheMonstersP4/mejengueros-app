@@ -66,6 +66,7 @@ fun MyComplexScreen(
     onRetry: () -> Unit,
     onOpenComplexDetail: (String) -> Unit,
     onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(
@@ -102,7 +103,10 @@ fun MyComplexScreen(
                   complexes = state.complexes,
                   onOpenComplexDetail = onOpenComplexDetail,
               )
-              ActivitySection(onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews)
+              ActivitySection(
+                  onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+                  onOpenOwnerReservations = onOpenOwnerReservations,
+              )
             }
       }
     }
@@ -120,6 +124,7 @@ fun ComplexDetailScreen(
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
     onOpenOwnerReceivedReviews: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -143,6 +148,7 @@ fun ComplexDetailScreen(
               isCourtImagePickerAvailable = isCourtImagePickerAvailable,
               isUpdatingCourtImage = isUpdatingCourtImage,
               onConfigureAvailability = onConfigureAvailability,
+              onOpenOwnerReservations = onOpenOwnerReservations,
               onPickCourtImage = onPickCourtImage,
               onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
           )
@@ -287,6 +293,7 @@ private fun ComplexDetailContent(
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
     onOpenOwnerReceivedReviews: () -> Unit,
 ) {
@@ -310,6 +317,7 @@ private fun ComplexDetailContent(
         isCourtImagePickerAvailable = isCourtImagePickerAvailable,
         isUpdatingCourtImage = isUpdatingCourtImage,
         onConfigureAvailability = onConfigureAvailability,
+        onOpenOwnerReservations = onOpenOwnerReservations,
         onPickCourtImage = onPickCourtImage,
         onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
     )
@@ -322,6 +330,7 @@ private fun ComplexHubSection(
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
     onOpenOwnerReceivedReviews: () -> Unit,
 ) {
@@ -336,7 +345,10 @@ private fun ComplexHubSection(
         onPickCourtImage = onPickCourtImage,
     )
     Spacer(modifier = Modifier.height(8.dp))
-    ActivitySection(onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews)
+    ActivitySection(
+        onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
+        onOpenOwnerReservations = onOpenOwnerReservations,
+    )
   }
 }
 
@@ -583,11 +595,14 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun ActivitySection(onOpenOwnerReceivedReviews: () -> Unit) {
+private fun ActivitySection(
+    onOpenOwnerReceivedReviews: () -> Unit,
+    onOpenOwnerReservations: () -> Unit,
+) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     SectionLabel(text = "ACTIVIDAD")
     MejenguerosListGroup(modifier = Modifier.testTag("activity_section_root")) {
-      ActivityNavigationRow(
+      ActivityRow(
           icon = Icons.Filled.Star,
           iconDescription = "Reseñas",
           title = "Reseñas recibidas",
@@ -596,26 +611,28 @@ private fun ActivitySection(onOpenOwnerReceivedReviews: () -> Unit) {
           onClick = onOpenOwnerReceivedReviews,
           showDivider = true,
       )
-      ActivityPlaceholderRow(
+      ActivityRow(
           icon = Icons.Filled.Check,
           iconDescription = "Reservas",
           title = "Reservas de mis canchas",
-          subtitle = "Próximamente",
+          subtitle = "Próximas y pasadas",
           testTag = "activity_reservas_row",
           showDivider = false,
+          onClick = onOpenOwnerReservations,
       )
     }
   }
 }
 
 @Composable
-private fun ActivityPlaceholderRow(
+private fun ActivityRow(
     icon: ImageVector,
     iconDescription: String?,
     title: String,
     subtitle: String,
     testTag: String,
     showDivider: Boolean,
+    onClick: (() -> Unit)? = null,
 ) {
   MejenguerosListItem(
       text =
@@ -641,59 +658,19 @@ private fun ActivityPlaceholderRow(
         }
       },
       trailing = {
-        MejenguerosStatusPill(
-            text = "Próximamente",
-            style = MejenguerosStatusPillStyle.Neutral,
-        )
-      },
-      style =
-          MejenguerosListItemStyle(
-              showDivider = showDivider,
-              shape = RectangleShape,
-          ),
-  )
-}
-
-@Composable
-private fun ActivityNavigationRow(
-    icon: ImageVector,
-    iconDescription: String?,
-    title: String,
-    subtitle: String,
-    testTag: String,
-    onClick: () -> Unit,
-    showDivider: Boolean,
-) {
-  MejenguerosListItem(
-      text =
-          MejenguerosListItemText(
-              title = title,
-              supportingText = subtitle,
-          ),
-      modifier = Modifier.testTag(testTag),
-      leading = {
-        Surface(
-            modifier = Modifier.size(36.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            contentColor = MaterialTheme.colorScheme.primary,
-        ) {
-          Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = iconDescription,
-                modifier = Modifier.size(18.dp),
-            )
-          }
+        if (onClick != null) {
+          Icon(
+              imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        } else {
+          MejenguerosStatusPill(
+              text = "Próximamente",
+              style = MejenguerosStatusPillStyle.Neutral,
+          )
         }
-      },
-      trailing = {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
       },
       onClick = onClick,
       style =
