@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.presentation.catalog
 
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -239,6 +240,160 @@ class CourtCatalogViewModelTest {
           Dispatchers.resetMain()
         }
       }
+
+  @Test
+  fun firstPageDoesNotLoadTheWholeCatalogAndExposesNextPage() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = PagedCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+
+          advanceUntilIdle()
+
+          // The first load stops at one page instead of the whole catalog.
+          assertEquals(
+              CourtCatalogPage.DEFAULT_PAGE_SIZE,
+              viewModel.uiState.value.visibleCourts.size,
+          )
+          assertTrue(viewModel.uiState.value.hasNextPage)
+          assertEquals(1, viewModel.uiState.value.currentPage)
+          // The total is exposed even though only the first page is loaded, so
+          // the UI can show "showing X of TOTAL".
+          assertEquals(MANY_CATALOG_COURT_COUNT, viewModel.uiState.value.totalCourts)
+          assertEquals(
+              listOf(
+                  CatalogRequest(
+                      "",
+                      null,
+                      null,
+                      page = 1,
+                      pageSize = CourtCatalogPage.DEFAULT_PAGE_SIZE,
+                  )
+              ),
+              repository.requests,
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun loadNextPageAppendsFollowingPageWithoutDuplicates() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = PagedCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.loadNextPage()
+          advanceUntilIdle()
+
+          val visible = viewModel.uiState.value.visibleCourts
+          assertEquals(MANY_CATALOG_COURT_COUNT, visible.size)
+          assertEquals(visible.size, visible.map { it.id }.toSet().size)
+          assertFalse(viewModel.uiState.value.hasNextPage)
+          assertEquals(2, viewModel.uiState.value.currentPage)
+          assertEquals(2, repository.requests.last().page)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun loadNextPageIgnoresRepeatedTriggersWhileAPageIsAlreadyLoading() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = PagedCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.loadNextPage()
+          viewModel.loadNextPage()
+          viewModel.loadNextPage()
+          advanceUntilIdle()
+
+          // Only the first-page load plus a single next-page load happened.
+          assertEquals(2, repository.requests.size)
+          assertEquals(MANY_CATALOG_COURT_COUNT, viewModel.uiState.value.visibleCourts.size)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun nextPageFailureKeepsLoadedCourtsAndRetrySucceeds() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = NextPageFlakyCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.loadNextPage()
+          advanceUntilIdle()
+
+          // The second page failed but the first page is untouched.
+          assertNotNull(viewModel.uiState.value.nextPageErrorMessage)
+          assertEquals(
+              CourtCatalogPage.DEFAULT_PAGE_SIZE,
+              viewModel.uiState.value.visibleCourts.size,
+          )
+          assertFalse(viewModel.uiState.value.canLoadNextPage)
+
+          viewModel.retryNextPage()
+          advanceUntilIdle()
+
+          assertNull(viewModel.uiState.value.nextPageErrorMessage)
+          assertEquals(MANY_CATALOG_COURT_COUNT, viewModel.uiState.value.visibleCourts.size)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun changingSearchResetsPaginationBackToFirstPage() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = PagedCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+          viewModel.loadNextPage()
+          advanceUntilIdle()
+          assertEquals(MANY_CATALOG_COURT_COUNT, viewModel.uiState.value.visibleCourts.size)
+
+          viewModel.updateSearchQuery("cancha 01")
+          advanceTimeBy(300)
+          advanceUntilIdle()
+
+          // A new search restarts from page 1 and drops the accumulated pages.
+          assertEquals(1, viewModel.uiState.value.currentPage)
+          assertEquals(1, repository.requests.last().page)
+          assertTrue(
+              viewModel.uiState.value.visibleCourts.size <= CourtCatalogPage.DEFAULT_PAGE_SIZE,
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+}
+
+private fun List<CourtCatalogItem>.toCatalogPage(page: Int, pageSize: Int): CourtCatalogPage {
+  val fromIndex = (page - 1) * pageSize
+  val windowed =
+      if (fromIndex >= size) emptyList()
+      else subList(fromIndex, minOf(fromIndex + pageSize, size)).toList()
+  val totalPages = if (isEmpty()) 0 else (size + pageSize - 1) / pageSize
+  return CourtCatalogPage(
+      items = windowed,
+      page = page,
+      pageSize = pageSize,
+      totalItems = size,
+      totalPages = totalPages,
+  )
 }
 
 private class FakeCourtCatalogRepository : ICourtCatalogRepository {
@@ -246,11 +401,14 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
-  ): List<CourtCatalogItem> =
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage =
       allCatalogCourts
           .filter { searchQuery.isNullOrBlank() || it.matchesSearch(searchQuery) }
           .filter { provinceId == null || it.provinceId == provinceId }
           .filter { cantonId == null || it.cantonId == cantonId }
+          .toCatalogPage(page, pageSize)
 }
 
 private class RecordingCourtCatalogRepository(
@@ -262,13 +420,16 @@ private class RecordingCourtCatalogRepository(
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
-  ): List<CourtCatalogItem> {
-    requests += CatalogRequest(searchQuery, provinceId, cantonId)
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage {
+    requests += CatalogRequest(searchQuery, provinceId, cantonId, page, pageSize)
     if (responses.isNotEmpty()) {
-      return responses.removeFirst()
+      return responses.removeFirst().toCatalogPage(page, pageSize)
     }
 
-    return FakeCourtCatalogRepository().getCatalogCourts(searchQuery, provinceId, cantonId)
+    return FakeCourtCatalogRepository()
+        .getCatalogCourts(searchQuery, provinceId, cantonId, page, pageSize)
   }
 }
 
@@ -276,6 +437,8 @@ private data class CatalogRequest(
     val searchQuery: String?,
     val provinceId: String?,
     val cantonId: String?,
+    val page: Int = 1,
+    val pageSize: Int = CourtCatalogPage.DEFAULT_PAGE_SIZE,
 )
 
 private val allCatalogCourts =
@@ -353,7 +516,9 @@ private class FailingCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
-  ): List<CourtCatalogItem> {
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage {
     throw IllegalStateException("boom")
   }
 }
@@ -365,12 +530,82 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
-  ): List<CourtCatalogItem> {
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage {
     attempts += 1
     if (attempts == 1) {
       throw IllegalStateException("temporary failure")
     }
 
-    return FakeCourtCatalogRepository().getCatalogCourts(null, null, null)
+    return FakeCourtCatalogRepository().getCatalogCourts(null, null, null, page, pageSize)
+  }
+}
+
+// One full page plus a partial second page, expressed relative to the page
+// size so the pagination tests stay valid if the default page size changes.
+private const val MANY_CATALOG_COURT_COUNT = CourtCatalogPage.DEFAULT_PAGE_SIZE + 5
+
+private val manyCatalogCourts: List<CourtCatalogItem> =
+    (0 until MANY_CATALOG_COURT_COUNT).map { index ->
+      val label = index.toString().padStart(2, '0')
+      CourtCatalogItem(
+          id = "court-$label",
+          complexId = "complex-$label",
+          complexName = "Complejo $label",
+          courtName = "Cancha $label",
+          provinceId = "province-1",
+          provinceName = "San José",
+          cantonId = "canton-1",
+          cantonName = "Escazú",
+          services = listOf("Sintetico"),
+          ratingAverage = if (index % 3 == 0) null else (1 + index % 5).toDouble(),
+          ratingCount = index % 7,
+          imageUrl = null,
+          isReservableToday = index % 2 == 0,
+      )
+    }
+
+private class PagedCourtCatalogRepository(
+    private val courts: List<CourtCatalogItem>,
+) : ICourtCatalogRepository {
+  val requests = mutableListOf<CatalogRequest>()
+
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage {
+    requests += CatalogRequest(searchQuery, provinceId, cantonId, page, pageSize)
+    return courts
+        .filter { searchQuery.isNullOrBlank() || it.matchesSearch(searchQuery) }
+        .filter { provinceId == null || it.provinceId == provinceId }
+        .filter { cantonId == null || it.cantonId == cantonId }
+        .toCatalogPage(page, pageSize)
+  }
+}
+
+private class NextPageFlakyCourtCatalogRepository(
+    private val courts: List<CourtCatalogItem>,
+) : ICourtCatalogRepository {
+  private var nextPageAttempts = 0
+
+  override suspend fun getCatalogCourts(
+      searchQuery: String?,
+      provinceId: String?,
+      cantonId: String?,
+      page: Int,
+      pageSize: Int,
+  ): CourtCatalogPage {
+    if (page > 1) {
+      nextPageAttempts += 1
+      if (nextPageAttempts == 1) {
+        throw IllegalStateException("temporary next page failure")
+      }
+    }
+
+    return courts.toCatalogPage(page, pageSize)
   }
 }

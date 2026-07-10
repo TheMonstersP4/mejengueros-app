@@ -44,7 +44,15 @@ class CourtCatalogRemoteDataSourceTest {
                               "isReservableToday": true,
                               "imageUrl": "https://read.example.test/courts/court-id.jpg"
                             }
-                          ]
+                          ],
+                          "meta": {
+                            "pagination": {
+                              "page": 2,
+                              "pageSize": 20,
+                              "totalItems": 45,
+                              "totalPages": 3
+                            }
+                          }
                         }
                         """,
                     capturePath = { requestedPath = it.orEmpty() },
@@ -53,19 +61,68 @@ class CourtCatalogRemoteDataSourceTest {
             json = json,
         )
 
-    val courts =
+    val page =
         dataSource.getCatalogCourts(
             searchQuery = "nogales",
             provinceId = "province-id",
             cantonId = "canton-id",
+            page = 2,
+            pageSize = 20,
         )
 
     assertEquals("/v1/courts/catalog", requestedPath)
-    assertEquals("q=nogales&provinceId=province-id&cantonId=canton-id", requestedQuery)
-    assertEquals("court-id", courts.single().id)
-    assertEquals(listOf("Sintetico", "Iluminacion"), courts.single().services)
-    assertEquals(4.5, courts.single().ratingAverage)
-    assertEquals("https://read.example.test/courts/court-id.jpg", courts.single().imageUrl)
+    assertEquals(
+        "q=nogales&provinceId=province-id&cantonId=canton-id&page=2&pageSize=20",
+        requestedQuery,
+    )
+    assertEquals("court-id", page.items.single().id)
+    assertEquals(listOf("Sintetico", "Iluminacion"), page.items.single().services)
+    assertEquals(4.5, page.items.single().ratingAverage)
+    assertEquals("https://read.example.test/courts/court-id.jpg", page.items.single().imageUrl)
+    assertEquals(2, page.page)
+    assertEquals(45, page.totalItems)
+    assertEquals(3, page.totalPages)
+    assertEquals(true, page.hasNextPage)
+  }
+
+  @Test
+  fun getCatalogCourtsFallsBackToRequestedWindowWhenPaginationMetaIsMissing() = runTest {
+    val dataSource =
+        CourtCatalogRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": [
+                            {
+                              "courtId": "court-id",
+                              "courtName": "Cancha 1",
+                              "complexId": "complex-id",
+                              "complexName": "Complejo Los Nogales",
+                              "province": { "id": "province-id", "name": "San José" },
+                              "canton": { "id": "canton-id", "name": "Escazú" },
+                              "services": [],
+                              "rating": { "average": null, "count": 0 },
+                              "isReservableToday": false,
+                              "imageUrl": null
+                            }
+                          ]
+                        }
+                        """,
+                ),
+            json = json,
+        )
+
+    val page = dataSource.getCatalogCourts(page = 4, pageSize = 20)
+
+    assertEquals(4, page.page)
+    assertEquals(20, page.pageSize)
+    assertEquals(1, page.items.size)
+    // Without metadata the datasource assumes the current page is the last one.
+    assertEquals(4, page.totalPages)
+    assertEquals(false, page.hasNextPage)
   }
 
   @Test
