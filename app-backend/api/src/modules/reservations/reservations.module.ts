@@ -9,8 +9,10 @@ import { CompleteExpiredReservationsUseCase } from './application/use-cases/comp
 import { GetReservableDaysUseCase } from './application/use-cases/get-reservable-days.use-case';
 import { GetReservableSlotsUseCase } from './application/use-cases/get-reservable-slots.use-case';
 import { ListMyReservationsUseCase } from './application/use-cases/list-my-reservations.use-case';
+import { ListOwnerReservationsUseCase } from './application/use-cases/list-owner-reservations.use-case';
 import { RESERVATION_REPOSITORY } from './domain/repositories/reservation.repository';
 import { PrismaReservationRepository } from './infrastructure/persistence/prisma-reservation.repository';
+import { OwnerReservationsController } from './interfaces/http/controllers/owner-reservations.controller';
 import { ReservableDaysController } from './interfaces/http/controllers/reservable-days.controller';
 import { ReservationsController } from './interfaces/http/controllers/reservations.controller';
 import { ReservableSlotsController } from './interfaces/http/controllers/reservable-slots.controller';
@@ -19,6 +21,7 @@ import { ReservableSlotsController } from './interfaces/http/controllers/reserva
   imports: [AuthModule, UsersModule, FilesModule],
   controllers: [
     ReservationsController,
+    OwnerReservationsController,
     ReservableSlotsController,
     ReservableDaysController
   ],
@@ -28,6 +31,7 @@ import { ReservableSlotsController } from './interfaces/http/controllers/reserva
     GetReservableDaysUseCase,
     GetReservableSlotsUseCase,
     ListMyReservationsUseCase,
+    ListOwnerReservationsUseCase,
     SystemClock,
     {
       provide: CLOCK,

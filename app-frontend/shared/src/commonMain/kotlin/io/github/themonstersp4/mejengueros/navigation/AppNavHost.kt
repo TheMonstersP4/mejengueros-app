@@ -54,6 +54,7 @@ internal fun appNavigationSerializersModule(): SerializersModule = SerializersMo
     subclass(KitRoute::class, KitRoute.serializer())
     subclass(AvailabilitySelectorsRoute::class, AvailabilitySelectorsRoute.serializer())
     subclass(CourtAvailabilityRoute::class, CourtAvailabilityRoute.serializer())
+    subclass(OwnerReceivedReviewsRoute::class, OwnerReceivedReviewsRoute.serializer())
     subclass(PokedexRoute::class, PokedexRoute.serializer())
     subclass(PokemonDetailRoute::class, PokemonDetailRoute.serializer())
   }
@@ -191,6 +192,7 @@ fun AppNavHost() {
           openAddCourt = authenticatedNavigationState::openAddCourt,
           openCreateComplex = authenticatedNavigationState::openCreateComplex,
           openCourtAvailability = authenticatedNavigationState::openCourtAvailability,
+          openOwnerReceivedReviews = authenticatedNavigationState::openOwnerReceivedReviews,
           closeAddCourtAfterSuccess = authenticatedNavigationState::closeAddCourtAfterSuccess,
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,
           signOut = {

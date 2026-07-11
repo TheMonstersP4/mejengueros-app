@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.domain.repository
 
 import io.github.themonstersp4.mejengueros.domain.model.MyReservations
+import io.github.themonstersp4.mejengueros.domain.model.OwnerReservations
 import io.github.themonstersp4.mejengueros.domain.model.ReservationConfirmation
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayDiscovery
@@ -17,4 +18,6 @@ interface IReservationRepository {
   suspend fun createReservation(courtId: String, startsAtUtc: String): ReservationConfirmation
 
   suspend fun getMyReservations(): MyReservations
+
+  suspend fun getOwnerReservations(courtId: String?): OwnerReservations
 }

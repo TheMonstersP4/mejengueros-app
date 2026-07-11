@@ -23,6 +23,7 @@ class AuthenticatedShellActions(
     val openAddCourt: (String, String) -> Unit,
     val openCreateComplex: () -> Unit,
     val openCourtAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
+    val openOwnerReceivedReviews: () -> Unit = {},
     val closeAddCourtAfterSuccess: () -> Unit,
     val closeCurrentDetail: () -> Unit,
     val signOut: () -> Unit,
