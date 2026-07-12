@@ -47,7 +47,12 @@ const runLiveDatabaseIntegration =
           repository.completeExpiredReservations({
             now: new Date('2026-07-05T20:00:00.000Z')
           })
-        ).resolves.toBe(2);
+        ).resolves.toEqual(
+          expect.arrayContaining([
+            { id: fixture.expiredReservationId, userId: fixture.playerId },
+            { id: fixture.endsAtNowReservationId, userId: fixture.playerId }
+          ])
+        );
 
         await expect(
           prismaService.reservation.findUnique({
@@ -95,7 +100,7 @@ const runLiveDatabaseIntegration =
           repository.completeExpiredReservations({
             now: new Date('2026-07-05T20:00:00.000Z')
           })
-        ).resolves.toBe(0);
+        ).resolves.toEqual([]);
       } finally {
         await cleanupReservationCompletionFixture(prismaService, fixture);
       }
