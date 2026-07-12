@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.notifications.NotificationsViewModel
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
@@ -72,8 +74,11 @@ fun AppNavHost() {
   val authenticatedNavigationState =
       rememberAuthenticatedNavigationState(appNavigationSavedStateConfiguration)
   val authViewModel = koinViewModel<AuthViewModel>()
+  val notificationsViewModel = koinViewModel<NotificationsViewModel>()
   val secureStorage = koinInject<IAuthSecureStorage>()
   val authState by authViewModel.uiState.collectAsState()
+  val notificationsState by notificationsViewModel.uiState.collectAsState()
+  val notificationUnreadCountState = rememberUpdatedState(notificationsState.unreadCount)
   val currentUserId = authState.userId?.takeIf { it.isNotBlank() }
   val coroutineScope = rememberCoroutineScope()
   val startupOwnerPreferenceHydrationGate = remember { StartupOwnerPreferenceHydrationGate() }
@@ -124,6 +129,15 @@ fun AppNavHost() {
 
     if (startupOwnerPreferenceHydrationGate.isHydratingFor(userId)) {
       startupOwnerPreferenceHydrationGate.clear()
+    }
+  }
+
+  LaunchedEffect(authState.isAuthenticated, currentUserId) {
+    val userId = currentUserId
+    if (authState.isAuthenticated && userId != null) {
+      notificationsViewModel.activate(userId)
+    } else {
+      notificationsViewModel.deactivate()
     }
   }
 
@@ -182,7 +196,10 @@ fun AppNavHost() {
       AuthenticatedShellActions(
           selectSearch = authenticatedNavigationState::selectSearch,
           selectReservations = authenticatedNavigationState::selectReservations,
-          selectNotifications = authenticatedNavigationState::selectNotifications,
+          selectNotifications = {
+            authenticatedNavigationState.selectNotifications()
+            notificationsViewModel.refresh()
+          },
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
           returnToSearchRoot = authenticatedNavigationState::returnToSearchRoot,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
@@ -207,6 +224,7 @@ fun AppNavHost() {
           switchToOwnerView = switchToOwnerView,
           isOwner = authState.isOwner,
           viewingAsPlayer = authenticatedNavigationState.viewingAsPlayer,
+          notificationUnreadCount = notificationUnreadCountState,
       )
 
   NavDisplay(
@@ -225,6 +243,7 @@ fun AppNavHost() {
             appEntries(
                 authenticatedNavigationState = authenticatedNavigationState,
                 authViewModel = authViewModel,
+                notificationsViewModel = notificationsViewModel,
                 loginActions = loginActions,
                 shellActions = shellActions,
             )
