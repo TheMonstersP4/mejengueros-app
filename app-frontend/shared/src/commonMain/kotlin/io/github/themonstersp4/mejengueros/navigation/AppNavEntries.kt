@@ -83,6 +83,42 @@ import io.github.themonstersp4.mejengueros.ui.components.rememberReviewEvidenceI
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
+fun EntryProviderScope<NavKey>.authEntries(
+    authViewModel: AuthViewModel,
+    loginActions: LoginNavigationActions,
+) {
+  entry<LoginRoute> {
+    LoginEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<RegisterRoute> {
+    RegisterEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<VerifyAccountRoute> {
+    VerifyAccountEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<ForgotPasswordRoute> {
+    ForgotPasswordEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<ResetPasswordRoute> {
+    PasswordResetEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+}
+
 fun EntryProviderScope<NavKey>.appEntries(
     authenticatedNavigationState: AuthenticatedNavigationState,
     authViewModel: AuthViewModel,

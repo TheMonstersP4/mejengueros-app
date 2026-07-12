@@ -74,11 +74,8 @@ fun AppNavHost() {
   val authenticatedNavigationState =
       rememberAuthenticatedNavigationState(appNavigationSavedStateConfiguration)
   val authViewModel = koinViewModel<AuthViewModel>()
-  val notificationsViewModel = koinViewModel<NotificationsViewModel>()
   val secureStorage = koinInject<IAuthSecureStorage>()
   val authState by authViewModel.uiState.collectAsState()
-  val notificationsState by notificationsViewModel.uiState.collectAsState()
-  val notificationUnreadCountState = rememberUpdatedState(notificationsState.unreadCount)
   val currentUserId = authState.userId?.takeIf { it.isNotBlank() }
   val coroutineScope = rememberCoroutineScope()
   val startupOwnerPreferenceHydrationGate = remember { StartupOwnerPreferenceHydrationGate() }
@@ -132,18 +129,6 @@ fun AppNavHost() {
     }
   }
 
-  LaunchedEffect(authState.isAuthenticated, currentUserId) {
-    val userId = currentUserId
-    if (authState.isAuthenticated && userId != null) {
-      notificationsViewModel.activate(userId)
-    } else {
-      notificationsViewModel.deactivate()
-    }
-  }
-
-  val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
-  val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
-
   val isAwaitingStartupOwnerPreferenceHydration =
       authState.isAuthenticated &&
           authState.isOwner &&
@@ -192,6 +177,37 @@ fun AppNavHost() {
             loginBackStack.add(LoginRoute)
           },
       )
+
+  if (!authState.isAuthenticated) {
+    NavDisplay(
+        backStack = loginBackStack,
+        onBack = { loginActions.closeAuthStep() },
+        entryProvider =
+            entryProvider {
+              authEntries(
+                  authViewModel = authViewModel,
+                  loginActions = loginActions,
+              )
+            },
+    )
+    return
+  }
+
+  val notificationsViewModel = koinViewModel<NotificationsViewModel>()
+  val notificationsState by notificationsViewModel.uiState.collectAsState()
+  val notificationUnreadCountState = rememberUpdatedState(notificationsState.unreadCount)
+  val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
+  val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
+
+  LaunchedEffect(currentUserId) {
+    val userId = currentUserId
+    if (userId != null) {
+      notificationsViewModel.activate(userId)
+    } else {
+      notificationsViewModel.deactivate()
+    }
+  }
+
   val shellActions =
       AuthenticatedShellActions(
           selectSearch = authenticatedNavigationState::selectSearch,
@@ -228,16 +244,8 @@ fun AppNavHost() {
       )
 
   NavDisplay(
-      backStack =
-          if (authState.isAuthenticated) authenticatedNavigationState.currentBackStack
-          else loginBackStack,
-      onBack = {
-        if (authState.isAuthenticated) {
-          authenticatedNavigationState.closeCurrentDetail()
-        } else {
-          loginActions.closeAuthStep()
-        }
-      },
+      backStack = authenticatedNavigationState.currentBackStack,
+      onBack = { authenticatedNavigationState.closeCurrentDetail() },
       entryProvider =
           entryProvider {
             appEntries(
