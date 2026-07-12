@@ -7,6 +7,6 @@ data class AppApiConfig(
 
 val defaultAppApiConfig =
     AppApiConfig(
-        baseUrl = "http://10.0.2.2:3000",
+        baseUrl = "https://85u7xyr1p9.execute-api.us-east-2.amazonaws.com",
         websocketUrl = "wss://dilk66l4f1.execute-api.us-east-2.amazonaws.com/dev",
     )
