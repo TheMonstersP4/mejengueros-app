@@ -38,6 +38,7 @@ coverage/
 *.tsbuildinfo
 app-backend/api/src/generated/prisma/
 app-backend/api/.lambda/
+app-backend/api/.local/
 
 # Local agent workspaces
 .atl/
