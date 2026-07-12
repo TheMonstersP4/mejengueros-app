@@ -3,6 +3,7 @@ import { FilesModule } from '../files/files.module';
 import { CLOCK } from '@/shared/application/clock/clock.port';
 import { SystemClock } from '@/shared/infrastructure/clock/system-clock.service';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { CreateReservationUseCase } from './application/use-cases/create-reservation.use-case';
 import { CompleteExpiredReservationsUseCase } from './application/use-cases/complete-expired-reservations.use-case';
@@ -18,7 +19,7 @@ import { ReservationsController } from './interfaces/http/controllers/reservatio
 import { ReservableSlotsController } from './interfaces/http/controllers/reservable-slots.controller';
 
 @Module({
-  imports: [AuthModule, UsersModule, FilesModule],
+  imports: [AuthModule, UsersModule, FilesModule, NotificationsModule],
   controllers: [
     ReservationsController,
     OwnerReservationsController,
