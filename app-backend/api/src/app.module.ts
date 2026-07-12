@@ -13,6 +13,7 @@ import { CourtAvailabilityModule } from './modules/court-availability/court-avai
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationsModule } from './modules/locations/locations.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ServiceCatalogModule } from './modules/service-catalog/service-catalog.module';
@@ -30,6 +31,7 @@ const databaseBackedModules = process.env.DATABASE_URL
       CourtAvailabilityModule,
       LocationsModule,
       ServiceCatalogModule,
+      NotificationsModule,
       ReservationsModule,
       ReviewsModule
     ]
