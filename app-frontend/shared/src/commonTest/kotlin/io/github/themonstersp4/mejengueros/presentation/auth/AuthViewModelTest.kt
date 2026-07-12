@@ -1,5 +1,7 @@
 package io.github.themonstersp4.mejengueros.presentation.auth
 
+import io.github.themonstersp4.mejengueros.data.auth.AuthSessionExpirationNotifier
+import io.github.themonstersp4.mejengueros.data.auth.AuthSessionExpirationReason
 import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.domain.model.AuthSession
@@ -915,6 +917,33 @@ class AuthViewModelTest {
     scope.cancel()
   }
 
+  @Test
+  fun sessionExpirationClearsLocalSessionAndReturnsToLogin() = runTest {
+    val repository = FakeAuthRepository(existingSession = sampleSession())
+    val notifier = AuthSessionExpirationNotifier()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        AuthViewModel(
+            repository,
+            FakeOAuthBrowser(),
+            sessionExpirationNotifier = notifier,
+            callbackUrls = MutableSharedFlow(),
+            coroutineScope = scope,
+        )
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isAuthenticated)
+
+    notifier.notify(AuthSessionExpirationReason.MissingToken)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isAuthenticated)
+    assertFalse(viewModel.uiState.value.isRestoringSession)
+    assertEquals("Tu sesion expiro. Inicia sesion de nuevo.", viewModel.uiState.value.errorMessage)
+    assertEquals(1, repository.clearLocalSessionCount)
+    scope.cancel()
+  }
+
   private class FakeAuthRepository(
       private val existingSession: AuthSession? = null,
       private val getSessionError: Throwable? = null,
@@ -929,6 +958,7 @@ class AuthViewModelTest {
     var receivedCallback: String? = null
     var callbackCount = 0
     var signOutCount = 0
+    var clearLocalSessionCount = 0
     var refreshUserProfileCount = 0
     var receivedRegisterFullName: String? = null
     var receivedRegisterEmail: String? = null
@@ -991,6 +1021,10 @@ class AuthViewModelTest {
     override suspend fun signOut(): AuthSignOutRequest {
       signOutCount++
       return AuthSignOutRequest("https://cognito.example/logout")
+    }
+
+    override suspend fun clearLocalSession() {
+      clearLocalSessionCount++
     }
 
     override suspend fun refreshUserProfile() {
