@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +28,7 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +63,7 @@ fun AuthenticatedScaffold(
     onSwitchToOwnerView: () -> Unit = {},
     // Called when the owner taps the "Reseñas" entry in the drawer.
     onOwnerReceivedReviewsSelected: () -> Unit = {},
+    notificationUnreadCount: State<Int> = mutableStateOf(0),
     chrome: AuthenticatedScaffoldChrome = AuthenticatedScaffoldChrome(),
     topBarActions: @Composable RowScope.() -> Unit = {},
     overlayVisible: Boolean = false,
@@ -69,6 +73,7 @@ fun AuthenticatedScaffold(
   var showSignOutConfirmation by rememberSaveable { mutableStateOf(false) }
   val drawerState = rememberDrawerState(DrawerValue.Closed)
   val drawerScope = rememberCoroutineScope()
+  val unreadNotificationCount = notificationUnreadCount.value
 
   val scaffoldModifier =
       Modifier.fillMaxSize()
@@ -230,10 +235,22 @@ fun AuthenticatedScaffold(
                               selected = selectedRoute == AuthenticatedTopLevelRoute.Notifications,
                               onClick = onNotificationsSelected,
                               icon = {
-                                Icon(
-                                    imageVector = Icons.Filled.Notifications,
-                                    contentDescription = "Notificaciones",
-                                )
+                                BadgedBox(
+                                    badge = {
+                                      if (unreadNotificationCount > 0) {
+                                        Badge {
+                                          Text(
+                                              formatNotificationBadgeCount(unreadNotificationCount)
+                                          )
+                                        }
+                                      }
+                                    },
+                                ) {
+                                  Icon(
+                                      imageVector = Icons.Filled.Notifications,
+                                      contentDescription = "Notificaciones",
+                                  )
+                                }
                               },
                           ),
                       )
@@ -277,3 +294,6 @@ enum class AuthenticatedTopLevelRoute {
   Notifications,
   MyComplex,
 }
+
+private fun formatNotificationBadgeCount(count: Int): String =
+    if (count > 9) "9+" else count.toString()

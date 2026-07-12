@@ -8,6 +8,7 @@ import { ReservationCourtNotFoundError } from '../../domain/errors/reservation-c
 import type {
   ICreateConfirmedReservationCommand,
   ICompleteExpiredReservationsCommand,
+  ICompletedReservationSnapshot,
   IFindMyReservationsQuery,
   IListOwnerReservationsQuery,
   IMyReservationSnapshot,
@@ -21,6 +22,10 @@ import type {
 } from '../../domain/repositories/reservation.repository';
 
 interface IReservationPersistenceClient {
+  $queryRaw<T = unknown>(
+    query: TemplateStringsArray | Prisma.Sql,
+    ...values: unknown[]
+  ): Promise<T>;
   $executeRaw: PrismaService['$executeRaw'];
   court: {
     findFirst: PrismaService['court']['findFirst'];
@@ -338,8 +343,8 @@ export class PrismaReservationRepository implements IReservationRepository {
 
   async completeExpiredReservations(
     command: ICompleteExpiredReservationsCommand
-  ): Promise<number> {
-    return this.prisma.$executeRaw(
+  ): Promise<ICompletedReservationSnapshot[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string; userId: string }>>(
       Prisma.sql`
         UPDATE "mejengueros_dev"."Reservation"
         SET
@@ -349,8 +354,14 @@ export class PrismaReservationRepository implements IReservationRepository {
         WHERE
           "status" = CAST(${PRISMA_CONFIRMED_RESERVATION_STATUS} AS "mejengueros_dev"."ReservationStatus")
           AND "endsAt" <= ${command.now}
+        RETURNING "id", "userId"
       `
     );
+
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.userId
+    }));
   }
 }
 

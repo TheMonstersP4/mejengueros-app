@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.di.modules
 
+import io.github.themonstersp4.mejengueros.data.auth.AuthSessionExpirationNotifier
 import io.github.themonstersp4.mejengueros.data.auth.CognitoAuthTokenProvider
 import io.github.themonstersp4.mejengueros.data.auth.CognitoOAuthRequestFactory
 import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
@@ -31,10 +32,14 @@ import io.github.themonstersp4.mejengueros.data.remote.ICourtCatalogRemoteDataSo
 import io.github.themonstersp4.mejengueros.data.remote.ICourtDetailRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICourtImageUploadRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ICourtReviewsRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.INotificationRealtimeDataSource
+import io.github.themonstersp4.mejengueros.data.remote.INotificationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReviewEvidenceUploadRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReviewRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.NotificationRealtimeDataSource
+import io.github.themonstersp4.mejengueros.data.remote.NotificationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ReviewEvidenceUploadRemoteDataSource
@@ -47,6 +52,7 @@ import io.github.themonstersp4.mejengueros.data.repository.CourtCatalogRepositor
 import io.github.themonstersp4.mejengueros.data.repository.CourtDetailRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtReviewsRepository
+import io.github.themonstersp4.mejengueros.data.repository.NotificationRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReservationRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReviewEvidenceUploadRepository
@@ -58,6 +64,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogReposi
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
+import io.github.themonstersp4.mejengueros.domain.repository.INotificationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IPokemonRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
@@ -73,6 +80,7 @@ val dataModule = module {
   single { defaultCognitoAuthConfig }
   single { PkceGenerator(get()) }
   single { CognitoOAuthRequestFactory(get()) }
+  single { AuthSessionExpirationNotifier() }
   single { OAuthCallbackParser() }
   single { JwtIdTokenDecoder(get()) }
   single<IAuthTokenProvider> { CognitoAuthTokenProvider(get<IAuthSecureStorage>()) }
@@ -111,6 +119,13 @@ val dataModule = module {
     ReviewRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
   single<IReviewRepository> { ReviewRepository(get()) }
+  single<INotificationRemoteDataSource> {
+    NotificationRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
+  }
+  single<INotificationRealtimeDataSource> {
+    NotificationRealtimeDataSource(get(), get(), get(), get())
+  }
+  single<INotificationRepository> { NotificationRepository(get(), get()) }
   single<IReviewEvidenceUploadRemoteDataSource> {
     ReviewEvidenceUploadRemoteDataSource(get(named(AppApiHttpClientQualifier)), get(), get())
   }

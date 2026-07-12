@@ -30,6 +30,8 @@ import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewM
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationCardUiModel
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsUiState
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
+import io.github.themonstersp4.mejengueros.presentation.notifications.NotificationsViewModel
+import io.github.themonstersp4.mejengueros.presentation.notifications.UserNotificationUiModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreservations.OwnerReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
@@ -51,11 +53,12 @@ import io.github.themonstersp4.mejengueros.screens.courtdetail.CourtDetailScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
+import io.github.themonstersp4.mejengueros.screens.notifications.NotificationsScreen
+import io.github.themonstersp4.mejengueros.screens.notifications.NotificationsScreenActions
 import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreenActions
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreenActions
-import io.github.themonstersp4.mejengueros.screens.placeholder.ProductPlaceholderScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
 import io.github.themonstersp4.mejengueros.screens.reservations.MyReservationsScreen
@@ -80,9 +83,46 @@ import io.github.themonstersp4.mejengueros.ui.components.rememberReviewEvidenceI
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
+fun EntryProviderScope<NavKey>.authEntries(
+    authViewModel: AuthViewModel,
+    loginActions: LoginNavigationActions,
+) {
+  entry<LoginRoute> {
+    LoginEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<RegisterRoute> {
+    RegisterEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<VerifyAccountRoute> {
+    VerifyAccountEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<ForgotPasswordRoute> {
+    ForgotPasswordEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+  entry<ResetPasswordRoute> {
+    PasswordResetEntry(
+        authViewModel = authViewModel,
+        loginActions = loginActions,
+    )
+  }
+}
+
 fun EntryProviderScope<NavKey>.appEntries(
     authenticatedNavigationState: AuthenticatedNavigationState,
     authViewModel: AuthViewModel,
+    notificationsViewModel: NotificationsViewModel,
     loginActions: LoginNavigationActions,
     shellActions: AuthenticatedShellActions,
 ) {
@@ -129,7 +169,13 @@ fun EntryProviderScope<NavKey>.appEntries(
     CatalogReservationEntry(route = route, shellActions = shellActions)
   }
   entry<ReservationsRoute> { ReservationsEntry(shellActions = shellActions) }
-  entry<NotificationsRoute> { NotificationsEntry(shellActions = shellActions) }
+  entry<NotificationsRoute> {
+    NotificationsEntryContent(
+        shellActions = shellActions,
+        notificationsViewModel = notificationsViewModel,
+        reviewViewModel = koinViewModel(),
+    )
+  }
   entry<MyComplexRoute> {
     MyComplexEntry(
         authenticatedNavigationState = authenticatedNavigationState,
@@ -310,6 +356,7 @@ internal fun SearchCatalogEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
       onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome = AuthenticatedScaffoldChrome(title = "Canchas"),
       topBarActions = {
@@ -382,6 +429,7 @@ internal fun CatalogCourtDetailEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
       onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome =
           AuthenticatedScaffoldChrome(
@@ -441,6 +489,7 @@ internal fun CatalogReservationEntry(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
       onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome =
           AuthenticatedScaffoldChrome(
@@ -506,6 +555,7 @@ internal fun OwnerReservationsEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
       chrome = AuthenticatedScaffoldChrome(title = "Reservas de mis canchas"),
   ) { contentPadding ->
     OwnerReservationsScreen(
@@ -571,6 +621,7 @@ internal fun ReservationsEntryContent(
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
       onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome =
           when (currentMode) {
@@ -689,7 +740,46 @@ private fun MyReservationCardUiModel.toReviewableReservation():
     )
 
 @Composable
-private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
+private fun NotificationsEntryContent(
+    shellActions: AuthenticatedShellActions,
+    notificationsViewModel: NotificationsViewModel,
+    reviewViewModel: ReviewViewModel,
+    reviewEvidenceImagePickerController: ReviewEvidenceImagePickerController? = null,
+) {
+  val notificationsState by notificationsViewModel.uiState.collectAsState()
+  val reviewState by reviewViewModel.uiState.collectAsState()
+  val reviewEvidenceImagePicker =
+      reviewEvidenceImagePickerController
+          ?: rememberReviewEvidenceImagePicker(reviewViewModel::updateSelectedEvidenceImage)
+
+  LaunchedEffect(reviewEvidenceImagePicker.isAvailable) {
+    reviewViewModel.updateEvidenceImagePickerAvailability(reviewEvidenceImagePicker.isAvailable)
+  }
+  LaunchedEffect(Unit) { notificationsViewModel.refresh() }
+
+  var reviewEntryMode by rememberSaveable {
+    mutableStateOf(ReservationReviewEntryMode.Launcher.name)
+  }
+  val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
+  val leaveReviewState = reviewState.toLeaveReviewUiState(currentMode)
+
+  LaunchedEffect(reviewState.submittedReview?.id) {
+    if (reviewState.submittedReview != null) {
+      reviewEntryMode = ReservationReviewEntryMode.Success.name
+      notificationsViewModel.refresh()
+    }
+  }
+
+  fun resetReviewFlow() {
+    reviewEntryMode = ReservationReviewEntryMode.Launcher.name
+    reviewViewModel.resetFlow(reloadLatestReservation = false)
+  }
+
+  PlatformBackHandler(
+      enabled = currentMode != ReservationReviewEntryMode.Launcher,
+      onBack = ::resetReviewFlow,
+  )
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Notifications,
       onSearchSelected = shellActions.selectSearch,
@@ -701,17 +791,76 @@ private fun NotificationsEntry(shellActions: AuthenticatedShellActions) {
       viewingAsPlayer = shellActions.viewingAsPlayer,
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
       onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
-      chrome = AuthenticatedScaffoldChrome(title = "Notificaciones"),
+      chrome =
+          when (currentMode) {
+            ReservationReviewEntryMode.Launcher ->
+                AuthenticatedScaffoldChrome(title = "Notificaciones")
+            ReservationReviewEntryMode.Form ->
+                AuthenticatedScaffoldChrome(
+                    title = "DEJAR RESENA",
+                    onNavigateBack = ::resetReviewFlow,
+                    showBottomBar = false,
+                )
+            ReservationReviewEntryMode.Success ->
+                AuthenticatedScaffoldChrome(
+                    title = "DEJAR RESENA",
+                    onNavigateBack = ::resetReviewFlow,
+                    showBottomBar = false,
+                )
+          },
   ) { contentPadding ->
-    ProductPlaceholderScreen(
-        title = "Notificaciones",
-        description =
-            "Las alertas y recordatorios del producto llegarán a esta sección cuando la funcionalidad esté lista.",
-        contentPadding = contentPadding,
-    )
+    when (currentMode) {
+      ReservationReviewEntryMode.Launcher ->
+          NotificationsScreen(
+              state = notificationsState,
+              contentPadding = contentPadding,
+              actions =
+                  NotificationsScreenActions(
+                      onRetryLoad = notificationsViewModel::refresh,
+                      onNotificationSelected = { notification ->
+                        notificationsViewModel.markRead(notification.id)
+                        reviewViewModel.startReview(notification.toReviewableReservation())
+                        reviewEntryMode = ReservationReviewEntryMode.Form.name
+                      },
+                  ),
+          )
+      ReservationReviewEntryMode.Form,
+      ReservationReviewEntryMode.Success ->
+          leaveReviewState?.let { currentReviewState ->
+            LeaveReviewScreen(
+                state = currentReviewState,
+                contentPadding = contentPadding,
+                actions =
+                    LeaveReviewScreenActions(
+                        onRatingSelected = reviewViewModel::updateRating,
+                        onCommentChanged = reviewViewModel::updateComment,
+                        onPickEvidenceImage = reviewEvidenceImagePicker.launch,
+                        onClearEvidenceImage = reviewViewModel::clearSelectedEvidenceImage,
+                        onSubmit = reviewViewModel::submit,
+                        onReturnToReservations = ::resetReviewFlow,
+                        onExploreCourts = {
+                          resetReviewFlow()
+                          shellActions.selectSearch()
+                        },
+                    ),
+            )
+          }
+    }
   }
 }
+
+private fun UserNotificationUiModel.toReviewableReservation():
+    io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation =
+    io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation(
+        reservationId = reservationId,
+        complexName = complexName,
+        courtName = courtName,
+        startsAt = startsAt,
+        endsAt = endsAt,
+        imageUrl = null,
+    )
 
 @Composable
 private fun MyComplexEntry(
@@ -754,6 +903,7 @@ internal fun MyComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        notificationUnreadCount = shellActions.notificationUnreadCount,
         onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome = AuthenticatedScaffoldChrome(title = "Mi complejo"),
     ) { contentPadding ->
@@ -853,6 +1003,7 @@ internal fun ComplexDetailRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        notificationUnreadCount = shellActions.notificationUnreadCount,
         onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
@@ -988,6 +1139,7 @@ internal fun AddCourtEntryContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        notificationUnreadCount = shellActions.notificationUnreadCount,
         onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
@@ -1182,6 +1334,7 @@ internal fun CreateComplexRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        notificationUnreadCount = shellActions.notificationUnreadCount,
         onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
@@ -1261,6 +1414,7 @@ internal fun CourtAvailabilityRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        notificationUnreadCount = shellActions.notificationUnreadCount,
         onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(
@@ -1440,6 +1594,7 @@ internal fun OwnerReceivedReviewsRouteContent(
         viewingAsPlayer = shellActions.viewingAsPlayer,
         onSwitchToPlayerView = shellActions.switchToPlayerView,
         onSwitchToOwnerView = shellActions.switchToOwnerView,
+        notificationUnreadCount = shellActions.notificationUnreadCount,
         onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
         chrome =
             AuthenticatedScaffoldChrome(

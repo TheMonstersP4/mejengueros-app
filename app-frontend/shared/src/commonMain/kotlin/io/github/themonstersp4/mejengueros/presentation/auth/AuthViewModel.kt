@@ -3,6 +3,7 @@ package io.github.themonstersp4.mejengueros.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.auth.AuthCallbackBus
+import io.github.themonstersp4.mejengueros.data.auth.AuthSessionExpirationNotifier
 import io.github.themonstersp4.mejengueros.data.auth.IOAuthBrowser
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
@@ -25,6 +26,8 @@ class AuthViewModel(
     private val authRepository: IAuthRepository,
     private val oauthBrowser: IOAuthBrowser,
     private val errorReporter: ErrorReporter = NoOpErrorReporter(),
+    private val sessionExpirationNotifier: AuthSessionExpirationNotifier =
+        AuthSessionExpirationNotifier(),
     private val callbackUrls: SharedFlow<String> = AuthCallbackBus.callbackUrls,
     private val markCallbackConsumed: (String) -> Unit = AuthCallbackBus::markConsumed,
     coroutineScope: CoroutineScope? = null,
@@ -36,6 +39,7 @@ class AuthViewModel(
   init {
     restoreSession()
     observeCallbacks()
+    observeSessionExpiration()
   }
 
   fun signInWithGoogle() {
@@ -414,6 +418,23 @@ class AuthViewModel(
                   )
             }
             .also { markCallbackConsumed(callbackUrl) }
+      }
+    }
+  }
+
+  private fun observeSessionExpiration() {
+    coroutineScope.launch {
+      sessionExpirationNotifier.events.collect { event ->
+        authRepository.clearLocalSession()
+        errorReporter.reportRecoverableFailure(
+            name = "auth_session_expired",
+            attributes = mapOf("reason" to event.reason.name.lowercase()),
+        )
+        _uiState.value =
+            AuthUiState(
+                isRestoringSession = false,
+                errorMessage = event.message,
+            )
       }
     }
   }
