@@ -45,6 +45,7 @@ Variables validated when the API starts:
 | `DEMO_OWNER_EMAILS` | No | Optional fallback comma-separated email allowlist that grants the `OWNER` role only when Cognito also reports `email_verified=true`. |
 | `WEBSOCKET_CONNECTIONS_TABLE_NAME` | Yes | DynamoDB table for WebSocket connections. |
 | `WEBSOCKET_CONNECTION_TTL_SECONDS` | No | TTL for stale WebSocket connections. Default: `86400`. |
+| `WEBSOCKET_ENDPOINT` | No | API Gateway WebSocket URL used by local workers to publish realtime notifications. |
 
 Prisma-backed endpoints are disabled until `DATABASE_URL` is available directly or through `DATABASE_SECRET_ARN`.
 
@@ -75,6 +76,7 @@ DEMO_OWNER_EMAILS=
 
 WEBSOCKET_CONNECTIONS_TABLE_NAME=mejengueros-dev-ws-connections
 WEBSOCKET_CONNECTION_TTL_SECONDS=86400
+WEBSOCKET_ENDPOINT=wss://dilk66l4f1.execute-api.us-east-2.amazonaws.com/dev
 ```
 
 ## Run Locally
