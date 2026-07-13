@@ -44,6 +44,8 @@ class CourtCatalogRemoteDataSource(
                 provinceName = court.province.name,
                 cantonId = court.canton.id,
                 cantonName = court.canton.name,
+                latitude = court.latitude,
+                longitude = court.longitude,
                 services = court.services,
                 ratingAverage = court.rating.average,
                 ratingCount = court.rating.count,

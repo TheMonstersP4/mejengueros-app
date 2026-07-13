@@ -29,6 +29,8 @@ data class CatalogCourtDetailRoute(
     val courtName: String,
     val provinceName: String = "",
     val cantonName: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val services: List<String> = emptyList(),
     val ratingAverage: Double? = null,
     val ratingCount: Int = 0,
