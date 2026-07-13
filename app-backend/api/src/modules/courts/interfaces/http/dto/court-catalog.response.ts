@@ -35,6 +35,12 @@ export class CourtCatalogResponse {
   @ApiProperty({ type: CourtCatalogLocationResponse })
   canton!: CourtCatalogLocationResponse;
 
+  @ApiProperty({ example: 9.935, nullable: true })
+  latitude!: number | null;
+
+  @ApiProperty({ example: -84.091, nullable: true })
+  longitude!: number | null;
+
   @ApiProperty({ example: ['Sintetico', 'Iluminacion'] })
   services!: string[];
 

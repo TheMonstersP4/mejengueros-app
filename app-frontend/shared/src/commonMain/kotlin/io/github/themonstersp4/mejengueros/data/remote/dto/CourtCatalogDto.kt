@@ -30,6 +30,8 @@ data class CourtCatalogItemDto(
     val complexName: String,
     val province: CourtCatalogLocationDto,
     val canton: CourtCatalogLocationDto,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val services: List<String> = emptyList(),
     val rating: CourtCatalogRatingDto,
     val isReservableToday: Boolean,

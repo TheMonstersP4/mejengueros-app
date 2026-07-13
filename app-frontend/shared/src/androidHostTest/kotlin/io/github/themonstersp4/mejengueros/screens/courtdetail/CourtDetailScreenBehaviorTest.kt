@@ -63,6 +63,34 @@ class CourtDetailScreenBehaviorTest {
   }
 
   @Test
+  fun detailScreenFallsBackToLocationPlaceholderWhenCoordinatesAreMissing() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            latitude = null,
+            longitude = null,
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state = CourtDetailUiState(isLoadingSlots = false, slots = emptyList()),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_detail_location_map").assertDoesNotExist()
+    composeRule.onNodeWithText("Ubicación").assertExists()
+  }
+
+  @Test
   fun detailScreenRendersEmptyStateWhenNoSlotsAvailable() {
     composeRule.setContent {
       MejenguerosTheme {

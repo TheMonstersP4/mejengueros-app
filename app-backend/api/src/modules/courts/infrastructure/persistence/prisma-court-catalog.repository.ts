@@ -36,6 +36,8 @@ const PUBLIC_COURT_CATALOG_SELECT = {
     select: {
       id: true,
       name: true,
+      latitude: true,
+      longitude: true,
       province: {
         select: {
           id: true,
@@ -272,6 +274,8 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
             id: court.complex.canton!.id,
             name: court.complex.canton!.name
           },
+          latitude: court.complex.latitude ?? null,
+          longitude: court.complex.longitude ?? null,
           services,
           rating,
           isReservableToday: hasReservableSlotToday(court, todayBusinessDate, now),

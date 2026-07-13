@@ -212,6 +212,8 @@ describe('catalog modules behavior', () => {
             complex: {
               id: 'complex-id',
               name: 'North Sports Center',
+              latitude: 9.935,
+              longitude: -84.091,
               province: { id: 'province-id', name: 'San José' },
               canton: { id: 'canton-id', name: 'Escazú' },
               services: [{ serviceCatalog: { name: 'Parqueo' } }]
@@ -247,6 +249,8 @@ describe('catalog modules behavior', () => {
       items: [
         expect.objectContaining({
           courtId: 'court-id',
+          latitude: 9.935,
+          longitude: -84.091,
           rating: { average: 4.5, count: 2 },
           isReservableToday: true
         })
