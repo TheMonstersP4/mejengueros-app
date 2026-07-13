@@ -4,6 +4,7 @@ import {
   assertSeedEnvironment,
   ensureCantonCatalog,
   ensureProvinceCatalog,
+  seed,
   seedSharedCatalogs,
   teardown
 } from '../../../prisma/seed';
@@ -89,12 +90,12 @@ describe('prisma seed safeguards', () => {
         findUnique: jest
           .fn()
           .mockResolvedValueOnce({ id: 'province-by-code', code: 'SJ', name: 'Legacy San Jose' })
-          .mockResolvedValueOnce({ id: 'province-by-name', code: 'SJ-OLD', name: 'San Jose' })
+          .mockResolvedValueOnce({ id: 'province-by-name', code: 'SJ-OLD', name: 'San José' })
       }
     } as unknown as PrismaClient;
 
     await expect(ensureProvinceCatalog(prisma)).rejects.toThrow(
-      'Province seed conflict: code SJ and name San Jose belong to different rows'
+      'Province seed conflict: code SJ and name San José belong to different rows'
     );
   });
 
@@ -105,14 +106,130 @@ describe('prisma seed safeguards', () => {
           id: 'canton-by-code',
           provinceId: 'other-province',
           code: 'SJ-01',
-          name: 'San Jose'
+          name: 'San José'
         }),
         findFirst: jest.fn().mockResolvedValue(null)
       }
     } as unknown as PrismaClient;
 
-    await expect(ensureCantonCatalog(prisma, 'expected-province')).rejects.toThrow(
+    await expect(
+      ensureCantonCatalog(prisma, {
+        SJ: { id: 'expected-province', code: 'SJ', name: 'San José' }
+      })
+    ).rejects.toThrow(
       'Canton seed conflict: code SJ-01 belongs to province other-province, expected expected-province.'
+    );
+  });
+
+  it('reconciles all seven Costa Rica provinces and returns them keyed by code', async () => {
+    const create = jest.fn().mockImplementation(async ({ data }) => ({ id: `province-${data.code}`, ...data }));
+    const prisma = {
+      province: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create,
+        update: jest.fn()
+      }
+    } as unknown as PrismaClient;
+
+    const provincesByCode = await ensureProvinceCatalog(prisma);
+
+    expect(Object.keys(provincesByCode)).toHaveLength(7);
+    expect(Object.keys(provincesByCode)).toEqual(['SJ', 'AL', 'CA', 'HE', 'GU', 'PU', 'LI']);
+    expect(provincesByCode.SJ).toEqual({ id: 'province-SJ', code: 'SJ', name: 'San José' });
+    expect(provincesByCode.AL).toEqual({ id: 'province-AL', code: 'AL', name: 'Alajuela' });
+    expect(prisma.province.update).not.toHaveBeenCalled();
+  });
+
+  it('reconciles all 84 cantons and keeps San José available for the demo complex', async () => {
+    const create = jest.fn().mockImplementation(async ({ data }) => ({ id: `canton-${data.code}`, ...data }));
+    const prisma = {
+      canton: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create,
+        update: jest.fn()
+      }
+    } as unknown as PrismaClient;
+
+    const cantonsByCode = await ensureCantonCatalog(prisma, {
+      SJ: { id: 'province-SJ', code: 'SJ', name: 'San José' },
+      AL: { id: 'province-AL', code: 'AL', name: 'Alajuela' },
+      CA: { id: 'province-CA', code: 'CA', name: 'Cartago' },
+      HE: { id: 'province-HE', code: 'HE', name: 'Heredia' },
+      GU: { id: 'province-GU', code: 'GU', name: 'Guanacaste' },
+      PU: { id: 'province-PU', code: 'PU', name: 'Puntarenas' },
+      LI: { id: 'province-LI', code: 'LI', name: 'Limón' }
+    });
+
+    expect(Object.keys(cantonsByCode)).toHaveLength(84);
+    expect(cantonsByCode['SJ-01']).toEqual({
+      id: 'canton-SJ-01',
+      provinceId: 'province-SJ',
+      code: 'SJ-01',
+      name: 'San José'
+    });
+    expect(cantonsByCode['LI-06']).toEqual({
+      id: 'canton-LI-06',
+      provinceId: 'province-LI',
+      code: 'LI-06',
+      name: 'Guácimo'
+    });
+    expect(prisma.canton.update).not.toHaveBeenCalled();
+  });
+
+  it('uses the San José province and canton from the full catalog when creating the demo complex', async () => {
+    const courtCreate = jest
+      .fn()
+      .mockResolvedValueOnce({ id: 'court-id' })
+      .mockImplementation(async () => ({ id: `demo-court-${courtCreate.mock.calls.length - 1}` }));
+    const reservationCreate = jest
+      .fn()
+      .mockImplementation(async () => ({ id: `reservation-${reservationCreate.mock.calls.length}` }));
+    const prisma = {
+      province: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(async ({ data }) => ({ id: `province-${data.code}`, ...data })),
+        update: jest.fn()
+      },
+      canton: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(async ({ data }) => ({ id: `canton-${data.code}`, ...data })),
+        update: jest.fn()
+      },
+      serviceCatalog: {
+        upsert: jest.fn().mockImplementation(async ({ where, create }) => ({ id: `service-${where.name}`, ...create }))
+      },
+      user: {
+        create: jest
+          .fn()
+          .mockResolvedValueOnce({ id: 'owner-id' })
+          .mockResolvedValueOnce({ id: 'player-1-id' })
+          .mockResolvedValueOnce({ id: 'player-2-id' })
+      },
+      complex: {
+        create: jest.fn().mockResolvedValue({ id: 'complex-id' })
+      },
+      court: {
+        create: courtCreate
+      },
+      reservation: {
+        create: reservationCreate
+      },
+      review: {
+        create: jest.fn().mockResolvedValue({ id: 'review-id' })
+      }
+    } as unknown as PrismaClient;
+
+    await seed(prisma);
+
+    expect(prisma.complex.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provinceId: 'province-SJ',
+          cantonId: 'canton-SJ-01'
+        })
+      })
     );
   });
 
