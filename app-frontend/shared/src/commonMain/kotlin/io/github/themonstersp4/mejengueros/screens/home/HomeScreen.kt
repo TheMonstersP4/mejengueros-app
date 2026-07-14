@@ -99,22 +99,26 @@ fun HomeScreen(
               .padding(contentPadding)
               .background(MaterialTheme.colorScheme.surfaceContainerLow),
   ) {
-    if (hasCourts) {
-      // The header scrolls together with the court list in a single scroll container.
-      LazyColumn(
-          state = listState,
-          modifier = Modifier.fillMaxSize().testTag("catalog_court_list"),
-          contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
-          verticalArrangement = Arrangement.spacedBy(16.dp),
-      ) {
-        item {
-          CatalogHeader(
-              state = state,
-              onSearchQueryChange = onSearchQueryChange,
-              onProvinceSelected = onProvinceSelected,
-              onCantonSelected = onCantonSelected,
-          )
-        }
+    // A single always-present scroll container keeps the search field at one stable
+    // call site. Branching the header between two parents (the list vs. the state
+    // message) would dispose and recreate its text field on every loading toggle,
+    // stealing focus on each keystroke while the search debounce refetches page 1.
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize().testTag("catalog_court_list"),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+      item(key = "catalog_header") {
+        CatalogHeader(
+            state = state,
+            onSearchQueryChange = onSearchQueryChange,
+            onProvinceSelected = onProvinceSelected,
+            onCantonSelected = onCantonSelected,
+        )
+      }
+
+      if (hasCourts) {
         items(state.visibleCourts, key = { it.id }) { court ->
           MejenguerosCourtCard(
               title = court.displayTitle,
@@ -141,7 +145,7 @@ fun HomeScreen(
         if (
             state.isLoadingNextPage || state.nextPageErrorMessage != null || reachedEndAfterPaging
         ) {
-          item {
+          item(key = "catalog_pagination_footer") {
             CatalogPaginationFooter(
                 isLoadingNextPage = state.isLoadingNextPage,
                 nextPageErrorMessage = state.nextPageErrorMessage,
@@ -150,51 +154,48 @@ fun HomeScreen(
             )
           }
         }
-      }
-    } else {
-      // Keep the compact search header visible while the state message fills the rest.
-      CatalogHeader(
-          state = state,
-          onSearchQueryChange = onSearchQueryChange,
-          onProvinceSelected = onProvinceSelected,
-          onCantonSelected = onCantonSelected,
-      )
-      Box(
-          modifier = Modifier.fillMaxWidth().weight(1f).padding(20.dp),
-          contentAlignment = Alignment.Center,
-      ) {
-        when {
-          state.isLoading ->
-              MejenguerosInlineLoadingState(
-                  text = "Cargando canchas…",
-                  modifier = Modifier.fillMaxWidth(),
-                  containerTestTag = "catalog_loading",
-                  indicatorTestTag = "catalog_loading_indicator",
-              )
+      } else {
+        // Loading, error, and empty states live inside the same list so the header
+        // above them never changes call site.
+        item(key = "catalog_state") {
+          Box(
+              modifier = Modifier.fillParentMaxWidth().fillParentMaxHeight().padding(20.dp),
+              contentAlignment = Alignment.Center,
+          ) {
+            when {
+              state.isLoading ->
+                  MejenguerosInlineLoadingState(
+                      text = "Cargando canchas…",
+                      modifier = Modifier.fillMaxWidth(),
+                      containerTestTag = "catalog_loading",
+                      indicatorTestTag = "catalog_loading_indicator",
+                  )
 
-          state.loadErrorMessage != null ->
-              MejenguerosStateContent(
-                  title = "Catálogo no disponible",
-                  description = state.loadErrorMessage,
-                  variant = MejenguerosStateVariant.Error,
-                  actions = {
-                    MejenguerosOutlinedButton(
-                        text = "Reintentar",
-                        onClick = onRetryLoad,
-                        modifier =
-                            Modifier.testTag("catalog_retry_button").semantics {
-                              contentDescription = "Reintentar catálogo"
-                            },
-                    )
-                  },
-              )
+              state.loadErrorMessage != null ->
+                  MejenguerosStateContent(
+                      title = "Catálogo no disponible",
+                      description = state.loadErrorMessage,
+                      variant = MejenguerosStateVariant.Error,
+                      actions = {
+                        MejenguerosOutlinedButton(
+                            text = "Reintentar",
+                            onClick = onRetryLoad,
+                            modifier =
+                                Modifier.testTag("catalog_retry_button").semantics {
+                                  contentDescription = "Reintentar catálogo"
+                                },
+                        )
+                      },
+                  )
 
-          else ->
-              MejenguerosStateContent(
-                  title = "Sin resultados",
-                  description = "Ajustá la búsqueda o los filtros para encontrar otra cancha.",
-                  variant = MejenguerosStateVariant.Empty,
-              )
+              else ->
+                  MejenguerosStateContent(
+                      title = "Sin resultados",
+                      description = "Ajustá la búsqueda o los filtros para encontrar otra cancha.",
+                      variant = MejenguerosStateVariant.Empty,
+                  )
+            }
+          }
         }
       }
     }
