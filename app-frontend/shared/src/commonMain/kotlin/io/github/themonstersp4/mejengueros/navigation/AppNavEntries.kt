@@ -35,6 +35,7 @@ import io.github.themonstersp4.mejengueros.presentation.notifications.UserNotifi
 import io.github.themonstersp4.mejengueros.presentation.ownerreservations.OwnerReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
+import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationUiMode
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import io.github.themonstersp4.mejengueros.presentation.review.ReviewUiState
 import io.github.themonstersp4.mejengueros.presentation.review.ReviewViewModel
@@ -168,7 +169,12 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CatalogReservationRoute> { route ->
     CatalogReservationEntry(route = route, shellActions = shellActions)
   }
-  entry<ReservationsRoute> { ReservationsEntry(shellActions = shellActions) }
+  entry<ReservationsRoute> {
+    ReservationsEntry(
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
+  }
   entry<NotificationsRoute> {
     NotificationsEntryContent(
         shellActions = shellActions,
@@ -482,6 +488,11 @@ internal fun CatalogReservationEntry(
       )
   val state by viewModel.uiState.collectAsState()
 
+  val reservationConfirmed = state.mode is ReservationUiMode.Success
+  LaunchedEffect(reservationConfirmed) {
+    if (reservationConfirmed) shellActions.onReservationCreated()
+  }
+
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Search,
       onSearchSelected = shellActions.selectSearch,
@@ -523,7 +534,10 @@ internal fun CatalogReservationEntry(
 }
 
 @Composable
-private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
+private fun ReservationsEntry(
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
   // The Reservations top-level route is shared: owners viewing their own shell see the
   // reservations booked on their courts, while players (and owners browsing as
   // mejenguero) see their personal reservations.
@@ -537,6 +551,7 @@ private fun ReservationsEntry(shellActions: AuthenticatedShellActions) {
         shellActions = shellActions,
         reservationsViewModel = koinViewModel(),
         reviewViewModel = koinViewModel(),
+        reservationsReloadRequestKey = authenticatedNavigationState.reservationsReloadRequestKey,
     )
   }
 }
@@ -579,10 +594,16 @@ internal fun ReservationsEntryContent(
     shellActions: AuthenticatedShellActions,
     reservationsViewModel: MyReservationsViewModel,
     reviewViewModel: ReviewViewModel,
+    reservationsReloadRequestKey: Int = 0,
     reviewEvidenceImagePickerController: ReviewEvidenceImagePickerController? = null,
 ) {
   val reservationsState by reservationsViewModel.uiState.collectAsState()
   val reviewState by reviewViewModel.uiState.collectAsState()
+
+  ReservationsReloadEffect(
+      reservationsReloadRequestKey = reservationsReloadRequestKey,
+      onReloadRequested = reservationsViewModel::refresh,
+  )
   val reviewEvidenceImagePicker =
       reviewEvidenceImagePickerController
           ?: rememberReviewEvidenceImagePicker(reviewViewModel::updateSelectedEvidenceImage)
@@ -1199,6 +1220,18 @@ internal fun CatalogReloadEffect(
 ) {
   LaunchedEffect(catalogReloadRequestKey) {
     if (catalogReloadRequestKey > 0) {
+      onReloadRequested()
+    }
+  }
+}
+
+@Composable
+internal fun ReservationsReloadEffect(
+    reservationsReloadRequestKey: Int,
+    onReloadRequested: () -> Unit,
+) {
+  LaunchedEffect(reservationsReloadRequestKey) {
+    if (reservationsReloadRequestKey > 0) {
       onReloadRequested()
     }
   }

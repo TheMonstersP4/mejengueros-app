@@ -29,6 +29,8 @@ class AuthenticatedShellActions(
     val openOwnerReceivedReviews: () -> Unit = {},
     val closeAddCourtAfterSuccess: () -> Unit,
     val closeCurrentDetail: () -> Unit,
+    // Signals the Reservations tab to refetch after a reservation is booked.
+    val onReservationCreated: () -> Unit = {},
     val signOut: () -> Unit,
     val refreshOwnerRole: () -> Unit,
     // Switches an owner to the mejenguero (player) bottom-nav shell, landing on Buscar.

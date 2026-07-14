@@ -228,6 +228,7 @@ fun AppNavHost() {
           openOwnerReceivedReviews = authenticatedNavigationState::openOwnerReceivedReviews,
           closeAddCourtAfterSuccess = authenticatedNavigationState::closeAddCourtAfterSuccess,
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,
+          onReservationCreated = authenticatedNavigationState::notifyReservationCreated,
           signOut = {
             authViewModel.signOut()
             authenticatedNavigationState.clearOwnerViewPreferenceHydration()
