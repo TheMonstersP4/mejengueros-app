@@ -235,14 +235,14 @@ resource "aws_iam_role_policy_attachment" "reservation_completion_worker_vpc_acc
 }
 
 resource "aws_iam_role_policy" "reservation_completion_worker_runtime" {
-  count = local.reservation_completion_worker_deploy_enabled && local.api_database_secret_arn != "" ? 1 : 0
+  count = local.reservation_completion_worker_deploy_enabled ? 1 : 0
 
   name = "${local.name_prefix}-reservation-completion-runtime"
   role = aws_iam_role.reservation_completion_worker_lambda[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = local.api_database_secret_arn != "" ? [
+    Statement = concat(local.api_database_secret_arn != "" ? [
       {
         Effect = "Allow"
         Action = [
@@ -250,7 +250,26 @@ resource "aws_iam_role_policy" "reservation_completion_worker_runtime" {
         ]
         Resource = local.api_database_secret_arn
       }
-    ] : []
+      ] : [], [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:Query"
+        ]
+        Resource = [
+          module.websocket_api.connections_table_arn,
+          "${module.websocket_api.connections_table_arn}/index/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "execute-api:ManageConnections"
+        ]
+        Resource = module.websocket_api.manage_connections_arn
+      }
+    ])
   })
 }
 
@@ -432,8 +451,11 @@ module "reservation_completion_worker_lambda" {
 
   environment_variables = merge(
     {
-      LOG_LEVEL = var.api_log_level
-      NODE_ENV  = "production"
+      LOG_LEVEL                                = var.api_log_level
+      NODE_ENV                                 = "production"
+      WEBSOCKET_CONNECTIONS_TABLE_NAME         = local.websocket_connections_table_name
+      WEBSOCKET_CONNECTIONS_USER_ID_INDEX_NAME = module.websocket_api.connections_user_id_index_name
+      WEBSOCKET_ENDPOINT                       = module.websocket_api.websocket_url
     },
     var.postgres_enabled && local.api_database_secret_arn == "" ? {
       DATABASE_URL = local.database_url
