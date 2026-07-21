@@ -12,7 +12,10 @@ const distTarget = join(stage, 'dist');
 const functionTarget = join(stage, 'functions', 'reservations');
 const rootNodeModules = join(apiRoot, 'node_modules');
 const workerRuntimeDependencies = [
+  '@aws-sdk/client-apigatewaymanagementapi',
+  '@aws-sdk/client-dynamodb',
   '@aws-sdk/client-secrets-manager',
+  '@aws-sdk/lib-dynamodb',
   '@nestjs/common',
   '@nestjs/config',
   '@nestjs/core',
