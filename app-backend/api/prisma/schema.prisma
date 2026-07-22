@@ -329,6 +329,7 @@ model Notification {
 
   @@index([userId, status])
   @@index([reservationId])
+  @@unique([reservationId, type])
   @@schema("mejengueros_dev")
 }
 

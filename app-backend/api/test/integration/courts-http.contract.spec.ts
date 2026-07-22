@@ -134,6 +134,8 @@ describe('public court catalog HTTP contract', () => {
             id: '1f6adf24-ea42-4c49-9179-c5f73fef7a41',
             name: 'Escazú'
           },
+          latitude: 9.935,
+          longitude: -84.091,
           services: ['Sintetico', 'Iluminacion', 'Parqueo'],
           rating: {
             average: 4,
@@ -475,6 +477,8 @@ describe('public court catalog HTTP contract', () => {
       complex: {
         id: 'complex-id',
         name: 'Complejo Los Nogales',
+        latitude: 9.935,
+        longitude: -84.091,
         province: {
           id: '3f91fe4d-a23b-4f85-ae1a-90db47d624f1',
           name: 'San José'

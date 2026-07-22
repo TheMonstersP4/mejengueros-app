@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import io.github.themonstersp4.mejengueros.data.auth.IAuthSecureStorage
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
+import io.github.themonstersp4.mejengueros.presentation.notifications.NotificationsViewModel
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
@@ -127,9 +129,6 @@ fun AppNavHost() {
     }
   }
 
-  val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
-  val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
-
   val isAwaitingStartupOwnerPreferenceHydration =
       authState.isAuthenticated &&
           authState.isOwner &&
@@ -178,11 +177,45 @@ fun AppNavHost() {
             loginBackStack.add(LoginRoute)
           },
       )
+
+  if (!authState.isAuthenticated) {
+    NavDisplay(
+        backStack = loginBackStack,
+        onBack = { loginActions.closeAuthStep() },
+        entryProvider =
+            entryProvider {
+              authEntries(
+                  authViewModel = authViewModel,
+                  loginActions = loginActions,
+              )
+            },
+    )
+    return
+  }
+
+  val notificationsViewModel = koinViewModel<NotificationsViewModel>()
+  val notificationsState by notificationsViewModel.uiState.collectAsState()
+  val notificationUnreadCountState = rememberUpdatedState(notificationsState.unreadCount)
+  val switchToPlayerView = { ownerViewPreferenceCoordinator.switchToPlayerView(authState) }
+  val switchToOwnerView = { ownerViewPreferenceCoordinator.switchToOwnerView(authState) }
+
+  LaunchedEffect(currentUserId) {
+    val userId = currentUserId
+    if (userId != null) {
+      notificationsViewModel.activate(userId)
+    } else {
+      notificationsViewModel.deactivate()
+    }
+  }
+
   val shellActions =
       AuthenticatedShellActions(
           selectSearch = authenticatedNavigationState::selectSearch,
           selectReservations = authenticatedNavigationState::selectReservations,
-          selectNotifications = authenticatedNavigationState::selectNotifications,
+          selectNotifications = {
+            authenticatedNavigationState.selectNotifications()
+            notificationsViewModel.refresh()
+          },
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
           returnToSearchRoot = authenticatedNavigationState::returnToSearchRoot,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
@@ -195,6 +228,7 @@ fun AppNavHost() {
           openOwnerReceivedReviews = authenticatedNavigationState::openOwnerReceivedReviews,
           closeAddCourtAfterSuccess = authenticatedNavigationState::closeAddCourtAfterSuccess,
           closeCurrentDetail = authenticatedNavigationState::closeCurrentDetail,
+          onReservationCreated = authenticatedNavigationState::notifyReservationCreated,
           signOut = {
             authViewModel.signOut()
             authenticatedNavigationState.clearOwnerViewPreferenceHydration()
@@ -207,24 +241,18 @@ fun AppNavHost() {
           switchToOwnerView = switchToOwnerView,
           isOwner = authState.isOwner,
           viewingAsPlayer = authenticatedNavigationState.viewingAsPlayer,
+          notificationUnreadCount = notificationUnreadCountState,
       )
 
   NavDisplay(
-      backStack =
-          if (authState.isAuthenticated) authenticatedNavigationState.currentBackStack
-          else loginBackStack,
-      onBack = {
-        if (authState.isAuthenticated) {
-          authenticatedNavigationState.closeCurrentDetail()
-        } else {
-          loginActions.closeAuthStep()
-        }
-      },
+      backStack = authenticatedNavigationState.currentBackStack,
+      onBack = { authenticatedNavigationState.closeCurrentDetail() },
       entryProvider =
           entryProvider {
             appEntries(
                 authenticatedNavigationState = authenticatedNavigationState,
                 authViewModel = authViewModel,
+                notificationsViewModel = notificationsViewModel,
                 loginActions = loginActions,
                 shellActions = shellActions,
             )

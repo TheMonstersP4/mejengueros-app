@@ -43,7 +43,9 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButt
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosReceivedReviewCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateVariant
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStaticLocationMap
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosThumbnail
+import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import kotlin.math.roundToInt
 
 @Composable
@@ -52,6 +54,8 @@ fun CourtDetailScreen(
     complexName: String,
     provinceName: String,
     cantonName: String,
+    latitude: Double? = null,
+    longitude: Double? = null,
     services: List<String>,
     ratingAverage: Double?,
     ratingCount: Int,
@@ -96,6 +100,8 @@ fun CourtDetailScreen(
       UbicacionSection(
           provinceName = provinceName,
           cantonName = cantonName,
+          latitude = latitude,
+          longitude = longitude,
       )
 
       HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -389,6 +395,8 @@ private fun ServiceRow(name: String) {
 private fun UbicacionSection(
     provinceName: String,
     cantonName: String,
+    latitude: Double?,
+    longitude: Double?,
 ) {
   Column(
       modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
@@ -400,7 +408,14 @@ private fun UbicacionSection(
         color = MaterialTheme.colorScheme.onSurface,
     )
 
-    MapPlaceholder()
+    if (latitude != null && longitude != null) {
+      MejenguerosStaticLocationMap(
+          location = SelectedLocation(latitude = latitude, longitude = longitude),
+          modifier = Modifier.fillMaxWidth().height(140.dp).testTag("court_detail_location_map"),
+      )
+    } else {
+      MapPlaceholder()
+    }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),

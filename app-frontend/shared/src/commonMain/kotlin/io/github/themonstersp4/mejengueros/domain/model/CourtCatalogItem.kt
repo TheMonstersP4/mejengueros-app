@@ -9,6 +9,8 @@ data class CourtCatalogItem(
     val provinceName: String,
     val cantonId: String,
     val cantonName: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val services: List<String>,
     val ratingAverage: Double?,
     val ratingCount: Int,

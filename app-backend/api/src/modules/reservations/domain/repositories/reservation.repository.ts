@@ -67,6 +67,11 @@ export interface ICompleteExpiredReservationsCommand {
   now: Date;
 }
 
+export interface ICompletedReservationSnapshot {
+  id: string;
+  userId: string;
+}
+
 export interface IMyReservationsSnapshotGroups {
   upcoming: IMyReservationSnapshot[];
   finalized: IMyReservationSnapshot[];
@@ -135,7 +140,7 @@ export interface IReservationRepository {
 
   completeExpiredReservations(
     command: ICompleteExpiredReservationsCommand
-  ): Promise<number>;
+  ): Promise<ICompletedReservationSnapshot[]>;
 }
 
 export const RESERVATION_REPOSITORY = Symbol('RESERVATION_REPOSITORY');

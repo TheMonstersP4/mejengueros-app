@@ -23,6 +23,12 @@ type ServiceCatalogSeed = {
   scope: 'COMPLEX' | 'COURT';
 };
 
+type ProvinceCatalogSeed = {
+  code: string;
+  name: string;
+  cantons: readonly string[];
+};
+
 function assertLocalDatabase(rawUrl: string, env: SeedEnvironment = process.env): void {
   let parsed: URL;
   try {
@@ -92,8 +98,119 @@ const DEMO_EMAILS = [DEMO_OWNER_EMAIL, DEMO_PLAYER_1_EMAIL, DEMO_PLAYER_2_EMAIL]
 
 const DEMO_PROVINCE_CODE = 'SJ';
 const DEMO_CANTON_CODE = 'SJ-01';
-const DEMO_PROVINCE_NAME = 'San Jose';
-const DEMO_CANTON_NAME = 'San Jose';
+
+const LOCATION_CATALOG_SEEDS: readonly ProvinceCatalogSeed[] = [
+  {
+    code: 'SJ',
+    name: 'San José',
+    cantons: [
+      'San José',
+      'Escazú',
+      'Desamparados',
+      'Puriscal',
+      'Tarrazú',
+      'Aserrí',
+      'Mora',
+      'Goicoechea',
+      'Santa Ana',
+      'Alajuelita',
+      'Vázquez de Coronado',
+      'Acosta',
+      'Tibás',
+      'Moravia',
+      'Montes de Oca',
+      'Turrubares',
+      'Dota',
+      'Curridabat',
+      'Pérez Zeledón',
+      'León Cortés Castro'
+    ]
+  },
+  {
+    code: 'AL',
+    name: 'Alajuela',
+    cantons: [
+      'Alajuela',
+      'San Ramón',
+      'Grecia',
+      'San Mateo',
+      'Atenas',
+      'Naranjo',
+      'Palmares',
+      'Poás',
+      'Orotina',
+      'San Carlos',
+      'Zarcero',
+      'Sarchí',
+      'Upala',
+      'Los Chiles',
+      'Guatuso',
+      'Río Cuarto'
+    ]
+  },
+  {
+    code: 'CA',
+    name: 'Cartago',
+    cantons: ['Cartago', 'Paraíso', 'La Unión', 'Jiménez', 'Turrialba', 'Alvarado', 'Oreamuno', 'El Guarco']
+  },
+  {
+    code: 'HE',
+    name: 'Heredia',
+    cantons: [
+      'Heredia',
+      'Barva',
+      'Santo Domingo',
+      'Santa Bárbara',
+      'San Rafael',
+      'San Isidro',
+      'Belén',
+      'Flores',
+      'San Pablo',
+      'Sarapiquí'
+    ]
+  },
+  {
+    code: 'GU',
+    name: 'Guanacaste',
+    cantons: [
+      'Liberia',
+      'Nicoya',
+      'Santa Cruz',
+      'Bagaces',
+      'Carrillo',
+      'Cañas',
+      'Abangares',
+      'Tilarán',
+      'Nandayure',
+      'La Cruz',
+      'Hojancha'
+    ]
+  },
+  {
+    code: 'PU',
+    name: 'Puntarenas',
+    cantons: [
+      'Puntarenas',
+      'Esparza',
+      'Buenos Aires',
+      'Montes de Oro',
+      'Osa',
+      'Quepos',
+      'Golfito',
+      'Coto Brus',
+      'Parrita',
+      'Corredores',
+      'Garabito',
+      'Monteverde',
+      'Puerto Jiménez'
+    ]
+  },
+  {
+    code: 'LI',
+    name: 'Limón',
+    cantons: ['Limón', 'Pococí', 'Siquirres', 'Talamanca', 'Matina', 'Guácimo']
+  }
+] as const;
 
 const SERVICE_CATALOG_SEEDS: readonly ServiceCatalogSeed[] = [
   { name: 'Parqueo', scope: 'COMPLEX' },
@@ -185,21 +302,24 @@ export async function teardown(prisma: PrismaClient): Promise<void> {
   await prisma.user.deleteMany({ where: { id: { in: demoUserIds } } });
 }
 
-export async function ensureProvinceCatalog(prisma: PrismaClient): Promise<ProvinceSeedRecord> {
+async function reconcileProvinceSeed(
+  prisma: PrismaClient,
+  provinceSeed: Pick<ProvinceCatalogSeed, 'code' | 'name'>
+): Promise<ProvinceSeedRecord> {
   const [provinceByCode, provinceByName] = await Promise.all([
     prisma.province.findUnique({
-      where: { code: DEMO_PROVINCE_CODE },
+      where: { code: provinceSeed.code },
       select: { id: true, code: true, name: true }
     }),
     prisma.province.findUnique({
-      where: { name: DEMO_PROVINCE_NAME },
+      where: { name: provinceSeed.name },
       select: { id: true, code: true, name: true }
     })
   ]);
 
   if (provinceByCode && provinceByName && provinceByCode.id !== provinceByName.id) {
     throw new Error(
-      `Province seed conflict: code ${DEMO_PROVINCE_CODE} and name ${DEMO_PROVINCE_NAME} belong to different rows (${provinceByCode.id} vs ${provinceByName.id}).`
+      `Province seed conflict: code ${provinceSeed.code} and name ${provinceSeed.name} belong to different rows (${provinceByCode.id} vs ${provinceByName.id}).`
     );
   }
 
@@ -207,18 +327,15 @@ export async function ensureProvinceCatalog(prisma: PrismaClient): Promise<Provi
 
   if (!existingProvince) {
     return prisma.province.create({
-      data: { code: DEMO_PROVINCE_CODE, name: DEMO_PROVINCE_NAME },
+      data: { code: provinceSeed.code, name: provinceSeed.name },
       select: { id: true, code: true, name: true }
     });
   }
 
-  if (
-    existingProvince.code !== DEMO_PROVINCE_CODE ||
-    existingProvince.name !== DEMO_PROVINCE_NAME
-  ) {
+  if (existingProvince.code !== provinceSeed.code || existingProvince.name !== provinceSeed.name) {
     return prisma.province.update({
       where: { id: existingProvince.id },
-      data: { code: DEMO_PROVINCE_CODE, name: DEMO_PROVINCE_NAME },
+      data: { code: provinceSeed.code, name: provinceSeed.name },
       select: { id: true, code: true, name: true }
     });
   }
@@ -226,34 +343,47 @@ export async function ensureProvinceCatalog(prisma: PrismaClient): Promise<Provi
   return existingProvince;
 }
 
-export async function ensureCantonCatalog(
+export async function ensureProvinceCatalog(
+  prisma: PrismaClient
+): Promise<Record<string, ProvinceSeedRecord>> {
+  const provincesByCode: Record<string, ProvinceSeedRecord> = {};
+
+  for (const provinceSeed of LOCATION_CATALOG_SEEDS) {
+    const province = await reconcileProvinceSeed(prisma, provinceSeed);
+    provincesByCode[province.code] = province;
+  }
+
+  return provincesByCode;
+}
+
+function buildCantonCode(provinceCode: string, cantonIndex: number): string {
+  return `${provinceCode}-${String(cantonIndex + 1).padStart(2, '0')}`;
+}
+
+async function reconcileCantonSeed(
   prisma: PrismaClient,
-  provinceId: string
+  cantonSeed: Omit<CantonSeedRecord, 'id'>
 ): Promise<CantonSeedRecord> {
   const [cantonByCode, cantonByProvinceAndName] = await Promise.all([
     prisma.canton.findUnique({
-      where: { code: DEMO_CANTON_CODE },
+      where: { code: cantonSeed.code },
       select: { id: true, provinceId: true, code: true, name: true }
     }),
     prisma.canton.findFirst({
-      where: { provinceId, name: DEMO_CANTON_NAME },
+      where: { provinceId: cantonSeed.provinceId, name: cantonSeed.name },
       select: { id: true, provinceId: true, code: true, name: true }
     })
   ]);
 
-  if (cantonByCode && cantonByCode.provinceId !== provinceId) {
+  if (cantonByCode && cantonByCode.provinceId !== cantonSeed.provinceId) {
     throw new Error(
-      `Canton seed conflict: code ${DEMO_CANTON_CODE} belongs to province ${cantonByCode.provinceId}, expected ${provinceId}.`
+      `Canton seed conflict: code ${cantonSeed.code} belongs to province ${cantonByCode.provinceId}, expected ${cantonSeed.provinceId}.`
     );
   }
 
-  if (
-    cantonByCode &&
-    cantonByProvinceAndName &&
-    cantonByCode.id !== cantonByProvinceAndName.id
-  ) {
+  if (cantonByCode && cantonByProvinceAndName && cantonByCode.id !== cantonByProvinceAndName.id) {
     throw new Error(
-      `Canton seed conflict: code ${DEMO_CANTON_CODE} and (${provinceId}, ${DEMO_CANTON_NAME}) belong to different rows (${cantonByCode.id} vs ${cantonByProvinceAndName.id}).`
+      `Canton seed conflict: code ${cantonSeed.code} and (${cantonSeed.provinceId}, ${cantonSeed.name}) belong to different rows (${cantonByCode.id} vs ${cantonByProvinceAndName.id}).`
     );
   }
 
@@ -261,24 +391,51 @@ export async function ensureCantonCatalog(
 
   if (!existingCanton) {
     return prisma.canton.create({
-      data: { code: DEMO_CANTON_CODE, name: DEMO_CANTON_NAME, provinceId },
+      data: cantonSeed,
       select: { id: true, provinceId: true, code: true, name: true }
     });
   }
 
   if (
-    existingCanton.provinceId !== provinceId ||
-    existingCanton.code !== DEMO_CANTON_CODE ||
-    existingCanton.name !== DEMO_CANTON_NAME
+    existingCanton.provinceId !== cantonSeed.provinceId ||
+    existingCanton.code !== cantonSeed.code ||
+    existingCanton.name !== cantonSeed.name
   ) {
     return prisma.canton.update({
       where: { id: existingCanton.id },
-      data: { provinceId, code: DEMO_CANTON_CODE, name: DEMO_CANTON_NAME },
+      data: cantonSeed,
       select: { id: true, provinceId: true, code: true, name: true }
     });
   }
 
   return existingCanton;
+}
+
+export async function ensureCantonCatalog(
+  prisma: PrismaClient,
+  provincesByCode: Record<string, ProvinceSeedRecord>
+): Promise<Record<string, CantonSeedRecord>> {
+  const cantonsByCode: Record<string, CantonSeedRecord> = {};
+
+  for (const provinceSeed of LOCATION_CATALOG_SEEDS) {
+    const province = provincesByCode[provinceSeed.code];
+
+    if (!province) {
+      throw new Error(`Province seed missing for canton catalog: ${provinceSeed.code}.`);
+    }
+
+    for (const [cantonIndex, cantonName] of provinceSeed.cantons.entries()) {
+      const canton = await reconcileCantonSeed(prisma, {
+        provinceId: province.id,
+        code: buildCantonCode(province.code, cantonIndex),
+        name: cantonName
+      });
+
+      cantonsByCode[canton.code] = canton;
+    }
+  }
+
+  return cantonsByCode;
 }
 
 export async function seedSharedCatalogs(prisma: PrismaClient) {
@@ -295,8 +452,14 @@ export async function seedSharedCatalogs(prisma: PrismaClient) {
 
 export async function seed(prisma: PrismaClient): Promise<void> {
   // Province and Canton are geographic catalogs — reconciled, never deleted in teardown.
-  const province = await ensureProvinceCatalog(prisma);
-  const canton = await ensureCantonCatalog(prisma, province.id);
+  const provincesByCode = await ensureProvinceCatalog(prisma);
+  const cantonsByCode = await ensureCantonCatalog(prisma, provincesByCode);
+  const province = provincesByCode[DEMO_PROVINCE_CODE];
+  const canton = cantonsByCode[DEMO_CANTON_CODE];
+
+  if (!province || !canton) {
+    throw new Error('Location catalog seed is missing the San José demo province or canton.');
+  }
 
   // ServiceCatalog entries are shared — reconciled, never deleted in teardown.
   const [svcParqueo, svcIluminacion, svcSintetico, svcNatural, svcHibrido] =

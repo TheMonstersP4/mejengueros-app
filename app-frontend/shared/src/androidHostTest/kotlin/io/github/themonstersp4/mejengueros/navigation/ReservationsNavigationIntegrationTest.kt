@@ -746,6 +746,7 @@ private fun testNavigationState(): AuthenticatedNavigationState =
         ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
         myComplexHubReloadRequestKeyState = mutableStateOf(0),
         catalogReloadRequestKeyState = mutableStateOf(0),
+        reservationsReloadRequestKeyState = mutableStateOf(0),
         viewingAsPlayerState = mutableStateOf(true),
         hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
     )

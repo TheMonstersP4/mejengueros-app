@@ -5,6 +5,7 @@ import { CompleteExpiredReservationsUseCase } from '@/modules/reservations/appli
 
 export interface IReservationCompletionHandlerOutput {
   completedReservationsCount: number;
+  reviewPromptNotificationsCreatedCount: number;
 }
 
 let applicationContextPromise:
@@ -23,14 +24,14 @@ export async function handler(
 
   const app = await getApplicationContext();
   const useCase = app.get(CompleteExpiredReservationsUseCase, { strict: false });
-  const completedReservationsCount = await useCase.execute();
+  const result = await useCase.execute();
 
   logger.info(
-    { completedReservationsCount },
+    result,
     'Expired reservation completion worker finished.'
   );
 
-  return { completedReservationsCount };
+  return result;
 }
 
 async function getApplicationContext(): ReturnType<typeof createReservationCompletionWorkerApplicationContext> {

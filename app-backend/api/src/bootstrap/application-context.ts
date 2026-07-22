@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import 'dotenv/config';
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { loadDatabaseUrlFromSecret } from './database-secret';

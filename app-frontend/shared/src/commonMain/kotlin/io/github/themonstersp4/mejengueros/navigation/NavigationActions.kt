@@ -1,5 +1,8 @@
 package io.github.themonstersp4.mejengueros.navigation
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+
 class LoginNavigationActions(
     val onSignedIn: () -> Unit,
     val openRegister: () -> Unit,
@@ -26,6 +29,8 @@ class AuthenticatedShellActions(
     val openOwnerReceivedReviews: () -> Unit = {},
     val closeAddCourtAfterSuccess: () -> Unit,
     val closeCurrentDetail: () -> Unit,
+    // Signals the Reservations tab to refetch after a reservation is booked.
+    val onReservationCreated: () -> Unit = {},
     val signOut: () -> Unit,
     val refreshOwnerRole: () -> Unit,
     // Switches an owner to the mejenguero (player) bottom-nav shell, landing on Buscar.
@@ -35,4 +40,5 @@ class AuthenticatedShellActions(
     val isOwner: Boolean = false,
     // True when an owner is temporarily browsing in player mode.
     val viewingAsPlayer: Boolean = false,
+    val notificationUnreadCount: State<Int> = mutableStateOf(0),
 )

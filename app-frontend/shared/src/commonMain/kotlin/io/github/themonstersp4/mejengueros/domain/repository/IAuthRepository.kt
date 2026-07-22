@@ -29,5 +29,9 @@ interface IAuthRepository {
 
   suspend fun signOut(): AuthSignOutRequest
 
+  suspend fun clearLocalSession() {
+    signOut()
+  }
+
   suspend fun refreshUserProfile()
 }

@@ -22,14 +22,17 @@ import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
+import io.github.themonstersp4.mejengueros.domain.model.UserNotification
 import io.github.themonstersp4.mejengueros.domain.model.UserProfile
 import io.github.themonstersp4.mejengueros.domain.model.UserRoleKind
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
+import io.github.themonstersp4.mejengueros.domain.repository.INotificationRepository
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthViewModel
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
+import io.github.themonstersp4.mejengueros.presentation.notifications.NotificationsViewModel
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
 import kotlinx.coroutines.CancellationException
@@ -37,6 +40,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -215,6 +219,9 @@ class AuthSessionRestorationScreenBehaviorTest {
             viewModel { authViewModel }
             viewModel { CourtCatalogViewModel(repository = get(), coroutineScope = scope) }
             viewModel { MyComplexViewModel(repository = get(), coroutineScope = scope) }
+            viewModel {
+              NotificationsViewModel(notificationRepository = get(), coroutineScope = scope)
+            }
             single<IAuthSecureStorage> {
               DelayedOwnerPreferenceHostAuthSecureStorage(
                   ownerPreference = OwnerViewPreference.OWNER,
@@ -224,6 +231,7 @@ class AuthSessionRestorationScreenBehaviorTest {
             }
             single<ICourtCatalogRepository> { FakeCourtCatalogRepository() }
             single<IComplexRepository> { FakeComplexRepository() }
+            single<INotificationRepository> { EmptyNotificationRepository() }
           }
       )
     }
@@ -490,6 +498,15 @@ private class FakeComplexRepository : IComplexRepository {
       error("Unused in this test")
 
   override suspend fun getMyComplexHub(): MyComplexHub = MyComplexHub(complexes = emptyList())
+}
+
+private class EmptyNotificationRepository : INotificationRepository {
+  override suspend fun getNotifications(): List<UserNotification> = emptyList()
+
+  override suspend fun markRead(notificationId: String): UserNotification =
+      error("Unused in this test")
+
+  override fun observeRealtimeNotifications() = emptyFlow<UserNotification>()
 }
 
 private class FakeOAuthBrowser : IOAuthBrowser {

@@ -9,7 +9,12 @@ describe('reservation completion worker handler', () => {
     info?: jest.Mock;
     createApplicationContext?: jest.Mock;
   }) {
-    const execute = options?.execute ?? jest.fn().mockResolvedValue(2);
+    const execute =
+      options?.execute ??
+      jest.fn().mockResolvedValue({
+        completedReservationsCount: 2,
+        reviewPromptNotificationsCreatedCount: 2
+      });
     const info = options?.info ?? jest.fn();
     const get = jest.fn(() => ({ execute }));
     const createApplicationContext =
@@ -36,15 +41,19 @@ describe('reservation completion worker handler', () => {
 
   it('runs the completion use case and logs only the completed count', async () => {
     const { handler, execute, info } = await loadHandler({
-      execute: jest.fn().mockResolvedValue(4)
+      execute: jest.fn().mockResolvedValue({
+        completedReservationsCount: 4,
+        reviewPromptNotificationsCreatedCount: 3
+      })
     });
 
     await expect(handler({} as never, {} as never)).resolves.toEqual({
-      completedReservationsCount: 4
+      completedReservationsCount: 4,
+      reviewPromptNotificationsCreatedCount: 3
     });
     expect(execute).toHaveBeenCalledTimes(1);
     expect(info).toHaveBeenCalledWith(
-      { completedReservationsCount: 4 },
+      { completedReservationsCount: 4, reviewPromptNotificationsCreatedCount: 3 },
       'Expired reservation completion worker finished.'
     );
   });
@@ -61,7 +70,10 @@ describe('reservation completion worker handler', () => {
 
   it('resets the cached bootstrap promise after a startup failure and retries on the next invocation', async () => {
     const startupError = new Error('bootstrap failed');
-    const execute = jest.fn().mockResolvedValue(3);
+    const execute = jest.fn().mockResolvedValue({
+      completedReservationsCount: 3,
+      reviewPromptNotificationsCreatedCount: 1
+    });
     const createApplicationContext = jest
       .fn()
       .mockRejectedValueOnce(startupError)
@@ -73,7 +85,8 @@ describe('reservation completion worker handler', () => {
 
     await expect(handler({} as never, {} as never)).rejects.toThrow(startupError);
     await expect(handler({} as never, {} as never)).resolves.toEqual({
-      completedReservationsCount: 3
+      completedReservationsCount: 3,
+      reviewPromptNotificationsCreatedCount: 1
     });
 
     expect(createApplicationContext).toHaveBeenCalledTimes(2);

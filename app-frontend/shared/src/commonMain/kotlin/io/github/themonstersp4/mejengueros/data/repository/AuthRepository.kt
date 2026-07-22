@@ -93,7 +93,14 @@ class AuthRepository(
   override suspend fun signOut(): AuthSignOutRequest {
     secureStorage.clearSession()
     secureStorage.clearOAuthState()
+    _userProfile.value = null
     return requestFactory.createSignOutRequest()
+  }
+
+  override suspend fun clearLocalSession() {
+    secureStorage.clearSession()
+    secureStorage.clearOAuthState()
+    _userProfile.value = null
   }
 
   override suspend fun refreshUserProfile() {

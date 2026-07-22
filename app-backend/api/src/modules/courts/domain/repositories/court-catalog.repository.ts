@@ -27,6 +27,8 @@ export interface ICourtCatalogItem {
   complexName: string;
   province: ICourtCatalogLocationItem;
   canton: ICourtCatalogLocationItem;
+  latitude: number | null;
+  longitude: number | null;
   services: string[];
   rating: ICourtCatalogRatingItem;
   isReservableToday: boolean;
