@@ -1,6 +1,16 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min
+} from 'class-validator';
 import {
   PUBLIC_COURT_CATALOG_DEFAULT_PAGE_SIZE,
   PUBLIC_COURT_CATALOG_MAX_PAGE,
@@ -32,6 +42,22 @@ export class ListCourtCatalogQuery {
   @IsOptional()
   @IsUUID()
   cantonId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional service catalog identifier filters. Narrows the catalog to courts offering ALL of the given services (directly or through their complex). Repeat the query param to pass several, e.g. serviceIds=a&serviceIds=b.',
+    format: 'uuid',
+    isArray: true
+  })
+  @IsOptional()
+  // A single `serviceIds=a` arrives as a string; normalize both shapes to an array.
+  @Transform(({ value }) =>
+    value === undefined || value === null || Array.isArray(value) ? value : [value]
+  )
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  serviceIds?: string[];
 
   @ApiPropertyOptional({
     description:

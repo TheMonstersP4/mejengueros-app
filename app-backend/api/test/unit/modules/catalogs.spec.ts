@@ -169,6 +169,36 @@ describe('catalog modules behavior', () => {
     });
   });
 
+  it('forwards the service filters to the catalog repository', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 20
+      })
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    await controller.listCatalog({
+      serviceIds: ['service-a', 'service-b'],
+      page: 1,
+      pageSize: 20
+    });
+
+    expect(repository.listPublicCatalog).toHaveBeenCalledWith({
+      q: undefined,
+      provinceId: undefined,
+      cantonId: undefined,
+      serviceIds: ['service-a', 'service-b'],
+      pagination: { page: 1, pageSize: 20 }
+    });
+    // No province/canton pair, so only the service filter is applied.
+    expect(repository.assertProvinceAndCantonMatch).not.toHaveBeenCalled();
+  });
+
   it('exposes empty pagination metadata when the catalog has no matches', async () => {
     const repository = {
       assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
@@ -309,6 +339,68 @@ describe('catalog modules behavior', () => {
     expect(prisma.$queryRaw.mock.calls[0]?.[0]?.strings?.join(' ')).toContain(
       'AVG(review.rating)::float8 AS average'
     );
+  });
+
+  it('requires courts to offer every selected service on the court or its complex', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    await repository.listPublicCatalog({
+      serviceIds: ['service-a', 'service-b'],
+      pagination: DEFAULT_PAGINATION
+    });
+
+    // One AND clause per service => the court must offer ALL of them.
+    const expectedServiceFilter = {
+      AND: [
+        {
+          OR: [
+            { services: { some: { serviceCatalogId: 'service-a' } } },
+            {
+              complex: {
+                services: { some: { serviceCatalogId: 'service-a' } }
+              }
+            }
+          ]
+        },
+        {
+          OR: [
+            { services: { some: { serviceCatalogId: 'service-b' } } },
+            {
+              complex: {
+                services: { some: { serviceCatalogId: 'service-b' } }
+              }
+            }
+          ]
+        }
+      ]
+    };
+    expect(prisma.court.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedServiceFilter)
+      })
+    );
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedServiceFilter)
+      })
+    );
+    // A service-only filter never triggers the province/canton pairing guard.
+    expect(prisma.canton.findFirst).not.toHaveBeenCalled();
   });
 
   it('returns empty rating aggregates when a court has no reviews', async () => {
