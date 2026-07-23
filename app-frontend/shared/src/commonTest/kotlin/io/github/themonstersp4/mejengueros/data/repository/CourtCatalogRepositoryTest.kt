@@ -3,6 +3,8 @@ package io.github.themonstersp4.mejengueros.data.repository
 import io.github.themonstersp4.mejengueros.data.remote.ICourtCatalogRemoteDataSource
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
+import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
@@ -14,20 +16,47 @@ class CourtCatalogRepositoryTest {
     val repository = CourtCatalogRepository(remoteDataSource)
 
     val page =
-        repository.getCatalogCourts("nogales", "province-id", "canton-id", page = 2, pageSize = 20)
+        repository.getCatalogCourts(
+            "nogales",
+            "province-id",
+            "canton-id",
+            listOf("service-a", "service-b"),
+            page = 2,
+            pageSize = 20,
+        )
 
     assertEquals(
-        listOf(CatalogRequest("nogales", "province-id", "canton-id", 2, 20)),
+        listOf(
+            CatalogRequest(
+                "nogales",
+                "province-id",
+                "canton-id",
+                listOf("service-a", "service-b"),
+                2,
+                20,
+            )
+        ),
         remoteDataSource.requests,
     )
     assertEquals(listOf(fakeCourt), page.items)
     assertEquals(2, page.page)
   }
 
+  @Test
+  fun getServiceCatalogDelegatesToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeCourtCatalogRemoteDataSource()
+    val repository = CourtCatalogRepository(remoteDataSource)
+
+    val services = repository.getServiceCatalog()
+
+    assertEquals(listOf(fakeService), services)
+  }
+
   private data class CatalogRequest(
       val searchQuery: String?,
       val provinceId: String?,
       val cantonId: String?,
+      val serviceIds: List<String>,
       val page: Int,
       val pageSize: Int,
   )
@@ -39,10 +68,11 @@ class CourtCatalogRepositoryTest {
         searchQuery: String?,
         provinceId: String?,
         cantonId: String?,
+        serviceIds: List<String>,
         page: Int,
         pageSize: Int,
     ): CourtCatalogPage {
-      requests += CatalogRequest(searchQuery, provinceId, cantonId, page, pageSize)
+      requests += CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
       return CourtCatalogPage(
           items = listOf(fakeCourt),
           page = page,
@@ -51,6 +81,8 @@ class CourtCatalogRepositoryTest {
           totalPages = page,
       )
     }
+
+    override suspend fun getServiceCatalog(): List<ServiceCatalogItem> = listOf(fakeService)
   }
 
   private companion object {
@@ -70,5 +102,8 @@ class CourtCatalogRepositoryTest {
             imageUrl = null,
             isReservableToday = true,
         )
+
+    val fakeService =
+        ServiceCatalogItem(id = "service-id", name = "Sintetico", scope = ServiceScope.COURT)
   }
 }

@@ -211,6 +211,24 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
               }
             ]
           }
+        : {}),
+      // A court "offers" a service when it is attached to the court itself or to
+      // its complex. Each selected service becomes its own AND clause so the
+      // court must offer ALL of them, and AND composes with the text-search OR
+      // above instead of overwriting it (two OR keys on one object would clash).
+      ...(filters.serviceIds && filters.serviceIds.length > 0
+        ? {
+            AND: filters.serviceIds.map((serviceId) => ({
+              OR: [
+                { services: { some: { serviceCatalogId: serviceId } } },
+                {
+                  complex: {
+                    services: { some: { serviceCatalogId: serviceId } }
+                  }
+                }
+              ]
+            }))
+          }
         : {})
     };
 

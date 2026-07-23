@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
@@ -66,6 +67,8 @@ fun HomeScreen(
     onRetryLoad: () -> Unit,
     onOpenCourtDetail: (CourtCatalogItem) -> Unit,
     modifier: Modifier = Modifier,
+    onServiceToggled: (String) -> Unit = {},
+    onServicesCleared: () -> Unit = {},
     onLoadNextPage: () -> Unit = {},
     onRetryNextPage: () -> Unit = {},
 ) {
@@ -115,6 +118,8 @@ fun HomeScreen(
             onSearchQueryChange = onSearchQueryChange,
             onProvinceSelected = onProvinceSelected,
             onCantonSelected = onCantonSelected,
+            onServiceToggled = onServiceToggled,
+            onServicesCleared = onServicesCleared,
         )
       }
 
@@ -265,10 +270,13 @@ private fun CatalogHeader(
     onSearchQueryChange: (String) -> Unit,
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
+    onServiceToggled: (String) -> Unit,
+    onServicesCleared: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   var provinceMenuExpanded by remember { mutableStateOf(false) }
   var cantonMenuExpanded by remember { mutableStateOf(false) }
+  var serviceMenuExpanded by remember { mutableStateOf(false) }
 
   Column(
       modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -329,6 +337,39 @@ private fun CatalogHeader(
                   cantonMenuExpanded = false
                   onCantonSelected(canton.id)
                 },
+            )
+          }
+        }
+      }
+      val selectedServiceCount = state.selectedServiceIds.size
+      FilterChipSummary(
+          label = if (selectedServiceCount > 0) "Servicios ($selectedServiceCount)" else "Servicio",
+          selected = selectedServiceCount > 0,
+          onClick = { serviceMenuExpanded = true },
+      ) {
+        DropdownMenu(
+            expanded = serviceMenuExpanded,
+            onDismissRequest = { serviceMenuExpanded = false },
+        ) {
+          DropdownMenuItem(
+              text = { Text("Todos") },
+              onClick = {
+                serviceMenuExpanded = false
+                onServicesCleared()
+              },
+          )
+          state.availableServices.forEach { service ->
+            val isSelected = service.id in state.selectedServiceIds
+            DropdownMenuItem(
+                text = { Text(service.label) },
+                // Keep the menu open on toggle so several services can be picked
+                // in one pass; the leading check mirrors the current selection.
+                leadingIcon = {
+                  if (isSelected) {
+                    Icon(Icons.Filled.Check, contentDescription = null)
+                  }
+                },
+                onClick = { onServiceToggled(service.id) },
             )
           }
         }

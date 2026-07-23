@@ -7,6 +7,7 @@ export interface ICourtCatalogFilters {
   q?: string;
   provinceId?: string;
   cantonId?: string;
+  serviceIds?: string[];
   pagination: ICourtCatalogPagination;
 }
 

@@ -23,9 +23,11 @@ class CourtCatalogViewModel(
   private var loadJob: Job? = null
   private var searchJob: Job? = null
   private var nextPageJob: Job? = null
+  private var servicesJob: Job? = null
   val uiState: StateFlow<CourtCatalogUiState> = _uiState.asStateFlow()
 
   init {
+    loadServiceCatalog()
     loadCatalog()
   }
 
@@ -57,6 +59,7 @@ class CourtCatalogViewModel(
                     searchQuery = current.searchQuery,
                     provinceId = current.selectedProvinceId,
                     cantonId = current.selectedCantonId,
+                    serviceIds = current.selectedServiceIds.toList(),
                     page = targetPage,
                     pageSize = PageSize,
                 )
@@ -68,6 +71,8 @@ class CourtCatalogViewModel(
                     searchQuery = current.searchQuery,
                     selectedProvinceId = current.selectedProvinceId,
                     selectedCantonId = current.selectedCantonId,
+                    selectedServiceIds = current.selectedServiceIds,
+                    availableServices = _uiState.value.availableServices,
                     fallbackProvinces = current.availableProvinces,
                     fallbackCantons = current.availableCantons,
                 )
@@ -136,6 +141,32 @@ class CourtCatalogViewModel(
     loadCatalog()
   }
 
+  /** Adds or removes a service from the active filter, then reloads the catalog. */
+  fun toggleService(serviceId: String) {
+    val currentState = _uiState.value
+    val nextSelection =
+        if (serviceId in currentState.selectedServiceIds) {
+          currentState.selectedServiceIds - serviceId
+        } else {
+          currentState.selectedServiceIds + serviceId
+        }
+
+    _uiState.value = currentState.copy(selectedServiceIds = nextSelection)
+    searchJob?.cancel()
+    loadCatalog()
+  }
+
+  fun clearServices() {
+    val currentState = _uiState.value
+    if (currentState.selectedServiceIds.isEmpty()) {
+      return
+    }
+
+    _uiState.value = currentState.copy(selectedServiceIds = emptySet())
+    searchJob?.cancel()
+    loadCatalog()
+  }
+
   private fun loadCatalog() {
     loadJob?.cancel()
     // A fresh first-page load (search/filter change or retry) supersedes any
@@ -157,6 +188,7 @@ class CourtCatalogViewModel(
                     searchQuery = currentFilters.searchQuery,
                     provinceId = currentFilters.selectedProvinceId,
                     cantonId = currentFilters.selectedCantonId,
+                    serviceIds = currentFilters.selectedServiceIds.toList(),
                     page = 1,
                     pageSize = PageSize,
                 )
@@ -167,6 +199,8 @@ class CourtCatalogViewModel(
                     searchQuery = currentFilters.searchQuery,
                     selectedProvinceId = currentFilters.selectedProvinceId,
                     selectedCantonId = currentFilters.selectedCantonId,
+                    selectedServiceIds = currentFilters.selectedServiceIds,
+                    availableServices = _uiState.value.availableServices,
                     fallbackProvinces = currentFilters.availableProvinces,
                     fallbackCantons = currentFilters.availableCantons,
                 )
@@ -185,6 +219,37 @@ class CourtCatalogViewModel(
         }
   }
 
+  /**
+   * Loads the service filter options once. A failure leaves the options empty so the rest of the
+   * catalog keeps working; the service chip simply offers nothing to pick.
+   */
+  private fun loadServiceCatalog() {
+    servicesJob?.cancel()
+    servicesJob =
+        scope.launch {
+          val services =
+              try {
+                repository.getServiceCatalog()
+              } catch (error: Throwable) {
+                if (error is CancellationException) {
+                  throw error
+                }
+                emptyList()
+              }
+
+          if (services.isEmpty()) {
+            return@launch
+          }
+
+          val options =
+              services
+                  .map { CatalogFilterOption(id = it.id, label = it.name) }
+                  .distinctBy(CatalogFilterOption::id)
+                  .sortedBy(CatalogFilterOption::label)
+          _uiState.value = _uiState.value.copy(availableServices = options)
+        }
+  }
+
   companion object {
     private const val SearchDebounceMillis = 300L
     private const val PageSize = CourtCatalogPage.DEFAULT_PAGE_SIZE
@@ -197,6 +262,8 @@ private fun buildCourtCatalogState(
     searchQuery: String = "",
     selectedProvinceId: String? = null,
     selectedCantonId: String? = null,
+    selectedServiceIds: Set<String> = emptySet(),
+    availableServices: List<CatalogFilterOption> = emptyList(),
     fallbackProvinces: List<CatalogFilterOption> = emptyList(),
     fallbackCantons: List<CatalogFilterOption> = emptyList(),
 ): CourtCatalogUiState {
@@ -224,8 +291,10 @@ private fun buildCourtCatalogState(
       searchQuery = searchQuery,
       selectedProvinceId = normalizedProvinceId,
       selectedCantonId = normalizedCantonId,
+      selectedServiceIds = selectedServiceIds,
       availableProvinces = availableProvinces,
       availableCantons = availableCantons,
+      availableServices = availableServices,
       visibleCourts = accumulatedCourts,
       allCourts = accumulatedCourts,
       loadErrorMessage = null,

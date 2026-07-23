@@ -7,8 +7,10 @@ data class CourtCatalogUiState(
     val searchQuery: String = "",
     val selectedProvinceId: String? = null,
     val selectedCantonId: String? = null,
+    val selectedServiceIds: Set<String> = emptySet(),
     val availableProvinces: List<CatalogFilterOption> = emptyList(),
     val availableCantons: List<CatalogFilterOption> = emptyList(),
+    val availableServices: List<CatalogFilterOption> = emptyList(),
     val visibleCourts: List<CourtCatalogItem> = emptyList(),
     val allCourts: List<CourtCatalogItem> = emptyList(),
     val loadErrorMessage: String? = null,
@@ -23,6 +25,9 @@ data class CourtCatalogUiState(
 
   val selectedCanton: CatalogFilterOption?
     get() = availableCantons.firstOrNull { it.id == selectedCantonId }
+
+  val selectedServices: List<CatalogFilterOption>
+    get() = availableServices.filter { it.id in selectedServiceIds }
 
   /**
    * True when the catalog can request the next page right now: there is another page, the first
