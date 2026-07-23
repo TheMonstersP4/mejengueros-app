@@ -2,6 +2,8 @@ package io.github.themonstersp4.mejengueros.presentation.catalog
 
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
+import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
+import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -354,6 +356,106 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
+  fun initLoadsAvailableServicesFromCatalogSortedByLabel() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              RecordingCourtCatalogRepository(
+                  services =
+                      listOf(
+                          ServiceCatalogItem("service-2", "Parqueo", ServiceScope.COMPLEX),
+                          ServiceCatalogItem("service-1", "Iluminación", ServiceScope.COURT),
+                      )
+              )
+          val viewModel = CourtCatalogViewModel(repository, this)
+
+          advanceUntilIdle()
+
+          assertEquals(
+              listOf(
+                  CatalogFilterOption(id = "service-1", label = "Iluminación"),
+                  CatalogFilterOption(id = "service-2", label = "Parqueo"),
+              ),
+              viewModel.uiState.value.availableServices,
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun togglingServicesAccumulatesIdsAndClearingResetsThem() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              RecordingCourtCatalogRepository(
+                  services =
+                      listOf(
+                          ServiceCatalogItem("service-1", "Sintético", ServiceScope.COURT),
+                          ServiceCatalogItem("service-2", "Parqueo", ServiceScope.COMPLEX),
+                      )
+              )
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.toggleService("service-1")
+          advanceUntilIdle()
+          viewModel.toggleService("service-2")
+          advanceUntilIdle()
+
+          // Both selected services travel together so the backend can require all of them.
+          assertEquals(setOf("service-1", "service-2"), viewModel.uiState.value.selectedServiceIds)
+          assertEquals(
+              listOf("service-1", "service-2"),
+              repository.requests.last().serviceIds,
+          )
+          // selectedServices follows availableServices' label order, not toggle order.
+          assertEquals(
+              listOf("Parqueo", "Sintético"),
+              viewModel.uiState.value.selectedServices.map { it.label },
+          )
+
+          // Toggling an active service removes it.
+          viewModel.toggleService("service-1")
+          advanceUntilIdle()
+          assertEquals(setOf("service-2"), viewModel.uiState.value.selectedServiceIds)
+          assertEquals(listOf("service-2"), repository.requests.last().serviceIds)
+
+          viewModel.clearServices()
+          advanceUntilIdle()
+          assertTrue(viewModel.uiState.value.selectedServiceIds.isEmpty())
+          assertTrue(repository.requests.last().serviceIds.isEmpty())
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun serviceFilterIsPreservedWhilePaginating() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = PagedCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.toggleService("service-1")
+          advanceUntilIdle()
+          viewModel.loadNextPage()
+          advanceUntilIdle()
+
+          val lastRequest = repository.requests.last()
+          assertEquals(2, lastRequest.page)
+          assertEquals(listOf("service-1"), lastRequest.serviceIds)
+          assertEquals(setOf("service-1"), viewModel.uiState.value.selectedServiceIds)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
   fun changingSearchResetsPaginationBackToFirstPage() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
@@ -401,6 +503,7 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage =
@@ -412,7 +515,8 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
 }
 
 private class RecordingCourtCatalogRepository(
-    private val responses: MutableList<List<CourtCatalogItem>> = mutableListOf()
+    private val responses: MutableList<List<CourtCatalogItem>> = mutableListOf(),
+    private val services: List<ServiceCatalogItem> = emptyList(),
 ) : ICourtCatalogRepository {
   val requests = mutableListOf<CatalogRequest>()
 
@@ -420,23 +524,27 @@ private class RecordingCourtCatalogRepository(
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
-    requests += CatalogRequest(searchQuery, provinceId, cantonId, page, pageSize)
+    requests += CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
     if (responses.isNotEmpty()) {
       return responses.removeFirst().toCatalogPage(page, pageSize)
     }
 
     return FakeCourtCatalogRepository()
-        .getCatalogCourts(searchQuery, provinceId, cantonId, page, pageSize)
+        .getCatalogCourts(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
   }
+
+  override suspend fun getServiceCatalog(): List<ServiceCatalogItem> = services
 }
 
 private data class CatalogRequest(
     val searchQuery: String?,
     val provinceId: String?,
     val cantonId: String?,
+    val serviceIds: List<String> = emptyList(),
     val page: Int = 1,
     val pageSize: Int = CourtCatalogPage.DEFAULT_PAGE_SIZE,
 )
@@ -516,6 +624,7 @@ private class FailingCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
@@ -530,6 +639,7 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
@@ -538,7 +648,8 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
       throw IllegalStateException("temporary failure")
     }
 
-    return FakeCourtCatalogRepository().getCatalogCourts(null, null, null, page, pageSize)
+    return FakeCourtCatalogRepository()
+        .getCatalogCourts(null, null, null, emptyList(), page, pageSize)
   }
 }
 
@@ -575,10 +686,11 @@ private class PagedCourtCatalogRepository(
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
-    requests += CatalogRequest(searchQuery, provinceId, cantonId, page, pageSize)
+    requests += CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
     return courts
         .filter { searchQuery.isNullOrBlank() || it.matchesSearch(searchQuery) }
         .filter { provinceId == null || it.provinceId == provinceId }
@@ -596,6 +708,7 @@ private class NextPageFlakyCourtCatalogRepository(
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {

@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.data.remote
 
+import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -66,13 +67,14 @@ class CourtCatalogRemoteDataSourceTest {
             searchQuery = "nogales",
             provinceId = "province-id",
             cantonId = "canton-id",
+            serviceIds = listOf("service-a", "service-b"),
             page = 2,
             pageSize = 20,
         )
 
     assertEquals("/v1/courts/catalog", requestedPath)
     assertEquals(
-        "q=nogales&provinceId=province-id&cantonId=canton-id&page=2&pageSize=20",
+        "q=nogales&provinceId=province-id&cantonId=canton-id&serviceIds=service-a&serviceIds=service-b&page=2&pageSize=20",
         requestedQuery,
     )
     assertEquals("court-id", page.items.single().id)
@@ -83,6 +85,40 @@ class CourtCatalogRemoteDataSourceTest {
     assertEquals(45, page.totalItems)
     assertEquals(3, page.totalPages)
     assertEquals(true, page.hasNextPage)
+  }
+
+  @Test
+  fun getServiceCatalogFetchesActiveServicesWithoutScopeAndMapsEnvelope() = runTest {
+    var requestedPath = ""
+    var requestedQuery = ""
+    val dataSource =
+        CourtCatalogRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": [
+                            { "id": "service-1", "name": "Sintetico", "scope": "COURT" },
+                            { "id": "service-2", "name": "Parqueo", "scope": "COMPLEX" }
+                          ]
+                        }
+                        """,
+                    capturePath = { requestedPath = it.orEmpty() },
+                    captureQuery = { requestedQuery = it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    val services = dataSource.getServiceCatalog()
+
+    assertEquals("/v1/services", requestedPath)
+    // No scope filter so every active service is offered as a catalog filter option.
+    assertEquals("", requestedQuery)
+    assertEquals(listOf("service-1", "service-2"), services.map { it.id })
+    assertEquals(listOf("Sintetico", "Parqueo"), services.map { it.name })
+    assertEquals(ServiceScope.COURT, services.first().scope)
   }
 
   @Test

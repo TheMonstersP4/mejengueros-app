@@ -1,8 +1,10 @@
 package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.data.remote.dto.CourtCatalogEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.ServiceCatalogEnvelopeDto
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
+import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
@@ -18,6 +20,7 @@ class CourtCatalogRemoteDataSource(
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
@@ -28,6 +31,9 @@ class CourtCatalogRemoteDataSource(
                 searchQuery?.trim()?.takeIf { it.isNotEmpty() }?.let { parameter("q", it) }
                 provinceId?.let { parameter("provinceId", it) }
                 cantonId?.let { parameter("cantonId", it) }
+                // Repeated query param (serviceIds=a&serviceIds=b) so the backend
+                // can require the court to offer every selected service.
+                serviceIds.forEach { parameter("serviceIds", it) }
                 parameter("page", page)
                 parameter("pageSize", pageSize)
               }
@@ -65,6 +71,18 @@ class CourtCatalogRemoteDataSource(
           totalItems = pagination?.totalItems ?: items.size,
           totalPages = pagination?.totalPages ?: if (items.isEmpty()) 0 else page,
       )
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
+
+  override suspend fun getServiceCatalog(): List<ServiceCatalogItem> {
+    return try {
+      // No scope filter: the catalog filter needs every active service because a
+      // court can offer both complex-scoped and court-scoped services.
+      httpClient.get("/v1/services").body<ServiceCatalogEnvelopeDto>().data.map { service ->
+        ServiceCatalogItem(id = service.id, name = service.name, scope = service.scope)
+      }
     } catch (error: ResponseException) {
       throw error.toAppApiException(json)
     }
