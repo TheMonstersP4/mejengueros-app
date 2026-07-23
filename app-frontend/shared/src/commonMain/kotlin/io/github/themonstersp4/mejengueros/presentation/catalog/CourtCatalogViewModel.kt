@@ -60,6 +60,7 @@ class CourtCatalogViewModel(
                     provinceId = current.selectedProvinceId,
                     cantonId = current.selectedCantonId,
                     serviceIds = current.selectedServiceIds.toList(),
+                    minRating = current.selectedMinRating,
                     page = targetPage,
                     pageSize = PageSize,
                 )
@@ -72,6 +73,7 @@ class CourtCatalogViewModel(
                     selectedProvinceId = current.selectedProvinceId,
                     selectedCantonId = current.selectedCantonId,
                     selectedServiceIds = current.selectedServiceIds,
+                    selectedMinRating = current.selectedMinRating,
                     availableServices = _uiState.value.availableServices,
                     fallbackProvinces = current.availableProvinces,
                     fallbackCantons = current.availableCantons,
@@ -167,6 +169,18 @@ class CourtCatalogViewModel(
     loadCatalog()
   }
 
+  /** Sets the minimum average rating filter (null clears it), then reloads the catalog. */
+  fun selectMinRating(minRating: Int?) {
+    val currentState = _uiState.value
+    if (currentState.selectedMinRating == minRating) {
+      return
+    }
+
+    _uiState.value = currentState.copy(selectedMinRating = minRating)
+    searchJob?.cancel()
+    loadCatalog()
+  }
+
   private fun loadCatalog() {
     loadJob?.cancel()
     // A fresh first-page load (search/filter change or retry) supersedes any
@@ -189,6 +203,7 @@ class CourtCatalogViewModel(
                     provinceId = currentFilters.selectedProvinceId,
                     cantonId = currentFilters.selectedCantonId,
                     serviceIds = currentFilters.selectedServiceIds.toList(),
+                    minRating = currentFilters.selectedMinRating,
                     page = 1,
                     pageSize = PageSize,
                 )
@@ -200,6 +215,7 @@ class CourtCatalogViewModel(
                     selectedProvinceId = currentFilters.selectedProvinceId,
                     selectedCantonId = currentFilters.selectedCantonId,
                     selectedServiceIds = currentFilters.selectedServiceIds,
+                    selectedMinRating = currentFilters.selectedMinRating,
                     availableServices = _uiState.value.availableServices,
                     fallbackProvinces = currentFilters.availableProvinces,
                     fallbackCantons = currentFilters.availableCantons,
@@ -263,6 +279,7 @@ private fun buildCourtCatalogState(
     selectedProvinceId: String? = null,
     selectedCantonId: String? = null,
     selectedServiceIds: Set<String> = emptySet(),
+    selectedMinRating: Int? = null,
     availableServices: List<CatalogFilterOption> = emptyList(),
     fallbackProvinces: List<CatalogFilterOption> = emptyList(),
     fallbackCantons: List<CatalogFilterOption> = emptyList(),
@@ -292,6 +309,7 @@ private fun buildCourtCatalogState(
       selectedProvinceId = normalizedProvinceId,
       selectedCantonId = normalizedCantonId,
       selectedServiceIds = selectedServiceIds,
+      selectedMinRating = selectedMinRating,
       availableProvinces = availableProvinces,
       availableCantons = availableCantons,
       availableServices = availableServices,

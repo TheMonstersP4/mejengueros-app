@@ -9,6 +9,7 @@ interface ICourtCatalogRepository {
       provinceId: String? = null,
       cantonId: String? = null,
       serviceIds: List<String> = emptyList(),
+      minRating: Int? = null,
       page: Int = 1,
       pageSize: Int = CourtCatalogPage.DEFAULT_PAGE_SIZE,
   ): CourtCatalogPage

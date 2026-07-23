@@ -456,6 +456,54 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
+  fun selectingMinRatingUsesItForRemoteFilteringAndClearingResetsIt() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = RecordingCourtCatalogRepository()
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.selectMinRating(4)
+          advanceUntilIdle()
+
+          assertEquals(4, repository.requests.last().minRating)
+          assertEquals(4, viewModel.uiState.value.selectedMinRating)
+
+          viewModel.selectMinRating(null)
+          advanceUntilIdle()
+
+          assertNull(viewModel.uiState.value.selectedMinRating)
+          assertNull(repository.requests.last().minRating)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun minRatingFilterIsPreservedWhilePaginating() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository = PagedCourtCatalogRepository(manyCatalogCourts)
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.selectMinRating(3)
+          advanceUntilIdle()
+          viewModel.loadNextPage()
+          advanceUntilIdle()
+
+          val lastRequest = repository.requests.last()
+          assertEquals(2, lastRequest.page)
+          assertEquals(3, lastRequest.minRating)
+          assertEquals(3, viewModel.uiState.value.selectedMinRating)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
   fun changingSearchResetsPaginationBackToFirstPage() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
@@ -504,6 +552,7 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage =
@@ -525,16 +574,18 @@ private class RecordingCourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
-    requests += CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
+    requests +=
+        CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, minRating, page, pageSize)
     if (responses.isNotEmpty()) {
       return responses.removeFirst().toCatalogPage(page, pageSize)
     }
 
     return FakeCourtCatalogRepository()
-        .getCatalogCourts(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
+        .getCatalogCourts(searchQuery, provinceId, cantonId, serviceIds, minRating, page, pageSize)
   }
 
   override suspend fun getServiceCatalog(): List<ServiceCatalogItem> = services
@@ -545,6 +596,7 @@ private data class CatalogRequest(
     val provinceId: String?,
     val cantonId: String?,
     val serviceIds: List<String> = emptyList(),
+    val minRating: Int? = null,
     val page: Int = 1,
     val pageSize: Int = CourtCatalogPage.DEFAULT_PAGE_SIZE,
 )
@@ -625,6 +677,7 @@ private class FailingCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
@@ -640,6 +693,7 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
@@ -649,7 +703,7 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
     }
 
     return FakeCourtCatalogRepository()
-        .getCatalogCourts(null, null, null, emptyList(), page, pageSize)
+        .getCatalogCourts(null, null, null, emptyList(), null, page, pageSize)
   }
 }
 
@@ -687,10 +741,12 @@ private class PagedCourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
-    requests += CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
+    requests +=
+        CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, minRating, page, pageSize)
     return courts
         .filter { searchQuery.isNullOrBlank() || it.matchesSearch(searchQuery) }
         .filter { provinceId == null || it.provinceId == provinceId }
@@ -709,6 +765,7 @@ private class NextPageFlakyCourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
