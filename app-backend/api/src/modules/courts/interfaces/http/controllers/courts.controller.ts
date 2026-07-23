@@ -22,7 +22,7 @@ export class CourtsController {
   @ApiOperation({
     summary: 'List the public court catalog.',
     description:
-      'Returns active and published catalog courts, optionally filtered by text, province, canton, and service. Results are paginated so clients can load the catalog incrementally.'
+      'Returns active and published catalog courts, optionally filtered by text, province, canton, service, and minimum rating. Results are paginated so clients can load the catalog incrementally.'
   })
   @ApiEnvelopeArrayOk(
     CourtCatalogResponse,
@@ -37,6 +37,7 @@ export class CourtsController {
       provinceId: query.provinceId,
       cantonId: query.cantonId,
       serviceIds: query.serviceIds,
+      minRating: query.minRating,
       page: query.page,
       pageSize: query.pageSize
     });

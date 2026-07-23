@@ -61,6 +61,20 @@ export class ListCourtCatalogQuery {
 
   @ApiPropertyOptional({
     description:
+      'Optional minimum average rating filter (1-5). Narrows the catalog to courts whose average rating rounds to at least this value; courts without reviews are excluded.',
+    example: 4,
+    minimum: 1,
+    maximum: 5
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  minRating?: number;
+
+  @ApiPropertyOptional({
+    description:
       'One-based page number. Capped at 10000 to prevent huge offset abuse.',
     example: 1,
     minimum: 1,
