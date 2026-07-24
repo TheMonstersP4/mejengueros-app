@@ -193,10 +193,40 @@ describe('catalog modules behavior', () => {
       provinceId: undefined,
       cantonId: undefined,
       serviceIds: ['service-a', 'service-b'],
+      minRating: undefined,
       pagination: { page: 1, pageSize: 20 }
     });
     // No province/canton pair, so only the service filter is applied.
     expect(repository.assertProvinceAndCantonMatch).not.toHaveBeenCalled();
+  });
+
+  it('forwards the minimum rating filter to the catalog repository', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 20
+      })
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    await controller.listCatalog({
+      minRating: 4,
+      page: 1,
+      pageSize: 20
+    });
+
+    expect(repository.listPublicCatalog).toHaveBeenCalledWith({
+      q: undefined,
+      provinceId: undefined,
+      cantonId: undefined,
+      serviceIds: undefined,
+      minRating: 4,
+      pagination: { page: 1, pageSize: 20 }
+    });
   });
 
   it('exposes empty pagination metadata when the catalog has no matches', async () => {
@@ -401,6 +431,49 @@ describe('catalog modules behavior', () => {
     );
     // A service-only filter never triggers the province/canton pairing guard.
     expect(prisma.canton.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('restricts the catalog to courts meeting the minimum rating', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      // First raw call resolves the qualifying court ids (HAVING AVG >= min).
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValue([{ courtId: 'court-a' }, { courtId: 'court-b' }]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    await repository.listPublicCatalog({
+      minRating: 4,
+      pagination: DEFAULT_PAGINATION
+    });
+
+    // The rating threshold is resolved through an aggregate query, rounded to one
+    // decimal to match the card, with the minimum passed as a bound parameter.
+    const ratingCall = prisma.$queryRaw.mock.calls[0]?.[0];
+    expect(ratingCall?.strings?.join(' ')).toContain('HAVING');
+    expect(ratingCall?.strings?.join(' ')).toContain('ROUND(AVG(review.rating)');
+    expect(ratingCall?.values).toEqual([4]);
+    // Count and page reads are constrained to the qualifying ids so pagination
+    // and totals stay consistent.
+    const expectedIdFilter = { id: { in: ['court-a', 'court-b'] } };
+    expect(prisma.court.count).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(expectedIdFilter) })
+    );
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(expectedIdFilter) })
+    );
   });
 
   it('returns empty rating aggregates when a court has no reviews', async () => {

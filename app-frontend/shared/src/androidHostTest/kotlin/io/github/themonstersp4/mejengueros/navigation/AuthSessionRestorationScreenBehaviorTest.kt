@@ -480,6 +480,7 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage = CourtCatalogPage.empty(pageSize)

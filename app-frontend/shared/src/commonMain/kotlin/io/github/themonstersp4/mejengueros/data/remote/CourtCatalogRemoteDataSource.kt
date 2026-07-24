@@ -21,6 +21,7 @@ class CourtCatalogRemoteDataSource(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage {
@@ -34,6 +35,7 @@ class CourtCatalogRemoteDataSource(
                 // Repeated query param (serviceIds=a&serviceIds=b) so the backend
                 // can require the court to offer every selected service.
                 serviceIds.forEach { parameter("serviceIds", it) }
+                minRating?.let { parameter("minRating", it) }
                 parameter("page", page)
                 parameter("pageSize", pageSize)
               }

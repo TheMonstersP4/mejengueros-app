@@ -13,6 +13,7 @@ class CourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage =
@@ -21,6 +22,7 @@ class CourtCatalogRepository(
           provinceId = provinceId,
           cantonId = cantonId,
           serviceIds = serviceIds,
+          minRating = minRating,
           page = page,
           pageSize = pageSize,
       )

@@ -21,6 +21,7 @@ class CourtCatalogRepositoryTest {
             "province-id",
             "canton-id",
             listOf("service-a", "service-b"),
+            minRating = 4,
             page = 2,
             pageSize = 20,
         )
@@ -32,6 +33,7 @@ class CourtCatalogRepositoryTest {
                 "province-id",
                 "canton-id",
                 listOf("service-a", "service-b"),
+                4,
                 2,
                 20,
             )
@@ -57,6 +59,7 @@ class CourtCatalogRepositoryTest {
       val provinceId: String?,
       val cantonId: String?,
       val serviceIds: List<String>,
+      val minRating: Int?,
       val page: Int,
       val pageSize: Int,
   )
@@ -69,10 +72,12 @@ class CourtCatalogRepositoryTest {
         provinceId: String?,
         cantonId: String?,
         serviceIds: List<String>,
+        minRating: Int?,
         page: Int,
         pageSize: Int,
     ): CourtCatalogPage {
-      requests += CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, page, pageSize)
+      requests +=
+          CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, minRating, page, pageSize)
       return CourtCatalogPage(
           items = listOf(fakeCourt),
           page = page,

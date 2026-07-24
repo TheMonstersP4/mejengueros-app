@@ -68,13 +68,14 @@ class CourtCatalogRemoteDataSourceTest {
             provinceId = "province-id",
             cantonId = "canton-id",
             serviceIds = listOf("service-a", "service-b"),
+            minRating = 4,
             page = 2,
             pageSize = 20,
         )
 
     assertEquals("/v1/courts/catalog", requestedPath)
     assertEquals(
-        "q=nogales&provinceId=province-id&cantonId=canton-id&serviceIds=service-a&serviceIds=service-b&page=2&pageSize=20",
+        "q=nogales&provinceId=province-id&cantonId=canton-id&serviceIds=service-a&serviceIds=service-b&minRating=4&page=2&pageSize=20",
         requestedQuery,
     )
     assertEquals("court-id", page.items.single().id)

@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.screens.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -69,6 +71,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onServiceToggled: (String) -> Unit = {},
     onServicesCleared: () -> Unit = {},
+    onMinRatingSelected: (Int?) -> Unit = {},
     onLoadNextPage: () -> Unit = {},
     onRetryNextPage: () -> Unit = {},
 ) {
@@ -120,6 +123,7 @@ fun HomeScreen(
             onCantonSelected = onCantonSelected,
             onServiceToggled = onServiceToggled,
             onServicesCleared = onServicesCleared,
+            onMinRatingSelected = onMinRatingSelected,
         )
       }
 
@@ -272,11 +276,13 @@ private fun CatalogHeader(
     onCantonSelected: (String?) -> Unit,
     onServiceToggled: (String) -> Unit,
     onServicesCleared: () -> Unit,
+    onMinRatingSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   var provinceMenuExpanded by remember { mutableStateOf(false) }
   var cantonMenuExpanded by remember { mutableStateOf(false) }
   var serviceMenuExpanded by remember { mutableStateOf(false) }
+  var ratingMenuExpanded by remember { mutableStateOf(false) }
 
   Column(
       modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -286,7 +292,10 @@ private fun CatalogHeader(
         query = state.searchQuery,
         onQueryChange = onSearchQueryChange,
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
       FilterChipSummary(
           label = state.selectedProvince?.label ?: "Provincia",
           selected = state.selectedProvince != null,
@@ -374,6 +383,33 @@ private fun CatalogHeader(
           }
         }
       }
+      FilterChipSummary(
+          label = ratingChipLabel(state.selectedMinRating),
+          selected = state.selectedMinRating != null,
+          onClick = { ratingMenuExpanded = true },
+      ) {
+        DropdownMenu(
+            expanded = ratingMenuExpanded,
+            onDismissRequest = { ratingMenuExpanded = false },
+        ) {
+          DropdownMenuItem(
+              text = { Text("Todas") },
+              onClick = {
+                ratingMenuExpanded = false
+                onMinRatingSelected(null)
+              },
+          )
+          MinRatingOptions.forEach { minRating ->
+            DropdownMenuItem(
+                text = { Text(ratingOptionLabel(minRating)) },
+                onClick = {
+                  ratingMenuExpanded = false
+                  onMinRatingSelected(minRating)
+                },
+            )
+          }
+        }
+      }
     }
     if (state.totalCourts > 0) {
       Text(
@@ -408,6 +444,16 @@ private fun buildCourtMetadata(court: CourtCatalogItem): List<String> {
 
   return metadata.distinct().take(2)
 }
+
+// Rating filter thresholds offered in the search header, highest first.
+private val MinRatingOptions = listOf(5, 4, 3)
+
+private fun ratingChipLabel(minRating: Int?): String =
+    if (minRating == null) "Estrellas" else ratingOptionLabel(minRating)
+
+// 5 is the ceiling so it reads as an exact match; lower thresholds are inclusive.
+private fun ratingOptionLabel(minRating: Int): String =
+    if (minRating >= 5) "$minRating★" else "$minRating★+"
 
 private fun ratingLabel(average: Double?, count: Int): String? {
   if (average == null || count <= 0) {

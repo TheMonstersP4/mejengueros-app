@@ -8,6 +8,7 @@ data class CourtCatalogUiState(
     val selectedProvinceId: String? = null,
     val selectedCantonId: String? = null,
     val selectedServiceIds: Set<String> = emptySet(),
+    val selectedMinRating: Int? = null,
     val availableProvinces: List<CatalogFilterOption> = emptyList(),
     val availableCantons: List<CatalogFilterOption> = emptyList(),
     val availableServices: List<CatalogFilterOption> = emptyList(),
