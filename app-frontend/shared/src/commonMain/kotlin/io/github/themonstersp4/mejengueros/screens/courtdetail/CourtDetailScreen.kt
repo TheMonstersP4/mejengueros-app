@@ -299,8 +299,8 @@ private fun AvailabilityPill(label: String) {
 private fun SlotGrid(slots: List<CourtDetailSlot>) {
   FlowRow(
       modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.spacedBy(8.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
+      horizontalArrangement = Arrangement.spacedBy(18.dp),
+      verticalArrangement = Arrangement.spacedBy(6.dp),
   ) {
     slots.forEach { slot -> SlotChip(label = slot.displayTime, isTaken = false) }
   }
@@ -308,29 +308,21 @@ private fun SlotGrid(slots: List<CourtDetailSlot>) {
 
 @Composable
 private fun SlotChip(label: String, isTaken: Boolean) {
-  val containerColor =
-      if (isTaken) MaterialTheme.colorScheme.surfaceContainerHigh
-      else MaterialTheme.colorScheme.surface
+  // Read-only availability preview: render each time as flat, muted text — not a filled,
+  // rounded chip — so it does not read as a tappable button. Tapping does nothing here;
+  // the real, interactive slot selector lives in ReservationScreen.
   val contentColor =
-      if (isTaken) MaterialTheme.colorScheme.onSurfaceVariant
-      else MaterialTheme.colorScheme.onSurface
+      if (isTaken) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+      else MaterialTheme.colorScheme.onSurfaceVariant
   val textDecoration = if (isTaken) TextDecoration.LineThrough else TextDecoration.None
 
-  Surface(
-      shape = MaterialTheme.shapes.medium,
-      color = containerColor,
-      contentColor = contentColor,
-      tonalElevation = 0.dp,
-  ) {
-    Text(
-        text = label,
-        modifier =
-            Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                .testTag("court_detail_slot_$label"),
-        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-        textDecoration = textDecoration,
-    )
-  }
+  Text(
+      text = label,
+      modifier = Modifier.testTag("court_detail_slot_$label"),
+      style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+      color = contentColor,
+      textDecoration = textDecoration,
+  )
 }
 
 @Composable
