@@ -10,7 +10,9 @@ import io.github.themonstersp4.mejengueros.data.auth.OAuthCallbackParser
 import io.github.themonstersp4.mejengueros.data.auth.PkceGenerator
 import io.github.themonstersp4.mejengueros.data.auth.defaultCognitoAuthConfig
 import io.github.themonstersp4.mejengueros.data.local.AppDatabase
+import io.github.themonstersp4.mejengueros.data.local.CourtFavoriteLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.DriverFactory
+import io.github.themonstersp4.mejengueros.data.local.ICourtFavoriteLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.IPokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.local.PokemonLocalDataSource
 import io.github.themonstersp4.mejengueros.data.remote.AppApiHttpClientQualifier
@@ -50,6 +52,7 @@ import io.github.themonstersp4.mejengueros.data.repository.ComplexRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtAvailabilityRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtCatalogRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtDetailRepository
+import io.github.themonstersp4.mejengueros.data.repository.CourtFavoriteRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.data.repository.CourtReviewsRepository
 import io.github.themonstersp4.mejengueros.data.repository.NotificationRepository
@@ -62,6 +65,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtAvailabilityRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtFavoriteRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import io.github.themonstersp4.mejengueros.domain.repository.INotificationRepository
@@ -76,6 +80,7 @@ val dataModule = module {
   single { get<DriverFactory>().createDriver() }
   single { AppDatabase(get()) }
   single { get<AppDatabase>().pokemonCacheQueries }
+  single { get<AppDatabase>().courtFavoriteQueries }
   single { defaultAppApiConfig }
   single { defaultCognitoAuthConfig }
   single { PkceGenerator(get()) }
@@ -131,6 +136,8 @@ val dataModule = module {
   }
   single<IReviewEvidenceUploadRepository> { ReviewEvidenceUploadRepository(get()) }
   single<ICourtDetailRepository> { CourtDetailRepository(get()) }
+  single<ICourtFavoriteLocalDataSource> { CourtFavoriteLocalDataSource(get()) }
+  single<ICourtFavoriteRepository> { CourtFavoriteRepository(get()) }
   single<ICourtReviewsRemoteDataSource> {
     CourtReviewsRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }

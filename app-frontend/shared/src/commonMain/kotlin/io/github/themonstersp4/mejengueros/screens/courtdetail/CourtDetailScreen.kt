@@ -15,15 +15,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,11 +37,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailSlot
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailUiState
+import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtFavoriteStatus
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
@@ -65,6 +75,8 @@ fun CourtDetailScreen(
     onReserve: () -> Unit,
     onRetrySlots: () -> Unit,
     onRetryReviews: () -> Unit,
+    onFavoriteToggle: () -> Unit = {},
+    onRetryFavorite: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   Column(modifier = modifier.fillMaxSize().padding(contentPadding)) {
@@ -74,6 +86,9 @@ fun CourtDetailScreen(
       CourtHeroImage(
           imageUrl = imageUrl,
           contentDescription = "$complexName · $courtName",
+          state = state,
+          onFavoriteToggle = onFavoriteToggle,
+          onRetryFavorite = onRetryFavorite,
       )
 
       CourtHeadSection(
@@ -128,14 +143,112 @@ fun CourtDetailScreen(
 private fun CourtHeroImage(
     imageUrl: String?,
     contentDescription: String,
+    state: CourtDetailUiState,
+    onFavoriteToggle: () -> Unit,
+    onRetryFavorite: () -> Unit,
 ) {
-  MejenguerosThumbnail(
-      imageUrl = imageUrl,
-      contentDescription = contentDescription,
-      modifier = Modifier.fillMaxWidth().aspectRatio(16f / 10f),
-      size = null,
-      shape = RoundedCornerShape(0.dp),
-  )
+  Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 10f).testTag("court_detail_hero")) {
+    MejenguerosThumbnail(
+        imageUrl = imageUrl,
+        contentDescription = contentDescription,
+        modifier = Modifier.fillMaxSize(),
+        size = null,
+        shape = RoundedCornerShape(0.dp),
+    )
+
+    FavoriteButton(
+        state = state,
+        onFavoriteToggle = onFavoriteToggle,
+        onRetryFavorite = onRetryFavorite,
+        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+    )
+
+    state.favoriteErrorMessage?.let { message ->
+      Surface(
+          modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
+          shape = MaterialTheme.shapes.small,
+          color = MaterialTheme.colorScheme.surface,
+          contentColor = MaterialTheme.colorScheme.onSurface,
+          tonalElevation = 2.dp,
+      ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.labelMedium,
+            modifier =
+                Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    .testTag("court_detail_favorite_error"),
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun FavoriteButton(
+    state: CourtDetailUiState,
+    onFavoriteToggle: () -> Unit,
+    onRetryFavorite: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val isInitialError = state.favoriteStatus == CourtFavoriteStatus.Error && state.isFavorite == null
+  val description =
+      when {
+        isInitialError -> "Reintentar cargar favoritos"
+        state.isFavorite == true -> "Quitar cancha de favoritos"
+        state.isFavorite == false -> "Agregar cancha a favoritos"
+        else -> "Cargando favoritos"
+      }
+  val enabled =
+      state.favoriteStatus != CourtFavoriteStatus.Loading &&
+          state.favoriteStatus != CourtFavoriteStatus.Unknown &&
+          state.favoriteStatus != CourtFavoriteStatus.Updating
+
+  Surface(
+      modifier = modifier,
+      shape = RoundedCornerShape(999.dp),
+      color = MaterialTheme.colorScheme.surface,
+      contentColor = MaterialTheme.colorScheme.primary,
+      tonalElevation = 3.dp,
+  ) {
+    IconButton(
+        onClick = if (isInitialError) onRetryFavorite else onFavoriteToggle,
+        enabled = enabled,
+        modifier =
+            Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                .testTag("court_detail_favorite_button")
+                .semantics {
+                  contentDescription = description
+                  state.favoriteErrorMessage?.let { stateDescription = it }
+                },
+    ) {
+      when {
+        state.favoriteStatus == CourtFavoriteStatus.Loading ||
+            state.favoriteStatus == CourtFavoriteStatus.Unknown ->
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp).testTag("court_detail_favorite_loading"),
+                strokeWidth = 2.dp,
+            )
+        isInitialError ->
+            Icon(
+                imageVector = Icons.Filled.Refresh,
+                contentDescription = null,
+                modifier = Modifier.testTag("court_detail_favorite_retry_icon"),
+            )
+        state.isFavorite == true ->
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = null,
+                modifier = Modifier.testTag("court_detail_favorite_filled_icon"),
+            )
+        else ->
+            Icon(
+                imageVector = Icons.Outlined.FavoriteBorder,
+                contentDescription = null,
+                modifier = Modifier.testTag("court_detail_favorite_outlined_icon"),
+            )
+      }
+    }
+  }
 }
 
 @Composable
