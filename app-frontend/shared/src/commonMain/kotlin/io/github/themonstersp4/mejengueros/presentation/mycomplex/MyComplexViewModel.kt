@@ -33,8 +33,8 @@ class MyComplexViewModel(
 
   /**
    * Loads the hub for the authenticated session, reloading whenever [sessionKey] changes so a
-   * previous user's complex never leaks into a freshly signed-in account. This ViewModel outlives
-   * a single navigation entry (it is resolved from the ambient store, not scoped per entry), so the
+   * previous user's complex never leaks into a freshly signed-in account. This ViewModel outlives a
+   * single navigation entry (it is resolved from the ambient store, not scoped per entry), so the
    * session key is what tells apart "same user re-entering the screen" from "a different user
    * signed in".
    */

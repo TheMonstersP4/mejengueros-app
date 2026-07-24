@@ -41,8 +41,8 @@ class OwnerReceivedReviewsViewModel(
   /**
    * Keeps the received reviews in sync with the authenticated session. This ViewModel outlives a
    * single navigation entry, so re-entering the screen for the same user refreshes to reflect newly
-   * received reviews, while a different user signing in fully resets the court filter and pages so a
-   * previous owner's data never leaks in.
+   * received reviews, while a different user signing in fully resets the court filter and pages so
+   * a previous owner's data never leaks in.
    */
   fun onSessionChanged(sessionKey: String?) {
     if (!initialized) {
