@@ -337,6 +337,7 @@ private fun SearchEntry(
       onServiceToggled = courtCatalogViewModel::toggleService,
       onServicesCleared = courtCatalogViewModel::clearServices,
       onMinRatingSelected = courtCatalogViewModel::selectMinRating,
+      onClearAllFilters = courtCatalogViewModel::clearAllFilters,
       onRetryLoad = courtCatalogViewModel::retryLoad,
       onLoadNextPage = courtCatalogViewModel::loadNextPage,
       onRetryNextPage = courtCatalogViewModel::retryNextPage,
@@ -354,6 +355,7 @@ internal fun SearchCatalogEntryContent(
     onServiceToggled: (String) -> Unit = {},
     onServicesCleared: () -> Unit = {},
     onMinRatingSelected: (Int?) -> Unit = {},
+    onClearAllFilters: () -> Unit = {},
     onLoadNextPage: () -> Unit = {},
     onRetryNextPage: () -> Unit = {},
 ) {
@@ -388,6 +390,7 @@ internal fun SearchCatalogEntryContent(
         onServiceToggled = onServiceToggled,
         onServicesCleared = onServicesCleared,
         onMinRatingSelected = onMinRatingSelected,
+        onClearAllFilters = onClearAllFilters,
         onRetryLoad = onRetryLoad,
         onLoadNextPage = onLoadNextPage,
         onRetryNextPage = onRetryNextPage,
