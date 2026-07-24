@@ -31,6 +31,20 @@ data class CourtCatalogUiState(
     get() = availableServices.filter { it.id in selectedServiceIds }
 
   /**
+   * Number of active filter groups (province, canton, services, rating), used to badge the single
+   * "Filtros" entry point. Services count as one group regardless of how many are selected.
+   */
+  val activeFilterCount: Int
+    get() =
+        listOf(
+                selectedProvinceId != null,
+                selectedCantonId != null,
+                selectedServiceIds.isNotEmpty(),
+                selectedMinRating != null,
+            )
+            .count { it }
+
+  /**
    * True when the catalog can request the next page right now: there is another page, the first
    * page already loaded, and no other load is in flight.
    */

@@ -181,6 +181,29 @@ class CourtCatalogViewModel(
     loadCatalog()
   }
 
+  /** Clears every filter at once (search text is kept) with a single reload. */
+  fun clearAllFilters() {
+    val currentState = _uiState.value
+    val alreadyEmpty =
+        currentState.selectedProvinceId == null &&
+            currentState.selectedCantonId == null &&
+            currentState.selectedServiceIds.isEmpty() &&
+            currentState.selectedMinRating == null
+    if (alreadyEmpty) {
+      return
+    }
+
+    _uiState.value =
+        currentState.copy(
+            selectedProvinceId = null,
+            selectedCantonId = null,
+            selectedServiceIds = emptySet(),
+            selectedMinRating = null,
+        )
+    searchJob?.cancel()
+    loadCatalog()
+  }
+
   private fun loadCatalog() {
     loadJob?.cancel()
     // A fresh first-page load (search/filter change or retry) supersedes any

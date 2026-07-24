@@ -2,10 +2,11 @@ package io.github.themonstersp4.mejengueros.screens.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,18 +18,21 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -44,8 +48,10 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
+import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosStateContent
@@ -72,11 +78,13 @@ fun HomeScreen(
     onServiceToggled: (String) -> Unit = {},
     onServicesCleared: () -> Unit = {},
     onMinRatingSelected: (Int?) -> Unit = {},
+    onClearAllFilters: () -> Unit = {},
     onLoadNextPage: () -> Unit = {},
     onRetryNextPage: () -> Unit = {},
 ) {
   val hasCourts =
       !state.isLoading && state.loadErrorMessage == null && state.visibleCourts.isNotEmpty()
+  var filtersVisible by remember { mutableStateOf(false) }
   // Intentionally not rememberSaveable: the catalog refetches from page 1 on a
   // cold start, so restoring a deep scroll position would make the list chase
   // it by loading every intermediate page at once. Start fresh at the top.
@@ -119,11 +127,7 @@ fun HomeScreen(
         CatalogHeader(
             state = state,
             onSearchQueryChange = onSearchQueryChange,
-            onProvinceSelected = onProvinceSelected,
-            onCantonSelected = onCantonSelected,
-            onServiceToggled = onServiceToggled,
-            onServicesCleared = onServicesCleared,
-            onMinRatingSelected = onMinRatingSelected,
+            onOpenFilters = { filtersVisible = true },
         )
       }
 
@@ -208,6 +212,19 @@ fun HomeScreen(
         }
       }
     }
+
+    if (filtersVisible) {
+      CatalogFiltersSheet(
+          state = state,
+          onDismiss = { filtersVisible = false },
+          onProvinceSelected = onProvinceSelected,
+          onCantonSelected = onCantonSelected,
+          onServiceToggled = onServiceToggled,
+          onServicesCleared = onServicesCleared,
+          onMinRatingSelected = onMinRatingSelected,
+          onClearAllFilters = onClearAllFilters,
+      )
+    }
   }
 }
 
@@ -272,18 +289,9 @@ private fun CatalogPaginationFooter(
 private fun CatalogHeader(
     state: CourtCatalogUiState,
     onSearchQueryChange: (String) -> Unit,
-    onProvinceSelected: (String?) -> Unit,
-    onCantonSelected: (String?) -> Unit,
-    onServiceToggled: (String) -> Unit,
-    onServicesCleared: () -> Unit,
-    onMinRatingSelected: (Int?) -> Unit,
+    onOpenFilters: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  var provinceMenuExpanded by remember { mutableStateOf(false) }
-  var cantonMenuExpanded by remember { mutableStateOf(false) }
-  var serviceMenuExpanded by remember { mutableStateOf(false) }
-  var ratingMenuExpanded by remember { mutableStateOf(false) }
-
   Column(
       modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -293,130 +301,204 @@ private fun CatalogHeader(
         onQueryChange = onSearchQueryChange,
     )
     Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-      FilterChipSummary(
-          label = state.selectedProvince?.label ?: "Provincia",
-          selected = state.selectedProvince != null,
-          onClick = { provinceMenuExpanded = true },
-      ) {
-        DropdownMenu(
-            expanded = provinceMenuExpanded,
-            onDismissRequest = { provinceMenuExpanded = false },
-        ) {
-          DropdownMenuItem(
-              text = { Text("Todas") },
-              onClick = {
-                provinceMenuExpanded = false
-                onProvinceSelected(null)
-              },
-          )
-          state.availableProvinces.forEach { province ->
-            DropdownMenuItem(
-                text = { Text(province.label) },
-                onClick = {
-                  provinceMenuExpanded = false
-                  onProvinceSelected(province.id)
-                },
-            )
-          }
-        }
-      }
-      FilterChipSummary(
-          label = state.selectedCanton?.label ?: "Cantón",
-          selected = state.selectedCanton != null,
-          onClick = { cantonMenuExpanded = true },
-      ) {
-        DropdownMenu(
-            expanded = cantonMenuExpanded,
-            onDismissRequest = { cantonMenuExpanded = false },
-        ) {
-          DropdownMenuItem(
-              text = { Text("Todos") },
-              onClick = {
-                cantonMenuExpanded = false
-                onCantonSelected(null)
-              },
-          )
-          state.availableCantons.forEach { canton ->
-            DropdownMenuItem(
-                text = { Text(canton.label) },
-                onClick = {
-                  cantonMenuExpanded = false
-                  onCantonSelected(canton.id)
-                },
-            )
-          }
-        }
-      }
-      val selectedServiceCount = state.selectedServiceIds.size
-      FilterChipSummary(
-          label = if (selectedServiceCount > 0) "Servicios ($selectedServiceCount)" else "Servicio",
-          selected = selectedServiceCount > 0,
-          onClick = { serviceMenuExpanded = true },
-      ) {
-        DropdownMenu(
-            expanded = serviceMenuExpanded,
-            onDismissRequest = { serviceMenuExpanded = false },
-        ) {
-          DropdownMenuItem(
-              text = { Text("Todos") },
-              onClick = {
-                serviceMenuExpanded = false
-                onServicesCleared()
-              },
-          )
-          state.availableServices.forEach { service ->
-            val isSelected = service.id in state.selectedServiceIds
-            DropdownMenuItem(
-                text = { Text(service.label) },
-                // Keep the menu open on toggle so several services can be picked
-                // in one pass; the leading check mirrors the current selection.
-                leadingIcon = {
-                  if (isSelected) {
-                    Icon(Icons.Filled.Check, contentDescription = null)
-                  }
-                },
-                onClick = { onServiceToggled(service.id) },
-            )
-          }
-        }
-      }
-      FilterChipSummary(
-          label = ratingChipLabel(state.selectedMinRating),
-          selected = state.selectedMinRating != null,
-          onClick = { ratingMenuExpanded = true },
-      ) {
-        DropdownMenu(
-            expanded = ratingMenuExpanded,
-            onDismissRequest = { ratingMenuExpanded = false },
-        ) {
-          DropdownMenuItem(
-              text = { Text("Todas") },
-              onClick = {
-                ratingMenuExpanded = false
-                onMinRatingSelected(null)
-              },
-          )
-          MinRatingOptions.forEach { minRating ->
-            DropdownMenuItem(
-                text = { Text(ratingOptionLabel(minRating)) },
-                onClick = {
-                  ratingMenuExpanded = false
-                  onMinRatingSelected(minRating)
-                },
-            )
-          }
-        }
+      FiltersButton(
+          activeCount = state.activeFilterCount,
+          onClick = onOpenFilters,
+      )
+      if (state.totalCourts > 0) {
+        Text(
+            text = "Mostrando ${state.visibleCourts.size} de ${state.totalCourts}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("catalog_count_indicator"),
+        )
       }
     }
-    if (state.totalCourts > 0) {
+  }
+}
+
+/** Single entry point that opens the filters bottom sheet, badged with the active filter count. */
+@Composable
+private fun FiltersButton(
+    activeCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val selected = activeCount > 0
+  Surface(
+      onClick = onClick,
+      modifier = modifier.testTag("catalog_filters_button"),
+      shape = CircleShape,
+      color =
+          if (selected) MaterialTheme.colorScheme.primaryContainer
+          else MaterialTheme.colorScheme.surface,
+      contentColor =
+          if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+          else MaterialTheme.colorScheme.onSurface,
+      border =
+          BorderStroke(
+              1.dp,
+              if (selected) MaterialTheme.colorScheme.primaryContainer
+              else MaterialTheme.colorScheme.outlineVariant,
+          ),
+  ) {
+    Row(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
       Text(
-          text = "Mostrando ${state.visibleCourts.size} de ${state.totalCourts} canchas",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier.testTag("catalog_count_indicator"),
+          text = if (selected) "Filtros ($activeCount)" else "Filtros",
+          style = MaterialTheme.typography.titleSmall,
+      )
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CatalogFiltersSheet(
+    state: CourtCatalogUiState,
+    onDismiss: () -> Unit,
+    onProvinceSelected: (String?) -> Unit,
+    onCantonSelected: (String?) -> Unit,
+    onServiceToggled: (String) -> Unit,
+    onServicesCleared: () -> Unit,
+    onMinRatingSelected: (Int?) -> Unit,
+    onClearAllFilters: () -> Unit,
+) {
+  // Skip the half-expanded stop so the panel opens fully in one gesture and stays
+  // deterministic under tests.
+  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+  ModalBottomSheet(
+      onDismissRequest = onDismiss,
+      sheetState = sheetState,
+      modifier = Modifier.testTag("catalog_filters_sheet"),
+  ) {
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(text = "Filtros", style = MaterialTheme.typography.titleLarge)
+        if (state.activeFilterCount > 0) {
+          TextButton(
+              onClick = onClearAllFilters,
+              modifier = Modifier.testTag("catalog_filters_clear"),
+          ) {
+            Text("Limpiar todo")
+          }
+        }
+      }
+
+      FilterSection(title = "Provincia") {
+        SingleChoiceChips(
+            options = state.availableProvinces,
+            selectedId = state.selectedProvinceId,
+            onSelected = onProvinceSelected,
+        )
+      }
+
+      if (state.availableCantons.isNotEmpty()) {
+        FilterSection(title = "Cantón") {
+          SingleChoiceChips(
+              options = state.availableCantons,
+              selectedId = state.selectedCantonId,
+              onSelected = onCantonSelected,
+          )
+        }
+      }
+
+      if (state.availableServices.isNotEmpty()) {
+        FilterSection(title = "Servicios") {
+          FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.availableServices.forEach { service ->
+              val isSelected = service.id in state.selectedServiceIds
+              FilterChip(
+                  selected = isSelected,
+                  onClick = { onServiceToggled(service.id) },
+                  label = { Text(service.label) },
+                  leadingIcon =
+                      if (isSelected) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                      } else {
+                        null
+                      },
+              )
+            }
+          }
+        }
+      }
+
+      FilterSection(title = "Calificación") {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          FilterChip(
+              selected = state.selectedMinRating == null,
+              onClick = { onMinRatingSelected(null) },
+              label = { Text("Todas") },
+          )
+          MinRatingOptions.forEach { minRating ->
+            FilterChip(
+                selected = state.selectedMinRating == minRating,
+                onClick = { onMinRatingSelected(minRating) },
+                label = { Text(ratingOptionLabel(minRating)) },
+            )
+          }
+        }
+      }
+
+      MejenguerosFullWidthPrimaryButton(
+          text = "Ver ${state.totalCourts} canchas",
+          onClick = onDismiss,
+          modifier = Modifier.testTag("catalog_filters_apply"),
+      )
+    }
+  }
+}
+
+@Composable
+private fun FilterSection(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text(text = title, style = MaterialTheme.typography.titleSmall)
+    content()
+  }
+}
+
+/** A row of mutually exclusive chips with an always-present "Todas" reset option. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SingleChoiceChips(
+    options: List<CatalogFilterOption>,
+    selectedId: String?,
+    onSelected: (String?) -> Unit,
+) {
+  FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FilterChip(
+        selected = selectedId == null,
+        onClick = { onSelected(null) },
+        label = { Text("Todas") },
+    )
+    options.forEach { option ->
+      FilterChip(
+          selected = option.id == selectedId,
+          onClick = { onSelected(option.id) },
+          label = { Text(option.label) },
       )
     }
   }
@@ -447,9 +529,6 @@ private fun buildCourtMetadata(court: CourtCatalogItem): List<String> {
 
 // Rating filter thresholds offered in the search header, highest first.
 private val MinRatingOptions = listOf(5, 4, 3)
-
-private fun ratingChipLabel(minRating: Int?): String =
-    if (minRating == null) "Estrellas" else ratingOptionLabel(minRating)
 
 // 5 is the ceiling so it reads as an exact match; lower thresholds are inclusive.
 private fun ratingOptionLabel(minRating: Int): String =
@@ -490,46 +569,4 @@ private fun SearchPill(
               unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
           ),
   )
-}
-
-@Composable
-private fun FilterChipSummary(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    menuContent: @Composable () -> Unit = {},
-) {
-  Box(modifier = modifier) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color =
-            if (selected) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surface,
-        contentColor =
-            if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onSurface,
-        border =
-            BorderStroke(
-                1.dp,
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.outlineVariant,
-            ),
-    ) {
-      Row(
-          modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          verticalAlignment = Alignment.CenterVertically,
-      ) {
-        Text(text = label, style = MaterialTheme.typography.titleSmall)
-        Icon(
-            Icons.Filled.KeyboardArrowDown,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-        )
-      }
-    }
-    menuContent()
-  }
 }

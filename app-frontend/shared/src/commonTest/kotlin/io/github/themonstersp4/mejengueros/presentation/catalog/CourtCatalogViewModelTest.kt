@@ -504,6 +504,49 @@ class CourtCatalogViewModelTest {
       }
 
   @Test
+  fun clearAllFiltersResetsEveryFilterInOneReload() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val repository =
+              RecordingCourtCatalogRepository(
+                  services =
+                      listOf(ServiceCatalogItem("service-1", "Sintético", ServiceScope.COURT))
+              )
+          val viewModel = CourtCatalogViewModel(repository, this)
+          advanceUntilIdle()
+
+          viewModel.selectProvince("province-1")
+          advanceUntilIdle()
+          viewModel.toggleService("service-1")
+          advanceUntilIdle()
+          viewModel.selectMinRating(4)
+          advanceUntilIdle()
+          val requestsBeforeClear = repository.requests.size
+          assertEquals(3, viewModel.uiState.value.activeFilterCount)
+
+          viewModel.clearAllFilters()
+          advanceUntilIdle()
+
+          // A single reload with every filter cleared.
+          assertEquals(requestsBeforeClear + 1, repository.requests.size)
+          val last = repository.requests.last()
+          assertNull(last.provinceId)
+          assertNull(last.cantonId)
+          assertTrue(last.serviceIds.isEmpty())
+          assertNull(last.minRating)
+          assertEquals(0, viewModel.uiState.value.activeFilterCount)
+
+          // Clearing again when nothing is active does not trigger another reload.
+          viewModel.clearAllFilters()
+          advanceUntilIdle()
+          assertEquals(requestsBeforeClear + 1, repository.requests.size)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
   fun changingSearchResetsPaginationBackToFirstPage() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
