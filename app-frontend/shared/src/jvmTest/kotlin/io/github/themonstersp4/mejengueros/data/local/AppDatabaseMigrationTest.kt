@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class AppDatabaseMigrationTest {
 
   @Test
-  fun migrationFromVersionOneToFourClearsLegacyAuthSessionAndCreatesPokemonTables() {
+  fun migrationFromVersionOneToFiveClearsLegacyAuthSessionAndCreatesAllCurrentTables() {
     val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     try {
       createVersionOneSchema(driver)
@@ -19,12 +19,13 @@ class AppDatabaseMigrationTest {
           parameters = 0,
       )
 
-      AppDatabase.Schema.migrate(driver, oldVersion = 1, newVersion = 4)
+      AppDatabase.Schema.migrate(driver, oldVersion = 1, newVersion = 5)
       val database = AppDatabase(driver)
 
       assertEquals(null, database.authSessionQueries.selectSession().executeAsOneOrNull())
       assertEquals(0, database.pokemonCacheQueries.selectPokemonSummaryCount().executeAsOne())
       assertFalse(database.pokemonCacheQueries.isFavorite(1).executeAsOne())
+      assertFalse(database.courtFavoriteQueries.isCourtFavorite("user-1", "court-1").executeAsOne())
 
       database.pokemonCacheQueries.upsertPokemonSummary(
           id = 1,
@@ -144,6 +145,40 @@ class AppDatabaseMigrationTest {
     }
   }
 
+  @Test
+  fun migrationFromVersionFourToFivePreservesExistingDataAndCreatesCourtFavorites() {
+    val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+    try {
+      createVersionFourSchema(driver)
+      driver.execute(
+          identifier = null,
+          sql =
+              "INSERT INTO AuthSession(id, sub, email, displayName, provider) " +
+                  "VALUES (1, 'user-1', 'user@example.com', 'User One', 'cognito')",
+          parameters = 0,
+      )
+      driver.execute(
+          identifier = null,
+          sql =
+              "INSERT INTO PokemonSummaryEntity(id, name, imageUrl) " +
+                  "VALUES (1, 'bulbasaur', 'https://example.com/bulbasaur.png')",
+          parameters = 0,
+      )
+
+      AppDatabase.Schema.migrate(driver, oldVersion = 4, newVersion = 5)
+      val database = AppDatabase(driver)
+
+      assertEquals("user-1", database.authSessionQueries.selectSession().executeAsOne().sub)
+      assertEquals(1, database.pokemonCacheQueries.selectPokemonSummaryCount().executeAsOne())
+      assertFalse(database.courtFavoriteQueries.isCourtFavorite("user-1", "court-1").executeAsOne())
+
+      database.courtFavoriteQueries.upsertCourtFavorite("user-1", "court-1")
+      assertTrue(database.courtFavoriteQueries.isCourtFavorite("user-1", "court-1").executeAsOne())
+    } finally {
+      driver.close()
+    }
+  }
+
   private fun createVersionOneSchema(driver: JdbcSqliteDriver) {
     driver.execute(
         identifier = null,
@@ -185,6 +220,31 @@ class AppDatabaseMigrationTest {
               weight INTEGER NOT NULL,
               imageUrl TEXT NOT NULL,
               types TEXT NOT NULL
+            )
+            """
+                .trimIndent(),
+        parameters = 0,
+    )
+  }
+
+  private fun createVersionFourSchema(driver: JdbcSqliteDriver) {
+    createVersionTwoSchema(driver)
+    driver.execute(
+        identifier = null,
+        sql = "CREATE TABLE FavoritePokemonEntity(id INTEGER NOT NULL PRIMARY KEY)",
+        parameters = 0,
+    )
+    driver.execute(identifier = null, sql = "DROP TABLE AuthSession", parameters = 0)
+    driver.execute(
+        identifier = null,
+        sql =
+            """
+            CREATE TABLE AuthSession (
+                id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+                sub TEXT NOT NULL,
+                email TEXT NOT NULL,
+                displayName TEXT,
+                provider TEXT
             )
             """
                 .trimIndent(),

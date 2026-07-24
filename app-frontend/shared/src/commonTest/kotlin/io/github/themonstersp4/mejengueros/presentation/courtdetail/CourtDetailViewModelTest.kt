@@ -5,6 +5,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ReservableSlot
 import io.github.themonstersp4.mejengueros.domain.model.ReservationAvailabilityStatus
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtFavoriteRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,11 +13,13 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
@@ -32,9 +35,11 @@ class CourtDetailViewModelTest {
           val repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability)
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = repository,
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -62,9 +67,11 @@ class CourtDetailViewModelTest {
           val repository = FakeCourtDetailRepository(availabilityPreview = null)
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = repository,
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -86,9 +93,11 @@ class CourtDetailViewModelTest {
         try {
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = FailingCourtDetailRepository(),
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -110,9 +119,11 @@ class CourtDetailViewModelTest {
           val repository = FlakyCourtDetailRepository(availabilityPreview = defaultAvailability)
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = repository,
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -154,9 +165,11 @@ class CourtDetailViewModelTest {
               )
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = repository,
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -195,9 +208,11 @@ class CourtDetailViewModelTest {
               )
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = repository,
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -229,9 +244,11 @@ class CourtDetailViewModelTest {
               )
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = repository,
                   reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -250,9 +267,11 @@ class CourtDetailViewModelTest {
         try {
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
                   reviewsRepository = FakeCourtReviewsRepository(reviews = defaultReviews),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -278,9 +297,11 @@ class CourtDetailViewModelTest {
         try {
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
                   reviewsRepository = FakeCourtReviewsRepository(reviews = emptyList()),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -301,9 +322,11 @@ class CourtDetailViewModelTest {
         try {
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
                   reviewsRepository = FailingCourtReviewsRepository(),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -326,9 +349,11 @@ class CourtDetailViewModelTest {
         try {
           val viewModel =
               CourtDetailViewModel(
+                  userId = "user-1",
                   courtId = "court-1",
                   repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
                   reviewsRepository = FlakyCourtReviewsRepository(reviews = defaultReviews),
+                  favoriteRepository = FakeCourtFavoriteRepository(),
                   coroutineScope = this,
               )
 
@@ -340,6 +365,164 @@ class CourtDetailViewModelTest {
 
           assertNull(viewModel.uiState.value.reviewsErrorMessage)
           assertEquals(2, viewModel.uiState.value.reviews.size)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun initLoadsConfirmedFavoriteForTheAuthenticatedUserAndCourt() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val favoriteRepository = RecordingCourtFavoriteRepository(initialFavorite = true)
+          val viewModel =
+              CourtDetailViewModel(
+                  userId = "user-1",
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(reviews = defaultReviews),
+                  favoriteRepository = favoriteRepository,
+                  coroutineScope = this,
+              )
+
+          assertEquals(CourtFavoriteStatus.Unknown, viewModel.uiState.value.favoriteStatus)
+          advanceUntilIdle()
+
+          assertEquals(CourtFavoriteStatus.Confirmed, viewModel.uiState.value.favoriteStatus)
+          assertEquals(true, viewModel.uiState.value.isFavorite)
+          assertEquals(listOf("user-1" to "court-1"), favoriteRepository.reads)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun toggleFavoriteIsPessimisticAndBlocksConcurrentTaps() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val writeGate = CompletableDeferred<Unit>()
+          val favoriteRepository =
+              RecordingCourtFavoriteRepository(
+                  initialFavorite = false,
+                  writeGate = writeGate,
+              )
+          val viewModel =
+              CourtDetailViewModel(
+                  userId = "user-1",
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = favoriteRepository,
+                  coroutineScope = this,
+              )
+          advanceUntilIdle()
+
+          viewModel.toggleFavorite()
+          viewModel.toggleFavorite()
+          runCurrent()
+
+          assertEquals(CourtFavoriteStatus.Updating, viewModel.uiState.value.favoriteStatus)
+          assertEquals(false, viewModel.uiState.value.isFavorite)
+          assertEquals(listOf(Triple("user-1", "court-1", true)), favoriteRepository.writes)
+
+          writeGate.complete(Unit)
+          advanceUntilIdle()
+
+          assertEquals(CourtFavoriteStatus.Confirmed, viewModel.uiState.value.favoriteStatus)
+          assertEquals(true, viewModel.uiState.value.isFavorite)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun favoriteMutationFailureKeepsConfirmedStateWithoutDisruptingOtherContent() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val viewModel =
+              CourtDetailViewModel(
+                  userId = "user-1",
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(reviews = defaultReviews),
+                  favoriteRepository = FailingWriteCourtFavoriteRepository(),
+                  coroutineScope = this,
+              )
+          advanceUntilIdle()
+
+          viewModel.toggleFavorite()
+          advanceUntilIdle()
+
+          assertEquals(CourtFavoriteStatus.Error, viewModel.uiState.value.favoriteStatus)
+          assertEquals(false, viewModel.uiState.value.isFavorite)
+          assertNotNull(viewModel.uiState.value.favoriteErrorMessage)
+          assertEquals(3, viewModel.uiState.value.slots.size)
+          assertEquals(2, viewModel.uiState.value.reviews.size)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun favoriteMutationCanBeRetriedAfterARecoverableFailure() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val favoriteRepository = FlakyWriteCourtFavoriteRepository()
+          val viewModel =
+              CourtDetailViewModel(
+                  userId = "user-1",
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = favoriteRepository,
+                  coroutineScope = this,
+              )
+          advanceUntilIdle()
+
+          viewModel.toggleFavorite()
+          advanceUntilIdle()
+          assertEquals(CourtFavoriteStatus.Error, viewModel.uiState.value.favoriteStatus)
+          assertEquals(false, viewModel.uiState.value.isFavorite)
+
+          viewModel.toggleFavorite()
+          advanceUntilIdle()
+
+          assertEquals(CourtFavoriteStatus.Confirmed, viewModel.uiState.value.favoriteStatus)
+          assertEquals(true, viewModel.uiState.value.isFavorite)
+          assertEquals(2, favoriteRepository.writeAttempts)
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
+  fun retryFavoriteLoadRecoversFromInitialReadFailure() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val viewModel =
+              CourtDetailViewModel(
+                  userId = "user-1",
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = FakeCourtReviewsRepository(),
+                  favoriteRepository = FlakyReadCourtFavoriteRepository(),
+                  coroutineScope = this,
+              )
+          advanceUntilIdle()
+
+          assertEquals(CourtFavoriteStatus.Error, viewModel.uiState.value.favoriteStatus)
+          assertNull(viewModel.uiState.value.isFavorite)
+
+          viewModel.retryLoadFavorite()
+          advanceUntilIdle()
+
+          assertEquals(CourtFavoriteStatus.Confirmed, viewModel.uiState.value.favoriteStatus)
+          assertEquals(true, viewModel.uiState.value.isFavorite)
         } finally {
           Dispatchers.resetMain()
         }
@@ -437,6 +620,67 @@ private class FakeCourtReviewsRepository(
     private val reviews: List<CourtReview> = emptyList(),
 ) : ICourtReviewsRepository {
   override suspend fun getCourtReviews(courtId: String): List<CourtReview> = reviews
+}
+
+private class FakeCourtFavoriteRepository(
+    private var favorite: Boolean = false,
+) : ICourtFavoriteRepository {
+  override suspend fun isFavorite(userId: String, courtId: String): Boolean = favorite
+
+  override suspend fun setFavorite(userId: String, courtId: String, isFavorite: Boolean) {
+    favorite = isFavorite
+  }
+}
+
+private class RecordingCourtFavoriteRepository(
+    private var initialFavorite: Boolean,
+    private val writeGate: CompletableDeferred<Unit>? = null,
+) : ICourtFavoriteRepository {
+  val reads = mutableListOf<Pair<String, String>>()
+  val writes = mutableListOf<Triple<String, String, Boolean>>()
+
+  override suspend fun isFavorite(userId: String, courtId: String): Boolean {
+    reads += userId to courtId
+    return initialFavorite
+  }
+
+  override suspend fun setFavorite(userId: String, courtId: String, isFavorite: Boolean) {
+    writes += Triple(userId, courtId, isFavorite)
+    writeGate?.await()
+    initialFavorite = isFavorite
+  }
+}
+
+private class FailingWriteCourtFavoriteRepository : ICourtFavoriteRepository {
+  override suspend fun isFavorite(userId: String, courtId: String): Boolean = false
+
+  override suspend fun setFavorite(userId: String, courtId: String, isFavorite: Boolean) {
+    error("local write failed")
+  }
+}
+
+private class FlakyWriteCourtFavoriteRepository : ICourtFavoriteRepository {
+  var writeAttempts = 0
+    private set
+
+  override suspend fun isFavorite(userId: String, courtId: String): Boolean = false
+
+  override suspend fun setFavorite(userId: String, courtId: String, isFavorite: Boolean) {
+    writeAttempts += 1
+    if (writeAttempts == 1) error("transient local write failure")
+  }
+}
+
+private class FlakyReadCourtFavoriteRepository : ICourtFavoriteRepository {
+  private var attempts = 0
+
+  override suspend fun isFavorite(userId: String, courtId: String): Boolean {
+    attempts += 1
+    if (attempts == 1) error("local read failed")
+    return true
+  }
+
+  override suspend fun setFavorite(userId: String, courtId: String, isFavorite: Boolean) = Unit
 }
 
 private class FailingCourtReviewsRepository : ICourtReviewsRepository {

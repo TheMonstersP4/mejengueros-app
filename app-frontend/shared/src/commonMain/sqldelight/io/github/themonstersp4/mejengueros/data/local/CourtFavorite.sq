@@ -1,0 +1,19 @@
+CREATE TABLE FavoriteCourtEntity(
+  userId TEXT NOT NULL,
+  courtId TEXT NOT NULL,
+  PRIMARY KEY(userId, courtId)
+);
+
+isCourtFavorite:
+SELECT EXISTS(
+  SELECT 1 FROM FavoriteCourtEntity
+  WHERE userId = ? AND courtId = ?
+);
+
+upsertCourtFavorite:
+INSERT OR IGNORE INTO FavoriteCourtEntity(userId, courtId)
+VALUES (?, ?);
+
+deleteCourtFavorite:
+DELETE FROM FavoriteCourtEntity
+WHERE userId = ? AND courtId = ?;

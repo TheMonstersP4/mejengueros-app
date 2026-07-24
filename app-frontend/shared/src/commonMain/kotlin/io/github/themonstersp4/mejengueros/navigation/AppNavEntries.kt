@@ -166,6 +166,7 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CatalogCourtDetailRoute> { route ->
     CatalogCourtDetailEntry(
         route = route,
+        authViewModel = authViewModel,
         authenticatedNavigationState = authenticatedNavigationState,
         shellActions = shellActions,
     )
@@ -424,13 +425,16 @@ internal fun SearchCatalogEntryContent(
 @Composable
 private fun CatalogCourtDetailEntry(
     route: CatalogCourtDetailRoute,
+    authViewModel: AuthViewModel,
     authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
 ) {
+  val authState by authViewModel.uiState.collectAsState()
+  val userId = checkNotNull(authState.userId) { "Authenticated court detail requires a user ID." }
   val viewModel =
       koinViewModel<CourtDetailViewModel>(
-          key = "catalog-court-detail-${route.courtId}",
-          parameters = { parametersOf(route.courtId) },
+          key = courtDetailViewModelKey(userId, route.courtId),
+          parameters = { parametersOf(userId, route.courtId) },
       )
   CourtDetailReloadEffect(
       catalogCourtDetailReloadRequestKey =
@@ -481,6 +485,8 @@ internal fun CatalogCourtDetailEntryContent(
         state = state,
         contentPadding = contentPadding,
         onRetryReviews = viewModel::retryLoadReviews,
+        onFavoriteToggle = viewModel::toggleFavorite,
+        onRetryFavorite = viewModel::retryLoadFavorite,
         onReserve = {
           shellActions.openCatalogReservation(
               CatalogReservationRoute(
@@ -497,6 +503,9 @@ internal fun CatalogCourtDetailEntryContent(
     )
   }
 }
+
+internal fun courtDetailViewModelKey(userId: String, courtId: String): String =
+    "catalog-court-detail:${userId.length}:$userId:${courtId.length}:$courtId"
 
 @Composable
 internal fun CatalogReservationEntry(
