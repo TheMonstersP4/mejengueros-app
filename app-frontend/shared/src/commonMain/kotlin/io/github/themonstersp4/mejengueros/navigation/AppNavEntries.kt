@@ -587,6 +587,7 @@ internal fun OwnerReservationsEntryContent(
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
       notificationUnreadCount = shellActions.notificationUnreadCount,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome = AuthenticatedScaffoldChrome(title = "Reservas de mis canchas"),
   ) { contentPadding ->
     OwnerReservationsScreen(
@@ -1609,6 +1610,10 @@ internal fun OwnerReceivedReviewsEntryContent(
     shellActions: AuthenticatedShellActions,
 ) {
   val state by viewModel.uiState.collectAsState()
+  // The NavDisplay retains this ViewModel across navigations (no ViewModelStore decorator),
+  // so re-entering the screen reuses the same instance and its cached page. Refresh on mount
+  // to reload the owner's reviews on every entry, matching NotificationsEntryContent.
+  LaunchedEffect(Unit) { viewModel.refresh() }
   OwnerReceivedReviewsRouteContent(
       state = state,
       shellActions = shellActions,
