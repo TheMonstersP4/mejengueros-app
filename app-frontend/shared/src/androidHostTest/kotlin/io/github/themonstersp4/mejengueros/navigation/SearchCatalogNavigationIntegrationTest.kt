@@ -744,6 +744,7 @@ class SearchCatalogNavigationIntegrationTest {
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
           catalogReloadRequestKeyState = mutableStateOf(0),
+          catalogCourtDetailReloadRequestKeyState = mutableStateOf(0),
           reservationsReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(false),
           hydratedOwnerPreferenceUserIdState = mutableStateOf(null),

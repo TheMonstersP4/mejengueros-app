@@ -32,6 +32,7 @@ fun rememberAuthenticatedNavigationState(
       }
   val myComplexHubReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
   val catalogReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
+  val catalogCourtDetailReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
   val reservationsReloadRequestKeyState = rememberSaveable { mutableStateOf(0) }
   val viewingAsPlayerState = rememberSaveable { mutableStateOf(true) }
   val hydratedOwnerPreferenceUserIdState = rememberSaveable { mutableStateOf<String?>(null) }
@@ -45,6 +46,7 @@ fun rememberAuthenticatedNavigationState(
       ownerCourtAvailabilityEntrypointState,
       myComplexHubReloadRequestKeyState,
       catalogReloadRequestKeyState,
+      catalogCourtDetailReloadRequestKeyState,
       reservationsReloadRequestKeyState,
       viewingAsPlayerState,
   ) {
@@ -66,6 +68,7 @@ fun rememberAuthenticatedNavigationState(
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
         myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
         catalogReloadRequestKeyState = catalogReloadRequestKeyState,
+        catalogCourtDetailReloadRequestKeyState = catalogCourtDetailReloadRequestKeyState,
         reservationsReloadRequestKeyState = reservationsReloadRequestKeyState,
         viewingAsPlayerState = viewingAsPlayerState,
         hydratedOwnerPreferenceUserIdState = hydratedOwnerPreferenceUserIdState,
@@ -306,6 +309,7 @@ class AuthenticatedNavigationState(
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
     private val myComplexHubReloadRequestKeyState: MutableState<Int>,
     private val catalogReloadRequestKeyState: MutableState<Int>,
+    private val catalogCourtDetailReloadRequestKeyState: MutableState<Int>,
     private val reservationsReloadRequestKeyState: MutableState<Int>,
     private val viewingAsPlayerState: MutableState<Boolean>,
     private val hydratedOwnerPreferenceUserIdState: MutableState<String?>,
@@ -332,6 +336,9 @@ class AuthenticatedNavigationState(
 
   val catalogReloadRequestKey: Int
     get() = catalogReloadRequestKeyState.value
+
+  val catalogCourtDetailReloadRequestKey: Int
+    get() = catalogCourtDetailReloadRequestKeyState.value
 
   val reservationsReloadRequestKey: Int
     get() = reservationsReloadRequestKeyState.value
@@ -559,6 +566,7 @@ class AuthenticatedNavigationState(
     ownerCourtAvailabilityEntrypointState.value = null
     myComplexHubReloadRequestKeyState.value = 0
     catalogReloadRequestKeyState.value = 0
+    catalogCourtDetailReloadRequestKeyState.value = 0
     reservationsReloadRequestKeyState.value = 0
     navigateTo(AuthenticatedTopLevelRoute.Search)
     searchBackStack.clear()
@@ -580,9 +588,11 @@ class AuthenticatedNavigationState(
   }
 
   // Signals the Reservations tab to refetch so a freshly booked reservation appears
-  // without waiting for the retained MyReservationsViewModel to be recreated.
+  // without waiting for the retained MyReservationsViewModel to be recreated. Also refreshes
+  // the retained court detail preview so the just-booked slot no longer shows as available.
   fun notifyReservationCreated() {
     reservationsReloadRequestKeyState.value += 1
+    catalogCourtDetailReloadRequestKeyState.value += 1
   }
 
   private fun showSearchRoot() {

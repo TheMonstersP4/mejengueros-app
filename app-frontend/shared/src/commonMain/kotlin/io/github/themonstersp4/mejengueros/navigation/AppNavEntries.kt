@@ -164,7 +164,11 @@ fun EntryProviderScope<NavKey>.appEntries(
     )
   }
   entry<CatalogCourtDetailRoute> { route ->
-    CatalogCourtDetailEntry(route = route, shellActions = shellActions)
+    CatalogCourtDetailEntry(
+        route = route,
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
   }
   entry<CatalogReservationRoute> { route ->
     CatalogReservationEntry(route = route, shellActions = shellActions)
@@ -420,6 +424,7 @@ internal fun SearchCatalogEntryContent(
 @Composable
 private fun CatalogCourtDetailEntry(
     route: CatalogCourtDetailRoute,
+    authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
 ) {
   val viewModel =
@@ -427,6 +432,11 @@ private fun CatalogCourtDetailEntry(
           key = "catalog-court-detail-${route.courtId}",
           parameters = { parametersOf(route.courtId) },
       )
+  CourtDetailReloadEffect(
+      catalogCourtDetailReloadRequestKey =
+          authenticatedNavigationState.catalogCourtDetailReloadRequestKey,
+      onReloadRequested = viewModel::retryLoad,
+  )
   CatalogCourtDetailEntryContent(route = route, viewModel = viewModel, shellActions = shellActions)
 }
 
@@ -1245,6 +1255,18 @@ internal fun ReservationsReloadEffect(
 ) {
   LaunchedEffect(reservationsReloadRequestKey) {
     if (reservationsReloadRequestKey > 0) {
+      onReloadRequested()
+    }
+  }
+}
+
+@Composable
+internal fun CourtDetailReloadEffect(
+    catalogCourtDetailReloadRequestKey: Int,
+    onReloadRequested: () -> Unit,
+) {
+  LaunchedEffect(catalogCourtDetailReloadRequestKey) {
+    if (catalogCourtDetailReloadRequestKey > 0) {
       onReloadRequested()
     }
   }
