@@ -789,6 +789,26 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun notifyReservationCreatedBumpsCourtDetailReloadKey() {
+    val state = testNavigationState()
+
+    val keyBefore = state.catalogCourtDetailReloadRequestKey
+    state.notifyReservationCreated()
+
+    assertEquals(keyBefore + 1, state.catalogCourtDetailReloadRequestKey)
+  }
+
+  @Test
+  fun resetClearsCourtDetailReloadKey() {
+    val state = testNavigationState()
+
+    state.notifyReservationCreated() // bumps key
+    state.reset()
+
+    assertEquals(0, state.catalogCourtDetailReloadRequestKey)
+  }
+
+  @Test
   fun coordinatorHydratesOwnerShellForStoredOwnerPreference() = runTest {
     val state = testNavigationState().apply { openCatalogCourtDetail(sampleCatalogDetailRoute()) }
     val storage =
@@ -964,6 +984,7 @@ class AuthenticatedNavigationStateTest {
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
           catalogReloadRequestKeyState = mutableStateOf(0),
+          catalogCourtDetailReloadRequestKeyState = mutableStateOf(0),
           reservationsReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(true),
           hydratedOwnerPreferenceUserIdState = mutableStateOf(null),

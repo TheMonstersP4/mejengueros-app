@@ -130,6 +130,55 @@ class CourtDetailViewModelTest {
       }
 
   @Test
+  fun retryLoadReflectsUpdatedAvailabilityAfterASlotIsBooked() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          // Simulates the just-booked slot (16:00) disappearing from availability on refetch,
+          // which is what the retained detail preview must reflect after a reservation.
+          val repository =
+              SequentialCourtDetailRepository(
+                  availabilityPreviews =
+                      listOf(
+                          ReservationDayAvailability(
+                              dateUtc = "2026-07-01",
+                              availabilityStatus = ReservationAvailabilityStatus.Available,
+                              slots = defaultSlots,
+                          ),
+                          ReservationDayAvailability(
+                              dateUtc = "2026-07-01",
+                              availabilityStatus = ReservationAvailabilityStatus.Available,
+                              slots = defaultSlots.dropLast(1),
+                          ),
+                      ),
+              )
+          val viewModel =
+              CourtDetailViewModel(
+                  courtId = "court-1",
+                  repository = repository,
+                  reviewsRepository = FakeCourtReviewsRepository(),
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+          assertEquals(
+              listOf("08:00", "09:00", "10:00"),
+              viewModel.uiState.value.slots.map { it.displayTime },
+          )
+
+          viewModel.retryLoad()
+          advanceUntilIdle()
+
+          assertEquals(
+              listOf("08:00", "09:00"),
+              viewModel.uiState.value.slots.map { it.displayTime },
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
   fun initWithNextAvailableDayExposesFutureAvailabilityHeadline() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
@@ -326,6 +375,20 @@ private class FakeCourtDetailRepository(
   override suspend fun getUpcomingReservableSlotsPreview(
       courtId: String,
   ): ReservationDayAvailability? = availabilityPreview
+}
+
+private class SequentialCourtDetailRepository(
+    private val availabilityPreviews: List<ReservationDayAvailability?>,
+) : ICourtDetailRepository {
+  private var invocations = 0
+
+  override suspend fun getUpcomingReservableSlotsPreview(
+      courtId: String,
+  ): ReservationDayAvailability? {
+    val index = invocations.coerceAtMost(availabilityPreviews.lastIndex)
+    invocations += 1
+    return availabilityPreviews[index]
+  }
 }
 
 private class FailingCourtDetailRepository : ICourtDetailRepository {
