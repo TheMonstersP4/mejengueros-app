@@ -410,6 +410,41 @@ class OwnerReceivedReviewsViewModelTest {
   }
 
   @Test
+  fun refreshReloadsFirstPageAfterAPreviouslyEmptyLoad() = runTest {
+    // Reproduces the bug: the NavDisplay retains this ViewModel, so an owner whose first
+    // load returned empty keeps seeing an empty list on re-entry. The mount effect calls
+    // refresh(), which must reload the first page and surface reviews that now exist.
+    val reviewRepository =
+        RecordingReviewRepository(
+            firstPageResponse = samplePage(items = 0, page = 1, totalPages = 0, courtId = null),
+        )
+    val complexRepository = FakeComplexRepository(hub = MyComplexHub(complexes = emptyList()))
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel =
+        OwnerReceivedReviewsViewModel(
+            reviewRepository = reviewRepository,
+            complexRepository = complexRepository,
+            errorReporter = FakeErrorReporter(),
+            coroutineScope = scope,
+        )
+
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.items.isEmpty())
+    assertEquals(1, reviewRepository.firstPageCalls.size)
+
+    reviewRepository.firstPageResponse =
+        samplePage(items = 3, page = 1, totalPages = 1, courtId = null)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    assertEquals(3, viewModel.uiState.value.items.size)
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertNull(viewModel.uiState.value.loadErrorMessage)
+    assertEquals(2, reviewRepository.firstPageCalls.size)
+  }
+
+  @Test
   fun complexRepositoryFailureFallsBackToFirstPageWithoutChips() = runTest {
     val reviewRepository = RecordingReviewRepository()
     val complexRepository = FakeComplexRepository(failure = IllegalStateException("hub down"))
@@ -521,7 +556,7 @@ class OwnerReceivedReviewsViewModelTest {
 }
 
 private class RecordingReviewRepository(
-    private val firstPageResponse: ReceivedReviewPage? =
+    var firstPageResponse: ReceivedReviewPage? =
         OwnerReceivedReviewsViewModelTestHelper.defaultPage(),
     private val nextPageResponse: ReceivedReviewPage? =
         OwnerReceivedReviewsViewModelTestHelper.defaultPage(),
