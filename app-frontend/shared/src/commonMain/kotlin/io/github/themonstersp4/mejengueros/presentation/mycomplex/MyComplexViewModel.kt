@@ -28,7 +28,34 @@ class MyComplexViewModel(
   private val coroutineScope = coroutineScope ?: viewModelScope
   private val _uiState = MutableStateFlow(MyComplexUiState(isLoading = true))
   private var refreshJob: Job? = null
+  private var loadedSessionKey: String? = null
   val uiState: StateFlow<MyComplexUiState> = _uiState.asStateFlow()
+
+  /**
+   * Loads the hub for the authenticated session, reloading whenever [sessionKey] changes so a
+   * previous user's complex never leaks into a freshly signed-in account. This ViewModel outlives
+   * a single navigation entry (it is resolved from the ambient store, not scoped per entry), so the
+   * session key is what tells apart "same user re-entering the screen" from "a different user
+   * signed in".
+   */
+  fun onSessionChanged(sessionKey: String?) {
+    if (sessionKey == loadedSessionKey) return
+    reset()
+    loadedSessionKey = sessionKey
+    refresh()
+  }
+
+  /** Discards owner/complex state held from a previous session. */
+  fun reset() {
+    refreshJob?.cancel()
+    refreshJob = null
+    loadedSessionKey = null
+    _uiState.value =
+        MyComplexUiState(
+            isLoading = true,
+            isCourtImagePickerAvailable = _uiState.value.isCourtImagePickerAvailable,
+        )
+  }
 
   fun refresh() {
     if (refreshJob?.isActive == true) return
