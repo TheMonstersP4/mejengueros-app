@@ -2,6 +2,7 @@ package io.github.themonstersp4.mejengueros.screens.courtdetail
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -60,6 +61,38 @@ class CourtDetailScreenBehaviorTest {
     composeRule.onNodeWithTag("court_detail_slot_08:00").assertExists()
     composeRule.onNodeWithTag("court_detail_slot_09:00").assertExists()
     composeRule.onNodeWithTag("court_detail_reserve_button").assertExists()
+  }
+
+  @Test
+  fun disponibilidadSlotsArePresentedAsReadOnlyWithoutClickAffordance() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = listOf("Parqueo"),
+            ratingAverage = 4.5,
+            ratingCount = 8,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    availabilityHeadline = "Hoy · slots de 1 hora",
+                    slots = listOf(CourtDetailSlot(displayTime = "18:00")),
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    // The informative availability time must read as read-only: it exposes no click
+    // action, unlike the interactive selector in the reservation screen.
+    composeRule.onNodeWithTag("court_detail_slot_18:00").assertExists().assertHasNoClickAction()
   }
 
   @Test
