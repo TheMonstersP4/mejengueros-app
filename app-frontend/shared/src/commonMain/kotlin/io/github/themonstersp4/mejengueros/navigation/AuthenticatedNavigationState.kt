@@ -23,6 +23,7 @@ fun rememberAuthenticatedNavigationState(
   val searchBackStack = rememberNavBackStack(savedStateConfiguration, SearchRoute)
   val reservationsBackStack = rememberNavBackStack(savedStateConfiguration, ReservationsRoute)
   val notificationsBackStack = rememberNavBackStack(savedStateConfiguration, NotificationsRoute)
+  val profileBackStack = rememberNavBackStack(savedStateConfiguration, PlayerProfileRoute)
   val myComplexBackStack = rememberNavBackStack(savedStateConfiguration, MyComplexRoute)
 
   val selectedRouteState = rememberSavedAuthenticatedTopLevelRouteState()
@@ -41,6 +42,7 @@ fun rememberAuthenticatedNavigationState(
       searchBackStack,
       reservationsBackStack,
       notificationsBackStack,
+      profileBackStack,
       myComplexBackStack,
       selectedRouteState,
       ownerCourtAvailabilityEntrypointState,
@@ -56,6 +58,7 @@ fun rememberAuthenticatedNavigationState(
         searchBackStack = searchBackStack,
         reservationsBackStack = reservationsBackStack,
         notificationsBackStack = notificationsBackStack,
+        profileBackStack = profileBackStack,
         myComplexBackStack = myComplexBackStack,
     )
 
@@ -64,6 +67,7 @@ fun rememberAuthenticatedNavigationState(
         searchBackStack = searchBackStack,
         reservationsBackStack = reservationsBackStack,
         notificationsBackStack = notificationsBackStack,
+        profileBackStack = profileBackStack,
         myComplexBackStack = myComplexBackStack,
         ownerCourtAvailabilityEntrypointState = ownerCourtAvailabilityEntrypointState,
         myComplexHubReloadRequestKeyState = myComplexHubReloadRequestKeyState,
@@ -81,6 +85,7 @@ internal data class NormalizedAuthenticatedNavigation(
     val searchStack: List<AppRoute>,
     val reservationsStack: List<AppRoute>,
     val notificationsStack: List<AppRoute>,
+    val profileStack: List<AppRoute>,
     val myComplexStack: List<AppRoute>,
 )
 
@@ -89,6 +94,7 @@ internal fun normalizeRestoredAuthenticatedNavigation(
     searchStack: List<AppRoute>,
     reservationsStack: List<AppRoute>,
     notificationsStack: List<AppRoute>,
+    profileStack: List<AppRoute> = listOf(PlayerProfileRoute),
     myComplexStack: List<AppRoute>,
 ): NormalizedAuthenticatedNavigation {
   val legacyOwnerFlow = legacyOwnerFlowFrom(searchStack)
@@ -111,6 +117,7 @@ internal fun normalizeRestoredAuthenticatedNavigation(
       searchStack = normalizedSearchStack,
       reservationsStack = normalizeReservationsStack(reservationsStack),
       notificationsStack = normalizeNotificationsStack(notificationsStack),
+      profileStack = normalizeProfileStack(profileStack),
       myComplexStack = normalizedMyComplexStack,
   )
 }
@@ -121,6 +128,7 @@ private fun normalizeRestoredAuthenticatedNavigationState(
     searchBackStack: NavBackStack<NavKey>,
     reservationsBackStack: NavBackStack<NavKey>,
     notificationsBackStack: NavBackStack<NavKey>,
+    profileBackStack: NavBackStack<NavKey>,
     myComplexBackStack: NavBackStack<NavKey>,
 ) {
   val normalized =
@@ -129,6 +137,7 @@ private fun normalizeRestoredAuthenticatedNavigationState(
           searchStack = searchBackStack.toAppRoutes(),
           reservationsStack = reservationsBackStack.toAppRoutes(),
           notificationsStack = notificationsBackStack.toAppRoutes(),
+          profileStack = profileBackStack.toAppRoutes(),
           myComplexStack = myComplexBackStack.toAppRoutes(),
       )
 
@@ -136,6 +145,7 @@ private fun normalizeRestoredAuthenticatedNavigationState(
   searchBackStack.replaceWith(normalized.searchStack)
   reservationsBackStack.replaceWith(normalized.reservationsStack)
   notificationsBackStack.replaceWith(normalized.notificationsStack)
+  profileBackStack.replaceWith(normalized.profileStack)
   myComplexBackStack.replaceWith(normalized.myComplexStack)
 }
 
@@ -204,6 +214,7 @@ private fun AppRoute.toLegacyAuthenticatedTopLevelRouteName(): String =
       is CatalogReservationRoute -> AuthenticatedTopLevelRoute.Search.name
       ReservationsRoute -> AuthenticatedTopLevelRoute.Reservations.name
       NotificationsRoute -> AuthenticatedTopLevelRoute.Notifications.name
+      PlayerProfileRoute -> AuthenticatedTopLevelRoute.Profile.name
       MyComplexRoute,
       is ComplexDetailRoute,
       is AddCourtRoute,
@@ -229,6 +240,7 @@ private fun normalizeAuthenticatedTopLevelRoute(
       AuthenticatedTopLevelRoute.Search.name -> AuthenticatedTopLevelRoute.Search
       AuthenticatedTopLevelRoute.Reservations.name -> AuthenticatedTopLevelRoute.Reservations
       AuthenticatedTopLevelRoute.Notifications.name -> AuthenticatedTopLevelRoute.Notifications
+      AuthenticatedTopLevelRoute.Profile.name -> AuthenticatedTopLevelRoute.Profile
       AuthenticatedTopLevelRoute.MyComplex.name -> AuthenticatedTopLevelRoute.MyComplex
       "Home" ->
           if (hasLegacyOwnerFlow) AuthenticatedTopLevelRoute.MyComplex
@@ -254,6 +266,10 @@ private fun normalizeNotificationsStack(routes: List<AppRoute>): List<AppRoute> 
     if (routes.firstOrNull() == NotificationsRoute) listOf(NotificationsRoute)
     else listOf(NotificationsRoute)
 
+private fun normalizeProfileStack(routes: List<AppRoute>): List<AppRoute> =
+    if (routes.firstOrNull() == PlayerProfileRoute) listOf(PlayerProfileRoute)
+    else listOf(PlayerProfileRoute)
+
 private fun normalizeMyComplexStack(routes: List<AppRoute>): List<AppRoute> {
   val details = routes.drop(1).mapNotNull { it.normalizeForMyComplexStack() }
   return listOf(MyComplexRoute) + details.distinct()
@@ -278,7 +294,8 @@ private fun AppRoute.normalizeForSearchRoot(): AppRoute =
       is CourtAvailabilityRoute,
       MyComplexRoute,
       ReservationsRoute,
-      NotificationsRoute -> SearchRoute
+      NotificationsRoute,
+      PlayerProfileRoute -> SearchRoute
       else -> SearchRoute
     }
 
@@ -304,6 +321,7 @@ class AuthenticatedNavigationState(
     private val searchBackStack: NavBackStack<NavKey>,
     private val reservationsBackStack: NavBackStack<NavKey>,
     private val notificationsBackStack: NavBackStack<NavKey>,
+    private val profileBackStack: NavBackStack<NavKey> = NavBackStack(PlayerProfileRoute),
     private val myComplexBackStack: NavBackStack<NavKey>,
     private val ownerCourtAvailabilityEntrypointState:
         MutableState<OwnerCourtAvailabilityEntrypoint?>,
@@ -349,6 +367,7 @@ class AuthenticatedNavigationState(
           AuthenticatedTopLevelRoute.Search -> searchBackStack
           AuthenticatedTopLevelRoute.Reservations -> reservationsBackStack
           AuthenticatedTopLevelRoute.Notifications -> notificationsBackStack
+          AuthenticatedTopLevelRoute.Profile -> profileBackStack
           AuthenticatedTopLevelRoute.MyComplex -> myComplexBackStack
         }
 
@@ -362,6 +381,10 @@ class AuthenticatedNavigationState(
 
   fun selectNotifications() {
     navigateTo(AuthenticatedTopLevelRoute.Notifications)
+  }
+
+  fun selectProfile() {
+    navigateTo(AuthenticatedTopLevelRoute.Profile)
   }
 
   fun selectMyComplex() {
@@ -575,6 +598,8 @@ class AuthenticatedNavigationState(
     reservationsBackStack.add(ReservationsRoute)
     notificationsBackStack.clear()
     notificationsBackStack.add(NotificationsRoute)
+    profileBackStack.clear()
+    profileBackStack.add(PlayerProfileRoute)
     myComplexBackStack.clear()
     myComplexBackStack.add(MyComplexRoute)
   }
@@ -614,7 +639,8 @@ class AuthenticatedNavigationState(
   private fun navigateTo(route: AuthenticatedTopLevelRoute) {
     when (route) {
       AuthenticatedTopLevelRoute.Search,
-      AuthenticatedTopLevelRoute.Notifications -> viewingAsPlayerState.value = true
+      AuthenticatedTopLevelRoute.Notifications,
+      AuthenticatedTopLevelRoute.Profile -> viewingAsPlayerState.value = true
       AuthenticatedTopLevelRoute.MyComplex -> viewingAsPlayerState.value = false
       AuthenticatedTopLevelRoute.Reservations -> {
         // Shared route: preserve the current viewingAsPlayer value.
