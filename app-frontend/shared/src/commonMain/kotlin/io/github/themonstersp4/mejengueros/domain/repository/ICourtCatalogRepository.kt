@@ -1,5 +1,6 @@
 package io.github.themonstersp4.mejengueros.domain.repository
 
+import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogPage
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 
@@ -9,6 +10,7 @@ interface ICourtCatalogRepository {
       provinceId: String? = null,
       cantonId: String? = null,
       serviceIds: List<String> = emptyList(),
+      courtIds: List<String> = emptyList(),
       minRating: Int? = null,
       page: Int = 1,
       pageSize: Int = CourtCatalogPage.DEFAULT_PAGE_SIZE,
@@ -19,4 +21,6 @@ interface ICourtCatalogRepository {
    * a filter. Defaults to an empty list so fakes that only exercise court listing stay unaffected.
    */
   suspend fun getServiceCatalog(): List<ServiceCatalogItem> = emptyList()
+
+  suspend fun getFavoriteCourts(courtIds: List<String>): List<CourtCatalogItem> = emptyList()
 }

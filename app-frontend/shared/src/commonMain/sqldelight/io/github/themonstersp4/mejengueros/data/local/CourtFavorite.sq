@@ -17,3 +17,8 @@ VALUES (?, ?);
 deleteCourtFavorite:
 DELETE FROM FavoriteCourtEntity
 WHERE userId = ? AND courtId = ?;
+
+selectFavoriteCourtIds:
+SELECT courtId FROM FavoriteCourtEntity
+WHERE userId = ?
+ORDER BY courtId ASC;
