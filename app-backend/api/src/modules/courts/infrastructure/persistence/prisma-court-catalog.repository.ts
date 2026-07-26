@@ -157,6 +157,25 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
         ? await this.loadCourtIdsWithMinRating(filters.minRating)
         : null;
 
+    const andFilters: Prisma.CourtWhereInput[] = [
+      ...(filters.serviceIds && filters.serviceIds.length > 0
+        ? filters.serviceIds.map((serviceId) => ({
+            OR: [
+              { services: { some: { serviceCatalogId: serviceId } } },
+              {
+                complex: {
+                  services: { some: { serviceCatalogId: serviceId } }
+                }
+              }
+            ]
+          }))
+        : []),
+      ...(filters.courtIds && filters.courtIds.length > 0
+        ? [{ id: { in: filters.courtIds } }]
+        : []),
+      ...(ratedCourtIds != null ? [{ id: { in: ratedCourtIds } }] : [])
+    ];
+
     // Shared filter used by both the count and the page read so the total and
     // the returned items always describe the same result set.
     const where: Prisma.CourtWhereInput = {
@@ -221,27 +240,10 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
             ]
           }
         : {}),
-      // A court "offers" a service when it is attached to the court itself or to
-      // its complex. Each selected service becomes its own AND clause so the
-      // court must offer ALL of them, and AND composes with the text-search OR
-      // above instead of overwriting it (two OR keys on one object would clash).
-      ...(filters.serviceIds && filters.serviceIds.length > 0
-        ? {
-            AND: filters.serviceIds.map((serviceId) => ({
-              OR: [
-                { services: { some: { serviceCatalogId: serviceId } } },
-                {
-                  complex: {
-                    services: { some: { serviceCatalogId: serviceId } }
-                  }
-                }
-              ]
-            }))
-          }
-        : {}),
-      // Restrict to courts that met the minimum rating. An empty list keeps the
-      // result empty, which also excludes courts without any reviews.
-      ...(ratedCourtIds != null ? { id: { in: ratedCourtIds } } : {})
+      // Service, explicit-id, and rating filters compose as AND clauses. Keeping
+      // each id constraint separate prevents one `id.in` filter from replacing
+      // another when callers combine filters.
+      ...(andFilters.length > 0 ? { AND: andFilters } : {})
     };
 
     const [totalItems, courts] = await Promise.all([
