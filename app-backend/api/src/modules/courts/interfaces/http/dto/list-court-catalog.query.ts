@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
   IsInt,
   IsOptional,
@@ -58,6 +59,24 @@ export class ListCourtCatalogQuery {
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   serviceIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Optional court identifier filters. Narrows the public catalog to the requested visible courts. Repeat the query param to pass several, e.g. courtIds=a&courtIds=b.',
+    format: 'uuid',
+    isArray: true,
+    maxItems: 20
+  })
+  @IsOptional()
+  // A single `courtIds=a` arrives as a string; normalize both shapes to an array.
+  @Transform(({ value }) =>
+    value === undefined || value === null || Array.isArray(value) ? value : [value]
+  )
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  courtIds?: string[];
 
   @ApiPropertyOptional({
     description:
