@@ -53,6 +53,8 @@ data class CatalogReservationRoute(
 
 @Serializable data object NotificationsRoute : AppRoute
 
+@Serializable data object PlayerProfileRoute : AppRoute
+
 @Serializable data object MyComplexRoute : AppRoute
 
 @Serializable data class ComplexDetailRoute(val complexId: String) : AppRoute
