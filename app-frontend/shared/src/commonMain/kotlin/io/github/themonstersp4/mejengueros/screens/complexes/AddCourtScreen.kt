@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
+import io.github.themonstersp4.mejengueros.presentation.catalog.serviceDisplayName
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
@@ -198,7 +199,7 @@ private fun CourtServicesSelector(
         MejenguerosListItem(
             text =
                 MejenguerosListItemText(
-                    title = service.name,
+                    title = serviceDisplayName(service.name),
                     supportingText = if (selected) "Seleccionado" else "Tocá para seleccionar",
                 ),
             modifier = Modifier.testTag("add_court_service_${service.id}"),

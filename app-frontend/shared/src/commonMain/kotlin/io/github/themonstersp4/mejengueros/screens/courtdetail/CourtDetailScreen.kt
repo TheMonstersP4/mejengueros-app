@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.presentation.catalog.serviceDisplayName
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailSlot
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailUiState
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtFavoriteStatus
@@ -489,7 +490,7 @@ private fun ServiceRow(name: String) {
       }
     }
     Text(
-        text = name,
+        text = serviceDisplayName(name),
         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
         color = MaterialTheme.colorScheme.onSurface,
     )
