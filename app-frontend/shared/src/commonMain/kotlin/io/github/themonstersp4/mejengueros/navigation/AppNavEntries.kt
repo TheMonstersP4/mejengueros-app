@@ -60,6 +60,7 @@ import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReserv
 import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreenActions
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreenActions
+import io.github.themonstersp4.mejengueros.screens.profile.PlayerProfileScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
 import io.github.themonstersp4.mejengueros.screens.reservations.MyReservationsScreen
@@ -167,6 +168,7 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CatalogCourtDetailRoute> { route ->
     CatalogCourtDetailEntry(
         route = route,
+        authViewModel = authViewModel,
         authenticatedNavigationState = authenticatedNavigationState,
         shellActions = shellActions,
     )
@@ -187,6 +189,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         reviewViewModel = koinViewModel(),
     )
   }
+  entry<PlayerProfileRoute> { PlayerProfileEntry(authViewModel, shellActions) }
   entry<MyComplexRoute> {
     MyComplexEntry(
         authenticatedNavigationState = authenticatedNavigationState,
@@ -354,6 +357,49 @@ private fun SearchEntry(
 }
 
 @Composable
+private fun PlayerProfileEntry(
+    authViewModel: AuthViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
+  val authState by authViewModel.uiState.collectAsState()
+  PlayerProfileEntryContent(
+      displayName = authState.displayName,
+      email = authState.email,
+      shellActions = shellActions,
+  )
+}
+
+@Composable
+internal fun PlayerProfileEntryContent(
+    displayName: String?,
+    email: String,
+    shellActions: AuthenticatedShellActions,
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Profile,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
+      chrome = AuthenticatedScaffoldChrome(title = "Mi perfil"),
+  ) { contentPadding ->
+    PlayerProfileScreen(
+        displayName = displayName,
+        email = email,
+        contentPadding = contentPadding,
+    )
+  }
+}
+
+@Composable
 internal fun SearchCatalogEntryContent(
     state: io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState,
     shellActions: AuthenticatedShellActions,
@@ -373,6 +419,7 @@ internal fun SearchCatalogEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -429,13 +476,16 @@ internal fun SearchCatalogEntryContent(
 @Composable
 private fun CatalogCourtDetailEntry(
     route: CatalogCourtDetailRoute,
+    authViewModel: AuthViewModel,
     authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
 ) {
+  val authState by authViewModel.uiState.collectAsState()
+  val userId = checkNotNull(authState.userId) { "Authenticated court detail requires a user ID." }
   val viewModel =
       koinViewModel<CourtDetailViewModel>(
-          key = "catalog-court-detail-${route.courtId}",
-          parameters = { parametersOf(route.courtId) },
+          key = courtDetailViewModelKey(userId, route.courtId),
+          parameters = { parametersOf(userId, route.courtId) },
       )
   CourtDetailReloadEffect(
       catalogCourtDetailReloadRequestKey =
@@ -458,6 +508,7 @@ internal fun CatalogCourtDetailEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -486,6 +537,8 @@ internal fun CatalogCourtDetailEntryContent(
         state = state,
         contentPadding = contentPadding,
         onRetryReviews = viewModel::retryLoadReviews,
+        onFavoriteToggle = viewModel::toggleFavorite,
+        onRetryFavorite = viewModel::retryLoadFavorite,
         onReserve = {
           shellActions.openCatalogReservation(
               CatalogReservationRoute(
@@ -502,6 +555,9 @@ internal fun CatalogCourtDetailEntryContent(
     )
   }
 }
+
+internal fun courtDetailViewModelKey(userId: String, courtId: String): String =
+    "catalog-court-detail:${userId.length}:$userId:${courtId.length}:$courtId"
 
 @Composable
 internal fun CatalogReservationEntry(
@@ -525,6 +581,7 @@ internal fun CatalogReservationEntry(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -595,6 +652,7 @@ internal fun OwnerReservationsEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -668,6 +726,7 @@ internal fun ReservationsEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -838,6 +897,7 @@ private fun NotificationsEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -948,6 +1008,7 @@ internal fun MyComplexRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.selectMyComplex,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1049,6 +1110,7 @@ internal fun ComplexDetailRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1185,6 +1247,7 @@ internal fun AddCourtEntryContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1392,6 +1455,7 @@ internal fun CreateComplexRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1472,6 +1536,7 @@ internal fun CourtAvailabilityRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1662,6 +1727,7 @@ internal fun OwnerReceivedReviewsRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,

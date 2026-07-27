@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.test.runTest
 
 class CourtCatalogRepositoryTest {
@@ -33,6 +34,7 @@ class CourtCatalogRepositoryTest {
                 "province-id",
                 "canton-id",
                 listOf("service-a", "service-b"),
+                emptyList(),
                 4,
                 2,
                 20,
@@ -54,17 +56,48 @@ class CourtCatalogRepositoryTest {
     assertEquals(listOf(fakeService), services)
   }
 
+  @Test
+  fun getFavoriteCourtsBatchesStableUniqueIdsAndRecomposesTheLocalOrder() = runTest {
+    val remoteDataSource = FakeCourtCatalogRemoteDataSource()
+    val repository = CourtCatalogRepository(remoteDataSource)
+    val requestedIds = (1..21).map { "court-$it" }
+
+    val result = repository.getFavoriteCourts(listOf("court-3", "court-1") + requestedIds)
+
+    assertEquals(
+        listOf(
+            (listOf("court-3", "court-1") + requestedIds).distinct().take(20),
+            listOf("court-21"),
+        ),
+        remoteDataSource.requests.map { it.courtIds },
+    )
+    assertEquals(listOf("court-3", "court-1", "court-2", "court-21"), result.map { it.id })
+  }
+
+  @Test
+  fun getFavoriteCourtsPropagatesAnyBatchFailure() = runTest {
+    val remoteDataSource = FakeCourtCatalogRemoteDataSource(failOnRequest = 2)
+    val repository = CourtCatalogRepository(remoteDataSource)
+
+    assertFailsWith<IllegalStateException> {
+      repository.getFavoriteCourts((1..21).map { "court-$it" })
+    }
+  }
+
   private data class CatalogRequest(
       val searchQuery: String?,
       val provinceId: String?,
       val cantonId: String?,
       val serviceIds: List<String>,
+      val courtIds: List<String>,
       val minRating: Int?,
       val page: Int,
       val pageSize: Int,
   )
 
-  private class FakeCourtCatalogRemoteDataSource : ICourtCatalogRemoteDataSource {
+  private class FakeCourtCatalogRemoteDataSource(
+      private val failOnRequest: Int? = null,
+  ) : ICourtCatalogRemoteDataSource {
     val requests = mutableListOf<CatalogRequest>()
 
     override suspend fun getCatalogCourts(
@@ -72,17 +105,42 @@ class CourtCatalogRepositoryTest {
         provinceId: String?,
         cantonId: String?,
         serviceIds: List<String>,
+        courtIds: List<String>,
         minRating: Int?,
         page: Int,
         pageSize: Int,
     ): CourtCatalogPage {
-      requests +=
-          CatalogRequest(searchQuery, provinceId, cantonId, serviceIds, minRating, page, pageSize)
+      val request =
+          CatalogRequest(
+              searchQuery,
+              provinceId,
+              cantonId,
+              serviceIds,
+              courtIds,
+              minRating,
+              page,
+              pageSize,
+          )
+      requests += request
+      if (requests.size == failOnRequest) error("batch failed")
       return CourtCatalogPage(
-          items = listOf(fakeCourt),
+          items =
+              if (courtIds.isEmpty()) {
+                listOf(fakeCourt)
+              } else {
+                courtIds.mapNotNull { id ->
+                  when (id) {
+                    "court-1",
+                    "court-2",
+                    "court-3",
+                    "court-21" -> fakeCourt.copy(id = id)
+                    else -> null
+                  }
+                }
+              },
           page = page,
           pageSize = pageSize,
-          totalItems = 1,
+          totalItems = courtIds.size,
           totalPages = page,
       )
     }

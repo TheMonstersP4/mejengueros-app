@@ -17,6 +17,7 @@ class AuthenticatedShellActions(
     val selectSearch: () -> Unit,
     val selectReservations: () -> Unit,
     val selectNotifications: () -> Unit,
+    val selectProfile: () -> Unit = {},
     val selectMyComplex: () -> Unit,
     val returnToSearchRoot: () -> Unit,
     val returnToMyComplexRoot: () -> Unit,

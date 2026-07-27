@@ -157,6 +157,24 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun selectingProfileShowsProfileRootAndPreservesOtherTopLevelStacks() {
+    val state = testNavigationState()
+    state.openCatalogCourtDetail(sampleCatalogDetailRoute())
+
+    state.selectProfile()
+
+    assertEquals(AuthenticatedTopLevelRoute.Profile, state.selectedRoute)
+    assertEquals(listOf(PlayerProfileRoute), state.currentBackStack.toList())
+
+    state.selectSearch()
+
+    assertEquals(
+        listOf(SearchRoute, sampleCatalogDetailRoute()),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
   fun openCreateComplexKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
     state.selectMyComplex()
@@ -980,6 +998,7 @@ class AuthenticatedNavigationStateTest {
           searchBackStack = NavBackStack<NavKey>(SearchRoute),
           reservationsBackStack = NavBackStack<NavKey>(ReservationsRoute),
           notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
+          profileBackStack = NavBackStack<NavKey>(PlayerProfileRoute),
           myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),

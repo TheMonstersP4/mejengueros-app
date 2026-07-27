@@ -595,6 +595,7 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,
@@ -617,6 +618,7 @@ private class RecordingCourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,
@@ -628,7 +630,16 @@ private class RecordingCourtCatalogRepository(
     }
 
     return FakeCourtCatalogRepository()
-        .getCatalogCourts(searchQuery, provinceId, cantonId, serviceIds, minRating, page, pageSize)
+        .getCatalogCourts(
+            searchQuery,
+            provinceId,
+            cantonId,
+            serviceIds,
+            courtIds,
+            minRating,
+            page,
+            pageSize,
+        )
   }
 
   override suspend fun getServiceCatalog(): List<ServiceCatalogItem> = services
@@ -720,6 +731,7 @@ private class FailingCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,
@@ -736,6 +748,7 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,
@@ -746,7 +759,7 @@ private class FlakyCourtCatalogRepository : ICourtCatalogRepository {
     }
 
     return FakeCourtCatalogRepository()
-        .getCatalogCourts(null, null, null, emptyList(), null, page, pageSize)
+        .getCatalogCourts(null, null, null, emptyList(), emptyList(), null, page, pageSize)
   }
 }
 
@@ -784,6 +797,7 @@ private class PagedCourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,
@@ -808,6 +822,7 @@ private class NextPageFlakyCourtCatalogRepository(
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,

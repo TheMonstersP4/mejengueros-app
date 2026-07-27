@@ -89,6 +89,31 @@ class CourtCatalogRemoteDataSourceTest {
   }
 
   @Test
+  fun getCatalogCourtsSendsRepeatedEncodedCourtIdsAndOmitsThemWhenEmpty() = runTest {
+    val requestedQueries = mutableListOf<String>()
+    val dataSource =
+        CourtCatalogRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody = """{ "success": true, "data": [] }""",
+                    captureQuery = { requestedQueries += it.orEmpty() },
+                ),
+            json = json,
+        )
+
+    dataSource.getCatalogCourts(courtIds = emptyList())
+    dataSource.getCatalogCourts(courtIds = listOf("court 1"))
+    dataSource.getCatalogCourts(courtIds = listOf("court 1", "court/2"))
+
+    assertEquals("page=1&pageSize=10", requestedQueries[0])
+    assertEquals("courtIds=court+1&page=1&pageSize=10", requestedQueries[1])
+    assertEquals(
+        "courtIds=court+1&courtIds=court%2F2&page=1&pageSize=10",
+        requestedQueries[2],
+    )
+  }
+
+  @Test
   fun getServiceCatalogFetchesActiveServicesWithoutScopeAndMapsEnvelope() = runTest {
     var requestedPath = ""
     var requestedQuery = ""

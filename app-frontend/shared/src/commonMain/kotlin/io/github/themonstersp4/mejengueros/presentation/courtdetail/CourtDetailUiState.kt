@@ -10,7 +10,18 @@ data class CourtDetailUiState(
     val isLoadingReviews: Boolean = true,
     val reviews: List<CourtReview> = emptyList(),
     val reviewsErrorMessage: String? = null,
+    val favoriteStatus: CourtFavoriteStatus = CourtFavoriteStatus.Unknown,
+    val isFavorite: Boolean? = null,
+    val favoriteErrorMessage: String? = null,
 )
+
+enum class CourtFavoriteStatus {
+  Unknown,
+  Loading,
+  Confirmed,
+  Updating,
+  Error,
+}
 
 data class CourtDetailSlot(
     val displayTime: String,

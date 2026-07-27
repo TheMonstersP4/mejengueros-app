@@ -480,6 +480,7 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       provinceId: String?,
       cantonId: String?,
       serviceIds: List<String>,
+      courtIds: List<String>,
       minRating: Int?,
       page: Int,
       pageSize: Int,
