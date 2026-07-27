@@ -12,10 +12,13 @@ describe('CreateReviewPromptNotificationsUseCase', () => {
           reservationId: 'reservation-1',
           type: 'REVIEW_PROMPT',
           status: 'PENDING',
+          courtId: 'court-1',
+          complexId: 'complex-1',
           complexName: 'Mejengas CR',
           courtName: 'Cancha 1',
           startsAt: '2026-07-11T18:00:00.000Z',
           endsAt: '2026-07-11T19:00:00.000Z',
+          reviewId: null,
           createdAt: '2026-07-11T19:01:00.000Z',
           readAt: null
         }
@@ -56,10 +59,13 @@ describe('CreateReviewPromptNotificationsUseCase', () => {
           reservationId: 'reservation-1',
           type: 'REVIEW_PROMPT',
           status: 'PENDING',
+          courtId: 'court-1',
+          complexId: 'complex-1',
           complexName: 'Mejengas CR',
           courtName: 'Cancha 1',
           startsAt: '2026-07-11T18:00:00.000Z',
           endsAt: '2026-07-11T19:00:00.000Z',
+          reviewId: null,
           createdAt: '2026-07-11T19:01:00.000Z',
           readAt: null
         }

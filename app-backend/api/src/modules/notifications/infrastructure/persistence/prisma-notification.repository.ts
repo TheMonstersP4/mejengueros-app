@@ -19,8 +19,10 @@ type ReviewPromptReservationRow = {
   startsAt: Date;
   endsAt: Date;
   court: {
+    id: string;
     name: string;
     complex: {
+      id: string;
       name: string;
     };
   };
@@ -38,11 +40,16 @@ type NotificationWithReservationRow = {
     startsAt: Date;
     endsAt: Date;
     court: {
+      id: string;
       name: string;
       complex: {
+        id: string;
         name: string;
       };
     };
+    review: {
+      id: string;
+    } | null;
   };
 };
 
@@ -77,9 +84,11 @@ export class PrismaNotificationRepository implements INotificationRepository {
         endsAt: true,
         court: {
           select: {
+            id: true,
             name: true,
             complex: {
               select: {
+                id: true,
                 name: true
               }
             }
@@ -190,12 +199,19 @@ const NOTIFICATION_WITH_RESERVATION_SELECT = {
       endsAt: true,
       court: {
         select: {
+          id: true,
           name: true,
           complex: {
             select: {
+              id: true,
               name: true
             }
           }
+        }
+      },
+      review: {
+        select: {
+          id: true
         }
       }
     }
@@ -220,10 +236,13 @@ function mapNotificationWithReservation(
     reservationId: notification.reservationId,
     type: notification.type,
     status: notification.status,
+    courtId: reservation.court.id,
+    complexId: reservation.court.complex.id,
     complexName: reservation.court.complex.name,
     courtName: reservation.court.name,
     startsAt: reservation.startsAt.toISOString(),
     endsAt: reservation.endsAt.toISOString(),
+    reviewId: null,
     createdAt: notification.createdAt.toISOString(),
     readAt: notification.readAt?.toISOString() ?? null
   };
@@ -238,10 +257,13 @@ function mapNotificationWithReservationRow(
     reservationId: notification.reservationId,
     type: notification.type,
     status: notification.status,
+    courtId: notification.reservation.court.id,
+    complexId: notification.reservation.court.complex.id,
     complexName: notification.reservation.court.complex.name,
     courtName: notification.reservation.court.name,
     startsAt: notification.reservation.startsAt.toISOString(),
     endsAt: notification.reservation.endsAt.toISOString(),
+    reviewId: notification.reservation.review?.id ?? null,
     createdAt: notification.createdAt.toISOString(),
     readAt: notification.readAt?.toISOString() ?? null
   };

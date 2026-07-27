@@ -16,11 +16,14 @@ export function presentNotification(
     message: `Tu reserva en ${notification.complexName} - ${notification.courtName} ya termino. Dejanos tu resena.`,
     reservation: {
       id: notification.reservationId,
+      courtId: notification.courtId,
+      complexId: notification.complexId,
       complexName: notification.complexName,
       courtName: notification.courtName,
       startsAt: notification.startsAt,
       endsAt: notification.endsAt
     },
+    reviewId: notification.reviewId,
     action: {
       type: 'OPEN_REVIEW',
       reservationId: notification.reservationId

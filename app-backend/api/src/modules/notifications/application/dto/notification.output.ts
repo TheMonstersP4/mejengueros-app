@@ -12,10 +12,12 @@ export interface INotificationActionOutput {
 }
 
 /**
- * Reservation context needed by clients to open the review flow.
+ * Reservation context needed by clients to open the review flow or the court detail.
  */
 export interface INotificationReservationOutput {
   id: string;
+  courtId: string;
+  complexId: string;
   complexName: string;
   courtName: string;
   startsAt: string;
@@ -33,6 +35,7 @@ export interface INotificationOutput {
   title: string;
   message: string;
   reservation: INotificationReservationOutput;
+  reviewId: string | null;
   action: INotificationActionOutput;
   createdAt: string;
   readAt: string | null;
