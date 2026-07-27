@@ -51,11 +51,14 @@ fun NotificationDto.toDomain(): UserNotification =
         reservation =
             UserNotificationReservation(
                 id = reservation.id,
+                courtId = reservation.courtId,
+                complexId = reservation.complexId,
                 complexName = reservation.complexName,
                 courtName = reservation.courtName,
                 startsAt = reservation.startsAt,
                 endsAt = reservation.endsAt,
             ),
+        reviewId = reviewId,
         title = title,
         message = message,
         createdAt = createdAt,

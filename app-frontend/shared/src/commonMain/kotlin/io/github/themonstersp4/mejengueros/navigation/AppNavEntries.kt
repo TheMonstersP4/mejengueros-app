@@ -930,7 +930,8 @@ private enum class ReservationReviewEntryMode {
 }
 
 private fun ReviewUiState.toLeaveReviewUiState(
-    currentMode: ReservationReviewEntryMode
+    currentMode: ReservationReviewEntryMode,
+    successReturnLabel: String = "VOLVER A MIS RESERVAS",
 ): LeaveReviewUiState? {
   val reservation = reviewableReservation ?: return null
 
@@ -948,6 +949,7 @@ private fun ReviewUiState.toLeaveReviewUiState(
           } else {
             LeaveReviewUiMode.Form
           },
+      successReturnLabel = successReturnLabel,
   )
 }
 
@@ -987,7 +989,11 @@ private fun NotificationsEntryContent(
     mutableStateOf(ReservationReviewEntryMode.Launcher.name)
   }
   val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
-  val leaveReviewState = reviewState.toLeaveReviewUiState(currentMode)
+  val leaveReviewState =
+      reviewState.toLeaveReviewUiState(
+          currentMode,
+          successReturnLabel = "VOLVER A NOTIFICACIONES",
+      )
 
   LaunchedEffect(reviewState.submittedReview?.id) {
     if (reviewState.submittedReview != null) {
@@ -1048,8 +1054,12 @@ private fun NotificationsEntryContent(
                       onRetryLoad = notificationsViewModel::refresh,
                       onNotificationSelected = { notification ->
                         notificationsViewModel.markRead(notification.id)
-                        reviewViewModel.startReview(notification.toReviewableReservation())
-                        reviewEntryMode = ReservationReviewEntryMode.Form.name
+                        if (notification.isReviewed && notification.courtId.isNotBlank()) {
+                          shellActions.openCatalogCourtDetail(notification.toCourtDetailRoute())
+                        } else if (!notification.isReviewed) {
+                          reviewViewModel.startReview(notification.toReviewableReservation())
+                          reviewEntryMode = ReservationReviewEntryMode.Form.name
+                        }
                       },
                   ),
           )
@@ -1087,6 +1097,17 @@ private fun UserNotificationUiModel.toReviewableReservation():
         startsAt = startsAt,
         endsAt = endsAt,
         imageUrl = null,
+    )
+
+// Opens the court detail so the player sees the review already posted for this court.
+// The court detail loads its own slots, reviews and rating by courtId, so the notification
+// only needs to supply the identifiers the route requires.
+private fun UserNotificationUiModel.toCourtDetailRoute(): CatalogCourtDetailRoute =
+    CatalogCourtDetailRoute(
+        courtId = courtId,
+        complexId = complexId,
+        complexName = complexName,
+        courtName = courtName,
     )
 
 @Composable
