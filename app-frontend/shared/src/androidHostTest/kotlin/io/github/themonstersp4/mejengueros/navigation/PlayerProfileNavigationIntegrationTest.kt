@@ -1,10 +1,12 @@
 package io.github.themonstersp4.mejengueros.navigation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.navigation3.runtime.NavBackStack
@@ -52,7 +54,7 @@ class PlayerProfileNavigationIntegrationTest {
   }
 
   @Test
-  fun profileFavoriteEntryNavigatesToFavoritesDestination() {
+  fun profileFavoriteEntryOpensCourtDetailAndBackReturnsToFavorites() {
     val navigationState = testNavigationState().apply { selectProfile() }
     composeRule.setContent {
       MejenguerosTheme {
@@ -64,13 +66,27 @@ class PlayerProfileNavigationIntegrationTest {
       }
     }
     composeRule.onNodeWithText("Mis canchas favoritas").performClick()
-    composeRule.onNodeWithText("Todavía no tenés canchas favoritas").assertExists()
+    composeRule.onNodeWithTag("favorite_court_card_court-id").performClick()
+    composeRule.onNodeWithText("detail:court-id:Mejengas CR").assertExists()
     composeRule.runOnIdle {
       assertEquals(
-          listOf(PlayerProfileRoute, FavoriteCourtsRoute),
+          listOf(
+              PlayerProfileRoute,
+              FavoriteCourtsRoute,
+              FavoriteCourtDetailRoute(
+                  "court-id",
+                  "complex-id",
+                  "Mejengas CR",
+                  "Cancha 1",
+                  provinceName = "San José",
+                  cantonName = "San José",
+              ),
+          ),
           navigationState.currentBackStack.toList(),
       )
+      navigationState.closeCurrentDetail()
     }
+    composeRule.onNodeWithTag("favorite_court_card_court-id").assertExists()
   }
 
   @Composable
@@ -127,13 +143,34 @@ class PlayerProfileNavigationIntegrationTest {
               }
               entry<FavoriteCourtsRoute> {
                 FavoriteCourtsScreen(
-                    state = FavoriteCourtsUiState(isLoading = false),
+                    state =
+                        FavoriteCourtsUiState(isLoading = false, courts = listOf(sampleCourt())),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(),
-                    onOpenCourt = {},
+                    onOpenCourt = { court ->
+                      navigationState.openFavoriteCourtDetail(
+                          FavoriteCourtDetailRoute(
+                              court.id,
+                              court.complexId,
+                              court.complexName,
+                              court.courtName,
+                              court.provinceName,
+                              court.cantonName,
+                              court.latitude,
+                              court.longitude,
+                              court.services,
+                              court.ratingAverage,
+                              court.ratingCount,
+                              court.imageUrl,
+                          )
+                      )
+                    },
                     onRemoveCourt = {},
                     onRetry = {},
                     onExploreCourts = navigationState::selectSearch,
                 )
+              }
+              entry<FavoriteCourtDetailRoute> { route ->
+                Text("detail:${route.courtId}:${route.complexName}")
               }
             },
     )
@@ -154,5 +191,22 @@ class PlayerProfileNavigationIntegrationTest {
           reservationsReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(true),
           hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
+      )
+
+  private fun sampleCourt() =
+      io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem(
+          "court-id",
+          "complex-id",
+          "Mejengas CR",
+          "Cancha 1",
+          "province-id",
+          "San José",
+          "canton-id",
+          "San José",
+          services = emptyList(),
+          ratingAverage = null,
+          ratingCount = 0,
+          imageUrl = null,
+          isReservableToday = false,
       )
 }

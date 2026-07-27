@@ -26,7 +26,13 @@ class FavoriteCourtsScreenBehaviorTest {
   @Test
   fun rendersLoadingEmptyErrorAndExplore() {
     var explored = false
-    val state = setHost(FavoriteCourtsUiState(), onExplore = { explored = true })
+    var retries = 0
+    val state =
+        setHost(
+            FavoriteCourtsUiState(),
+            onRetry = { retries += 1 },
+            onExplore = { explored = true },
+        )
     composeRule.onNodeWithTag("favorite_courts_loading").assertExists()
     state.value = FavoriteCourtsUiState(isLoading = false)
     composeRule.waitForIdle()
@@ -36,6 +42,8 @@ class FavoriteCourtsScreenBehaviorTest {
     state.value = FavoriteCourtsUiState(isLoading = false, errorMessage = "falló")
     composeRule.waitForIdle()
     composeRule.onNodeWithTag("favorite_courts_retry").assertHasClickAction()
+    composeRule.onNodeWithTag("favorite_courts_retry").performClick()
+    assertEquals(1, retries)
   }
 
   @Test
@@ -66,12 +74,13 @@ class FavoriteCourtsScreenBehaviorTest {
       state: FavoriteCourtsUiState,
       open: (CourtCatalogItem) -> Unit = {},
       remove: (String) -> Unit = {},
+      onRetry: () -> Unit = {},
       onExplore: () -> Unit = {},
   ): MutableState<FavoriteCourtsUiState> {
     val uiState = mutableStateOf(state)
     composeRule.setContent {
       MejenguerosTheme {
-        FavoriteCourtsScreen(uiState.value, PaddingValues(), open, remove, {}, onExplore)
+        FavoriteCourtsScreen(uiState.value, PaddingValues(), open, remove, onRetry, onExplore)
       }
     }
     return uiState
