@@ -55,6 +55,24 @@ data class CatalogReservationRoute(
 
 @Serializable data object PlayerProfileRoute : AppRoute
 
+@Serializable data object FavoriteCourtsRoute : AppRoute
+
+@Serializable
+data class FavoriteCourtDetailRoute(
+    val courtId: String,
+    val complexId: String,
+    val complexName: String,
+    val courtName: String,
+    val provinceName: String = "",
+    val cantonName: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val services: List<String> = emptyList(),
+    val ratingAverage: Double? = null,
+    val ratingCount: Int = 0,
+    val imageUrl: String? = null,
+) : AppRoute
+
 @Serializable data object MyComplexRoute : AppRoute
 
 @Serializable data class ComplexDetailRoute(val complexId: String) : AppRoute

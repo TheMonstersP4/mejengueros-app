@@ -215,6 +215,8 @@ private fun AppRoute.toLegacyAuthenticatedTopLevelRouteName(): String =
       ReservationsRoute -> AuthenticatedTopLevelRoute.Reservations.name
       NotificationsRoute -> AuthenticatedTopLevelRoute.Notifications.name
       PlayerProfileRoute -> AuthenticatedTopLevelRoute.Profile.name
+      FavoriteCourtsRoute,
+      is FavoriteCourtDetailRoute -> AuthenticatedTopLevelRoute.Profile.name
       MyComplexRoute,
       is ComplexDetailRoute,
       is AddCourtRoute,
@@ -267,8 +269,17 @@ private fun normalizeNotificationsStack(routes: List<AppRoute>): List<AppRoute> 
     else listOf(NotificationsRoute)
 
 private fun normalizeProfileStack(routes: List<AppRoute>): List<AppRoute> =
-    if (routes.firstOrNull() == PlayerProfileRoute) listOf(PlayerProfileRoute)
-    else listOf(PlayerProfileRoute)
+    listOf(PlayerProfileRoute) +
+        routes
+            .drop(1)
+            .mapNotNull {
+              when (it) {
+                FavoriteCourtsRoute -> FavoriteCourtsRoute
+                is FavoriteCourtDetailRoute -> it
+                else -> null
+              }
+            }
+            .distinct()
 
 private fun normalizeMyComplexStack(routes: List<AppRoute>): List<AppRoute> {
   val details = routes.drop(1).mapNotNull { it.normalizeForMyComplexStack() }
@@ -385,6 +396,19 @@ class AuthenticatedNavigationState(
 
   fun selectProfile() {
     navigateTo(AuthenticatedTopLevelRoute.Profile)
+  }
+
+  fun openFavoriteCourts() {
+    navigateTo(AuthenticatedTopLevelRoute.Profile)
+    if (profileBackStack.lastOrNull() != FavoriteCourtsRoute) {
+      while (profileBackStack.size > 1) profileBackStack.removeLastOrNull()
+      profileBackStack.add(FavoriteCourtsRoute)
+    }
+  }
+
+  fun openFavoriteCourtDetail(route: FavoriteCourtDetailRoute) {
+    openFavoriteCourts()
+    if (profileBackStack.lastOrNull() != route) profileBackStack.add(route)
   }
 
   fun selectMyComplex() {
