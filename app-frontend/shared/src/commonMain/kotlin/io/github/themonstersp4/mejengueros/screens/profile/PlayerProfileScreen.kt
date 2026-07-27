@@ -11,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,6 +35,7 @@ fun PlayerProfileScreen(
     displayName: String?,
     email: String,
     contentPadding: PaddingValues,
+    onFavoriteCourtsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
   val identity = profileIdentity(displayName = displayName, email = email)
@@ -72,24 +75,33 @@ fun PlayerProfileScreen(
     }
 
     Card(
+        onClick = onFavoriteCourtsClick,
         modifier = Modifier.fillMaxWidth().testTag("player_profile_favorite_courts"),
         colors =
             CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-      Column(
+      androidx.compose.foundation.layout.Row(
           modifier = Modifier.padding(20.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
+          horizontalArrangement = Arrangement.spacedBy(16.dp),
+          verticalAlignment = Alignment.CenterVertically,
       ) {
-        Text(
-            text = "Canchas favoritas",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = "La lista de tus canchas favoritas estará disponible próximamente.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Icon(Icons.Filled.Favorite, contentDescription = null)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Text(
+              "Mis canchas favoritas",
+              style = MaterialTheme.typography.titleMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+              fontWeight = FontWeight.SemiBold,
+          )
+          Text(
+              "Consultá y administrá las canchas que guardaste.",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = "Abrir mis canchas favoritas",
         )
       }
     }

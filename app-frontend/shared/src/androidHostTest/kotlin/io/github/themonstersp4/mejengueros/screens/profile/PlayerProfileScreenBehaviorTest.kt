@@ -2,7 +2,7 @@ package io.github.themonstersp4.mejengueros.screens.profile
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,18 +19,16 @@ class PlayerProfileScreenBehaviorTest {
   @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
   @Test
-  fun displaysNameEmailAccessibleInitialsAndNonInteractiveFavoritesPlaceholder() {
+  fun displaysNameEmailAccessibleInitialsAndClickableFavoritesEntry() {
     setProfileContent(displayName = "María González", email = "maria@example.com")
 
     composeRule.onNodeWithContentDescription("Avatar de María González").assertExists()
     composeRule.onNodeWithText("MG").assertExists()
     composeRule.onNodeWithText("María González").assertExists()
     composeRule.onNodeWithText("maria@example.com").assertExists()
-    composeRule.onNodeWithText("Canchas favoritas").assertExists()
-    composeRule.onNodeWithTag("player_profile_favorite_courts").assertHasNoClickAction()
-    composeRule
-        .onNodeWithText("La lista de tus canchas favoritas estará disponible próximamente.")
-        .assertExists()
+    composeRule.onNodeWithText("Mis canchas favoritas").assertExists()
+    composeRule.onNodeWithTag("player_profile_favorite_courts").assertHasClickAction()
+    composeRule.onNodeWithText("Consultá y administrá las canchas que guardaste.").assertExists()
   }
 
   @Test

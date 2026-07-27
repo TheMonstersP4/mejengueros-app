@@ -175,6 +175,31 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun profileFavoritesDetailBackStackPreservesOtherTopLevelStacks() {
+    val state = testNavigationState()
+    state.openCatalogCourtDetail(sampleCatalogDetailRoute())
+    state.selectProfile()
+    state.openFavoriteCourts()
+    state.openFavoriteCourtDetail(
+        FavoriteCourtDetailRoute("court-id", "complex-id", "Mejengas CR", "Cancha 1")
+    )
+    assertEquals(
+        listOf(
+            PlayerProfileRoute,
+            FavoriteCourtsRoute,
+            FavoriteCourtDetailRoute("court-id", "complex-id", "Mejengas CR", "Cancha 1"),
+        ),
+        state.currentBackStack.toList(),
+    )
+    state.closeCurrentDetail()
+    assertEquals(listOf(PlayerProfileRoute, FavoriteCourtsRoute), state.currentBackStack.toList())
+    state.closeCurrentDetail()
+    assertEquals(listOf(PlayerProfileRoute), state.currentBackStack.toList())
+    state.selectSearch()
+    assertEquals(listOf(SearchRoute, sampleCatalogDetailRoute()), state.currentBackStack.toList())
+  }
+
+  @Test
   fun openCreateComplexKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
     state.selectMyComplex()

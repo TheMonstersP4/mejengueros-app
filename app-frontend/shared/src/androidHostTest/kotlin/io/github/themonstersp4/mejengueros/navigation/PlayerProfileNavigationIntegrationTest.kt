@@ -12,6 +12,8 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
+import io.github.themonstersp4.mejengueros.presentation.favorites.FavoriteCourtsUiState
+import io.github.themonstersp4.mejengueros.screens.favorites.FavoriteCourtsScreen
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,6 +48,28 @@ class PlayerProfileNavigationIntegrationTest {
     composeRule.runOnIdle {
       assertEquals(AuthenticatedTopLevelRoute.Profile, navigationState.selectedRoute)
       assertEquals(listOf(PlayerProfileRoute), navigationState.currentBackStack.toList())
+    }
+  }
+
+  @Test
+  fun profileFavoriteEntryNavigatesToFavoritesDestination() {
+    val navigationState = testNavigationState().apply { selectProfile() }
+    composeRule.setContent {
+      MejenguerosTheme {
+        PlayerProfileNavigationTestHost(
+            navigationState,
+            "Marta Player",
+            "marta.player@example.com",
+        )
+      }
+    }
+    composeRule.onNodeWithText("Mis canchas favoritas").performClick()
+    composeRule.onNodeWithText("Todavía no tenés canchas favoritas").assertExists()
+    composeRule.runOnIdle {
+      assertEquals(
+          listOf(PlayerProfileRoute, FavoriteCourtsRoute),
+          navigationState.currentBackStack.toList(),
+      )
     }
   }
 
@@ -98,6 +122,17 @@ class PlayerProfileNavigationIntegrationTest {
                     displayName = displayName,
                     email = email,
                     shellActions = shellActions,
+                    onFavoriteCourtsClick = navigationState::openFavoriteCourts,
+                )
+              }
+              entry<FavoriteCourtsRoute> {
+                FavoriteCourtsScreen(
+                    state = FavoriteCourtsUiState(isLoading = false),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(),
+                    onOpenCourt = {},
+                    onRemoveCourt = {},
+                    onRetry = {},
+                    onExploreCourts = navigationState::selectSearch,
                 )
               }
             },
