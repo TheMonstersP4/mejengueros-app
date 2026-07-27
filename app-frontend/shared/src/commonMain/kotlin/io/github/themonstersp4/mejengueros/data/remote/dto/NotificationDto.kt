@@ -29,6 +29,7 @@ data class NotificationDto(
     val title: String,
     val message: String,
     val reservation: NotificationReservationDto,
+    val reviewId: String? = null,
     val createdAt: String,
     val readAt: String? = null,
 )
@@ -36,6 +37,11 @@ data class NotificationDto(
 @Serializable
 data class NotificationReservationDto(
     val id: String,
+    // Optional so notifications keep parsing against API versions that predate
+    // the court-detail navigation fields (issue #334). Absent -> empty, and the
+    // client simply does not offer the court-detail destination.
+    val courtId: String = "",
+    val complexId: String = "",
     val complexName: String,
     val courtName: String,
     val startsAt: String,
