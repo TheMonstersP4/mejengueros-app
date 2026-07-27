@@ -175,7 +175,7 @@ private fun Throwable.toUserMessage(): String =
       is AppApiException ->
           when (statusCode) {
             401,
-            403 -> "Necesitas volver a iniciar sesion para ver tus notificaciones."
+            403 -> "Necesitas volver a iniciar sesión para ver tus notificaciones."
             else -> "No pudimos cargar tus notificaciones. Intenta nuevamente."
           }
       else -> "No pudimos cargar tus notificaciones. Intenta nuevamente."
