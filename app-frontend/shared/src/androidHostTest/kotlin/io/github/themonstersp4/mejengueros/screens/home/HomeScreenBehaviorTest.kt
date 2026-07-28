@@ -62,7 +62,7 @@ class HomeScreenBehaviorTest {
   }
 
   @Test
-  fun searchHeaderKeepsSearchAndPrimaryFilters() {
+  fun searchHeaderShowsSearchAndCollapsedFiltersEntryPoint() {
     composeRule.setContent {
       MejenguerosTheme {
         HomeScreen(
@@ -78,8 +78,79 @@ class HomeScreenBehaviorTest {
     }
 
     composeRule.onNodeWithText("Buscar cancha o complejo").assertExists()
-    composeRule.onNodeWithText("Provincia").assertExists()
-    composeRule.onNodeWithText("Cantón").assertExists()
+    composeRule.onNodeWithTag("catalog_filters_button").assertExists()
+    composeRule.onNodeWithText("Filtros").assertExists()
+    // Individual filters now live inside the sheet, not the header.
+    composeRule.onNodeWithText("Provincia").assertDoesNotExist()
+    composeRule.onNodeWithText("Cantón").assertDoesNotExist()
+  }
+
+  @Test
+  fun filtersButtonBadgesTheActiveFilterCount() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    selectedProvinceId = "province-1",
+                    selectedMinRating = 4,
+                    availableProvinces =
+                        listOf(
+                            io.github.themonstersp4.mejengueros.presentation.catalog
+                                .CatalogFilterOption(id = "province-1", label = "San José")
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Filtros (2)").assertExists()
+  }
+
+  @Test
+  fun tappingFiltersOpensSheetWithSectionsAndAppliesRating() {
+    var pickedRating: Int? = null
+
+    composeRule.setContent {
+      MejenguerosTheme {
+        HomeScreen(
+            state =
+                CourtCatalogUiState(
+                    isLoading = false,
+                    totalCourts = 8,
+                    availableProvinces =
+                        listOf(
+                            io.github.themonstersp4.mejengueros.presentation.catalog
+                                .CatalogFilterOption(id = "province-1", label = "San José")
+                        ),
+                ),
+            contentPadding = PaddingValues(),
+            onSearchQueryChange = {},
+            onProvinceSelected = {},
+            onCantonSelected = {},
+            onRetryLoad = {},
+            onOpenCourtDetail = {},
+            onMinRatingSelected = { pickedRating = it },
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("catalog_filters_button").performClick()
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithTag("catalog_filters_sheet", useUnmergedTree = true).assertExists()
+    composeRule.onNodeWithText("Calificación").assertExists()
+    composeRule.onNodeWithText("Ver 8 canchas").assertExists()
+
+    composeRule.onNodeWithText("4★+").performClick()
+    composeRule.runOnIdle { kotlin.test.assertEquals(4, pickedRating) }
   }
 
   @Test

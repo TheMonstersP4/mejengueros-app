@@ -148,6 +148,34 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
     const { page, pageSize } = filters.pagination;
     const skip = (page - 1) * pageSize;
 
+    // Rating is an aggregate over reviews, not a court column, so it cannot live
+    // in the Prisma `where`. Resolve the qualifying court ids up front and
+    // constrain the query by id so count and pagination stay consistent. A null
+    // result means "no rating filter"; an empty array means "nothing qualifies".
+    const ratedCourtIds =
+      filters.minRating != null
+        ? await this.loadCourtIdsWithMinRating(filters.minRating)
+        : null;
+
+    const andFilters: Prisma.CourtWhereInput[] = [
+      ...(filters.serviceIds && filters.serviceIds.length > 0
+        ? filters.serviceIds.map((serviceId) => ({
+            OR: [
+              { services: { some: { serviceCatalogId: serviceId } } },
+              {
+                complex: {
+                  services: { some: { serviceCatalogId: serviceId } }
+                }
+              }
+            ]
+          }))
+        : []),
+      ...(filters.courtIds && filters.courtIds.length > 0
+        ? [{ id: { in: filters.courtIds } }]
+        : []),
+      ...(ratedCourtIds != null ? [{ id: { in: ratedCourtIds } }] : [])
+    ];
+
     // Shared filter used by both the count and the page read so the total and
     // the returned items always describe the same result set.
     const where: Prisma.CourtWhereInput = {
@@ -211,7 +239,11 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
               }
             ]
           }
-        : {})
+        : {}),
+      // Service, explicit-id, and rating filters compose as AND clauses. Keeping
+      // each id constraint separate prevents one `id.in` filter from replacing
+      // another when callers combine filters.
+      ...(andFilters.length > 0 ? { AND: andFilters } : {})
     };
 
     const [totalItems, courts] = await Promise.all([
@@ -298,6 +330,22 @@ export class PrismaCourtCatalogRepository implements ICourtCatalogRepository {
     }
 
     return this.fileReadUrl.createReadUrl(objectKey);
+  }
+
+  private async loadCourtIdsWithMinRating(minRating: number): Promise<string[]> {
+    // Round the average to one decimal so the threshold matches the rating shown
+    // on the catalog card (which also rounds to one decimal) instead of failing a
+    // court the user sees as, e.g., "4" whose raw average is 3.96.
+    const rows = await this.prisma.$queryRaw<{ courtId: string }[]>(Prisma.sql`
+      SELECT reservation."courtId" AS "courtId"
+      FROM mejengueros_dev."Review" review
+      INNER JOIN mejengueros_dev."Reservation" reservation
+        ON reservation.id = review."reservationId"
+      GROUP BY reservation."courtId"
+      HAVING ROUND(AVG(review.rating)::numeric, 1) >= ${minRating}
+    `);
+
+    return rows.map((row) => row.courtId);
   }
 
   private async loadRatingsByCourtId(

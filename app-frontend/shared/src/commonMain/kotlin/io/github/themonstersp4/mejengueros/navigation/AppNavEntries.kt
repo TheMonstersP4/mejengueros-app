@@ -25,6 +25,7 @@ import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewMo
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
+import io.github.themonstersp4.mejengueros.presentation.favorites.FavoriteCourtsViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexUiState
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationCardUiModel
@@ -51,6 +52,7 @@ import io.github.themonstersp4.mejengueros.screens.complexes.AddCourtScreenActio
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreen
 import io.github.themonstersp4.mejengueros.screens.complexes.CreateComplexScreenActions
 import io.github.themonstersp4.mejengueros.screens.courtdetail.CourtDetailScreen
+import io.github.themonstersp4.mejengueros.screens.favorites.FavoriteCourtsScreen
 import io.github.themonstersp4.mejengueros.screens.home.HomeScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.ComplexDetailScreen
 import io.github.themonstersp4.mejengueros.screens.mycomplex.MyComplexScreen
@@ -60,6 +62,7 @@ import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReserv
 import io.github.themonstersp4.mejengueros.screens.ownerreservations.OwnerReservationsScreenActions
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreen
 import io.github.themonstersp4.mejengueros.screens.ownerreviews.OwnerReceivedReviewsScreenActions
+import io.github.themonstersp4.mejengueros.screens.profile.PlayerProfileScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreen
 import io.github.themonstersp4.mejengueros.screens.reservation.ReservationScreenActions
 import io.github.themonstersp4.mejengueros.screens.reservations.MyReservationsScreen
@@ -126,6 +129,7 @@ fun EntryProviderScope<NavKey>.appEntries(
     notificationsViewModel: NotificationsViewModel,
     loginActions: LoginNavigationActions,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
 ) {
   entry<LoginRoute> {
     LoginEntry(
@@ -164,7 +168,12 @@ fun EntryProviderScope<NavKey>.appEntries(
     )
   }
   entry<CatalogCourtDetailRoute> { route ->
-    CatalogCourtDetailEntry(route = route, shellActions = shellActions)
+    CatalogCourtDetailEntry(
+        route = route,
+        authViewModel = authViewModel,
+        authenticatedNavigationState = authenticatedNavigationState,
+        shellActions = shellActions,
+    )
   }
   entry<CatalogReservationRoute> { route ->
     CatalogReservationEntry(route = route, shellActions = shellActions)
@@ -182,10 +191,20 @@ fun EntryProviderScope<NavKey>.appEntries(
         reviewViewModel = koinViewModel(),
     )
   }
+  entry<PlayerProfileRoute> {
+    PlayerProfileEntry(authViewModel, authenticatedNavigationState, shellActions)
+  }
+  entry<FavoriteCourtsRoute> {
+    FavoriteCourtsEntry(authViewModel, authenticatedNavigationState, shellActions)
+  }
+  entry<FavoriteCourtDetailRoute> { route ->
+    FavoriteCourtDetailEntry(route, authViewModel, shellActions)
+  }
   entry<MyComplexRoute> {
     MyComplexEntry(
         authenticatedNavigationState = authenticatedNavigationState,
         shellActions = shellActions,
+        currentUserId = currentUserId,
     )
   }
   entry<ComplexDetailRoute> { route ->
@@ -193,6 +212,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         route = route,
         authenticatedNavigationState = authenticatedNavigationState,
         shellActions = shellActions,
+        currentUserId = currentUserId,
     )
   }
   entry<AddCourtRoute> { route -> AddCourtEntry(route = route, shellActions = shellActions) }
@@ -205,7 +225,9 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CourtAvailabilityRoute> { route ->
     CourtAvailabilityEntry(route = route, shellActions = shellActions)
   }
-  entry<OwnerReceivedReviewsRoute> { OwnerReceivedReviewsEntry(shellActions = shellActions) }
+  entry<OwnerReceivedReviewsRoute> {
+    OwnerReceivedReviewsEntry(shellActions = shellActions, currentUserId = currentUserId)
+  }
 }
 
 @Composable
@@ -334,9 +356,158 @@ private fun SearchEntry(
       onSearchQueryChange = courtCatalogViewModel::updateSearchQuery,
       onProvinceSelected = courtCatalogViewModel::selectProvince,
       onCantonSelected = courtCatalogViewModel::selectCanton,
+      onServiceToggled = courtCatalogViewModel::toggleService,
+      onServicesCleared = courtCatalogViewModel::clearServices,
+      onMinRatingSelected = courtCatalogViewModel::selectMinRating,
+      onClearAllFilters = courtCatalogViewModel::clearAllFilters,
       onRetryLoad = courtCatalogViewModel::retryLoad,
       onLoadNextPage = courtCatalogViewModel::loadNextPage,
       onRetryNextPage = courtCatalogViewModel::retryNextPage,
+  )
+}
+
+@Composable
+private fun PlayerProfileEntry(
+    authViewModel: AuthViewModel,
+    authenticatedNavigationState: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
+  val authState by authViewModel.uiState.collectAsState()
+  PlayerProfileEntryContent(
+      displayName = authState.displayName,
+      email = authState.email,
+      shellActions = shellActions,
+      onFavoriteCourtsClick = authenticatedNavigationState::openFavoriteCourts,
+  )
+}
+
+@Composable
+internal fun PlayerProfileEntryContent(
+    displayName: String?,
+    email: String,
+    shellActions: AuthenticatedShellActions,
+    onFavoriteCourtsClick: () -> Unit = {},
+) {
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Profile,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
+      chrome = AuthenticatedScaffoldChrome(title = "Mi perfil"),
+  ) { contentPadding ->
+    PlayerProfileScreen(
+        displayName = displayName,
+        email = email,
+        contentPadding = contentPadding,
+        onFavoriteCourtsClick = onFavoriteCourtsClick,
+    )
+  }
+}
+
+@Composable
+private fun FavoriteCourtsEntry(
+    authViewModel: AuthViewModel,
+    navigation: AuthenticatedNavigationState,
+    shellActions: AuthenticatedShellActions,
+) {
+  val authState by authViewModel.uiState.collectAsState()
+  val userId = checkNotNull(authState.userId)
+  val viewModel =
+      koinViewModel<FavoriteCourtsViewModel>(
+          key = "favorite-courts-$userId",
+          parameters = { parametersOf(userId) },
+      )
+  val state by viewModel.uiState.collectAsState()
+  AuthenticatedScaffold(
+      selectedRoute = AuthenticatedTopLevelRoute.Profile,
+      onSearchSelected = shellActions.selectSearch,
+      onReservationsSelected = shellActions.selectReservations,
+      onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
+      onMyComplexSelected = shellActions.selectMyComplex,
+      onSignOut = shellActions.signOut,
+      isOwner = shellActions.isOwner,
+      viewingAsPlayer = shellActions.viewingAsPlayer,
+      onSwitchToPlayerView = shellActions.switchToPlayerView,
+      onSwitchToOwnerView = shellActions.switchToOwnerView,
+      notificationUnreadCount = shellActions.notificationUnreadCount,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
+      chrome =
+          AuthenticatedScaffoldChrome(
+              title = "Mis canchas favoritas",
+              onNavigateBack = navigation::closeCurrentDetail,
+              showBottomBar = false,
+          ),
+  ) { padding ->
+    FavoriteCourtsScreen(
+        state,
+        padding,
+        onOpenCourt = { court ->
+          navigation.openFavoriteCourtDetail(
+              FavoriteCourtDetailRoute(
+                  court.id,
+                  court.complexId,
+                  court.complexName,
+                  court.courtName,
+                  court.provinceName,
+                  court.cantonName,
+                  court.latitude,
+                  court.longitude,
+                  court.services,
+                  court.ratingAverage,
+                  court.ratingCount,
+                  court.imageUrl,
+              )
+          )
+        },
+        onRemoveCourt = viewModel::remove,
+        onRetry = viewModel::retry,
+        onExploreCourts = shellActions.selectSearch,
+    )
+  }
+}
+
+@Composable
+private fun FavoriteCourtDetailEntry(
+    route: FavoriteCourtDetailRoute,
+    authViewModel: AuthViewModel,
+    shellActions: AuthenticatedShellActions,
+) {
+  val authState by authViewModel.uiState.collectAsState()
+  val userId = checkNotNull(authState.userId)
+  val viewModel =
+      koinViewModel<CourtDetailViewModel>(
+          key = courtDetailViewModelKey(userId, route.courtId),
+          parameters = { parametersOf(userId, route.courtId) },
+      )
+  CatalogCourtDetailEntryContent(
+      route =
+          CatalogCourtDetailRoute(
+              route.courtId,
+              route.complexId,
+              route.complexName,
+              route.courtName,
+              route.provinceName,
+              route.cantonName,
+              route.latitude,
+              route.longitude,
+              route.services,
+              route.ratingAverage,
+              route.ratingCount,
+              route.imageUrl,
+          ),
+      viewModel = viewModel,
+      shellActions = shellActions,
+      showBottomBar = false,
   )
 }
 
@@ -348,6 +519,10 @@ internal fun SearchCatalogEntryContent(
     onProvinceSelected: (String?) -> Unit,
     onCantonSelected: (String?) -> Unit,
     onRetryLoad: () -> Unit,
+    onServiceToggled: (String) -> Unit = {},
+    onServicesCleared: () -> Unit = {},
+    onMinRatingSelected: (Int?) -> Unit = {},
+    onClearAllFilters: () -> Unit = {},
     onLoadNextPage: () -> Unit = {},
     onRetryNextPage: () -> Unit = {},
 ) {
@@ -356,6 +531,7 @@ internal fun SearchCatalogEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -379,6 +555,10 @@ internal fun SearchCatalogEntryContent(
         onSearchQueryChange = onSearchQueryChange,
         onProvinceSelected = onProvinceSelected,
         onCantonSelected = onCantonSelected,
+        onServiceToggled = onServiceToggled,
+        onServicesCleared = onServicesCleared,
+        onMinRatingSelected = onMinRatingSelected,
+        onClearAllFilters = onClearAllFilters,
         onRetryLoad = onRetryLoad,
         onLoadNextPage = onLoadNextPage,
         onRetryNextPage = onRetryNextPage,
@@ -408,13 +588,22 @@ internal fun SearchCatalogEntryContent(
 @Composable
 private fun CatalogCourtDetailEntry(
     route: CatalogCourtDetailRoute,
+    authViewModel: AuthViewModel,
+    authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
 ) {
+  val authState by authViewModel.uiState.collectAsState()
+  val userId = checkNotNull(authState.userId) { "Authenticated court detail requires a user ID." }
   val viewModel =
       koinViewModel<CourtDetailViewModel>(
-          key = "catalog-court-detail-${route.courtId}",
-          parameters = { parametersOf(route.courtId) },
+          key = courtDetailViewModelKey(userId, route.courtId),
+          parameters = { parametersOf(userId, route.courtId) },
       )
+  CourtDetailReloadEffect(
+      catalogCourtDetailReloadRequestKey =
+          authenticatedNavigationState.catalogCourtDetailReloadRequestKey,
+      onReloadRequested = viewModel::retryLoad,
+  )
   CatalogCourtDetailEntryContent(route = route, viewModel = viewModel, shellActions = shellActions)
 }
 
@@ -423,6 +612,7 @@ internal fun CatalogCourtDetailEntryContent(
     route: CatalogCourtDetailRoute,
     viewModel: CourtDetailViewModel,
     shellActions: AuthenticatedShellActions,
+    showBottomBar: Boolean = true,
 ) {
   val state by viewModel.uiState.collectAsState()
 
@@ -431,6 +621,7 @@ internal fun CatalogCourtDetailEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -443,6 +634,7 @@ internal fun CatalogCourtDetailEntryContent(
           AuthenticatedScaffoldChrome(
               title = "Detalle de cancha",
               onNavigateBack = shellActions.closeCurrentDetail,
+              showBottomBar = showBottomBar,
           ),
   ) { contentPadding ->
     CourtDetailScreen(
@@ -459,6 +651,8 @@ internal fun CatalogCourtDetailEntryContent(
         state = state,
         contentPadding = contentPadding,
         onRetryReviews = viewModel::retryLoadReviews,
+        onFavoriteToggle = viewModel::toggleFavorite,
+        onRetryFavorite = viewModel::retryLoadFavorite,
         onReserve = {
           shellActions.openCatalogReservation(
               CatalogReservationRoute(
@@ -475,6 +669,9 @@ internal fun CatalogCourtDetailEntryContent(
     )
   }
 }
+
+internal fun courtDetailViewModelKey(userId: String, courtId: String): String =
+    "catalog-court-detail:${userId.length}:$userId:${courtId.length}:$courtId"
 
 @Composable
 internal fun CatalogReservationEntry(
@@ -498,6 +695,7 @@ internal fun CatalogReservationEntry(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -568,6 +766,7 @@ internal fun OwnerReservationsEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -575,6 +774,7 @@ internal fun OwnerReservationsEntryContent(
       onSwitchToPlayerView = shellActions.switchToPlayerView,
       onSwitchToOwnerView = shellActions.switchToOwnerView,
       notificationUnreadCount = shellActions.notificationUnreadCount,
+      onOwnerReceivedReviewsSelected = shellActions.openOwnerReceivedReviews,
       chrome = AuthenticatedScaffoldChrome(title = "Reservas de mis canchas"),
   ) { contentPadding ->
     OwnerReservationsScreen(
@@ -640,6 +840,7 @@ internal fun ReservationsEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -729,7 +930,8 @@ private enum class ReservationReviewEntryMode {
 }
 
 private fun ReviewUiState.toLeaveReviewUiState(
-    currentMode: ReservationReviewEntryMode
+    currentMode: ReservationReviewEntryMode,
+    successReturnLabel: String = "VOLVER A MIS RESERVAS",
 ): LeaveReviewUiState? {
   val reservation = reviewableReservation ?: return null
 
@@ -747,6 +949,7 @@ private fun ReviewUiState.toLeaveReviewUiState(
           } else {
             LeaveReviewUiMode.Form
           },
+      successReturnLabel = successReturnLabel,
   )
 }
 
@@ -786,7 +989,11 @@ private fun NotificationsEntryContent(
     mutableStateOf(ReservationReviewEntryMode.Launcher.name)
   }
   val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
-  val leaveReviewState = reviewState.toLeaveReviewUiState(currentMode)
+  val leaveReviewState =
+      reviewState.toLeaveReviewUiState(
+          currentMode,
+          successReturnLabel = "VOLVER A NOTIFICACIONES",
+      )
 
   LaunchedEffect(reviewState.submittedReview?.id) {
     if (reviewState.submittedReview != null) {
@@ -810,6 +1017,7 @@ private fun NotificationsEntryContent(
       onSearchSelected = shellActions.selectSearch,
       onReservationsSelected = shellActions.selectReservations,
       onNotificationsSelected = shellActions.selectNotifications,
+      onProfileSelected = shellActions.selectProfile,
       onMyComplexSelected = shellActions.selectMyComplex,
       onSignOut = shellActions.signOut,
       isOwner = shellActions.isOwner,
@@ -846,8 +1054,12 @@ private fun NotificationsEntryContent(
                       onRetryLoad = notificationsViewModel::refresh,
                       onNotificationSelected = { notification ->
                         notificationsViewModel.markRead(notification.id)
-                        reviewViewModel.startReview(notification.toReviewableReservation())
-                        reviewEntryMode = ReservationReviewEntryMode.Form.name
+                        if (notification.isReviewed && notification.courtId.isNotBlank()) {
+                          shellActions.openCatalogCourtDetail(notification.toCourtDetailRoute())
+                        } else if (!notification.isReviewed) {
+                          reviewViewModel.startReview(notification.toReviewableReservation())
+                          reviewEntryMode = ReservationReviewEntryMode.Form.name
+                        }
                       },
                   ),
           )
@@ -887,17 +1099,26 @@ private fun UserNotificationUiModel.toReviewableReservation():
         imageUrl = null,
     )
 
+// Opens the court detail so the player sees the review already posted for this court.
+// The court detail loads its own slots, reviews and rating by courtId, so the notification
+// only needs to supply the identifiers the route requires.
+private fun UserNotificationUiModel.toCourtDetailRoute(): CatalogCourtDetailRoute =
+    CatalogCourtDetailRoute(
+        courtId = courtId,
+        complexId = complexId,
+        complexName = complexName,
+        courtName = courtName,
+    )
+
 @Composable
 private fun MyComplexEntry(
     authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
 ) {
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
-  MyComplexInitialRefreshEffect(
-      state = state,
-      onInitialLoadRequested = myComplexViewModel::refresh,
-  )
+  LaunchedEffect(currentUserId) { myComplexViewModel.onSessionChanged(currentUserId) }
   MyComplexHubReloadEffect(
       reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
       onReloadRequested = myComplexViewModel::refresh,
@@ -922,6 +1143,7 @@ internal fun MyComplexRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.selectMyComplex,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -971,6 +1193,7 @@ private fun ComplexDetailEntry(
     route: ComplexDetailRoute,
     authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
 ) {
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
@@ -985,7 +1208,7 @@ private fun ComplexDetailEntry(
   LaunchedEffect(courtImagePicker.isAvailable) {
     myComplexViewModel.updateCourtImagePickerAvailability(courtImagePicker.isAvailable)
   }
-  MyComplexInitialRefreshEffect(state = state, onInitialLoadRequested = myComplexViewModel::refresh)
+  LaunchedEffect(currentUserId) { myComplexViewModel.onSessionChanged(currentUserId) }
   MyComplexHubReloadEffect(
       reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
       onReloadRequested = myComplexViewModel::refresh,
@@ -1022,6 +1245,7 @@ internal fun ComplexDetailRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1158,6 +1382,7 @@ internal fun AddCourtEntryContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1185,18 +1410,6 @@ internal fun AddCourtEntryContent(
                   onSubmit = viewModel::submit,
               ),
       )
-    }
-  }
-}
-
-@Composable
-internal fun MyComplexInitialRefreshEffect(
-    state: MyComplexUiState,
-    onInitialLoadRequested: () -> Unit,
-) {
-  LaunchedEffect(state.isLoading, state.complexes, state.errorMessage) {
-    if (state.isLoading && state.complexes.isEmpty() && state.errorMessage == null) {
-      onInitialLoadRequested()
     }
   }
 }
@@ -1232,6 +1445,18 @@ internal fun ReservationsReloadEffect(
 ) {
   LaunchedEffect(reservationsReloadRequestKey) {
     if (reservationsReloadRequestKey > 0) {
+      onReloadRequested()
+    }
+  }
+}
+
+@Composable
+internal fun CourtDetailReloadEffect(
+    catalogCourtDetailReloadRequestKey: Int,
+    onReloadRequested: () -> Unit,
+) {
+  LaunchedEffect(catalogCourtDetailReloadRequestKey) {
+    if (catalogCourtDetailReloadRequestKey > 0) {
       onReloadRequested()
     }
   }
@@ -1365,6 +1590,7 @@ internal fun CreateComplexRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1445,6 +1671,7 @@ internal fun CourtAvailabilityRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,
@@ -1583,11 +1810,15 @@ private fun LocationPickerOverlayHost(
 }
 
 @Composable
-private fun OwnerReceivedReviewsEntry(shellActions: AuthenticatedShellActions) {
+private fun OwnerReceivedReviewsEntry(
+    shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
+) {
   val viewModel = koinViewModel<OwnerReceivedReviewsViewModel>()
   OwnerReceivedReviewsEntryContent(
       viewModel = viewModel,
       shellActions = shellActions,
+      currentUserId = currentUserId,
   )
 }
 
@@ -1595,8 +1826,14 @@ private fun OwnerReceivedReviewsEntry(shellActions: AuthenticatedShellActions) {
 internal fun OwnerReceivedReviewsEntryContent(
     viewModel: OwnerReceivedReviewsViewModel,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String? = null,
 ) {
   val state by viewModel.uiState.collectAsState()
+  // The NavDisplay retains this ViewModel across navigations (no ViewModelStore decorator), so
+  // re-entering the screen reuses the same instance and its cached page. Drive reloads by session:
+  // same user re-entering refreshes to reflect new reviews, a different user signing in fully
+  // resets the court filter and pages so a previous owner's data never leaks in.
+  LaunchedEffect(currentUserId) { viewModel.onSessionChanged(currentUserId) }
   OwnerReceivedReviewsRouteContent(
       state = state,
       shellActions = shellActions,
@@ -1625,6 +1862,7 @@ internal fun OwnerReceivedReviewsRouteContent(
         onSearchSelected = shellActions.selectSearch,
         onReservationsSelected = shellActions.selectReservations,
         onNotificationsSelected = shellActions.selectNotifications,
+        onProfileSelected = shellActions.selectProfile,
         onMyComplexSelected = shellActions.returnToMyComplexRoot,
         onSignOut = shellActions.signOut,
         isOwner = shellActions.isOwner,

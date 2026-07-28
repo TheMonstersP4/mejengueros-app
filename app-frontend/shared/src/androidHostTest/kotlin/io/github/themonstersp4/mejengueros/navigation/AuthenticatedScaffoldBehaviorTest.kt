@@ -178,7 +178,9 @@ class AuthenticatedScaffoldBehaviorTest {
   }
 
   @Test
-  fun playerShellShowsExactlyThreeBottomNavTabs() {
+  fun playerShellShowsFourBottomNavTabsIncludingProfile() {
+    var profileSelections = 0
+
     composeRule.setContent {
       MejenguerosTheme {
         AuthenticatedScaffold(
@@ -186,6 +188,7 @@ class AuthenticatedScaffoldBehaviorTest {
             onSearchSelected = {},
             onReservationsSelected = {},
             onNotificationsSelected = {},
+            onProfileSelected = { profileSelections += 1 },
             onMyComplexSelected = {},
             onSignOut = {},
             isOwner = false,
@@ -198,8 +201,10 @@ class AuthenticatedScaffoldBehaviorTest {
     composeRule.onNodeWithText("Buscar").assertExists()
     composeRule.onNodeWithText("Mis reservas").assertExists()
     composeRule.onNodeWithText("Notificaciones").assertExists()
+    composeRule.onNodeWithText("Mi perfil").assertExists().performClick()
     composeRule.onNodeWithText("Mi complejo").assertDoesNotExist()
     composeRule.onNodeWithText("Reseñas").assertDoesNotExist()
+    composeRule.runOnIdle { assertEquals(1, profileSelections) }
   }
 
   @Test

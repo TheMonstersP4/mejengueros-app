@@ -157,6 +157,49 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun selectingProfileShowsProfileRootAndPreservesOtherTopLevelStacks() {
+    val state = testNavigationState()
+    state.openCatalogCourtDetail(sampleCatalogDetailRoute())
+
+    state.selectProfile()
+
+    assertEquals(AuthenticatedTopLevelRoute.Profile, state.selectedRoute)
+    assertEquals(listOf(PlayerProfileRoute), state.currentBackStack.toList())
+
+    state.selectSearch()
+
+    assertEquals(
+        listOf(SearchRoute, sampleCatalogDetailRoute()),
+        state.currentBackStack.toList(),
+    )
+  }
+
+  @Test
+  fun profileFavoritesDetailBackStackPreservesOtherTopLevelStacks() {
+    val state = testNavigationState()
+    state.openCatalogCourtDetail(sampleCatalogDetailRoute())
+    state.selectProfile()
+    state.openFavoriteCourts()
+    state.openFavoriteCourtDetail(
+        FavoriteCourtDetailRoute("court-id", "complex-id", "Mejengas CR", "Cancha 1")
+    )
+    assertEquals(
+        listOf(
+            PlayerProfileRoute,
+            FavoriteCourtsRoute,
+            FavoriteCourtDetailRoute("court-id", "complex-id", "Mejengas CR", "Cancha 1"),
+        ),
+        state.currentBackStack.toList(),
+    )
+    state.closeCurrentDetail()
+    assertEquals(listOf(PlayerProfileRoute, FavoriteCourtsRoute), state.currentBackStack.toList())
+    state.closeCurrentDetail()
+    assertEquals(listOf(PlayerProfileRoute), state.currentBackStack.toList())
+    state.selectSearch()
+    assertEquals(listOf(SearchRoute, sampleCatalogDetailRoute()), state.currentBackStack.toList())
+  }
+
+  @Test
   fun openCreateComplexKeepsMyComplexSelectedAndAppendsDetailRoute() {
     val state = testNavigationState()
     state.selectMyComplex()
@@ -789,6 +832,26 @@ class AuthenticatedNavigationStateTest {
   }
 
   @Test
+  fun notifyReservationCreatedBumpsCourtDetailReloadKey() {
+    val state = testNavigationState()
+
+    val keyBefore = state.catalogCourtDetailReloadRequestKey
+    state.notifyReservationCreated()
+
+    assertEquals(keyBefore + 1, state.catalogCourtDetailReloadRequestKey)
+  }
+
+  @Test
+  fun resetClearsCourtDetailReloadKey() {
+    val state = testNavigationState()
+
+    state.notifyReservationCreated() // bumps key
+    state.reset()
+
+    assertEquals(0, state.catalogCourtDetailReloadRequestKey)
+  }
+
+  @Test
   fun coordinatorHydratesOwnerShellForStoredOwnerPreference() = runTest {
     val state = testNavigationState().apply { openCatalogCourtDetail(sampleCatalogDetailRoute()) }
     val storage =
@@ -960,10 +1023,12 @@ class AuthenticatedNavigationStateTest {
           searchBackStack = NavBackStack<NavKey>(SearchRoute),
           reservationsBackStack = NavBackStack<NavKey>(ReservationsRoute),
           notificationsBackStack = NavBackStack<NavKey>(NotificationsRoute),
+          profileBackStack = NavBackStack<NavKey>(PlayerProfileRoute),
           myComplexBackStack = NavBackStack<NavKey>(MyComplexRoute),
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
           catalogReloadRequestKeyState = mutableStateOf(0),
+          catalogCourtDetailReloadRequestKeyState = mutableStateOf(0),
           reservationsReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(true),
           hydratedOwnerPreferenceUserIdState = mutableStateOf(null),

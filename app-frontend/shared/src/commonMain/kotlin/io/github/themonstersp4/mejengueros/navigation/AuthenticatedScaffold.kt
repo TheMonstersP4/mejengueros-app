@@ -50,6 +50,7 @@ fun AuthenticatedScaffold(
     onSearchSelected: () -> Unit,
     onReservationsSelected: () -> Unit,
     onNotificationsSelected: () -> Unit,
+    onProfileSelected: () -> Unit = {},
     onMyComplexSelected: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -253,6 +254,17 @@ fun AuthenticatedScaffold(
                                 }
                               },
                           ),
+                          MejenguerosBottomNavigationItem(
+                              label = "Mi perfil",
+                              selected = selectedRoute == AuthenticatedTopLevelRoute.Profile,
+                              onClick = onProfileSelected,
+                              icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Person,
+                                    contentDescription = "Mi perfil",
+                                )
+                              },
+                          ),
                       )
               )
             }
@@ -292,6 +304,7 @@ enum class AuthenticatedTopLevelRoute {
   Search,
   Reservations,
   Notifications,
+  Profile,
   MyComplex,
 }
 

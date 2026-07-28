@@ -34,6 +34,9 @@ export interface IListPublicCourtCatalogRequest {
   q?: string;
   provinceId?: string;
   cantonId?: string;
+  serviceIds?: string[];
+  courtIds?: string[];
+  minRating?: number;
   page: number;
   pageSize: number;
 }
@@ -59,6 +62,9 @@ export class ListPublicCourtCatalogUseCase {
       q: request.q,
       provinceId: request.provinceId,
       cantonId: request.cantonId,
+      serviceIds: request.serviceIds,
+      courtIds: request.courtIds,
+      minRating: request.minRating,
       pagination: {
         page: request.page,
         pageSize: request.pageSize

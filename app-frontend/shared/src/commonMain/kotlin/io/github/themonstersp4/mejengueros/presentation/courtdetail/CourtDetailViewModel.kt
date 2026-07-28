@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.domain.model.ReservationDayAvailability
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtFavoriteRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import io.github.themonstersp4.mejengueros.domain.time.parseUtcCalendarDate
 import kotlinx.coroutines.CancellationException
@@ -15,9 +16,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class CourtDetailViewModel(
+    private val userId: String,
     private val courtId: String,
     private val repository: ICourtDetailRepository,
     private val reviewsRepository: ICourtReviewsRepository,
+    private val favoriteRepository: ICourtFavoriteRepository,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
   private val scope = coroutineScope ?: viewModelScope
@@ -27,6 +30,7 @@ class CourtDetailViewModel(
   init {
     loadSlots()
     loadReviews()
+    loadFavorite()
   }
 
   fun retryLoad() {
@@ -35,6 +39,76 @@ class CourtDetailViewModel(
 
   fun retryLoadReviews() {
     loadReviews()
+  }
+
+  fun retryLoadFavorite() {
+    if (_uiState.value.favoriteStatus == CourtFavoriteStatus.Updating) return
+    loadFavorite()
+  }
+
+  fun toggleFavorite() {
+    val state = _uiState.value
+    val confirmedFavorite = state.isFavorite ?: return
+    if (state.favoriteStatus == CourtFavoriteStatus.Updating) return
+
+    _uiState.update {
+      it.copy(
+          favoriteStatus = CourtFavoriteStatus.Updating,
+          favoriteErrorMessage = null,
+      )
+    }
+    scope.launch {
+      try {
+        val updatedFavorite = !confirmedFavorite
+        favoriteRepository.setFavorite(userId, courtId, updatedFavorite)
+        _uiState.update {
+          it.copy(
+              favoriteStatus = CourtFavoriteStatus.Confirmed,
+              isFavorite = updatedFavorite,
+              favoriteErrorMessage = null,
+          )
+        }
+      } catch (error: Throwable) {
+        if (error is CancellationException) throw error
+        _uiState.update {
+          it.copy(
+              favoriteStatus = CourtFavoriteStatus.Error,
+              isFavorite = confirmedFavorite,
+              favoriteErrorMessage = "No pudimos actualizar favoritos. Intentá nuevamente.",
+          )
+        }
+      }
+    }
+  }
+
+  private fun loadFavorite() {
+    scope.launch {
+      _uiState.update {
+        it.copy(
+            favoriteStatus = CourtFavoriteStatus.Loading,
+            favoriteErrorMessage = null,
+        )
+      }
+      try {
+        val isFavorite = favoriteRepository.isFavorite(userId, courtId)
+        _uiState.update {
+          it.copy(
+              favoriteStatus = CourtFavoriteStatus.Confirmed,
+              isFavorite = isFavorite,
+              favoriteErrorMessage = null,
+          )
+        }
+      } catch (error: Throwable) {
+        if (error is CancellationException) throw error
+        _uiState.update {
+          it.copy(
+              favoriteStatus = CourtFavoriteStatus.Error,
+              isFavorite = null,
+              favoriteErrorMessage = "No pudimos cargar favoritos. Intentá nuevamente.",
+          )
+        }
+      }
+    }
   }
 
   private fun loadSlots() {

@@ -210,9 +210,12 @@ private fun NotificationCard(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
       Text(
-          text = "Toca para dejar la resena",
+          text =
+              if (notification.isReviewed) "Ver tu resena en la cancha"
+              else "Toca para dejar la resena",
           style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
           color = MaterialTheme.colorScheme.primary,
+          modifier = Modifier.testTag("notification_cta_${notification.id}"),
       )
     }
   }

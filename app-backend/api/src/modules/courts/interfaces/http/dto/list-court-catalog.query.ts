@@ -1,6 +1,17 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min
+} from 'class-validator';
 import {
   PUBLIC_COURT_CATALOG_DEFAULT_PAGE_SIZE,
   PUBLIC_COURT_CATALOG_MAX_PAGE,
@@ -32,6 +43,54 @@ export class ListCourtCatalogQuery {
   @IsOptional()
   @IsUUID()
   cantonId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional service catalog identifier filters. Narrows the catalog to courts offering ALL of the given services (directly or through their complex). Repeat the query param to pass several, e.g. serviceIds=a&serviceIds=b.',
+    format: 'uuid',
+    isArray: true
+  })
+  @IsOptional()
+  // A single `serviceIds=a` arrives as a string; normalize both shapes to an array.
+  @Transform(({ value }) =>
+    value === undefined || value === null || Array.isArray(value) ? value : [value]
+  )
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  serviceIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Optional court identifier filters. Narrows the public catalog to the requested visible courts. Repeat the query param to pass several, e.g. courtIds=a&courtIds=b.',
+    format: 'uuid',
+    isArray: true,
+    maxItems: 20
+  })
+  @IsOptional()
+  // A single `courtIds=a` arrives as a string; normalize both shapes to an array.
+  @Transform(({ value }) =>
+    value === undefined || value === null || Array.isArray(value) ? value : [value]
+  )
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  courtIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Optional minimum average rating filter (1-5). Narrows the catalog to courts whose average rating rounds to at least this value; courts without reviews are excluded.',
+    example: 4,
+    minimum: 1,
+    maximum: 5
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  minRating?: number;
 
   @ApiPropertyOptional({
     description:

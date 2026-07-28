@@ -410,6 +410,41 @@ class OwnerReceivedReviewsViewModelTest {
   }
 
   @Test
+  fun refreshReloadsFirstPageAfterAPreviouslyEmptyLoad() = runTest {
+    // Reproduces the bug: the NavDisplay retains this ViewModel, so an owner whose first
+    // load returned empty keeps seeing an empty list on re-entry. The mount effect calls
+    // refresh(), which must reload the first page and surface reviews that now exist.
+    val reviewRepository =
+        RecordingReviewRepository(
+            firstPageResponse = samplePage(items = 0, page = 1, totalPages = 0, courtId = null),
+        )
+    val complexRepository = FakeComplexRepository(hub = MyComplexHub(complexes = emptyList()))
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel =
+        OwnerReceivedReviewsViewModel(
+            reviewRepository = reviewRepository,
+            complexRepository = complexRepository,
+            errorReporter = FakeErrorReporter(),
+            coroutineScope = scope,
+        )
+
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.items.isEmpty())
+    assertEquals(1, reviewRepository.firstPageCalls.size)
+
+    reviewRepository.firstPageResponse =
+        samplePage(items = 3, page = 1, totalPages = 1, courtId = null)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    assertEquals(3, viewModel.uiState.value.items.size)
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertNull(viewModel.uiState.value.loadErrorMessage)
+    assertEquals(2, reviewRepository.firstPageCalls.size)
+  }
+
+  @Test
   fun complexRepositoryFailureFallsBackToFirstPageWithoutChips() = runTest {
     val reviewRepository = RecordingReviewRepository()
     val complexRepository = FakeComplexRepository(failure = IllegalStateException("hub down"))
@@ -457,6 +492,75 @@ class OwnerReceivedReviewsViewModelTest {
     )
     assertEquals(1, errorReporter.events.size)
     assertEquals("owner_received_reviews_load_failed", errorReporter.events.single().name)
+  }
+
+  @Test
+  fun onSessionChangedResetsCourtFilterAndReloadsWhenUserSignsIn() = runTest {
+    val reviewRepository = RecordingReviewRepository()
+    val complexRepository =
+        FakeComplexRepository(
+            hub =
+                MyComplexHub(
+                    complexes =
+                        listOf(
+                            complex(
+                                id = "complex-a",
+                                name = "North",
+                                courts = listOf(court("court-1", "Court 1")),
+                            )
+                        )
+                )
+        )
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel =
+        OwnerReceivedReviewsViewModel(
+            reviewRepository = reviewRepository,
+            complexRepository = complexRepository,
+            errorReporter = FakeErrorReporter(),
+            coroutineScope = scope,
+        )
+
+    advanceUntilIdle()
+    // First mount for the initial session: init{} already loaded, so no extra fetch.
+    viewModel.onSessionChanged("user-1")
+    advanceUntilIdle()
+    viewModel.selectCourt("court-1")
+    advanceUntilIdle()
+    assertEquals("court-1", viewModel.uiState.value.selectedCourtId)
+    assertEquals(2, reviewRepository.firstPageCalls.size)
+
+    // A different user signs in: the previous owner's filter and reviews must be discarded.
+    viewModel.onSessionChanged("user-2")
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.value.selectedCourtId)
+    assertEquals(3, reviewRepository.firstPageCalls.size)
+    assertNull(reviewRepository.firstPageCalls.last().first)
+  }
+
+  @Test
+  fun onSessionChangedRefreshesWhenSameUserReentersScreen() = runTest {
+    val reviewRepository = RecordingReviewRepository()
+    val complexRepository = FakeComplexRepository(hub = MyComplexHub(complexes = emptyList()))
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel =
+        OwnerReceivedReviewsViewModel(
+            reviewRepository = reviewRepository,
+            complexRepository = complexRepository,
+            errorReporter = FakeErrorReporter(),
+            coroutineScope = scope,
+        )
+
+    advanceUntilIdle()
+    viewModel.onSessionChanged("user-1")
+    advanceUntilIdle()
+    assertEquals(1, reviewRepository.firstPageCalls.size)
+
+    // Same user navigates back to the screen: refresh to reflect newly received reviews.
+    viewModel.onSessionChanged("user-1")
+    advanceUntilIdle()
+
+    assertEquals(2, reviewRepository.firstPageCalls.size)
   }
 
   private fun complex(
@@ -521,7 +625,7 @@ class OwnerReceivedReviewsViewModelTest {
 }
 
 private class RecordingReviewRepository(
-    private val firstPageResponse: ReceivedReviewPage? =
+    var firstPageResponse: ReceivedReviewPage? =
         OwnerReceivedReviewsViewModelTestHelper.defaultPage(),
     private val nextPageResponse: ReceivedReviewPage? =
         OwnerReceivedReviewsViewModelTestHelper.defaultPage(),

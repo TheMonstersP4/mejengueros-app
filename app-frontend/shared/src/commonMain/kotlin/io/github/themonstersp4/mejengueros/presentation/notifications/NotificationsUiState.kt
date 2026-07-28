@@ -17,13 +17,18 @@ data class UserNotificationUiModel(
     val title: String,
     val message: String,
     val reservationId: String,
+    val courtId: String,
+    val complexId: String,
     val complexName: String,
     val courtName: String,
     val startsAt: String,
     val endsAt: String,
     val createdAt: String,
     val isRead: Boolean,
-)
+    val reviewId: String? = null,
+) {
+  val isReviewed: Boolean = reviewId != null
+}
 
 fun UserNotification.toUiModel(): UserNotificationUiModel =
     UserNotificationUiModel(
@@ -31,10 +36,13 @@ fun UserNotification.toUiModel(): UserNotificationUiModel =
         title = title,
         message = message,
         reservationId = reservation.id,
+        courtId = reservation.courtId,
+        complexId = reservation.complexId,
         complexName = reservation.complexName,
         courtName = reservation.courtName,
         startsAt = reservation.startsAt,
         endsAt = reservation.endsAt,
         createdAt = createdAt,
         isRead = isRead,
+        reviewId = reviewId,
     )

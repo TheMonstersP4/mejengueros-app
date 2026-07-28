@@ -42,6 +42,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtDetailRepository
+import io.github.themonstersp4.mejengueros.domain.repository.ICourtFavoriteRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
@@ -153,9 +154,11 @@ class SearchCatalogNavigationIntegrationTest {
         )
     val detailViewModel =
         CourtDetailViewModel(
+            userId = "user-id",
             courtId = "court-id",
             repository = FakeCourtDetailRepository(),
             reviewsRepository = FakeCourtReviewsRepository(),
+            favoriteRepository = FakeCourtFavoriteRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
     startKoin {
@@ -268,9 +271,11 @@ class SearchCatalogNavigationIntegrationTest {
         )
     val detailViewModel =
         CourtDetailViewModel(
+            userId = "user-id",
             courtId = "court-id",
             repository = FakeCourtDetailRepository(),
             reviewsRepository = FakeCourtReviewsRepository(),
+            favoriteRepository = FakeCourtFavoriteRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
     startKoin {
@@ -390,9 +395,11 @@ class SearchCatalogNavigationIntegrationTest {
         )
     val detailViewModel =
         CourtDetailViewModel(
+            userId = "user-id",
             courtId = "court-id",
             repository = FakeCourtDetailRepository(),
             reviewsRepository = FakeCourtReviewsRepository(),
+            favoriteRepository = FakeCourtFavoriteRepository(),
             coroutineScope = TestScope(UnconfinedTestDispatcher(testScheduler)),
         )
     startKoin {
@@ -744,6 +751,7 @@ class SearchCatalogNavigationIntegrationTest {
           ownerCourtAvailabilityEntrypointState = mutableStateOf(null),
           myComplexHubReloadRequestKeyState = mutableStateOf(0),
           catalogReloadRequestKeyState = mutableStateOf(0),
+          catalogCourtDetailReloadRequestKeyState = mutableStateOf(0),
           reservationsReloadRequestKeyState = mutableStateOf(0),
           viewingAsPlayerState = mutableStateOf(false),
           hydratedOwnerPreferenceUserIdState = mutableStateOf(null),
@@ -925,6 +933,12 @@ private fun localCourtImage(fileName: String) =
 
 private class FakeCourtReviewsRepository : ICourtReviewsRepository {
   override suspend fun getCourtReviews(courtId: String) = emptyList<CourtReview>()
+}
+
+private class FakeCourtFavoriteRepository : ICourtFavoriteRepository {
+  override suspend fun isFavorite(userId: String, courtId: String): Boolean = false
+
+  override suspend fun setFavorite(userId: String, courtId: String, isFavorite: Boolean) = Unit
 }
 
 private class FakeCourtDetailRepository : ICourtDetailRepository {

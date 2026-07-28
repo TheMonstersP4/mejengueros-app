@@ -479,6 +479,9 @@ private class FakeCourtCatalogRepository : ICourtCatalogRepository {
       searchQuery: String?,
       provinceId: String?,
       cantonId: String?,
+      serviceIds: List<String>,
+      courtIds: List<String>,
+      minRating: Int?,
       page: Int,
       pageSize: Int,
   ): CourtCatalogPage = CourtCatalogPage.empty(pageSize)

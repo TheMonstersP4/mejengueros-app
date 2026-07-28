@@ -49,6 +49,7 @@ internal fun appNavigationSerializersModule(): SerializersModule = SerializersMo
     subclass(CatalogReservationRoute::class, CatalogReservationRoute.serializer())
     subclass(ReservationsRoute::class, ReservationsRoute.serializer())
     subclass(NotificationsRoute::class, NotificationsRoute.serializer())
+    subclass(PlayerProfileRoute::class, PlayerProfileRoute.serializer())
     subclass(MyComplexRoute::class, MyComplexRoute.serializer())
     subclass(ComplexDetailRoute::class, ComplexDetailRoute.serializer())
     subclass(AddCourtRoute::class, AddCourtRoute.serializer())
@@ -216,6 +217,7 @@ fun AppNavHost() {
             authenticatedNavigationState.selectNotifications()
             notificationsViewModel.refresh()
           },
+          selectProfile = authenticatedNavigationState::selectProfile,
           selectMyComplex = authenticatedNavigationState::selectMyComplex,
           returnToSearchRoot = authenticatedNavigationState::returnToSearchRoot,
           returnToMyComplexRoot = authenticatedNavigationState::returnToMyComplexRoot,
@@ -255,6 +257,7 @@ fun AppNavHost() {
                 notificationsViewModel = notificationsViewModel,
                 loginActions = loginActions,
                 shellActions = shellActions,
+                currentUserId = currentUserId,
             )
           },
   )

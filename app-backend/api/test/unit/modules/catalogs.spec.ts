@@ -10,6 +10,9 @@ import { LocationsController } from '@/modules/locations/interfaces/http/control
 import { ListActiveServicesUseCase } from '@/modules/service-catalog/application/use-cases/list-active-services.use-case';
 import { PrismaServiceCatalogRepository } from '@/modules/service-catalog/infrastructure/persistence/prisma-service-catalog.repository';
 import { ServiceCatalogController } from '@/modules/service-catalog/interfaces/http/controllers/service-catalog.controller';
+import { ListCourtCatalogQuery } from '@/modules/courts/interfaces/http/dto/list-court-catalog.query';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 
 
 const DEFAULT_PAGINATION = { page: 1, pageSize: 20 };
@@ -18,8 +21,34 @@ const CATALOG_IMAGE_READ_URL = 'https://read.example.test/courts/court-id.jpg';
 const COSTA_RICA_UTC_ROLLOVER_INSTANT = '2026-07-05T02:24:00.000Z';
 const COSTA_RICA_DAY_WINDOW_START_UTC = '2026-07-04T06:00:00.000Z';
 const NEXT_COSTA_RICA_DAY_WINDOW_START_UTC = '2026-07-05T06:00:00.000Z';
+const COURT_ID_A = '4e2d63b1-6d79-4e33-aab7-f6df6d826d04';
+const COURT_ID_B = '51b521be-bf45-4d5b-a92d-7327dc2dcb7f';
 
 describe('catalog modules behavior', () => {
+  it('normalizes and validates optional courtIds catalog query filters', async () => {
+    const single = plainToInstance(ListCourtCatalogQuery, { courtIds: COURT_ID_A });
+    const multiple = plainToInstance(ListCourtCatalogQuery, {
+      courtIds: [COURT_ID_A, COURT_ID_B]
+    });
+    const invalid = plainToInstance(ListCourtCatalogQuery, { courtIds: 'not-a-uuid' });
+    const duplicate = plainToInstance(ListCourtCatalogQuery, {
+      courtIds: [COURT_ID_A, COURT_ID_A]
+    });
+    const oversized = plainToInstance(ListCourtCatalogQuery, {
+      courtIds: Array.from({ length: 21 }, (_, index) =>
+        `4e2d63b1-6d79-4e33-aab7-${index.toString(16).padStart(12, '0')}`
+      )
+    });
+
+    expect(single.courtIds).toEqual([COURT_ID_A]);
+    expect(multiple.courtIds).toEqual([COURT_ID_A, COURT_ID_B]);
+    await expect(validate(single)).resolves.toEqual([]);
+    await expect(validate(multiple)).resolves.toEqual([]);
+    await expect(validate(invalid)).resolves.not.toEqual([]);
+    await expect(validate(duplicate)).resolves.not.toEqual([]);
+    await expect(validate(oversized)).resolves.not.toEqual([]);
+  });
+
   it('delegates locations controllers and use cases to the repository', async () => {
     const repository = {
       listProvinces: jest.fn().mockResolvedValue([{ id: 'province-id', code: 'SJ', name: 'San José' }]),
@@ -165,7 +194,102 @@ describe('catalog modules behavior', () => {
       q: 'north',
       provinceId: 'province-id',
       cantonId: 'canton-id',
+      courtIds: undefined,
+      serviceIds: undefined,
+      minRating: undefined,
       pagination: { page: 2, pageSize: 20 }
+    });
+  });
+
+  it('forwards the service filters to the catalog repository', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 20
+      })
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    await controller.listCatalog({
+      serviceIds: ['service-a', 'service-b'],
+      page: 1,
+      pageSize: 20
+    });
+
+    expect(repository.listPublicCatalog).toHaveBeenCalledWith({
+      q: undefined,
+      provinceId: undefined,
+      cantonId: undefined,
+      serviceIds: ['service-a', 'service-b'],
+      courtIds: undefined,
+      minRating: undefined,
+      pagination: { page: 1, pageSize: 20 }
+    });
+    // No province/canton pair, so only the service filter is applied.
+    expect(repository.assertProvinceAndCantonMatch).not.toHaveBeenCalled();
+  });
+
+  it('forwards the minimum rating filter to the catalog repository', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 20
+      })
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    await controller.listCatalog({
+      minRating: 4,
+      page: 1,
+      pageSize: 20
+    });
+
+    expect(repository.listPublicCatalog).toHaveBeenCalledWith({
+      q: undefined,
+      provinceId: undefined,
+      cantonId: undefined,
+      serviceIds: undefined,
+      courtIds: undefined,
+      minRating: 4,
+      pagination: { page: 1, pageSize: 20 }
+    });
+  });
+
+  it('forwards courtIds to the catalog repository without changing pagination', async () => {
+    const repository = {
+      assertProvinceAndCantonMatch: jest.fn().mockResolvedValue(undefined),
+      listPublicCatalog: jest.fn().mockResolvedValue({
+        items: [],
+        totalItems: 0,
+        page: 1,
+        pageSize: 20
+      })
+    };
+    const useCase = new ListPublicCourtCatalogUseCase(repository);
+    const controller = new CourtsController(useCase);
+
+    await controller.listCatalog({
+      courtIds: [COURT_ID_A, COURT_ID_B],
+      page: 1,
+      pageSize: 20
+    });
+
+    expect(repository.listPublicCatalog).toHaveBeenCalledWith({
+      q: undefined,
+      provinceId: undefined,
+      cantonId: undefined,
+      serviceIds: undefined,
+      courtIds: [COURT_ID_A, COURT_ID_B],
+      minRating: undefined,
+      pagination: { page: 1, pageSize: 20 }
     });
   });
 
@@ -308,6 +432,169 @@ describe('catalog modules behavior', () => {
     );
     expect(prisma.$queryRaw.mock.calls[0]?.[0]?.strings?.join(' ')).toContain(
       'AVG(review.rating)::float8 AS average'
+    );
+  });
+
+  it('requires courts to offer every selected service on the court or its complex', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    await repository.listPublicCatalog({
+      serviceIds: ['service-a', 'service-b'],
+      pagination: DEFAULT_PAGINATION
+    });
+
+    // One AND clause per service => the court must offer ALL of them.
+    const expectedServiceFilter = {
+      AND: [
+        {
+          OR: [
+            { services: { some: { serviceCatalogId: 'service-a' } } },
+            {
+              complex: {
+                services: { some: { serviceCatalogId: 'service-a' } }
+              }
+            }
+          ]
+        },
+        {
+          OR: [
+            { services: { some: { serviceCatalogId: 'service-b' } } },
+            {
+              complex: {
+                services: { some: { serviceCatalogId: 'service-b' } }
+              }
+            }
+          ]
+        }
+      ]
+    };
+    expect(prisma.court.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedServiceFilter)
+      })
+    );
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedServiceFilter)
+      })
+    );
+    // A service-only filter never triggers the province/canton pairing guard.
+    expect(prisma.canton.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('restricts the catalog to courts meeting the minimum rating', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      // First raw call resolves the qualifying court ids (HAVING AVG >= min).
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValue([{ courtId: 'court-a' }, { courtId: 'court-b' }]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    await repository.listPublicCatalog({
+      minRating: 4,
+      pagination: DEFAULT_PAGINATION
+    });
+
+    // The rating threshold is resolved through an aggregate query, rounded to one
+    // decimal to match the card, with the minimum passed as a bound parameter.
+    const ratingCall = prisma.$queryRaw.mock.calls[0]?.[0];
+    expect(ratingCall?.strings?.join(' ')).toContain('HAVING');
+    expect(ratingCall?.strings?.join(' ')).toContain('ROUND(AVG(review.rating)');
+    expect(ratingCall?.values).toEqual([4]);
+    // Count and page reads are constrained to the qualifying ids so pagination
+    // and totals stay consistent.
+    const expectedIdFilter = { AND: [{ id: { in: ['court-a', 'court-b'] } }] };
+    expect(prisma.court.count).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(expectedIdFilter) })
+    );
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(expectedIdFilter) })
+    );
+  });
+
+  it('combines courtIds with service and rating filters while retaining public visibility and order', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([{ courtId: COURT_ID_A }]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    await expect(
+      repository.listPublicCatalog({
+        courtIds: [COURT_ID_A, COURT_ID_B],
+        serviceIds: ['service-a'],
+        minRating: 4,
+        pagination: DEFAULT_PAGINATION
+      })
+    ).resolves.toMatchObject({ items: [], totalItems: 0 });
+
+    const where = prisma.court.findMany.mock.calls[0]?.[0]?.where;
+    expect(where).toMatchObject({
+      status: 'ACTIVE',
+      deletedAt: null,
+      isPublished: true,
+      complex: {
+        status: 'ACTIVE',
+        deletedAt: null,
+        isPublished: true
+      },
+      AND: expect.arrayContaining([
+        { id: { in: [COURT_ID_A, COURT_ID_B] } },
+        { id: { in: [COURT_ID_A] } }
+      ])
+    });
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { services: { some: { serviceCatalogId: 'service-a' } } }
+          ])
+        })
+      ])
+    );
+    expect(prisma.court.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ complex: { name: 'asc' } }, { name: 'asc' }, { id: 'asc' }]
+      })
     );
   });
 

@@ -2,14 +2,29 @@ package io.github.themonstersp4.mejengueros.screens.courtdetail
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtReview
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailSlot
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailUiState
+import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtFavoriteStatus
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -60,6 +75,38 @@ class CourtDetailScreenBehaviorTest {
     composeRule.onNodeWithTag("court_detail_slot_08:00").assertExists()
     composeRule.onNodeWithTag("court_detail_slot_09:00").assertExists()
     composeRule.onNodeWithTag("court_detail_reserve_button").assertExists()
+  }
+
+  @Test
+  fun disponibilidadSlotsArePresentedAsReadOnlyWithoutClickAffordance() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = listOf("Parqueo"),
+            ratingAverage = 4.5,
+            ratingCount = 8,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    availabilityHeadline = "Hoy · slots de 1 hora",
+                    slots = listOf(CourtDetailSlot(displayTime = "18:00")),
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    // The informative availability time must read as read-only: it exposes no click
+    // action, unlike the interactive selector in the reservation screen.
+    composeRule.onNodeWithTag("court_detail_slot_18:00").assertExists().assertHasNoClickAction()
   }
 
   @Test
@@ -286,5 +333,154 @@ class CourtDetailScreenBehaviorTest {
 
     composeRule.onNodeWithTag("court_detail_no_reviews_state").assertExists()
     composeRule.onNodeWithText("Todavía no hay reseñas").assertExists()
+  }
+
+  @Test
+  fun confirmedNotFavoriteShowsAccessibleOutlinedHeartOverHero() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    favoriteStatus = CourtFavoriteStatus.Confirmed,
+                    isFavorite = false,
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    composeRule
+        .onNodeWithTag("court_detail_favorite_button")
+        .assert(hasAnyAncestor(hasTestTag("court_detail_hero")))
+        .assertIsEnabled()
+        .assertWidthIsAtLeast(48.dp)
+        .assertHeightIsAtLeast(48.dp)
+    composeRule
+        .onNodeWithTag("court_detail_favorite_outlined_icon", useUnmergedTree = true)
+        .assertExists()
+    composeRule.onNodeWithContentDescription("Agregar cancha a favoritos").assertExists()
+    composeRule
+        .onAllNodesWithContentDescription(
+            "Agregar cancha a favoritos",
+            useUnmergedTree = true,
+        )
+        .assertCountEquals(1)
+  }
+
+  @Test
+  fun confirmedFavoriteUsesFilledHeartAndUpdatingBlocksTaps() {
+    var taps = 0
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    isLoadingSlots = false,
+                    favoriteStatus = CourtFavoriteStatus.Updating,
+                    isFavorite = true,
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+            onFavoriteToggle = { taps += 1 },
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_detail_favorite_button").assertIsNotEnabled()
+    composeRule
+        .onNodeWithTag("court_detail_favorite_filled_icon", useUnmergedTree = true)
+        .assertExists()
+    composeRule.onNodeWithContentDescription("Quitar cancha de favoritos").assertExists()
+    composeRule.runOnIdle { assertEquals(0, taps) }
+  }
+
+  @Test
+  fun loadingDoesNotExposeAConfirmedHeartState() {
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state = CourtDetailUiState(favoriteStatus = CourtFavoriteStatus.Loading),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_detail_favorite_button").assertIsNotEnabled()
+    composeRule
+        .onNodeWithTag("court_detail_favorite_loading", useUnmergedTree = true)
+        .assertExists()
+    composeRule
+        .onNodeWithTag("court_detail_favorite_filled_icon", useUnmergedTree = true)
+        .assertDoesNotExist()
+    composeRule
+        .onNodeWithTag("court_detail_favorite_outlined_icon", useUnmergedTree = true)
+        .assertDoesNotExist()
+  }
+
+  @Test
+  fun initialFavoriteErrorShowsMessageAndRetriesFromTheOverlayControl() {
+    var retries = 0
+    composeRule.setContent {
+      MejenguerosTheme {
+        CourtDetailScreen(
+            courtName = "Cancha 1",
+            complexName = "Mejengas CR",
+            provinceName = "San José",
+            cantonName = "Escazú",
+            services = emptyList(),
+            ratingAverage = null,
+            ratingCount = 0,
+            imageUrl = null,
+            state =
+                CourtDetailUiState(
+                    favoriteStatus = CourtFavoriteStatus.Error,
+                    favoriteErrorMessage = "No pudimos cargar favoritos. Intentá nuevamente.",
+                ),
+            contentPadding = PaddingValues(),
+            onReserve = {},
+            onRetrySlots = {},
+            onRetryReviews = {},
+            onRetryFavorite = { retries += 1 },
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag("court_detail_favorite_error").assertExists()
+    composeRule.onNodeWithContentDescription("Reintentar cargar favoritos").performClick()
+    composeRule.runOnIdle { assertEquals(1, retries) }
   }
 }

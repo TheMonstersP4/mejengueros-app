@@ -6,6 +6,7 @@ import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogView
 import io.github.themonstersp4.mejengueros.presentation.complexes.AddCourtViewModel
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.courtdetail.CourtDetailViewModel
+import io.github.themonstersp4.mejengueros.presentation.favorites.FavoriteCourtsViewModel
 import io.github.themonstersp4.mejengueros.presentation.mycomplex.MyComplexViewModel
 import io.github.themonstersp4.mejengueros.presentation.myreservations.MyReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.notifications.NotificationsViewModel
@@ -22,7 +23,10 @@ import org.koin.dsl.module
 val presentationModule = module {
   viewModel { AuthViewModel(get(), get(), get(), get()) }
   viewModel { CourtCatalogViewModel(get()) }
-  viewModel { parameters -> CourtDetailViewModel(parameters.get(), get(), get()) }
+  viewModel { parameters ->
+    CourtDetailViewModel(parameters.get(), parameters.get(), get(), get(), get())
+  }
+  viewModel { parameters -> FavoriteCourtsViewModel(parameters.get(), get(), get()) }
   viewModel { CreateComplexViewModel(get(), get()) }
   viewModel { parameters ->
     AddCourtViewModel(parameters.get(), parameters.get(), get(), get(), get())

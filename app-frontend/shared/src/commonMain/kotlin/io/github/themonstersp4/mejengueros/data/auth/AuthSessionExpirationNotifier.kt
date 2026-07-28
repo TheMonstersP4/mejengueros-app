@@ -12,7 +12,7 @@ enum class AuthSessionExpirationReason {
 
 data class AuthSessionExpirationEvent(
     val reason: AuthSessionExpirationReason,
-    val message: String = "Tu sesion expiro. Inicia sesion de nuevo.",
+    val message: String = "Tu sesión expiró. Inicia sesión de nuevo.",
 )
 
 class AuthSessionExpirationNotifier {

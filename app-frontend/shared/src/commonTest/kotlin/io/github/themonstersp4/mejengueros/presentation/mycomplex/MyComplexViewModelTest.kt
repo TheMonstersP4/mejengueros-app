@@ -287,6 +287,65 @@ class MyComplexViewModelTest {
     )
   }
 
+  @Test
+  fun onSessionChangedReloadsForNewUserAndDiscardsPreviousOwnerComplex() = runTest {
+    val repository =
+        QueuedComplexRepository(
+            hubs =
+                ArrayDeque(
+                    listOf(
+                        hubWithComplexId("user-1-complex"),
+                        hubWithComplexId("user-2-complex"),
+                    )
+                )
+        )
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, coroutineScope = scope)
+
+    viewModel.onSessionChanged("user-1")
+    advanceUntilIdle()
+    assertEquals(1, repository.hubRequests)
+    assertEquals("user-1-complex", viewModel.uiState.value.complexes.single().id)
+
+    // A different user signs in: the previous owner's complex must be discarded and reloaded.
+    viewModel.onSessionChanged("user-2")
+    advanceUntilIdle()
+    assertEquals(2, repository.hubRequests)
+    assertEquals("user-2-complex", viewModel.uiState.value.complexes.single().id)
+  }
+
+  @Test
+  fun onSessionChangedDoesNotReloadWhenSameUserReentersScreen() = runTest {
+    val repository = FakeComplexRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, coroutineScope = scope)
+
+    viewModel.onSessionChanged("user-1")
+    advanceUntilIdle()
+    viewModel.onSessionChanged("user-1")
+    advanceUntilIdle()
+
+    assertEquals(1, repository.hubRequests)
+    assertEquals(1, viewModel.uiState.value.complexes.size)
+  }
+
+  @Test
+  fun resetDiscardsLoadedComplexAndReturnsToLoadingState() = runTest {
+    val repository = FakeComplexRepository()
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, coroutineScope = scope)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+    assertEquals(1, viewModel.uiState.value.complexes.size)
+
+    viewModel.reset()
+
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.complexes.isEmpty())
+    assertNull(viewModel.uiState.value.errorMessage)
+  }
+
   private suspend fun TestScope.assertPermissionFailureMessage(statusCode: Int) {
     val repository =
         FakeComplexRepository(
@@ -423,6 +482,38 @@ private class FakeComplexRepository(
       error("Unused in this test")
 }
 
+private class QueuedComplexRepository(
+    private val hubs: ArrayDeque<MyComplexHub>,
+) : IComplexRepository {
+  var hubRequests = 0
+
+  override suspend fun getMyComplexHub(): MyComplexHub {
+    hubRequests += 1
+    return hubs.removeFirstOrNull() ?: MyComplexHub(complexes = emptyList())
+  }
+
+  override suspend fun updateCourtImage(
+      complexId: String,
+      courtId: String,
+      imageUploadId: String,
+  ) = error("Unused in this test")
+
+  override suspend fun getProvinces() = error("Unused in this test")
+
+  override suspend fun getCantons(provinceId: String) = error("Unused in this test")
+
+  override suspend fun getServices(
+      scope: io.github.themonstersp4.mejengueros.domain.model.ServiceScope
+  ) = error("Unused in this test")
+
+  override suspend fun createComplex(
+      request: io.github.themonstersp4.mejengueros.domain.model.CreateComplexRequest
+  ) = error("Unused in this test")
+
+  override suspend fun addCourt(complexId: String, request: CreateCourtRequest) =
+      error("Unused in this test")
+}
+
 private class FakeCourtImageUploadRepository(
     private val uploadFailure: Throwable? = null,
 ) : ICourtImageUploadRepository {
@@ -442,6 +533,24 @@ private fun localCourtImage() =
         contentType = "image/png",
         bytes = byteArrayOf(1, 2, 3),
         previewUrl = "content://court-a.png",
+    )
+
+private fun hubWithComplexId(complexId: String) =
+    MyComplexHub(
+        complexes =
+            listOf(
+                MyComplexHubComplex(
+                    id = complexId,
+                    name = "North Sports Center",
+                    address = "123 Main Street",
+                    provinceId = "province-id",
+                    cantonId = "canton-id",
+                    latitude = 9.935,
+                    longitude = -84.091,
+                    status = "ACTIVE",
+                    courts = emptyList(),
+                )
+            )
     )
 
 private fun hubWithCourtImage(imageUrl: String? = null) =
