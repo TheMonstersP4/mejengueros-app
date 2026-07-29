@@ -2,6 +2,7 @@ export const navigationLinks = [
   { label: 'Jugadores', href: '#jugadores' },
   { label: 'Dueños', href: '#duenos' },
   { label: 'Cómo funciona', href: '#como-funciona' },
+  { label: 'Equipo', href: '/team' },
 ] as const;
 
 export const landingStats = [
