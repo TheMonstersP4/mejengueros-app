@@ -14,6 +14,7 @@ import io.github.themonstersp4.mejengueros.presentation.ownerreservations.OwnerR
 import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonDetailViewModel
 import io.github.themonstersp4.mejengueros.presentation.pokedex.PokemonListViewModel
+import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
 import io.github.themonstersp4.mejengueros.presentation.review.ReviewViewModel
@@ -47,6 +48,7 @@ val presentationModule = module {
   viewModel { MyReservationsViewModel(get(), get()) }
   viewModel { OwnerReservationsViewModel(get(), get(), get()) }
   viewModel { NotificationsViewModel(get(), get()) }
+  viewModel { PlayerProfileViewModel(get(), get()) }
   viewModel { PokemonListViewModel(get()) }
   viewModel { parameters -> PokemonDetailViewModel(parameters.get(), get()) }
 }

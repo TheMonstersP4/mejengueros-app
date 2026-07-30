@@ -26,6 +26,10 @@ class AuthenticatedUserRemoteDataSource(
           id = data.id,
           roles =
               data.roles.mapNotNull { rawRole -> UserRoleKind.entries.find { it.name == rawRole } },
+          email = data.email,
+          name = data.name,
+          pictureUrl = data.pictureUrl,
+          provider = data.provider,
       )
     } catch (error: ResponseException) {
       throw error.toAppApiException(json)
