@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileFeedback
 import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileUiState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosMessageDialog
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosThumbnail
 
 @Composable
@@ -47,6 +49,7 @@ fun PlayerProfileScreen(
     state: PlayerProfileUiState,
     contentPadding: PaddingValues,
     onChangeProfileImage: () -> Unit = {},
+    onDismissFeedback: () -> Unit = {},
     onFavoriteCourtsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -71,23 +74,14 @@ fun PlayerProfileScreen(
         onChangeImage = onChangeProfileImage,
     )
 
-    state.feedback?.let { feedback ->
+    if (state.feedback == PlayerProfileFeedback.ImageUpdated) {
       Text(
-          text = feedback.message,
+          text = PlayerProfileFeedback.ImageUpdated.message,
           style = MaterialTheme.typography.bodyMedium,
-          color =
-              if (feedback == PlayerProfileFeedback.ImageUpdated) {
-                MaterialTheme.colorScheme.primary
-              } else {
-                MaterialTheme.colorScheme.error
-              },
+          color = MaterialTheme.colorScheme.primary,
           textAlign = TextAlign.Center,
           modifier =
-              Modifier.semantics {
-                    liveRegion =
-                        if (feedback == PlayerProfileFeedback.ImageUpdated) LiveRegionMode.Polite
-                        else LiveRegionMode.Assertive
-                  }
+              Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                   .testTag("player_profile_feedback"),
       )
     }
@@ -153,6 +147,14 @@ fun PlayerProfileScreen(
       }
     }
   }
+
+  val errorFeedback = state.feedback?.takeUnless { it == PlayerProfileFeedback.ImageUpdated }
+  MejenguerosMessageDialog(
+      visible = errorFeedback != null,
+      title = errorFeedback?.dialogTitle.orEmpty(),
+      message = errorFeedback?.message.orEmpty(),
+      onDismissRequest = onDismissFeedback,
+  )
 }
 
 @Composable
@@ -165,47 +167,47 @@ private fun ProfileAvatar(
 ) {
   val accessibilityLabel =
       if (canChangeImage) "Cambiar foto de perfil" else "Avatar de ${identity.primaryLabel}"
-  val actionModifier =
-      if (canChangeImage) {
-        Modifier.clickable(
-            enabled = !isUploading,
-            role = Role.Button,
-            onClickLabel = "Cambiar foto de perfil",
-            onClick = onChangeImage,
-        )
-      } else {
-        Modifier
-      }
-
   Box(
-      modifier =
-          Modifier.size(96.dp)
-              .semantics { contentDescription = accessibilityLabel }
-              .then(actionModifier)
-              .testTag("player_profile_avatar"),
+      modifier = Modifier.size(96.dp).testTag("player_profile_avatar_container"),
       contentAlignment = Alignment.Center,
   ) {
-    MejenguerosThumbnail(
-        imageUrl = pictureUrl,
-        contentDescription = null,
-        size = androidx.compose.ui.unit.DpSize(88.dp, 88.dp),
-        shape = CircleShape,
-        modifier = Modifier.testTag("player_profile_image"),
-    ) {
-      Surface(
-          modifier = Modifier.matchParentSize(),
-          color = MaterialTheme.colorScheme.secondaryContainer,
-          contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    val avatarModifier =
+        Modifier.size(88.dp).clip(CircleShape).semantics { contentDescription = accessibilityLabel }
+    val interactiveAvatarModifier =
+        if (canChangeImage) {
+          avatarModifier.clickable(
+              enabled = !isUploading,
+              role = Role.Button,
+              onClickLabel = "Cambiar foto de perfil",
+              onClick = onChangeImage,
+          )
+        } else {
+          avatarModifier
+        }
+
+    Box(modifier = interactiveAvatarModifier.testTag("player_profile_avatar")) {
+      MejenguerosThumbnail(
+          imageUrl = pictureUrl,
+          contentDescription = null,
+          size = null,
+          shape = CircleShape,
+          modifier = Modifier.matchParentSize().testTag("player_profile_image"),
       ) {
-        Box(contentAlignment = Alignment.Center) {
-          if (identity.initials == null) {
-            Icon(imageVector = Icons.Filled.Person, contentDescription = null)
-          } else {
-            Text(
-                text = identity.initials,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
+        Surface(
+            modifier = Modifier.matchParentSize(),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            if (identity.initials == null) {
+              Icon(imageVector = Icons.Filled.Person, contentDescription = null)
+            } else {
+              Text(
+                  text = identity.initials,
+                  style = MaterialTheme.typography.headlineMedium,
+                  fontWeight = FontWeight.Bold,
+              )
+            }
           }
         }
       }
@@ -252,6 +254,14 @@ private val PlayerProfileFeedback.message: String
             "No pudimos leer la imagen seleccionada. Intentá con otra imagen."
         PlayerProfileFeedback.ImageUploadFailed ->
             "No pudimos actualizar tu foto de perfil. Intentá nuevamente."
+      }
+
+private val PlayerProfileFeedback.dialogTitle: String
+  get() =
+      when (this) {
+        PlayerProfileFeedback.ImageReadFailed -> "No pudimos usar esa imagen"
+        PlayerProfileFeedback.ImageUploadFailed -> "No pudimos cambiar la foto"
+        PlayerProfileFeedback.ImageUpdated -> ""
       }
 
 internal data class PlayerProfileIdentity(
