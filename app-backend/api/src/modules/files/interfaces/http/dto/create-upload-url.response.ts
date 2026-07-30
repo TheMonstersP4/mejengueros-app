@@ -10,7 +10,7 @@ export class CreateUploadUrlResponse {
    */
   @ApiProperty({
     description: 'Private S3 object key the client must upload to.',
-    example: 'dev/uploads/profile-image/user-sub/2026/06/image-id.jpg'
+    example: 'dev/uploads/pending/profile-image/user-sub/2026/06/image-id.jpg'
   })
   objectKey!: string;
 
@@ -36,7 +36,7 @@ export class CreateUploadUrlResponse {
     additionalProperties: { type: 'string' },
     description: 'Form fields required by the storage provider.',
     example: {
-      key: 'dev/uploads/profile-image/user-sub/2026/06/image-id.jpg',
+      key: 'dev/uploads/pending/profile-image/user-sub/2026/06/image-id.jpg',
       policy: 'base64-policy',
       'x-amz-algorithm': 'AWS4-HMAC-SHA256'
     },

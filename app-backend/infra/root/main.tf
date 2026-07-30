@@ -149,6 +149,18 @@ resource "aws_iam_role_policy" "api_runtime" {
         {
           Effect = "Allow"
           Action = [
+            "s3:DeleteObject"
+          ]
+          Resource = [
+            "${module.app_bucket.bucket_arn}/${var.env}/uploads/pending/*",
+            "${module.app_bucket.bucket_arn}/${var.env}/uploads/profile-image/*",
+            "${module.app_bucket.bucket_arn}/${var.env}/uploads/court-image/*",
+            "${module.app_bucket.bucket_arn}/${var.env}/uploads/review-evidence-image/*"
+          ]
+        },
+        {
+          Effect = "Allow"
+          Action = [
             "dynamodb:DeleteItem",
             "dynamodb:GetItem",
             "dynamodb:PutItem",
@@ -552,7 +564,7 @@ module "app_bucket" {
   lifecycle_expiration_rules = var.s3_upload_expiration_days > 0 ? [
     {
       id     = "expire-pending-uploads"
-      prefix = "${var.env}/uploads/"
+      prefix = "${var.env}/uploads/pending/"
       days   = var.s3_upload_expiration_days
     }
   ] : []

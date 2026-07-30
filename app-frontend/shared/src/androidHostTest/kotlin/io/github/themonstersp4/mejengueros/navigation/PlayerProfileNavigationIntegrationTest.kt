@@ -15,6 +15,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
 import io.github.themonstersp4.mejengueros.presentation.favorites.FavoriteCourtsUiState
+import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileUiState
 import io.github.themonstersp4.mejengueros.screens.favorites.FavoriteCourtsScreen
 import io.github.themonstersp4.mejengueros.theme.MejenguerosTheme
 import kotlin.test.Test
@@ -135,8 +136,12 @@ class PlayerProfileNavigationIntegrationTest {
               }
               entry<PlayerProfileRoute> {
                 PlayerProfileEntryContent(
-                    displayName = displayName,
-                    email = email,
+                    state =
+                        PlayerProfileUiState(
+                            userId = "player-id",
+                            fallbackDisplayName = displayName,
+                            fallbackEmail = email,
+                        ),
                     shellActions = shellActions,
                     onFavoriteCourtsClick = navigationState::openFavoriteCourts,
                 )

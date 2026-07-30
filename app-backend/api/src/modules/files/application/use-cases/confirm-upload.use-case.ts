@@ -47,6 +47,15 @@ export class ConfirmUploadUseCase {
       sizeBytes: inspected.sizeBytes,
       detectedContentType: inspected.detectedContentType
     });
+    const confirmedObjectKey = this.imageUploadPolicy.buildConfirmedObjectKey({
+      purpose: uploadedImage.purpose,
+      ownerId: input.ownerSub,
+      objectKey: uploadedImage.objectKey
+    });
+    await this.fileStorage.promoteUploadedObject({
+      sourceObjectKey: uploadedImage.objectKey,
+      destinationObjectKey: confirmedObjectKey
+    });
     const savedImage = await this.imageUploadRepository.saveConfirmedUpload({
       ownerSub: input.ownerSub,
       ownerEmail: input.ownerEmail,
@@ -54,7 +63,7 @@ export class ConfirmUploadUseCase {
       ownerPictureUrl: input.ownerPictureUrl,
       ownerProvider: input.ownerProvider,
       purpose: uploadedImage.purpose,
-      objectKey: uploadedImage.objectKey,
+      objectKey: confirmedObjectKey,
       contentType: uploadedImage.contentType,
       sizeBytes: uploadedImage.sizeBytes
     });

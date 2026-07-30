@@ -28,6 +28,11 @@ export interface IUserEntityProps {
   pictureUrl?: string | null;
 
   /**
+   * Confirmed upload associated as the custom profile image.
+   */
+  profileImageUploadId?: string | null;
+
+  /**
    * Identity used for the current auth context.
    */
   currentIdentity?: IUserEntityIdentityProps | null;
@@ -111,6 +116,13 @@ export class UserEntity {
    */
   static fromPersistence(props: IUserEntityProps): UserEntity {
     return new UserEntity(props);
+  }
+
+  /**
+   * Returns the confirmed upload associated as the custom profile image.
+   */
+  getProfileImageUploadId(): string | undefined {
+    return this.props.profileImageUploadId ?? undefined;
   }
 
   /**

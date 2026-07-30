@@ -35,6 +35,8 @@ import io.github.themonstersp4.mejengueros.presentation.notifications.Notificati
 import io.github.themonstersp4.mejengueros.presentation.notifications.UserNotificationUiModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreservations.OwnerReservationsViewModel
 import io.github.themonstersp4.mejengueros.presentation.ownerreviews.OwnerReceivedReviewsViewModel
+import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileUiState
+import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileViewModel
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationContext
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationUiMode
 import io.github.themonstersp4.mejengueros.presentation.reservation.ReservationViewModel
@@ -80,9 +82,11 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPick
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerOverlay
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosLocationPickerState
 import io.github.themonstersp4.mejengueros.ui.components.PlatformBackHandler
+import io.github.themonstersp4.mejengueros.ui.components.ProfileImagePickerAvailability
 import io.github.themonstersp4.mejengueros.ui.components.ReviewEvidenceImagePickerController
 import io.github.themonstersp4.mejengueros.ui.components.SelectedLocation
 import io.github.themonstersp4.mejengueros.ui.components.rememberCourtImagePicker
+import io.github.themonstersp4.mejengueros.ui.components.rememberProfileImagePicker
 import io.github.themonstersp4.mejengueros.ui.components.rememberReviewEvidenceImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -373,19 +377,34 @@ private fun PlayerProfileEntry(
     shellActions: AuthenticatedShellActions,
 ) {
   val authState by authViewModel.uiState.collectAsState()
+  val profileViewModel = koinViewModel<PlayerProfileViewModel>()
+  val profileState by profileViewModel.uiState.collectAsState()
+  val imagePicker = rememberProfileImagePicker(profileViewModel::onPickerResult)
+
+  LaunchedEffect(authState.userId, authState.displayName, authState.email) {
+    profileViewModel.activate(authState.userId, authState.displayName, authState.email)
+  }
+  LaunchedEffect(imagePicker.availability) {
+    profileViewModel.setImagePickerAvailable(
+        imagePicker.availability == ProfileImagePickerAvailability.Available
+    )
+  }
+
   PlayerProfileEntryContent(
-      displayName = authState.displayName,
-      email = authState.email,
+      state = profileState,
       shellActions = shellActions,
+      onChangeProfileImage = imagePicker.launch,
+      onDismissFeedback = profileViewModel::dismissFeedback,
       onFavoriteCourtsClick = authenticatedNavigationState::openFavoriteCourts,
   )
 }
 
 @Composable
 internal fun PlayerProfileEntryContent(
-    displayName: String?,
-    email: String,
+    state: PlayerProfileUiState,
     shellActions: AuthenticatedShellActions,
+    onChangeProfileImage: () -> Unit = {},
+    onDismissFeedback: () -> Unit = {},
     onFavoriteCourtsClick: () -> Unit = {},
 ) {
   AuthenticatedScaffold(
@@ -405,9 +424,10 @@ internal fun PlayerProfileEntryContent(
       chrome = AuthenticatedScaffoldChrome(title = "Mi perfil"),
   ) { contentPadding ->
     PlayerProfileScreen(
-        displayName = displayName,
-        email = email,
+        state = state,
         contentPadding = contentPadding,
+        onChangeProfileImage = onChangeProfileImage,
+        onDismissFeedback = onDismissFeedback,
         onFavoriteCourtsClick = onFavoriteCourtsClick,
     )
   }

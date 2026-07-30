@@ -69,6 +69,7 @@ describe('files HTTP contract', () => {
         sizeBytes: 512,
         detectedContentType: 'image/jpeg'
       }),
+      promoteUploadedObject: jest.fn().mockResolvedValue(undefined),
       createPresignedReadUrl: jest.fn().mockResolvedValue({
         readUrl: 'https://read.example.test/evidence.jpg'
       })
@@ -126,6 +127,7 @@ describe('files HTTP contract', () => {
       sizeBytes: 512,
       detectedContentType: 'image/jpeg'
     });
+    fileStorage.promoteUploadedObject.mockResolvedValue(undefined);
     fileStorage.createPresignedReadUrl.mockResolvedValue({
       readUrl: 'https://read.example.test/evidence.jpg'
     });
@@ -166,7 +168,9 @@ describe('files HTTP contract', () => {
     expect(response.json()).toEqual({
       success: true,
       data: expect.objectContaining({
-        objectKey: expect.stringContaining('/review-evidence-image/player-sub/'),
+        objectKey: expect.stringContaining(
+          '/pending/review-evidence-image/player-sub/'
+        ),
         method: 'POST',
         uploadUrl: 'https://upload.example.test',
         maxSizeBytes: 5242880
@@ -207,7 +211,10 @@ describe('files HTTP contract', () => {
   });
 
   it('confirms review evidence images through the guarded HTTP boundary', async () => {
-    const objectKey = 'test/uploads/review-evidence-image/player-sub/2026/07/evidence.jpg';
+    const objectKey =
+      'test/uploads/pending/review-evidence-image/player-sub/2026/07/evidence.jpg';
+    const confirmedObjectKey =
+      'test/uploads/confirmed/review-evidence-image/player-sub/2026/07/evidence.jpg';
 
     const response = await app.inject({
       method: 'POST',
@@ -221,6 +228,10 @@ describe('files HTTP contract', () => {
 
     expect(response.statusCode).toBe(201);
     expect(fileStorage.inspectUploadedObject).toHaveBeenCalledWith({ objectKey });
+    expect(fileStorage.promoteUploadedObject).toHaveBeenCalledWith({
+      sourceObjectKey: objectKey,
+      destinationObjectKey: confirmedObjectKey
+    });
     expect(imageUploadRepository.saveConfirmedUpload).toHaveBeenCalledWith({
       ownerSub: 'player-sub',
       ownerEmail: 'player@example.test',
@@ -228,7 +239,7 @@ describe('files HTTP contract', () => {
       ownerPictureUrl: 'https://example.test/player.png',
       ownerProvider: 'Google',
       purpose: FilePurpose.ReviewEvidenceImage,
-      objectKey,
+      objectKey: confirmedObjectKey,
       contentType: 'image/jpeg',
       sizeBytes: 512
     });
@@ -236,7 +247,7 @@ describe('files HTTP contract', () => {
       success: true,
       data: expect.objectContaining({
         id: 'review-evidence-upload-id',
-        objectKey,
+        objectKey: confirmedObjectKey,
         purpose: FilePurpose.ReviewEvidenceImage,
         readUrl: 'https://read.example.test/evidence.jpg'
       }),
@@ -252,7 +263,8 @@ describe('files HTTP contract', () => {
       headers: { Authorization: 'Bearer valid-token' },
       payload: {
         purpose: FilePurpose.ReviewEvidenceImage,
-        objectKey: 'test/uploads/review-evidence-image/other-sub/2026/07/evidence.jpg'
+        objectKey:
+          'test/uploads/pending/review-evidence-image/other-sub/2026/07/evidence.jpg'
       }
     });
 
@@ -283,7 +295,8 @@ function createReviewEvidenceUpload(): ImageUploadEntity {
     ownerPictureUrl: 'https://example.test/player.png',
     ownerProvider: 'Google',
     purpose: FilePurpose.ReviewEvidenceImage,
-    objectKey: 'test/uploads/review-evidence-image/player-sub/2026/07/evidence.jpg',
+    objectKey:
+      'test/uploads/confirmed/review-evidence-image/player-sub/2026/07/evidence.jpg',
     contentType: 'image/jpeg',
     sizeBytes: 512,
     createdAt: new Date('2026-07-03T01:30:00.000Z')
