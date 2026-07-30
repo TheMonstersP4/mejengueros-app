@@ -54,6 +54,10 @@ class PlayerProfileViewModel(
     }
   }
 
+  fun dismissFeedback() {
+    _uiState.value = _uiState.value.copy(feedback = null)
+  }
+
   private fun upload(image: io.github.themonstersp4.mejengueros.domain.model.LocalProfileImage) {
     if (_uiState.value.isUploadingImage) return
 

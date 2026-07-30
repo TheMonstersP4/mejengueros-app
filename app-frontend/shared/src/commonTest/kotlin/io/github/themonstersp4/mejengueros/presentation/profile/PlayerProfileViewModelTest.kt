@@ -118,6 +118,22 @@ class PlayerProfileViewModelTest {
   }
 
   @Test
+  fun dismissFeedbackClearsCurrentFeedback() = runTest {
+    val viewModel =
+        PlayerProfileViewModel(
+            FakeAuthenticatedUserProfileRepository(profile()),
+            FakeProfileRepository(),
+            this,
+        )
+    viewModel.activate("user-id", null, "")
+    viewModel.onPickerResult(ProfileImagePickerResult.ReadFailed(IllegalStateException("read")))
+
+    viewModel.dismissFeedback()
+
+    assertNull(viewModel.uiState.value.feedback)
+  }
+
+  @Test
   fun completedUploadCannotOverwriteAReplacementAuthenticatedUser() = runTest {
     val uploadResult = CompletableDeferred<UserProfile>()
     val viewModel =
