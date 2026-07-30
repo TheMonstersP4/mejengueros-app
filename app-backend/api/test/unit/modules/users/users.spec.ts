@@ -91,6 +91,7 @@ describe('users module behavior', () => {
     const repository = {
       syncAuthenticatedUser: jest.fn().mockResolvedValue(entity),
       findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
       list: jest.fn()
     } satisfies IUserRepository;
     const useCase = new SyncAuthenticatedUserUseCase(repository);
@@ -694,6 +695,7 @@ describe('users module behavior', () => {
     const repository = {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
       list: jest.fn().mockResolvedValue([entity])
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository);
