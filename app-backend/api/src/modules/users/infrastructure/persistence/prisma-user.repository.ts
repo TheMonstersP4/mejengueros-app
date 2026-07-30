@@ -3,8 +3,10 @@ import { PrismaService } from '../../../../shared/infrastructure/database/prisma
 import type { UserEntity } from '../../domain/entities/user.entity';
 import type {
   IExternalUserIdentity,
+  IReplaceUserProfileImageInput,
   IUserRepository
 } from '../../domain/repositories/user.repository';
+import { InvalidProfileImageUploadError } from '../../domain/errors/invalid-profile-image-upload.error';
 import { UserMapper } from '../mappers/user.mapper';
 import {
   grantDemoOwnerRoleIfEligible,
@@ -78,6 +80,34 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   /**
+   * Atomically replaces one user's custom profile image relation.
+   */
+  async replaceProfileImage(
+    input: IReplaceUserProfileImageInput
+  ): Promise<UserEntity> {
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: input.userId },
+        data: { profileImageUploadId: input.imageUploadId },
+        include: {
+          identities: true,
+          roles: true
+        }
+      });
+
+      return UserMapper.toDomain(user);
+    } catch (error) {
+      if (isPrismaUniqueConstraintError(error)) {
+        throw InvalidProfileImageUploadError.alreadyAssigned(
+          input.imageUploadId
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Lists local user profiles by most recently updated first.
    *
    * @returns User entities stored by the application.
@@ -93,4 +123,13 @@ export class PrismaUserRepository implements IUserRepository {
 
     return users.map((user) => UserMapper.toDomain(user));
   }
+}
+
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'P2002'
+  );
 }

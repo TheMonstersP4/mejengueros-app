@@ -12,4 +12,8 @@ data class UserProfileEnvelopeDto(
 data class UserProfileDto(
     val id: String,
     val roles: List<String> = emptyList(),
+    val email: String? = null,
+    val name: String? = null,
+    val pictureUrl: String? = null,
+    val provider: String? = null,
 )

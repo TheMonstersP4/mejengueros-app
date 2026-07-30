@@ -81,18 +81,20 @@ enum NotificationStatus {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  name          String?
-  pictureUrl    String?
-  status        UserStatus     @default(ACTIVE)
-  identities    UserIdentity[]
-  roles         UserRole[]
-  ownedComplexes Complex[]
-  reservations  Reservation[]
-  notifications Notification[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                   String         @id @default(uuid())
+  email                String         @unique
+  name                 String?
+  pictureUrl           String?
+  profileImageUploadId String?        @unique
+  status               UserStatus     @default(ACTIVE)
+  profileImageUpload   ImageUpload?   @relation("UserProfileImage", fields: [profileImageUploadId], references: [id], onDelete: SetNull)
+  identities           UserIdentity[]
+  roles                UserRole[]
+  ownedComplexes       Complex[]
+  reservations         Reservation[]
+  notifications        Notification[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@schema("mejengueros_dev")
 }
@@ -114,20 +116,21 @@ model UserIdentity {
 }
 
 model ImageUpload {
-  id              String   @id @default(uuid())
-  ownerSub        String
-  ownerEmail      String?
-  ownerName       String?
-  ownerPictureUrl String?
-  ownerProvider   String?
-  purpose         String
-  objectKey       String   @unique
-  contentType     String
-  sizeBytes       Int
-  courtImageFor   Court?   @relation("CourtImage")
-  reviewEvidenceFor Review? @relation("ReviewEvidenceImage")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(uuid())
+  ownerSub          String
+  ownerEmail        String?
+  ownerName         String?
+  ownerPictureUrl   String?
+  ownerProvider     String?
+  purpose           String
+  objectKey         String   @unique
+  contentType       String
+  sizeBytes         Int
+  profileImageFor   User?    @relation("UserProfileImage")
+  courtImageFor     Court?   @relation("CourtImage")
+  reviewEvidenceFor Review?  @relation("ReviewEvidenceImage")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([ownerSub])
   @@index([createdAt])
@@ -147,7 +150,7 @@ model UserRole {
 }
 
 model Complex {
-  id          String         @id @default(uuid())
+  id          String           @id @default(uuid())
   ownerId     String
   provinceId  String?
   cantonId    String?
@@ -155,16 +158,16 @@ model Complex {
   address     String
   latitude    Float?
   longitude   Float?
-  isPublished Boolean        @default(false)
-  status      ComplexStatus  @default(ACTIVE)
+  isPublished Boolean          @default(false)
+  status      ComplexStatus    @default(ACTIVE)
   deletedAt   DateTime?
-  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  province    Province?      @relation(fields: [provinceId], references: [id], onDelete: Restrict)
-  canton      Canton?        @relation(fields: [cantonId, provinceId], references: [id, provinceId], onDelete: Restrict)
+  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  province    Province?        @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  canton      Canton?          @relation(fields: [cantonId, provinceId], references: [id, provinceId], onDelete: Restrict)
   courts      Court[]
   services    ComplexService[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([ownerId])
   @@index([provinceId])
@@ -176,13 +179,13 @@ model Complex {
 }
 
 model Province {
-  id         String    @id @default(uuid())
-  code       String    @unique
-  name       String    @unique
-  cantons    Canton[]
-  complexes  Complex[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String    @id @default(uuid())
+  code      String    @unique
+  name      String    @unique
+  cantons   Canton[]
+  complexes Complex[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@schema("mejengueros_dev")
 }
@@ -204,20 +207,20 @@ model Canton {
 }
 
 model Court {
-  id            String            @id @default(uuid())
+  id            String             @id @default(uuid())
   complexId     String
-  imageUploadId String?           @unique
+  imageUploadId String?            @unique
   name          String
-  isPublished   Boolean           @default(false)
-  status        CourtStatus       @default(ACTIVE)
+  isPublished   Boolean            @default(false)
+  status        CourtStatus        @default(ACTIVE)
   deletedAt     DateTime?
-  complex       Complex           @relation(fields: [complexId], references: [id], onDelete: Restrict)
-  imageUpload   ImageUpload?      @relation("CourtImage", fields: [imageUploadId], references: [id], onDelete: SetNull)
+  complex       Complex            @relation(fields: [complexId], references: [id], onDelete: Restrict)
+  imageUpload   ImageUpload?       @relation("CourtImage", fields: [imageUploadId], references: [id], onDelete: SetNull)
   services      CourtService[]
   availability  CourtAvailability?
   reservations  Reservation[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   @@index([complexId])
   @@index([isPublished])
@@ -226,14 +229,14 @@ model Court {
 }
 
 model ServiceCatalog {
-  id         String          @id @default(uuid())
-  name       String          @unique
-  scope      ServiceScope
-  isActive   Boolean         @default(true)
-  complexes  ComplexService[]
-  courts     CourtService[]
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  id        String           @id @default(uuid())
+  name      String           @unique
+  scope     ServiceScope
+  isActive  Boolean          @default(true)
+  complexes ComplexService[]
+  courts    CourtService[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@index([scope, isActive])
   @@schema("mejengueros_dev")
@@ -266,14 +269,14 @@ model CourtService {
 }
 
 model CourtAvailability {
-  id         String                @id @default(uuid())
-  courtId    String                @unique
-  startTime  DateTime              @db.Time(0)
-  endTime    DateTime              @db.Time(0)
-  court      Court                 @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  days       CourtAvailabilityDay[]
-  createdAt  DateTime              @default(now())
-  updatedAt  DateTime              @updatedAt
+  id        String                 @id @default(uuid())
+  courtId   String                 @unique
+  startTime DateTime               @db.Time(0)
+  endTime   DateTime               @db.Time(0)
+  court     Court                  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  days      CourtAvailabilityDay[]
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
 
   @@schema("mejengueros_dev")
 }
@@ -290,20 +293,20 @@ model CourtAvailabilityDay {
 }
 
 model Reservation {
-  id            String             @id @default(uuid())
+  id            String            @id @default(uuid())
   userId        String
   courtId       String
   startsAt      DateTime
   endsAt        DateTime
-  status        ReservationStatus  @default(CONFIRMED)
+  status        ReservationStatus @default(CONFIRMED)
   cancelledAt   DateTime?
   completedAt   DateTime?
-  user          User               @relation(fields: [userId], references: [id], onDelete: Restrict)
-  court         Court              @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  court         Court             @relation(fields: [courtId], references: [id], onDelete: Restrict)
   notifications Notification[]
   review        Review?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([userId])
   @@index([courtId])
@@ -327,22 +330,22 @@ model Notification {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
+  @@unique([reservationId, type])
   @@index([userId, status])
   @@index([reservationId])
-  @@unique([reservationId, type])
   @@schema("mejengueros_dev")
 }
 
 model Review {
-  id            String       @id @default(uuid())
-  reservationId String       @unique
-  evidenceImageUploadId String? @unique
-  rating        Int
-  comment       String?
-  reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
-  evidenceImageUpload ImageUpload? @relation("ReviewEvidenceImage", fields: [evidenceImageUploadId], references: [id], onDelete: SetNull)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                    String       @id @default(uuid())
+  reservationId         String       @unique
+  evidenceImageUploadId String?      @unique
+  rating                Int
+  comment               String?
+  reservation           Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  evidenceImageUpload   ImageUpload? @relation("ReviewEvidenceImage", fields: [evidenceImageUploadId], references: [id], onDelete: SetNull)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   @@schema("mejengueros_dev")
 }
