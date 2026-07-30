@@ -1,4 +1,6 @@
 import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   type S3Client
@@ -9,6 +11,7 @@ import type { ConfigService } from '@nestjs/config';
 import { S3FileStorageAdapter } from '@/modules/files/infrastructure/storage/s3-file-storage.adapter';
 import { StorageInspectionError } from '@/modules/files/infrastructure/errors/storage-inspection.error';
 import { StorageObjectNotFoundError } from '@/modules/files/infrastructure/errors/storage-object-not-found.error';
+import { StoragePromotionError } from '@/modules/files/infrastructure/errors/storage-promotion.error';
 import { StorageUploadUrlError } from '@/modules/files/infrastructure/errors/storage-upload-url.error';
 
 jest.mock('@aws-sdk/s3-presigned-post', () => ({
@@ -281,6 +284,70 @@ describe('S3FileStorageAdapter', () => {
         objectKey: 'dev/uploads/profile-image/sub/file.jpg'
       })
     ).rejects.toThrow(StorageInspectionError);
+  });
+
+  it('copies verified uploads before deleting their pending objects', async () => {
+    const send = jest.fn().mockResolvedValue({});
+    const adapter = new S3FileStorageAdapter(
+      { send } as unknown as S3Client,
+      config
+    );
+
+    await expect(
+      adapter.promoteUploadedObject({
+        sourceObjectKey: 'dev/uploads/pending/profile-image/sub/file.jpg',
+        destinationObjectKey: 'dev/uploads/confirmed/profile-image/sub/file.jpg'
+      })
+    ).resolves.toBeUndefined();
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(CopyObjectCommand);
+    expect((send.mock.calls[0]?.[0] as CopyObjectCommand).input).toEqual({
+      Bucket: 'bucket-name',
+      CopySource: 'bucket-name/dev/uploads/pending/profile-image/sub/file.jpg',
+      Key: 'dev/uploads/confirmed/profile-image/sub/file.jpg'
+    });
+    expect(send.mock.calls[1]?.[0]).toBeInstanceOf(DeleteObjectCommand);
+    expect((send.mock.calls[1]?.[0] as DeleteObjectCommand).input).toEqual({
+      Bucket: 'bucket-name',
+      Key: 'dev/uploads/pending/profile-image/sub/file.jpg'
+    });
+  });
+
+  it('keeps the pending object when the durable copy fails', async () => {
+    const send = jest.fn().mockRejectedValue(new Error('copy failed'));
+    const adapter = new S3FileStorageAdapter(
+      { send } as unknown as S3Client,
+      config
+    );
+
+    await expect(
+      adapter.promoteUploadedObject({
+        sourceObjectKey: 'dev/uploads/pending/profile-image/sub/file.jpg',
+        destinationObjectKey: 'dev/uploads/confirmed/profile-image/sub/file.jpg'
+      })
+    ).rejects.toThrow(StoragePromotionError);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(CopyObjectCommand);
+  });
+
+  it('wraps pending object deletion failures', async () => {
+    const send = jest
+      .fn()
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error('delete failed'));
+    const adapter = new S3FileStorageAdapter(
+      { send } as unknown as S3Client,
+      config
+    );
+
+    await expect(
+      adapter.promoteUploadedObject({
+        sourceObjectKey: 'dev/uploads/pending/profile-image/sub/file.jpg',
+        destinationObjectKey: 'dev/uploads/confirmed/profile-image/sub/file.jpg'
+      })
+    ).rejects.toThrow(StoragePromotionError);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 
   it('creates presigned read URLs for private objects', async () => {

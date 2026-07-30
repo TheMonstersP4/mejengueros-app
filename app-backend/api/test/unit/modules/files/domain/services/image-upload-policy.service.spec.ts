@@ -97,7 +97,7 @@ describe('ImageUploadPolicyService', () => {
         date: new Date('2026-06-04T00:00:00.000Z'),
         id: 'file-id'
       })
-    ).toBe('dev/profile-image/user-sub-123/2026/06/file-id.webp');
+    ).toBe('dev/pending/profile-image/user-sub-123/2026/06/file-id.webp');
   });
 
   it('builds stable private object keys for court images', () => {
@@ -109,7 +109,7 @@ describe('ImageUploadPolicyService', () => {
         date: new Date('2026-06-04T00:00:00.000Z'),
         id: 'file-id'
       })
-    ).toBe('dev/court-image/user-sub-123/2026/06/file-id.png');
+    ).toBe('dev/pending/court-image/user-sub-123/2026/06/file-id.png');
   });
 
   it('builds stable private object keys for review evidence images', () => {
@@ -121,7 +121,30 @@ describe('ImageUploadPolicyService', () => {
         date: new Date('2026-06-04T00:00:00.000Z'),
         id: 'file-id'
       })
-    ).toBe('dev/review-evidence-image/user-sub-123/2026/06/file-id.png');
+    ).toBe(
+      'dev/pending/review-evidence-image/user-sub-123/2026/06/file-id.png'
+    );
+  });
+
+  it('builds durable keys for pending uploads', () => {
+    expect(
+      policy.buildConfirmedObjectKey({
+        purpose: FilePurpose.ProfileImage,
+        ownerId: 'user/sub:123',
+        objectKey:
+          'dev/pending/profile-image/user-sub-123/2026/06/file-id.jpg'
+      })
+    ).toBe('dev/confirmed/profile-image/user-sub-123/2026/06/file-id.jpg');
+  });
+
+  it('builds durable keys for legacy uploads created before pending prefixes', () => {
+    expect(
+      policy.buildConfirmedObjectKey({
+        purpose: FilePurpose.CourtImage,
+        ownerId: 'user/sub:123',
+        objectKey: 'dev/court-image/user-sub-123/2026/06/file-id.png'
+      })
+    ).toBe('dev/confirmed/court-image/user-sub-123/2026/06/file-id.png');
   });
 
   it('validates confirmed uploaded object metadata', () => {
@@ -129,14 +152,14 @@ describe('ImageUploadPolicyService', () => {
       policy.validateUploadedObject({
         purpose: FilePurpose.ProfileImage,
         ownerId: 'user/sub:123',
-        objectKey: 'dev/profile-image/user-sub-123/2026/06/file-id.jpg',
+        objectKey: 'dev/pending/profile-image/user-sub-123/2026/06/file-id.jpg',
         contentType: 'image/jpeg',
         sizeBytes: 512,
         detectedContentType: 'image/jpeg'
       })
     ).toEqual({
       purpose: FilePurpose.ProfileImage,
-      objectKey: 'dev/profile-image/user-sub-123/2026/06/file-id.jpg',
+      objectKey: 'dev/pending/profile-image/user-sub-123/2026/06/file-id.jpg',
       contentType: 'image/jpeg',
       sizeBytes: 512
     });
@@ -147,7 +170,7 @@ describe('ImageUploadPolicyService', () => {
       policy.validateObjectKeyForOwner({
         purpose: FilePurpose.ProfileImage,
         ownerId: 'current-user',
-        objectKey: 'dev/profile-image/other-user/2026/06/file-id.jpg'
+        objectKey: 'dev/pending/profile-image/other-user/2026/06/file-id.jpg'
       })
     ).toThrow(FileOwnershipError);
   });
@@ -157,7 +180,7 @@ describe('ImageUploadPolicyService', () => {
       policy.validateUploadedObject({
         purpose: FilePurpose.ProfileImage,
         ownerId: 'user-sub-123',
-        objectKey: 'dev/profile-image/user-sub-123/2026/06/file-id.gif',
+        objectKey: 'dev/pending/profile-image/user-sub-123/2026/06/file-id.gif',
         contentType: 'image/gif',
         sizeBytes: 512,
         detectedContentType: 'image/gif'
@@ -170,7 +193,7 @@ describe('ImageUploadPolicyService', () => {
       policy.validateUploadedObject({
         purpose: FilePurpose.ProfileImage,
         ownerId: 'user-sub-123',
-        objectKey: 'dev/profile-image/user-sub-123/2026/06/file-id.jpg',
+        objectKey: 'dev/pending/profile-image/user-sub-123/2026/06/file-id.jpg',
         contentType: 'image/jpeg',
         sizeBytes: 512,
         detectedContentType: null
@@ -183,7 +206,7 @@ describe('ImageUploadPolicyService', () => {
       policy.validateUploadedObject({
         purpose: FilePurpose.ProfileImage,
         ownerId: 'user-sub-123',
-        objectKey: 'dev/profile-image/user-sub-123/2026/06/file-id.jpg',
+        objectKey: 'dev/pending/profile-image/user-sub-123/2026/06/file-id.jpg',
         contentType: 'image/jpeg',
         sizeBytes: 2048,
         detectedContentType: 'image/jpeg'
