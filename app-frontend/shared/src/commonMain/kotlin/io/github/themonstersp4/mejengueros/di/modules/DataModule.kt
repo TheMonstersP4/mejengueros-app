@@ -37,12 +37,14 @@ import io.github.themonstersp4.mejengueros.data.remote.ICourtReviewsRemoteDataSo
 import io.github.themonstersp4.mejengueros.data.remote.INotificationRealtimeDataSource
 import io.github.themonstersp4.mejengueros.data.remote.INotificationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IPokemonRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.IProfileImageRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReviewEvidenceUploadRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.IReviewRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.NotificationRealtimeDataSource
 import io.github.themonstersp4.mejengueros.data.remote.NotificationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.PokemonRemoteDataSource
+import io.github.themonstersp4.mejengueros.data.remote.ProfileImageRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ReservationRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ReviewEvidenceUploadRemoteDataSource
 import io.github.themonstersp4.mejengueros.data.remote.ReviewRemoteDataSource
@@ -57,10 +59,12 @@ import io.github.themonstersp4.mejengueros.data.repository.CourtImageUploadRepos
 import io.github.themonstersp4.mejengueros.data.repository.CourtReviewsRepository
 import io.github.themonstersp4.mejengueros.data.repository.NotificationRepository
 import io.github.themonstersp4.mejengueros.data.repository.PokemonRepository
+import io.github.themonstersp4.mejengueros.data.repository.ProfileImageRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReservationRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReviewEvidenceUploadRepository
 import io.github.themonstersp4.mejengueros.data.repository.ReviewRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
+import io.github.themonstersp4.mejengueros.domain.repository.IAuthenticatedUserProfileRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtAvailabilityRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtCatalogRepository
@@ -70,6 +74,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRe
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtReviewsRepository
 import io.github.themonstersp4.mejengueros.domain.repository.INotificationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IPokemonRepository
+import io.github.themonstersp4.mejengueros.domain.repository.IProfileImageRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReservationRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewRepository
@@ -94,9 +99,9 @@ val dataModule = module {
   single<IAuthenticatedUserRemoteDataSource> {
     AuthenticatedUserRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
-  single<IAuthRepository> {
-    AuthRepository(get(), get(), get(), get(), get(), get(), get(), get(), get())
-  }
+  single { AuthRepository(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+  single<IAuthRepository> { get<AuthRepository>() }
+  single<IAuthenticatedUserProfileRepository> { get<AuthRepository>() }
   single<IComplexRemoteDataSource> {
     ComplexRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
@@ -105,6 +110,10 @@ val dataModule = module {
     CourtImageUploadRemoteDataSource(get(named(AppApiHttpClientQualifier)), get(), get())
   }
   single<ICourtImageUploadRepository> { CourtImageUploadRepository(get()) }
+  single<IProfileImageRemoteDataSource> {
+    ProfileImageRemoteDataSource(get(named(AppApiHttpClientQualifier)), get(), get())
+  }
+  single<IProfileImageRepository> { ProfileImageRepository(get(), get()) }
   single<ICourtCatalogRemoteDataSource> {
     CourtCatalogRemoteDataSource(get(named(AppApiHttpClientQualifier)), get())
   }
