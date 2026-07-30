@@ -1,5 +1,6 @@
 import { ListUsersUseCase } from '@/modules/users/application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
+import type { UserProfileService } from '@/modules/users/application/services/user-profile.service';
 import { UserEntity } from '@/modules/users/domain/entities/user.entity';
 import { UserEmailAlreadyExistsError } from '@/modules/users/domain/errors/user-email-already-exists.error';
 import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
@@ -8,6 +9,12 @@ import { PrismaUserRepository } from '@/modules/users/infrastructure/persistence
 import { UsersController } from '@/modules/users/interfaces/http/controllers/users.controller';
 
 describe('users module behavior', () => {
+  function createProfileService(): UserProfileService {
+    return {
+      render: jest.fn(async (user: UserEntity) => user.toProfile())
+    } as unknown as UserProfileService;
+  }
+
   function createUniqueConstraintError(): Error & { code: 'P2002' } {
     return Object.assign(new Error('Unique constraint failed'), {
       code: 'P2002' as const
@@ -91,9 +98,13 @@ describe('users module behavior', () => {
     const repository = {
       syncAuthenticatedUser: jest.fn().mockResolvedValue(entity),
       findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
       list: jest.fn()
     } satisfies IUserRepository;
-    const useCase = new SyncAuthenticatedUserUseCase(repository);
+    const useCase = new SyncAuthenticatedUserUseCase(
+      repository,
+      createProfileService()
+    );
 
     await expect(
       useCase.execute({
@@ -694,9 +705,10 @@ describe('users module behavior', () => {
     const repository = {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
       list: jest.fn().mockResolvedValue([entity])
     } satisfies IUserRepository;
-    const useCase = new ListUsersUseCase(repository);
+    const useCase = new ListUsersUseCase(repository, createProfileService());
 
     await expect(useCase.execute()).resolves.toEqual([userProfile]);
     expect(repository.list).toHaveBeenCalledTimes(1);
