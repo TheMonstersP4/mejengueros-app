@@ -363,6 +363,21 @@ class AuthRepositoryTest {
     assertNull(repository.getUserProfile())
   }
 
+  @Test
+  fun updateUserProfileReplacesCachedAuthenticatedProfile() {
+    val repository = createRepository()
+    val updatedProfile =
+        UserProfile(
+            id = "user-id",
+            roles = emptyList(),
+            pictureUrl = "https://example.test/updated.jpg",
+        )
+
+    repository.updateUserProfile(updatedProfile)
+
+    assertEquals(updatedProfile, repository.getUserProfile())
+  }
+
   private fun createRepository(
       secureStorage: IAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
