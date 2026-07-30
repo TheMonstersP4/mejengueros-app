@@ -74,6 +74,21 @@ export interface IInspectUploadedObjectOutput {
 }
 
 /**
+ * Request to promote a verified upload into durable storage.
+ */
+export interface IPromoteUploadedObjectInput {
+  /**
+   * Temporary object key created for direct upload.
+   */
+  sourceObjectKey: string;
+
+  /**
+   * Durable object key retained after confirmation.
+   */
+  destinationObjectKey: string;
+}
+
+/**
  * Read URL request sent to file storage providers.
  */
 export interface ICreatePresignedReadUrlInput {
@@ -121,6 +136,13 @@ export interface IFileStoragePort {
   inspectUploadedObject(
     input: IInspectUploadedObjectInput
   ): Promise<IInspectUploadedObjectOutput>;
+
+  /**
+   * Promotes a verified upload to its durable object key.
+   *
+   * @param input - Temporary and durable object keys.
+   */
+  promoteUploadedObject(input: IPromoteUploadedObjectInput): Promise<void>;
 
   /**
    * Creates a presigned URL for reading a private file.

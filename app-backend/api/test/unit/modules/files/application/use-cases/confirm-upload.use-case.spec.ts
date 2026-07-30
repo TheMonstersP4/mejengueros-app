@@ -28,7 +28,8 @@ describe('ConfirmUploadUseCase', () => {
           ownerPictureUrl: 'https://example.test/avatar.png',
           ownerProvider: 'Google',
           purpose: FilePurpose.ProfileImage,
-          objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg',
+          objectKey:
+            'dev/uploads/confirmed/profile-image/cognito-sub/2026/06/file.jpg',
           contentType: 'image/jpeg',
           sizeBytes: 512,
           createdAt: new Date('2026-06-11T00:00:00.000Z')
@@ -46,6 +47,7 @@ describe('ConfirmUploadUseCase', () => {
         sizeBytes: 512,
         detectedContentType: 'image/jpeg'
       }),
+      promoteUploadedObject: jest.fn().mockResolvedValue(undefined),
       createPresignedReadUrl: jest.fn().mockResolvedValue({
         readUrl: 'https://read.example.test/file.jpg'
       })
@@ -61,11 +63,13 @@ describe('ConfirmUploadUseCase', () => {
         ownerPictureUrl: 'https://example.test/avatar.png',
         ownerProvider: 'Google',
         purpose: FilePurpose.ProfileImage,
-        objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg'
+        objectKey:
+          'dev/uploads/pending/profile-image/cognito-sub/2026/06/file.jpg'
       })
     ).resolves.toEqual({
       id: 'image-id',
-      objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg',
+      objectKey:
+        'dev/uploads/confirmed/profile-image/cognito-sub/2026/06/file.jpg',
       purpose: FilePurpose.ProfileImage,
       status: 'ready',
       contentType: 'image/jpeg',
@@ -81,7 +85,14 @@ describe('ConfirmUploadUseCase', () => {
       }
     });
     expect(storage.inspectUploadedObject).toHaveBeenCalledWith({
-      objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg'
+      objectKey:
+        'dev/uploads/pending/profile-image/cognito-sub/2026/06/file.jpg'
+    });
+    expect(storage.promoteUploadedObject).toHaveBeenCalledWith({
+      sourceObjectKey:
+        'dev/uploads/pending/profile-image/cognito-sub/2026/06/file.jpg',
+      destinationObjectKey:
+        'dev/uploads/confirmed/profile-image/cognito-sub/2026/06/file.jpg'
     });
     expect(repository.saveConfirmedUpload).toHaveBeenCalledWith({
       ownerSub: 'cognito-sub',
@@ -90,7 +101,8 @@ describe('ConfirmUploadUseCase', () => {
       ownerPictureUrl: 'https://example.test/avatar.png',
       ownerProvider: 'Google',
       purpose: FilePurpose.ProfileImage,
-      objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg',
+      objectKey:
+        'dev/uploads/confirmed/profile-image/cognito-sub/2026/06/file.jpg',
       contentType: 'image/jpeg',
       sizeBytes: 512
     });
@@ -104,6 +116,7 @@ describe('ConfirmUploadUseCase', () => {
         sizeBytes: 512,
         detectedContentType: 'image/png'
       }),
+      promoteUploadedObject: jest.fn().mockResolvedValue(undefined),
       createPresignedReadUrl: jest.fn().mockResolvedValue({
         readUrl: 'https://read.example.test/court.png'
       })
@@ -118,7 +131,8 @@ describe('ConfirmUploadUseCase', () => {
         ownerPictureUrl: 'https://example.test/avatar.png',
         ownerProvider: 'Google',
         purpose: FilePurpose.CourtImage,
-        objectKey: 'dev/uploads/court-image/cognito-sub/2026/06/court.png',
+        objectKey:
+          'dev/uploads/confirmed/court-image/cognito-sub/2026/06/court.png',
         contentType: 'image/png',
         sizeBytes: 512,
         createdAt: new Date('2026-06-11T00:00:00.000Z')
@@ -134,11 +148,13 @@ describe('ConfirmUploadUseCase', () => {
         ownerPictureUrl: 'https://example.test/avatar.png',
         ownerProvider: 'Google',
         purpose: FilePurpose.CourtImage,
-        objectKey: 'dev/uploads/court-image/cognito-sub/2026/06/court.png'
+        objectKey:
+          'dev/uploads/pending/court-image/cognito-sub/2026/06/court.png'
       })
     ).resolves.toEqual({
       id: 'court-image-id',
-      objectKey: 'dev/uploads/court-image/cognito-sub/2026/06/court.png',
+      objectKey:
+        'dev/uploads/confirmed/court-image/cognito-sub/2026/06/court.png',
       purpose: FilePurpose.CourtImage,
       status: 'ready',
       contentType: 'image/png',
@@ -163,6 +179,7 @@ describe('ConfirmUploadUseCase', () => {
         sizeBytes: 512,
         detectedContentType: 'image/png'
       }),
+      promoteUploadedObject: jest.fn().mockResolvedValue(undefined),
       createPresignedReadUrl: jest.fn().mockResolvedValue({
         readUrl: 'https://read.example.test/review-evidence.png'
       })
@@ -178,7 +195,7 @@ describe('ConfirmUploadUseCase', () => {
         ownerProvider: 'Google',
         purpose: FilePurpose.ReviewEvidenceImage,
         objectKey:
-          'dev/uploads/review-evidence-image/cognito-sub/2026/06/review-evidence.png',
+          'dev/uploads/confirmed/review-evidence-image/cognito-sub/2026/06/review-evidence.png',
         contentType: 'image/png',
         sizeBytes: 512,
         createdAt: new Date('2026-06-11T00:00:00.000Z')
@@ -195,7 +212,7 @@ describe('ConfirmUploadUseCase', () => {
         ownerProvider: 'Google',
         purpose: FilePurpose.ReviewEvidenceImage,
         objectKey:
-          'dev/uploads/review-evidence-image/cognito-sub/2026/06/review-evidence.png'
+          'dev/uploads/pending/review-evidence-image/cognito-sub/2026/06/review-evidence.png'
       })
     ).resolves.toMatchObject({
       id: 'review-evidence-image-id',
@@ -208,6 +225,7 @@ describe('ConfirmUploadUseCase', () => {
     const storage = {
       createPresignedUploadUrl: jest.fn(),
       inspectUploadedObject: jest.fn(),
+      promoteUploadedObject: jest.fn(),
       createPresignedReadUrl: jest.fn()
     } satisfies IFileStoragePort;
     const useCase = new ConfirmUploadUseCase(
@@ -221,7 +239,8 @@ describe('ConfirmUploadUseCase', () => {
       useCase.execute({
         ownerSub: 'current-sub',
         purpose: FilePurpose.ProfileImage,
-        objectKey: 'dev/uploads/profile-image/other-sub/2026/06/file.jpg'
+        objectKey:
+          'dev/uploads/pending/profile-image/other-sub/2026/06/file.jpg'
       })
     ).rejects.toThrow(FileOwnershipError);
     expect(storage.inspectUploadedObject).not.toHaveBeenCalled();
@@ -235,6 +254,7 @@ describe('ConfirmUploadUseCase', () => {
         sizeBytes: 512,
         detectedContentType: 'image/png'
       }),
+      promoteUploadedObject: jest.fn(),
       createPresignedReadUrl: jest.fn()
     } satisfies IFileStoragePort;
     const useCase = new ConfirmUploadUseCase(
@@ -248,8 +268,37 @@ describe('ConfirmUploadUseCase', () => {
       useCase.execute({
         ownerSub: 'cognito-sub',
         purpose: FilePurpose.ProfileImage,
-        objectKey: 'dev/uploads/profile-image/cognito-sub/2026/06/file.jpg'
+        objectKey:
+          'dev/uploads/pending/profile-image/cognito-sub/2026/06/file.jpg'
       })
     ).rejects.toThrow(UnsupportedFileTypeError);
+    expect(storage.promoteUploadedObject).not.toHaveBeenCalled();
+  });
+
+  it('does not persist ready metadata when durable promotion fails', async () => {
+    const promotionError = new Error('copy failed');
+    const storage = {
+      createPresignedUploadUrl: jest.fn(),
+      inspectUploadedObject: jest.fn().mockResolvedValue({
+        contentType: 'image/jpeg',
+        sizeBytes: 512,
+        detectedContentType: 'image/jpeg'
+      }),
+      promoteUploadedObject: jest.fn().mockRejectedValue(promotionError),
+      createPresignedReadUrl: jest.fn()
+    } satisfies IFileStoragePort;
+    const repository = createRepository();
+    const useCase = new ConfirmUploadUseCase(storage, createPolicy(), repository, 300);
+
+    await expect(
+      useCase.execute({
+        ownerSub: 'cognito-sub',
+        purpose: FilePurpose.ProfileImage,
+        objectKey:
+          'dev/uploads/pending/profile-image/cognito-sub/2026/06/file.jpg'
+      })
+    ).rejects.toBe(promotionError);
+    expect(repository.saveConfirmedUpload).not.toHaveBeenCalled();
+    expect(storage.createPresignedReadUrl).not.toHaveBeenCalled();
   });
 });

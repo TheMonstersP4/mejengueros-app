@@ -113,7 +113,7 @@ export class FilesController {
   @ApiOperation({
     summary: 'Confirm a direct S3 image upload.',
     description:
-      'Checks the uploaded S3 object, validates ownership, stores image metadata, and returns a short-lived read URL.'
+      'Checks the uploaded S3 object, validates ownership, promotes it to durable storage, stores image metadata, and returns a short-lived read URL.'
   })
   @ApiBody({
     description: 'Uploaded object information returned by upload URL creation.',

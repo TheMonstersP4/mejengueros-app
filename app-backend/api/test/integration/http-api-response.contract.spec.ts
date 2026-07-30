@@ -50,6 +50,7 @@ describe('HTTP API response contract', () => {
         sizeBytes: 512,
         detectedContentType: 'image/jpeg'
       }),
+      promoteUploadedObject: jest.fn().mockResolvedValue(undefined),
       createPresignedReadUrl: jest.fn().mockResolvedValue({
         readUrl: 'https://read.example.test/file.jpg'
       })
@@ -314,7 +315,8 @@ describe('HTTP API response contract', () => {
       ownerPictureUrl: undefined,
       ownerProvider: undefined,
       purpose: FilePurpose.ProfileImage,
-      objectKey,
+      objectKey:
+        'test/uploads/confirmed/profile-image/cognito-sub/2026/06/file.jpg',
       contentType: 'image/jpeg',
       sizeBytes: 512
     });

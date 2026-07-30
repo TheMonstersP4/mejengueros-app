@@ -9,6 +9,7 @@ export interface IUserPersistenceRecord {
   email: string;
   name?: string | null;
   pictureUrl?: string | null;
+  profileImageUploadId?: string | null;
   identities?: IUserIdentityRecord[];
 }
 

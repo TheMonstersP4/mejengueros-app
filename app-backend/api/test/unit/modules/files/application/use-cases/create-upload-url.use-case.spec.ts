@@ -15,6 +15,7 @@ describe('CreateUploadUrlUseCase', () => {
         }
       }),
       inspectUploadedObject: jest.fn(),
+      promoteUploadedObject: jest.fn(),
       createPresignedReadUrl: jest.fn()
     } satisfies IFileStoragePort;
     const policy = new ImageUploadPolicyService({
@@ -33,7 +34,7 @@ describe('CreateUploadUrlUseCase', () => {
 
     expect(result).toEqual({
       objectKey: expect.stringMatching(
-        /^dev\/profile-image\/cognito-sub\/\d{4}\/\d{2}\/.+\.jpg$/
+        /^dev\/pending\/profile-image\/cognito-sub\/\d{4}\/\d{2}\/.+\.jpg$/
       ),
       method: 'POST',
       uploadUrl: 'https://upload.example.test',
@@ -63,6 +64,7 @@ describe('CreateUploadUrlUseCase', () => {
         }
       }),
       inspectUploadedObject: jest.fn(),
+      promoteUploadedObject: jest.fn(),
       createPresignedReadUrl: jest.fn()
     } satisfies IFileStoragePort;
     const policy = new ImageUploadPolicyService({
@@ -80,7 +82,7 @@ describe('CreateUploadUrlUseCase', () => {
     });
 
     expect(result.objectKey).toMatch(
-      /^dev\/review-evidence-image\/cognito-sub\/\d{4}\/\d{2}\/.+\.jpg$/
+      /^dev\/pending\/review-evidence-image\/cognito-sub\/\d{4}\/\d{2}\/.+\.jpg$/
     );
   });
 });

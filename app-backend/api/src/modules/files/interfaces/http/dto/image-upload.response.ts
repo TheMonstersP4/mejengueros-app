@@ -16,7 +16,7 @@ export class ImageUploadResponse {
    * Private S3 object key.
    */
   @ApiProperty({
-    example: 'dev/uploads/profile-image/user-sub/2026/06/image-id.jpg'
+    example: 'dev/uploads/confirmed/profile-image/user-sub/2026/06/image-id.jpg'
   })
   objectKey!: string;
 

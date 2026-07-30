@@ -1,6 +1,8 @@
 package io.github.themonstersp4.mejengueros.screens.profile
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,10 +14,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -23,22 +27,30 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileFeedback
+import io.github.themonstersp4.mejengueros.presentation.profile.PlayerProfileUiState
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosThumbnail
 
 @Composable
 fun PlayerProfileScreen(
-    displayName: String?,
-    email: String,
+    state: PlayerProfileUiState,
     contentPadding: PaddingValues,
+    onChangeProfileImage: () -> Unit = {},
     onFavoriteCourtsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-  val identity = profileIdentity(displayName = displayName, email = email)
+  val identity = profileIdentity(displayName = state.displayName, email = state.email)
 
   Column(
       modifier =
@@ -51,7 +63,34 @@ fun PlayerProfileScreen(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
-    ProfileAvatar(identity = identity)
+    ProfileAvatar(
+        identity = identity,
+        pictureUrl = state.pictureUrl,
+        canChangeImage = state.isImagePickerAvailable,
+        isUploading = state.isUploadingImage,
+        onChangeImage = onChangeProfileImage,
+    )
+
+    state.feedback?.let { feedback ->
+      Text(
+          text = feedback.message,
+          style = MaterialTheme.typography.bodyMedium,
+          color =
+              if (feedback == PlayerProfileFeedback.ImageUpdated) {
+                MaterialTheme.colorScheme.primary
+              } else {
+                MaterialTheme.colorScheme.error
+              },
+          textAlign = TextAlign.Center,
+          modifier =
+              Modifier.semantics {
+                    liveRegion =
+                        if (feedback == PlayerProfileFeedback.ImageUpdated) LiveRegionMode.Polite
+                        else LiveRegionMode.Assertive
+                  }
+                  .testTag("player_profile_feedback"),
+      )
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -68,6 +107,14 @@ fun PlayerProfileScreen(
         Text(
             text = accountEmail,
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+      }
+      state.provider?.trim()?.takeIf(String::isNotEmpty)?.let { provider ->
+        Text(
+            text = "Cuenta conectada con $provider",
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
@@ -109,29 +156,103 @@ fun PlayerProfileScreen(
 }
 
 @Composable
-private fun ProfileAvatar(identity: PlayerProfileIdentity) {
-  Surface(
-      modifier =
-          Modifier.size(88.dp)
-              .semantics { contentDescription = "Avatar de ${identity.primaryLabel}" }
-              .testTag("player_profile_avatar"),
-      shape = CircleShape,
-      color = MaterialTheme.colorScheme.secondaryContainer,
-      contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-  ) {
-    androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
-      if (identity.initials == null) {
-        Icon(imageVector = Icons.Filled.Person, contentDescription = null)
-      } else {
-        Text(
-            text = identity.initials,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+private fun ProfileAvatar(
+    identity: PlayerProfileIdentity,
+    pictureUrl: String?,
+    canChangeImage: Boolean,
+    isUploading: Boolean,
+    onChangeImage: () -> Unit,
+) {
+  val accessibilityLabel =
+      if (canChangeImage) "Cambiar foto de perfil" else "Avatar de ${identity.primaryLabel}"
+  val actionModifier =
+      if (canChangeImage) {
+        Modifier.clickable(
+            enabled = !isUploading,
+            role = Role.Button,
+            onClickLabel = "Cambiar foto de perfil",
+            onClick = onChangeImage,
         )
+      } else {
+        Modifier
       }
+
+  Box(
+      modifier =
+          Modifier.size(96.dp)
+              .semantics { contentDescription = accessibilityLabel }
+              .then(actionModifier)
+              .testTag("player_profile_avatar"),
+      contentAlignment = Alignment.Center,
+  ) {
+    MejenguerosThumbnail(
+        imageUrl = pictureUrl,
+        contentDescription = null,
+        size = androidx.compose.ui.unit.DpSize(88.dp, 88.dp),
+        shape = CircleShape,
+        modifier = Modifier.testTag("player_profile_image"),
+    ) {
+      Surface(
+          modifier = Modifier.matchParentSize(),
+          color = MaterialTheme.colorScheme.secondaryContainer,
+          contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          if (identity.initials == null) {
+            Icon(imageVector = Icons.Filled.Person, contentDescription = null)
+          } else {
+            Text(
+                text = identity.initials,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+          }
+        }
+      }
+    }
+
+    if (canChangeImage) {
+      Surface(
+          modifier = Modifier.align(Alignment.BottomEnd).size(30.dp).testTag("profile_edit_badge"),
+          shape = CircleShape,
+          color = MaterialTheme.colorScheme.primary,
+          contentColor = MaterialTheme.colorScheme.onPrimary,
+          shadowElevation = 2.dp,
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+              imageVector = Icons.Filled.Edit,
+              contentDescription = null,
+              modifier = Modifier.size(16.dp),
+          )
+        }
+      }
+    }
+
+    if (isUploading) {
+      Surface(
+          modifier = Modifier.size(88.dp).alpha(0.72f),
+          shape = CircleShape,
+          color = Color.Black,
+      ) {}
+      CircularProgressIndicator(
+          modifier = Modifier.size(30.dp).testTag("player_profile_uploading"),
+          color = Color.White,
+          strokeWidth = 3.dp,
+      )
     }
   }
 }
+
+private val PlayerProfileFeedback.message: String
+  get() =
+      when (this) {
+        PlayerProfileFeedback.ImageUpdated -> "Tu foto de perfil se actualizó."
+        PlayerProfileFeedback.ImageReadFailed ->
+            "No pudimos leer la imagen seleccionada. Intentá con otra imagen."
+        PlayerProfileFeedback.ImageUploadFailed ->
+            "No pudimos actualizar tu foto de perfil. Intentá nuevamente."
+      }
 
 internal data class PlayerProfileIdentity(
     val primaryLabel: String,
