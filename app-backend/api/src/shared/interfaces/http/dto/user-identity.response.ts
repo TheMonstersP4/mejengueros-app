@@ -19,7 +19,11 @@ export class UserIdentityResponse {
   /**
    * Profile image URL when available.
    */
-  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
+  @ApiPropertyOptional({
+    description:
+      'Profile image URL resolved for this response; user profiles may return a fresh signed custom image URL.',
+    example: 'https://example.com/profile.jpg'
+  })
   pictureUrl?: string;
 
   /**
