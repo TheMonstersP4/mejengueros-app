@@ -112,6 +112,30 @@
       "sessions": 2,
       "memories": 24,
       "prompts": 14
+    },
+    {
+      "id": "08763bd5",
+      "created_by": "screi",
+      "created_at": "2026-07-30T15:57:22Z",
+      "sessions": 36,
+      "memories": 247,
+      "prompts": 80
+    },
+    {
+      "id": "f7596834",
+      "created_by": "screi",
+      "created_at": "2026-07-30T15:59:40Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "63457444",
+      "created_by": "screi",
+      "created_at": "2026-07-30T16:02:49Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }
