@@ -29,10 +29,43 @@ class OwnerReceivedReviewsViewModel(
   private var loadMoreJob: Job? = null
   private var courtsJob: Job? = null
   private var currentLoadGeneration: Long = 0
+  private var loadedSessionKey: String? = null
+  private var initialized = false
 
   val uiState: StateFlow<OwnerReceivedReviewsUiState> = _uiState.asStateFlow()
 
   init {
+    loadCourtsAndFirstPage()
+  }
+
+  /**
+   * Keeps the received reviews in sync with the authenticated session. This ViewModel outlives a
+   * single navigation entry, so re-entering the screen for the same user refreshes to reflect newly
+   * received reviews, while a different user signing in fully resets the court filter and pages so
+   * a previous owner's data never leaks in.
+   */
+  fun onSessionChanged(sessionKey: String?) {
+    if (!initialized) {
+      // First mount of this instance; init{} already kicked off the initial load.
+      initialized = true
+      loadedSessionKey = sessionKey
+      return
+    }
+    if (sessionKey != loadedSessionKey) {
+      loadedSessionKey = sessionKey
+      reset()
+    } else {
+      refresh()
+    }
+  }
+
+  /** Discards the previous session's court filter and reviews, then reloads from scratch. */
+  fun reset() {
+    loadPageJob?.cancel()
+    loadMoreJob?.cancel()
+    courtsJob?.cancel()
+    currentLoadGeneration++
+    _uiState.value = OwnerReceivedReviewsUiState(isLoading = true)
     loadCourtsAndFirstPage()
   }
 

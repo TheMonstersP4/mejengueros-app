@@ -57,6 +57,9 @@ data class LeaveReviewUiState(
     val isSubmitting: Boolean = false,
     val submitErrorMessage: String? = null,
     val mode: LeaveReviewUiMode = LeaveReviewUiMode.Form,
+    // Label + destination of the success primary button depend on where the flow
+    // was launched from (reservations vs notifications), so callers override it.
+    val successReturnLabel: String = "VOLVER A MIS RESERVAS",
 ) {
   val canSubmit: Boolean
     get() =
@@ -103,6 +106,7 @@ fun LeaveReviewScreen(
     LeaveReviewUiMode.Success ->
         LeaveReviewSuccessContent(
             contentPadding = contentPadding,
+            returnLabel = state.successReturnLabel,
             onReturnToReservations = actions.onReturnToReservations,
             onExploreCourts = actions.onExploreCourts,
             modifier = modifier,
@@ -302,6 +306,7 @@ private fun ReviewEvidenceSection(
 @Composable
 private fun LeaveReviewSuccessContent(
     contentPadding: PaddingValues,
+    returnLabel: String,
     onReturnToReservations: () -> Unit,
     onExploreCourts: () -> Unit,
     modifier: Modifier = Modifier,
@@ -361,7 +366,7 @@ private fun LeaveReviewSuccessContent(
     MejenguerosBottomActionBar {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         MejenguerosFullWidthPrimaryButton(
-            text = "VOLVER A MIS RESERVAS",
+            text = returnLabel,
             onClick = onReturnToReservations,
         )
         MejenguerosOutlinedButton(

@@ -282,7 +282,7 @@ class CourtCatalogViewModel(
 
           val options =
               services
-                  .map { CatalogFilterOption(id = it.id, label = it.name) }
+                  .map { CatalogFilterOption(id = it.id, label = serviceDisplayName(it.name)) }
                   .distinctBy(CatalogFilterOption::id)
                   .sortedBy(CatalogFilterOption::label)
           _uiState.value = _uiState.value.copy(availableServices = options)

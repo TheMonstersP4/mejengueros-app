@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.CourtCatalogItem
 import io.github.themonstersp4.mejengueros.presentation.catalog.CatalogFilterOption
 import io.github.themonstersp4.mejengueros.presentation.catalog.CourtCatalogUiState
+import io.github.themonstersp4.mejengueros.presentation.catalog.serviceDisplayName
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosCourtCard
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosInlineLoadingState
@@ -512,12 +513,12 @@ private fun catalogCourtContext(court: CourtCatalogItem): String =
 private fun buildCourtMetadata(court: CourtCatalogItem): List<String> {
   val metadata = mutableListOf<String>()
 
-  court.services.firstOrNull()?.let(metadata::add)
+  court.services.firstOrNull()?.let { metadata.add(serviceDisplayName(it)) }
 
   ratingLabel(court.ratingAverage, court.ratingCount)?.let(metadata::add)
 
   if (metadata.size < 2) {
-    court.services.drop(1).firstOrNull()?.let(metadata::add)
+    court.services.drop(1).firstOrNull()?.let { metadata.add(serviceDisplayName(it)) }
   }
 
   if (metadata.isEmpty()) {

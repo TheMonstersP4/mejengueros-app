@@ -133,6 +133,7 @@ fun EntryProviderScope<NavKey>.appEntries(
     notificationsViewModel: NotificationsViewModel,
     loginActions: LoginNavigationActions,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
 ) {
   entry<LoginRoute> {
     LoginEntry(
@@ -207,6 +208,7 @@ fun EntryProviderScope<NavKey>.appEntries(
     MyComplexEntry(
         authenticatedNavigationState = authenticatedNavigationState,
         shellActions = shellActions,
+        currentUserId = currentUserId,
     )
   }
   entry<ComplexDetailRoute> { route ->
@@ -214,6 +216,7 @@ fun EntryProviderScope<NavKey>.appEntries(
         route = route,
         authenticatedNavigationState = authenticatedNavigationState,
         shellActions = shellActions,
+        currentUserId = currentUserId,
     )
   }
   entry<AddCourtRoute> { route -> AddCourtEntry(route = route, shellActions = shellActions) }
@@ -226,7 +229,9 @@ fun EntryProviderScope<NavKey>.appEntries(
   entry<CourtAvailabilityRoute> { route ->
     CourtAvailabilityEntry(route = route, shellActions = shellActions)
   }
-  entry<OwnerReceivedReviewsRoute> { OwnerReceivedReviewsEntry(shellActions = shellActions) }
+  entry<OwnerReceivedReviewsRoute> {
+    OwnerReceivedReviewsEntry(shellActions = shellActions, currentUserId = currentUserId)
+  }
 }
 
 @Composable
@@ -942,7 +947,8 @@ private enum class ReservationReviewEntryMode {
 }
 
 private fun ReviewUiState.toLeaveReviewUiState(
-    currentMode: ReservationReviewEntryMode
+    currentMode: ReservationReviewEntryMode,
+    successReturnLabel: String = "VOLVER A MIS RESERVAS",
 ): LeaveReviewUiState? {
   val reservation = reviewableReservation ?: return null
 
@@ -960,6 +966,7 @@ private fun ReviewUiState.toLeaveReviewUiState(
           } else {
             LeaveReviewUiMode.Form
           },
+      successReturnLabel = successReturnLabel,
   )
 }
 
@@ -999,7 +1006,11 @@ private fun NotificationsEntryContent(
     mutableStateOf(ReservationReviewEntryMode.Launcher.name)
   }
   val currentMode = ReservationReviewEntryMode.valueOf(reviewEntryMode)
-  val leaveReviewState = reviewState.toLeaveReviewUiState(currentMode)
+  val leaveReviewState =
+      reviewState.toLeaveReviewUiState(
+          currentMode,
+          successReturnLabel = "VOLVER A NOTIFICACIONES",
+      )
 
   LaunchedEffect(reviewState.submittedReview?.id) {
     if (reviewState.submittedReview != null) {
@@ -1060,8 +1071,12 @@ private fun NotificationsEntryContent(
                       onRetryLoad = notificationsViewModel::refresh,
                       onNotificationSelected = { notification ->
                         notificationsViewModel.markRead(notification.id)
-                        reviewViewModel.startReview(notification.toReviewableReservation())
-                        reviewEntryMode = ReservationReviewEntryMode.Form.name
+                        if (notification.isReviewed && notification.courtId.isNotBlank()) {
+                          shellActions.openCatalogCourtDetail(notification.toCourtDetailRoute())
+                        } else if (!notification.isReviewed) {
+                          reviewViewModel.startReview(notification.toReviewableReservation())
+                          reviewEntryMode = ReservationReviewEntryMode.Form.name
+                        }
                       },
                   ),
           )
@@ -1101,17 +1116,26 @@ private fun UserNotificationUiModel.toReviewableReservation():
         imageUrl = null,
     )
 
+// Opens the court detail so the player sees the review already posted for this court.
+// The court detail loads its own slots, reviews and rating by courtId, so the notification
+// only needs to supply the identifiers the route requires.
+private fun UserNotificationUiModel.toCourtDetailRoute(): CatalogCourtDetailRoute =
+    CatalogCourtDetailRoute(
+        courtId = courtId,
+        complexId = complexId,
+        complexName = complexName,
+        courtName = courtName,
+    )
+
 @Composable
 private fun MyComplexEntry(
     authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
 ) {
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
-  MyComplexInitialRefreshEffect(
-      state = state,
-      onInitialLoadRequested = myComplexViewModel::refresh,
-  )
+  LaunchedEffect(currentUserId) { myComplexViewModel.onSessionChanged(currentUserId) }
   MyComplexHubReloadEffect(
       reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
       onReloadRequested = myComplexViewModel::refresh,
@@ -1186,6 +1210,7 @@ private fun ComplexDetailEntry(
     route: ComplexDetailRoute,
     authenticatedNavigationState: AuthenticatedNavigationState,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
 ) {
   val myComplexViewModel = koinViewModel<MyComplexViewModel>()
   val state by myComplexViewModel.uiState.collectAsState()
@@ -1200,7 +1225,7 @@ private fun ComplexDetailEntry(
   LaunchedEffect(courtImagePicker.isAvailable) {
     myComplexViewModel.updateCourtImagePickerAvailability(courtImagePicker.isAvailable)
   }
-  MyComplexInitialRefreshEffect(state = state, onInitialLoadRequested = myComplexViewModel::refresh)
+  LaunchedEffect(currentUserId) { myComplexViewModel.onSessionChanged(currentUserId) }
   MyComplexHubReloadEffect(
       reloadRequestKey = authenticatedNavigationState.myComplexHubReloadRequestKey,
       onReloadRequested = myComplexViewModel::refresh,
@@ -1402,18 +1427,6 @@ internal fun AddCourtEntryContent(
                   onSubmit = viewModel::submit,
               ),
       )
-    }
-  }
-}
-
-@Composable
-internal fun MyComplexInitialRefreshEffect(
-    state: MyComplexUiState,
-    onInitialLoadRequested: () -> Unit,
-) {
-  LaunchedEffect(state.isLoading, state.complexes, state.errorMessage) {
-    if (state.isLoading && state.complexes.isEmpty() && state.errorMessage == null) {
-      onInitialLoadRequested()
     }
   }
 }
@@ -1814,11 +1827,15 @@ private fun LocationPickerOverlayHost(
 }
 
 @Composable
-private fun OwnerReceivedReviewsEntry(shellActions: AuthenticatedShellActions) {
+private fun OwnerReceivedReviewsEntry(
+    shellActions: AuthenticatedShellActions,
+    currentUserId: String?,
+) {
   val viewModel = koinViewModel<OwnerReceivedReviewsViewModel>()
   OwnerReceivedReviewsEntryContent(
       viewModel = viewModel,
       shellActions = shellActions,
+      currentUserId = currentUserId,
   )
 }
 
@@ -1826,12 +1843,14 @@ private fun OwnerReceivedReviewsEntry(shellActions: AuthenticatedShellActions) {
 internal fun OwnerReceivedReviewsEntryContent(
     viewModel: OwnerReceivedReviewsViewModel,
     shellActions: AuthenticatedShellActions,
+    currentUserId: String? = null,
 ) {
   val state by viewModel.uiState.collectAsState()
-  // The NavDisplay retains this ViewModel across navigations (no ViewModelStore decorator),
-  // so re-entering the screen reuses the same instance and its cached page. Refresh on mount
-  // to reload the owner's reviews on every entry, matching NotificationsEntryContent.
-  LaunchedEffect(Unit) { viewModel.refresh() }
+  // The NavDisplay retains this ViewModel across navigations (no ViewModelStore decorator), so
+  // re-entering the screen reuses the same instance and its cached page. Drive reloads by session:
+  // same user re-entering refreshes to reflect new reviews, a different user signing in fully
+  // resets the court filter and pages so a previous owner's data never leaks in.
+  LaunchedEffect(currentUserId) { viewModel.onSessionChanged(currentUserId) }
   OwnerReceivedReviewsRouteContent(
       state = state,
       shellActions = shellActions,

@@ -26,6 +26,7 @@ import io.github.themonstersp4.mejengueros.domain.model.Canton
 import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.Province
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
+import io.github.themonstersp4.mejengueros.presentation.catalog.serviceDisplayName
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexStep
 import io.github.themonstersp4.mejengueros.presentation.complexes.CreateComplexUiState
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosConfirmationDialog
@@ -406,7 +407,7 @@ private fun ServiceSelectionSection(
       ) {
         services.forEach { service ->
           MejenguerosOptionChip(
-              text = service.name,
+              text = serviceDisplayName(service.name),
               selected = service.id in selectedIds,
               onClick = { onToggleService(service.id) },
               enabled = enabled,

@@ -939,7 +939,7 @@ class AuthViewModelTest {
 
     assertFalse(viewModel.uiState.value.isAuthenticated)
     assertFalse(viewModel.uiState.value.isRestoringSession)
-    assertEquals("Tu sesion expiro. Inicia sesion de nuevo.", viewModel.uiState.value.errorMessage)
+    assertEquals("Tu sesión expiró. Inicia sesión de nuevo.", viewModel.uiState.value.errorMessage)
     assertEquals(1, repository.clearLocalSessionCount)
     scope.cancel()
   }

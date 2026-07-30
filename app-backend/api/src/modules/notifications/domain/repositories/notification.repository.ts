@@ -20,10 +20,13 @@ export interface INotificationSnapshot {
   reservationId: string;
   type: NotificationType;
   status: NotificationStatus;
+  courtId: string;
+  complexId: string;
   complexName: string;
   courtName: string;
   startsAt: string;
   endsAt: string;
+  reviewId: string | null;
   createdAt: string;
   readAt: string | null;
 }

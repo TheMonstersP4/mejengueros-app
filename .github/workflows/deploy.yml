@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       api: ${{ steps.filter.outputs.api }}
-      poc: ${{ steps.filter.outputs.poc }}
+      web: ${{ steps.filter.outputs.web }}
       workflows: ${{ steps.filter.outputs.workflows }}
     steps:
       - name: Checkout
@@ -34,10 +34,39 @@ jobs:
           filters: |
             api:
               - 'app-backend/api/**'
-            poc:
-              - 'app-backend/poc/web-chat/**'
+            web:
+              - 'app-web/**'
             workflows:
               - '.github/**'
+
+  quality-web:
+    name: Web quality gate
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: app-web
+        run: npm ci
+
+      - name: Test web
+        working-directory: app-web
+        run: npm test
+
+      - name: Build web
+        working-directory: app-web
+        run: npm run build
 
   quality-api:
     name: API quality gate
@@ -218,10 +247,12 @@ jobs:
       - name: Deploy reservation completion worker
         run: bash .github/scripts/deploy-reservation-completion-worker.sh
 
-  deploy-poc:
-    name: Deploy POC site
-    needs: changes
-    if: needs.changes.outputs.poc == 'true' || needs.changes.outputs.workflows == 'true'
+  deploy-web:
+    name: Deploy web site
+    needs:
+      - changes
+      - quality-web
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -238,7 +269,14 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: deploy-poc-${{ github.run_id }}
+          role-session-name: deploy-web-${{ github.run_id }}
 
-      - name: Deploy POC site
-        run: bash .github/scripts/deploy-poc-site.sh
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-web/package-lock.json
+
+      - name: Deploy web site
+        run: bash .github/scripts/deploy-web-site.sh

@@ -46,6 +46,32 @@ class NotificationsViewModelTest {
       }
 
   @Test
+  fun reviewedNotificationsExposeTheReviewedStateForTheCourtDetailCta() =
+      runTest(dispatcher) {
+        val repository =
+            FakeNotificationRepository(
+                initialNotifications =
+                    listOf(
+                        notification(id = "pending", reviewId = null),
+                        notification(id = "reviewed", reviewId = "review-1"),
+                    )
+            )
+        val viewModel =
+            NotificationsViewModel(
+                notificationRepository = repository,
+                coroutineScope = this,
+            )
+
+        viewModel.activate("user-1")
+        advanceUntilIdle()
+
+        val notifications = viewModel.uiState.value.notifications
+        assertFalse(notifications.first { it.id == "pending" }.isReviewed)
+        assertEquals(true, notifications.first { it.id == "reviewed" }.isReviewed)
+        assertEquals("court-1", notifications.first { it.id == "reviewed" }.courtId)
+      }
+
+  @Test
   fun realtimeNotificationIsAddedWhileSessionIsActive() =
       runTest(dispatcher) {
         val realtimeNotifications = MutableSharedFlow<UserNotification>()
@@ -171,6 +197,7 @@ private class FakeNotificationRepository(
 private fun notification(
     id: String,
     status: UserNotificationStatus = UserNotificationStatus.Pending,
+    reviewId: String? = null,
 ): UserNotification =
     UserNotification(
         id = id,
@@ -179,11 +206,14 @@ private fun notification(
         reservation =
             UserNotificationReservation(
                 id = "reservation-1",
+                courtId = "court-1",
+                complexId = "complex-1",
                 complexName = "Mejengas CR",
                 courtName = "Cancha 1",
                 startsAt = "2026-07-11T18:00:00.000Z",
                 endsAt = "2026-07-11T19:00:00.000Z",
             ),
+        reviewId = reviewId,
         title = "Contanos como estuvo la mejenga",
         message = "Tu reserva ya termino.",
         createdAt = "2026-07-11T19:01:00.000Z",

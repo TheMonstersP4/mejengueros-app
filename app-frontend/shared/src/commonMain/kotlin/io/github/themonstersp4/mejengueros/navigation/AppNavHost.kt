@@ -257,6 +257,7 @@ fun AppNavHost() {
                 notificationsViewModel = notificationsViewModel,
                 loginActions = loginActions,
                 shellActions = shellActions,
+                currentUserId = currentUserId,
             )
           },
   )
