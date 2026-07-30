@@ -3,6 +3,7 @@ import type { IAuthenticatedUserOutput } from '../../../auth/application/dto/aut
 import type { IUserRepository } from '../../domain/repositories/user.repository';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { IUserProfileOutput } from '../dto/user-profile.output';
+import { UserProfileService } from '../services/user-profile.service';
 
 /**
  * Synchronizes Cognito identity claims with the local application user record.
@@ -15,7 +16,9 @@ import type { IUserProfileOutput } from '../dto/user-profile.output';
 export class SyncAuthenticatedUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY)
-    private readonly userRepository: IUserRepository
+    private readonly userRepository: IUserRepository,
+    @Inject(UserProfileService)
+    private readonly userProfileService: UserProfileService
   ) {}
 
   /**
@@ -34,6 +37,6 @@ export class SyncAuthenticatedUserUseCase {
       provider: identity.provider
     });
 
-    return user.toProfile();
+    return this.userProfileService.render(user);
   }
 }

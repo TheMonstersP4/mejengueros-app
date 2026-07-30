@@ -40,6 +40,14 @@ export interface IExternalUserIdentity {
 }
 
 /**
+ * Atomic custom profile image replacement command.
+ */
+export interface IReplaceUserProfileImageInput {
+  userId: string;
+  imageUploadId: string;
+}
+
+/**
  * Persistence contract for user profiles.
  */
 export interface IUserRepository {
@@ -58,6 +66,14 @@ export interface IUserRepository {
    * @returns Matching user entity or `null`.
    */
   findByCognitoSub(cognitoSub: string): Promise<UserEntity | null>;
+
+  /**
+   * Atomically replaces the custom profile image relation for one user.
+   *
+   * @param input - Local user and confirmed image upload identifiers.
+   * @returns Updated user entity.
+   */
+  replaceProfileImage(input: IReplaceUserProfileImageInput): Promise<UserEntity>;
 
   /**
    * Lists local user profiles by most recently updated first.

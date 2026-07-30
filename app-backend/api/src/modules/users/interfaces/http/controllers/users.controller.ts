@@ -1,5 +1,5 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Inject, Put, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiEnvelopeArrayOk,
   ApiEnvelopeErrors,
@@ -10,7 +10,10 @@ import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognit
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
 import { ListUsersUseCase } from '../../../application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from '../../../application/use-cases/sync-authenticated-user.use-case';
+import { UpdateMyProfileImageUseCase } from '../../../application/use-cases/update-my-profile-image.use-case';
 import { UserProfileResponse } from '../dto/user-profile.response';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
+import { UpdateProfileImageRequest } from '../dto/update-profile-image.request';
 
 /**
  * HTTP endpoints for authenticated user profiles.
@@ -23,7 +26,9 @@ export class UsersController {
     @Inject(ListUsersUseCase)
     private readonly listUsers: ListUsersUseCase,
     @Inject(SyncAuthenticatedUserUseCase)
-    private readonly syncAuthenticatedUser: SyncAuthenticatedUserUseCase
+    private readonly syncAuthenticatedUser: SyncAuthenticatedUserUseCase,
+    @Inject(UpdateMyProfileImageUseCase)
+    private readonly updateMyProfileImage: UpdateMyProfileImageUseCase
   ) {}
 
   /**
@@ -69,5 +74,28 @@ export class UsersController {
     @CurrentUser() user: IAuthenticatedUserOutput
   ): Promise<UserProfileResponse> {
     return this.syncAuthenticatedUser.execute(user);
+  }
+
+  /**
+   * Associates a confirmed upload as the authenticated user's custom profile image.
+   */
+  @Put('me/profile-image')
+  @UseGuards(CognitoAuthGuard)
+  @ApiOperation({
+    summary: 'Replace the current user custom profile image.',
+    description:
+      'Validates ownership and purpose of a confirmed upload, stores the durable association, and returns the effective profile with a fresh read URL.'
+  })
+  @ApiBody({ type: UpdateProfileImageRequest })
+  @ApiEnvelopeOk(
+    UserProfileResponse,
+    'Updated current user profile wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 403, 404, 409, 502)
+  async updateProfileImage(
+    @CurrentUser() user: IAuthenticatedUserOutput,
+    @Body() request: UpdateProfileImageRequest
+  ): Promise<UserProfileResponse> {
+    return this.updateMyProfileImage.execute(user, request.imageUploadId);
   }
 }
