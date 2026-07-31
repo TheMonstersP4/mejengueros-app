@@ -189,8 +189,9 @@ class PlayerProfileScreenBehaviorTest {
   }
 
   @Test
-  fun uploadFailureUsesMessageDialogWhileSuccessRemainsInline() {
+  fun uploadFailureAndSuccessUseDismissibleMessageDialog() {
     val feedback = mutableStateOf<PlayerProfileFeedback?>(PlayerProfileFeedback.ImageUploadFailed)
+    var dismissRequests = 0
     composeRule.setContent {
       MejenguerosTheme {
         PlayerProfileScreen(
@@ -198,6 +199,10 @@ class PlayerProfileScreenBehaviorTest {
                 profileState("María González", "maria@example.com", true)
                     .copy(feedback = feedback.value),
             contentPadding = PaddingValues(),
+            onDismissFeedback = {
+              dismissRequests += 1
+              feedback.value = null
+            },
         )
       }
     }
@@ -211,9 +216,15 @@ class PlayerProfileScreenBehaviorTest {
     composeRule.runOnIdle { feedback.value = PlayerProfileFeedback.ImageUpdated }
     composeRule.waitForIdle()
 
+    composeRule.onNodeWithText("Foto de perfil actualizada").assertIsDisplayed()
     composeRule.onNodeWithText("Tu foto de perfil se actualizó.").assertIsDisplayed()
-    composeRule.onNodeWithTag("player_profile_feedback").assertIsDisplayed()
+    composeRule.onNodeWithTag("player_profile_feedback").assertDoesNotExist()
+    composeRule.onNodeWithTag("mejengueros_message_dialog").assertIsDisplayed()
+    composeRule.onNodeWithTag("mejengueros_message_dialog_action").performClick()
+    composeRule.waitForIdle()
+
     composeRule.onNodeWithTag("mejengueros_message_dialog").assertDoesNotExist()
+    composeRule.runOnIdle { assertEquals(1, dismissRequests) }
   }
 
   private fun setProfileContent(
