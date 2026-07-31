@@ -8,6 +8,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runTest
 
 class ProfileImageRepositoryTest {
@@ -83,12 +86,16 @@ class ProfileImageRepositoryTest {
 
   private class FakeAuthenticatedUserProfileRepository(initialProfile: UserProfile?) :
       IAuthenticatedUserProfileRepository {
-    private var profile = initialProfile
+    private val _userProfile = MutableStateFlow(initialProfile)
+    override val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
-    override fun getUserProfile(): UserProfile? = profile
+    override fun getUserProfile(): UserProfile? = _userProfile.value
+
+    override suspend fun refreshAuthenticatedUserProfile(): UserProfile =
+        checkNotNull(_userProfile.value)
 
     override fun updateUserProfile(profile: UserProfile) {
-      this.profile = profile
+      _userProfile.value = profile
     }
   }
 }

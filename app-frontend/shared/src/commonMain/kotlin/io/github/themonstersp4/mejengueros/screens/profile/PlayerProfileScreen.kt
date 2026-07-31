@@ -48,6 +48,7 @@ fun PlayerProfileScreen(
     contentPadding: PaddingValues,
     onChangeProfileImage: () -> Unit = {},
     onDismissFeedback: () -> Unit = {},
+    onDismissProfileRefreshFailure: () -> Unit = {},
     onFavoriteCourtsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -134,13 +135,24 @@ fun PlayerProfileScreen(
     }
   }
 
-  val feedback = state.feedback
-  MejenguerosMessageDialog(
-      visible = feedback != null,
-      title = feedback?.dialogTitle.orEmpty(),
-      message = feedback?.message.orEmpty(),
-      onDismissRequest = onDismissFeedback,
-  )
+  if (state.profileRefreshFailed) {
+    MejenguerosMessageDialog(
+        visible = true,
+        title = "No pudimos actualizar tu perfil",
+        message =
+            "No fue posible cargar la información más reciente de tu perfil. Inténtalo de nuevo.",
+        onDismissRequest = onDismissProfileRefreshFailure,
+        actionText = "Cerrar",
+    )
+  } else {
+    val feedback = state.feedback
+    MejenguerosMessageDialog(
+        visible = feedback != null,
+        title = feedback?.dialogTitle.orEmpty(),
+        message = feedback?.message.orEmpty(),
+        onDismissRequest = onDismissFeedback,
+    )
+  }
 }
 
 @Composable

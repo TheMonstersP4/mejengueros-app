@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.domain.repository.IProfileImageReposi
 import io.github.themonstersp4.mejengueros.ui.components.ProfileImagePickerResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,25 @@ class PlayerProfileViewModel(
   private val scope = coroutineScope ?: viewModelScope
   private val _uiState = MutableStateFlow(PlayerProfileUiState())
   val uiState: StateFlow<PlayerProfileUiState> = _uiState.asStateFlow()
+  private var profileRefreshJob: Job? = null
+
+  init {
+    scope.launch {
+      authenticatedUserProfileRepository.userProfile.collect { profile ->
+        val currentState = _uiState.value
+        when {
+          profile == null -> _uiState.value = currentState.copy(profile = null)
+          profile.id == currentState.userId ->
+              _uiState.value =
+                  currentState.copy(
+                      profile = profile,
+                      isRefreshingProfile = false,
+                      profileRefreshFailed = false,
+                  )
+        }
+      }
+    }
+  }
 
   fun activate(userId: String?, displayName: String?, email: String) {
     val currentState = _uiState.value
@@ -28,6 +48,7 @@ class PlayerProfileViewModel(
       return
     }
 
+    profileRefreshJob?.cancel()
     val cachedProfile =
         authenticatedUserProfileRepository.getUserProfile()?.takeIf { it.id == userId }
     _uiState.value =
@@ -38,6 +59,13 @@ class PlayerProfileViewModel(
             fallbackEmail = email,
             isImagePickerAvailable = currentState.isImagePickerAvailable,
         )
+    if (userId != null && cachedProfile == null) {
+      refreshProfile(userId)
+    }
+  }
+
+  fun dismissProfileRefreshFailure() {
+    _uiState.value = _uiState.value.copy(profileRefreshFailed = false)
   }
 
   fun setImagePickerAvailable(isAvailable: Boolean) {
@@ -56,6 +84,46 @@ class PlayerProfileViewModel(
 
   fun dismissFeedback() {
     _uiState.value = _uiState.value.copy(feedback = null)
+  }
+
+  private fun refreshProfile(expectedUserId: String) {
+    if (profileRefreshJob?.isActive == true) return
+
+    _uiState.value = _uiState.value.copy(isRefreshingProfile = true, profileRefreshFailed = false)
+    profileRefreshJob =
+        scope.launch {
+          try {
+            val profile = authenticatedUserProfileRepository.refreshAuthenticatedUserProfile()
+            if (_uiState.value.userId == expectedUserId) {
+              _uiState.value =
+                  if (profile.id == expectedUserId) {
+                    _uiState.value.copy(
+                        profile = profile,
+                        isRefreshingProfile = false,
+                        profileRefreshFailed = false,
+                    )
+                  } else {
+                    _uiState.value.copy(
+                        isRefreshingProfile = false,
+                        profileRefreshFailed = true,
+                    )
+                  }
+            }
+          } catch (error: CancellationException) {
+            if (_uiState.value.userId == expectedUserId) {
+              _uiState.value = _uiState.value.copy(isRefreshingProfile = false)
+            }
+            throw error
+          } catch (error: Throwable) {
+            if (_uiState.value.userId == expectedUserId) {
+              _uiState.value =
+                  _uiState.value.copy(
+                      isRefreshingProfile = false,
+                      profileRefreshFailed = true,
+                  )
+            }
+          }
+        }
   }
 
   private fun upload(image: io.github.themonstersp4.mejengueros.domain.model.LocalProfileImage) {

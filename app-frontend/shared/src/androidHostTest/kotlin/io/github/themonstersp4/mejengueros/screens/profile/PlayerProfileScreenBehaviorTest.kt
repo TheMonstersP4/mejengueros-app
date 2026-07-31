@@ -25,6 +25,7 @@ import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowDialog
 
 @RunWith(RobolectricTestRunner::class)
 class PlayerProfileScreenBehaviorTest {
@@ -225,6 +226,45 @@ class PlayerProfileScreenBehaviorTest {
 
     composeRule.onNodeWithTag("mejengueros_message_dialog").assertDoesNotExist()
     composeRule.runOnIdle { assertEquals(1, dismissRequests) }
+  }
+
+  @Test
+  fun profileRefreshFailureCanBeClosedByActionOrBack() {
+    val profileRefreshFailed = mutableStateOf(true)
+    var dismissRequests = 0
+    composeRule.setContent {
+      MejenguerosTheme {
+        PlayerProfileScreen(
+            state =
+                profileState("María González", "maria@example.com", true)
+                    .copy(profileRefreshFailed = profileRefreshFailed.value),
+            contentPadding = PaddingValues(),
+            onDismissProfileRefreshFailure = {
+              dismissRequests += 1
+              profileRefreshFailed.value = false
+            },
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("No pudimos actualizar tu perfil").assertIsDisplayed()
+    composeRule
+        .onNodeWithText(
+            "No fue posible cargar la información más reciente de tu perfil. Inténtalo de nuevo."
+        )
+        .assertIsDisplayed()
+    composeRule.onNodeWithText("Reintentar").assertDoesNotExist()
+    composeRule.onNodeWithText("Cerrar").assertIsDisplayed().performClick()
+    composeRule.onNodeWithTag("mejengueros_message_dialog").assertDoesNotExist()
+
+    composeRule.runOnIdle { profileRefreshFailed.value = true }
+    composeRule.onNodeWithText("Cerrar").assertIsDisplayed()
+    @Suppress("DEPRECATION")
+    composeRule.runOnIdle { ShadowDialog.getLatestDialog().onBackPressed() }
+    composeRule.waitForIdle()
+    composeRule.onNodeWithTag("mejengueros_message_dialog").assertDoesNotExist()
+
+    composeRule.runOnIdle { assertEquals(2, dismissRequests) }
   }
 
   private fun setProfileContent(
