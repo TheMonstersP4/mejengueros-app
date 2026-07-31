@@ -91,6 +91,9 @@ class ProfileImageRepositoryTest {
 
     override fun getUserProfile(): UserProfile? = _userProfile.value
 
+    override suspend fun refreshAuthenticatedUserProfile(): UserProfile =
+        checkNotNull(_userProfile.value)
+
     override fun updateUserProfile(profile: UserProfile) {
       _userProfile.value = profile
     }

@@ -45,6 +45,12 @@ class AuthRepository(
     _userProfile.value = profile
   }
 
+  override suspend fun refreshAuthenticatedUserProfile(): UserProfile {
+    val profile = authenticatedUserRemoteDataSource.syncCurrentUser()
+    _userProfile.value = profile
+    return profile
+  }
+
   override suspend fun getSession(): AuthSession? {
     // Startup restore must come from the locally persisted session only. Backend profile sync runs
     // later so a slow API cannot block the authenticated shell gate.
@@ -112,7 +118,7 @@ class AuthRepository(
   }
 
   override suspend fun refreshUserProfile() {
-    _userProfile.value = authenticatedUserRemoteDataSource.syncCurrentUser()
+    refreshAuthenticatedUserProfile()
   }
 
   @OptIn(ExperimentalTime::class)

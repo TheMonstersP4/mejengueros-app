@@ -395,6 +395,7 @@ private fun PlayerProfileEntry(
       shellActions = shellActions,
       onChangeProfileImage = imagePicker.launch,
       onDismissFeedback = profileViewModel::dismissFeedback,
+      onDismissProfileRefreshFailure = profileViewModel::dismissProfileRefreshFailure,
       onFavoriteCourtsClick = authenticatedNavigationState::openFavoriteCourts,
   )
 }
@@ -405,6 +406,7 @@ internal fun PlayerProfileEntryContent(
     shellActions: AuthenticatedShellActions,
     onChangeProfileImage: () -> Unit = {},
     onDismissFeedback: () -> Unit = {},
+    onDismissProfileRefreshFailure: () -> Unit = {},
     onFavoriteCourtsClick: () -> Unit = {},
 ) {
   AuthenticatedScaffold(
@@ -428,6 +430,7 @@ internal fun PlayerProfileEntryContent(
         contentPadding = contentPadding,
         onChangeProfileImage = onChangeProfileImage,
         onDismissFeedback = onDismissFeedback,
+        onDismissProfileRefreshFailure = onDismissProfileRefreshFailure,
         onFavoriteCourtsClick = onFavoriteCourtsClick,
     )
   }

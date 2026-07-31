@@ -393,7 +393,7 @@ class AuthRepositoryTest {
                 FakeAuthenticatedUserRemoteDataSource(returnedProfile = refreshedProfile)
         )
 
-    repository.refreshUserProfile()
+    assertEquals(refreshedProfile, repository.refreshAuthenticatedUserProfile())
     assertEquals(refreshedProfile, repository.userProfile.value)
 
     repository.updateUserProfile(updatedProfile)

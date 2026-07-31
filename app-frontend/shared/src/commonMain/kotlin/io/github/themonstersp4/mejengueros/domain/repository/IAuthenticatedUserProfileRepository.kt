@@ -8,5 +8,7 @@ interface IAuthenticatedUserProfileRepository {
 
   fun getUserProfile(): UserProfile?
 
+  suspend fun refreshAuthenticatedUserProfile(): UserProfile
+
   fun updateUserProfile(profile: UserProfile)
 }

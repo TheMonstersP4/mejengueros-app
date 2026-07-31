@@ -90,11 +90,35 @@ class PlayerProfileNavigationIntegrationTest {
     composeRule.onNodeWithTag("favorite_court_card_court-id").assertExists()
   }
 
+  @Test
+  fun profileRefreshDismissalFlowsThroughEntryContent() {
+    val navigationState = testNavigationState().apply { selectProfile() }
+    var dismissRequests = 0
+    composeRule.setContent {
+      MejenguerosTheme {
+        PlayerProfileNavigationTestHost(
+            navigationState = navigationState,
+            displayName = "Marta Player",
+            email = "marta.player@example.com",
+            profileRefreshFailed = true,
+            onDismissProfileRefreshFailure = { dismissRequests += 1 },
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Reintentar").assertDoesNotExist()
+    composeRule.onNodeWithText("Cerrar").performClick()
+
+    composeRule.runOnIdle { assertEquals(1, dismissRequests) }
+  }
+
   @Composable
   private fun PlayerProfileNavigationTestHost(
       navigationState: AuthenticatedNavigationState,
       displayName: String,
       email: String,
+      profileRefreshFailed: Boolean = false,
+      onDismissProfileRefreshFailure: () -> Unit = {},
   ) {
     val shellActions =
         AuthenticatedShellActions(
@@ -141,8 +165,10 @@ class PlayerProfileNavigationIntegrationTest {
                             userId = "player-id",
                             fallbackDisplayName = displayName,
                             fallbackEmail = email,
+                            profileRefreshFailed = profileRefreshFailed,
                         ),
                     shellActions = shellActions,
+                    onDismissProfileRefreshFailure = onDismissProfileRefreshFailure,
                     onFavoriteCourtsClick = navigationState::openFavoriteCourts,
                 )
               }

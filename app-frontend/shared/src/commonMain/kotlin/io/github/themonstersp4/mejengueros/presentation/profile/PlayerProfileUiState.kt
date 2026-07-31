@@ -8,6 +8,8 @@ data class PlayerProfileUiState(
     val fallbackDisplayName: String? = null,
     val fallbackEmail: String = "",
     val isImagePickerAvailable: Boolean = false,
+    val isRefreshingProfile: Boolean = false,
+    val profileRefreshFailed: Boolean = false,
     val isUploadingImage: Boolean = false,
     val feedback: PlayerProfileFeedback? = null,
 ) {
