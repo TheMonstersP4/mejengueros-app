@@ -31,10 +31,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -73,18 +71,6 @@ fun PlayerProfileScreen(
         isUploading = state.isUploadingImage,
         onChangeImage = onChangeProfileImage,
     )
-
-    if (state.feedback == PlayerProfileFeedback.ImageUpdated) {
-      Text(
-          text = PlayerProfileFeedback.ImageUpdated.message,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.primary,
-          textAlign = TextAlign.Center,
-          modifier =
-              Modifier.semantics { liveRegion = LiveRegionMode.Polite }
-                  .testTag("player_profile_feedback"),
-      )
-    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -148,11 +134,11 @@ fun PlayerProfileScreen(
     }
   }
 
-  val errorFeedback = state.feedback?.takeUnless { it == PlayerProfileFeedback.ImageUpdated }
+  val feedback = state.feedback
   MejenguerosMessageDialog(
-      visible = errorFeedback != null,
-      title = errorFeedback?.dialogTitle.orEmpty(),
-      message = errorFeedback?.message.orEmpty(),
+      visible = feedback != null,
+      title = feedback?.dialogTitle.orEmpty(),
+      message = feedback?.message.orEmpty(),
       onDismissRequest = onDismissFeedback,
   )
 }
@@ -261,7 +247,7 @@ private val PlayerProfileFeedback.dialogTitle: String
       when (this) {
         PlayerProfileFeedback.ImageReadFailed -> "No pudimos usar esa imagen"
         PlayerProfileFeedback.ImageUploadFailed -> "No pudimos cambiar la foto"
-        PlayerProfileFeedback.ImageUpdated -> ""
+        PlayerProfileFeedback.ImageUpdated -> "Foto de perfil actualizada"
       }
 
 internal data class PlayerProfileIdentity(
