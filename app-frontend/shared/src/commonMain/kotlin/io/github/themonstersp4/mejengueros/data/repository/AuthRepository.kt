@@ -22,6 +22,8 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class AuthRepository(
     private val secureStorage: IAuthSecureStorage,
@@ -35,6 +37,7 @@ class AuthRepository(
     private val idTokenDecoder: JwtIdTokenDecoder,
 ) : IAuthRepository, IAuthenticatedUserProfileRepository {
   private val _userProfile = MutableStateFlow<UserProfile?>(null)
+  override val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
   override fun getUserProfile(): UserProfile? = _userProfile.value
 

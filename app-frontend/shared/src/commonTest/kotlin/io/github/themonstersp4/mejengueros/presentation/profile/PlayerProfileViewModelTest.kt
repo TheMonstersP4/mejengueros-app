@@ -14,6 +14,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
@@ -26,7 +29,7 @@ class PlayerProfileViewModelTest {
         PlayerProfileViewModel(
             FakeAuthenticatedUserProfileRepository(cached),
             FakeProfileRepository(),
-            this,
+            backgroundScope,
         )
 
     viewModel.activate("user-id", "Fallback name", "fallback@example.com")
@@ -44,6 +47,51 @@ class PlayerProfileViewModelTest {
   }
 
   @Test
+  fun activeUserReceivesRefreshedPictureWithoutReactivation() = runTest {
+    val profileSource =
+        FakeAuthenticatedUserProfileRepository(
+            profile(pictureUrl = "https://example.test/original.jpg")
+        )
+    val viewModel = PlayerProfileViewModel(profileSource, FakeProfileRepository(), backgroundScope)
+    viewModel.activate("user-id", null, "")
+
+    profileSource.updateUserProfile(profile(pictureUrl = "https://example.test/refreshed.jpg"))
+    runCurrent()
+
+    assertEquals("https://example.test/refreshed.jpg", viewModel.uiState.value.pictureUrl)
+  }
+
+  @Test
+  fun clearingAuthenticatedProfileClearsActiveScreenProfile() = runTest {
+    val profileSource =
+        FakeAuthenticatedUserProfileRepository(
+            profile(pictureUrl = "https://example.test/original.jpg")
+        )
+    val viewModel = PlayerProfileViewModel(profileSource, FakeProfileRepository(), backgroundScope)
+    viewModel.activate("user-id", null, "")
+
+    profileSource.clear()
+    runCurrent()
+
+    assertNull(viewModel.uiState.value.profile)
+  }
+
+  @Test
+  fun anotherUsersEmissionDoesNotOverwriteActiveScreen() = runTest {
+    val activeProfile = profile(pictureUrl = "https://example.test/active.jpg")
+    val profileSource = FakeAuthenticatedUserProfileRepository(activeProfile)
+    val viewModel = PlayerProfileViewModel(profileSource, FakeProfileRepository(), backgroundScope)
+    viewModel.activate("user-id", null, "")
+
+    profileSource.updateUserProfile(
+        activeProfile.copy(id = "other-user", pictureUrl = "https://example.test/other.jpg")
+    )
+    runCurrent()
+
+    assertEquals(activeProfile, viewModel.uiState.value.profile)
+  }
+
+  @Test
   fun uploadPreservesCurrentImageBlocksDuplicatesAndAppliesAssociatedProfile() = runTest {
     val uploadResult = CompletableDeferred<UserProfile>()
     val repository = FakeProfileRepository(result = uploadResult)
@@ -53,7 +101,7 @@ class PlayerProfileViewModelTest {
                 profile(pictureUrl = "https://example.test/original.jpg")
             ),
             repository,
-            this,
+            backgroundScope,
         )
     viewModel.activate("user-id", null, "")
 
@@ -82,7 +130,7 @@ class PlayerProfileViewModelTest {
                 profile(pictureUrl = "https://example.test/original.jpg")
             ),
             repository,
-            this,
+            backgroundScope,
         )
     viewModel.activate("user-id", null, "")
 
@@ -101,7 +149,7 @@ class PlayerProfileViewModelTest {
         PlayerProfileViewModel(
             FakeAuthenticatedUserProfileRepository(profile()),
             repository,
-            this,
+            backgroundScope,
         )
     viewModel.activate("user-id", null, "")
 
@@ -123,7 +171,7 @@ class PlayerProfileViewModelTest {
         PlayerProfileViewModel(
             FakeAuthenticatedUserProfileRepository(profile()),
             FakeProfileRepository(),
-            this,
+            backgroundScope,
         )
     viewModel.activate("user-id", null, "")
     viewModel.onPickerResult(ProfileImagePickerResult.ReadFailed(IllegalStateException("read")))
@@ -140,7 +188,7 @@ class PlayerProfileViewModelTest {
         PlayerProfileViewModel(
             FakeAuthenticatedUserProfileRepository(profile()),
             FakeProfileRepository(result = uploadResult),
-            this,
+            backgroundScope,
         )
     viewModel.activate("user-id", null, "")
     viewModel.onPickerResult(ProfileImagePickerResult.Selected(localImage()))
@@ -168,13 +216,15 @@ class PlayerProfileViewModelTest {
             remoteDataSource = FakeProfileImageRemoteDataSource(updatedProfile),
             authenticatedUserProfileRepository = profileSource,
         )
-    val initialViewModel = PlayerProfileViewModel(profileSource, profileImageRepository, this)
+    val initialViewModel =
+        PlayerProfileViewModel(profileSource, profileImageRepository, backgroundScope)
     initialViewModel.activate("user-id", null, "")
 
     initialViewModel.onPickerResult(ProfileImagePickerResult.Selected(localImage()))
     runCurrent()
 
-    val recreatedViewModel = PlayerProfileViewModel(profileSource, profileImageRepository, this)
+    val recreatedViewModel =
+        PlayerProfileViewModel(profileSource, profileImageRepository, backgroundScope)
     recreatedViewModel.activate("user-id", null, "")
 
     assertEquals("https://example.test/updated.jpg", recreatedViewModel.uiState.value.pictureUrl)
@@ -214,12 +264,17 @@ class PlayerProfileViewModelTest {
 
   private class FakeAuthenticatedUserProfileRepository(initialProfile: UserProfile?) :
       IAuthenticatedUserProfileRepository {
-    private var profile = initialProfile
+    private val _userProfile = MutableStateFlow(initialProfile)
+    override val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
-    override fun getUserProfile(): UserProfile? = profile
+    override fun getUserProfile(): UserProfile? = _userProfile.value
 
     override fun updateUserProfile(profile: UserProfile) {
-      this.profile = profile
+      _userProfile.value = profile
+    }
+
+    fun clear() {
+      _userProfile.value = null
     }
   }
 

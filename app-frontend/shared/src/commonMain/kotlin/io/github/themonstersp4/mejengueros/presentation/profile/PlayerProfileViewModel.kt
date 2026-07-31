@@ -21,6 +21,18 @@ class PlayerProfileViewModel(
   private val _uiState = MutableStateFlow(PlayerProfileUiState())
   val uiState: StateFlow<PlayerProfileUiState> = _uiState.asStateFlow()
 
+  init {
+    scope.launch {
+      authenticatedUserProfileRepository.userProfile.collect { profile ->
+        val currentState = _uiState.value
+        when {
+          profile == null -> _uiState.value = currentState.copy(profile = null)
+          profile.id == currentState.userId -> _uiState.value = currentState.copy(profile = profile)
+        }
+      }
+    }
+  }
+
   fun activate(userId: String?, displayName: String?, email: String) {
     val currentState = _uiState.value
     if (currentState.userId == userId) {
