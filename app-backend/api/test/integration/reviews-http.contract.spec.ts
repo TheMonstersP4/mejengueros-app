@@ -113,7 +113,8 @@ describe('reviews HTTP contract', () => {
     syncAuthenticatedUser.execute.mockResolvedValue({
       id: 'user-id',
       email: 'player@example.test',
-      roles: []
+      roles: [],
+      status: 'ACTIVE'
     });
     fileReadUrl.createReadUrl.mockResolvedValue('https://read.example.test/court-a.png');
     imageUploadRepository.findById.mockResolvedValue(createEvidenceImageUpload());

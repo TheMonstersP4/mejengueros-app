@@ -8,7 +8,9 @@ describe('UserProfileResponse', () => {
       email: 'user@example.test',
       name: 'User Name',
       pictureUrl: 'https://example.test/avatar.png',
-      provider: 'Google'
+      provider: 'Google',
+      roles: ['ADMIN'],
+      status: 'ACTIVE'
     });
 
     expect(response).toMatchObject({
@@ -17,7 +19,9 @@ describe('UserProfileResponse', () => {
       email: 'user@example.test',
       name: 'User Name',
       pictureUrl: 'https://example.test/avatar.png',
-      provider: 'Google'
+      provider: 'Google',
+      roles: ['ADMIN'],
+      status: 'ACTIVE'
     });
   });
 });

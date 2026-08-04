@@ -208,6 +208,7 @@ function createUser(profileImageUploadId?: string): UserEntity {
     email: 'player@example.test',
     pictureUrl: 'https://provider.example.test/avatar.png',
     profileImageUploadId,
+    status: 'ACTIVE',
     currentIdentity: { provider: 'Google', providerSubject: 'player-sub' },
     roles: ['PLAYER']
   });

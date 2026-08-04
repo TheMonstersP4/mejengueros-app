@@ -3,8 +3,10 @@ import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-ca
 import type { UserProfileService } from '@/modules/users/application/services/user-profile.service';
 import type { UpdateMyProfileImageUseCase } from '@/modules/users/application/use-cases/update-my-profile-image.use-case';
 import { UserEntity } from '@/modules/users/domain/entities/user.entity';
+import { AdminRoleRequiredError } from '@/modules/users/domain/errors/admin-role-required.error';
 import { UserEmailAlreadyExistsError } from '@/modules/users/domain/errors/user-email-already-exists.error';
 import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
+import { UserListUnavailableError } from '@/modules/users/infrastructure/errors/user-list-unavailable.error';
 import { UserMapper } from '@/modules/users/infrastructure/mappers/user.mapper';
 import { PrismaUserRepository } from '@/modules/users/infrastructure/persistence/prisma-user.repository';
 import { UsersController } from '@/modules/users/interfaces/http/controllers/users.controller';
@@ -31,6 +33,7 @@ describe('users module behavior', () => {
     email: 'user@example.test',
     name: 'User Name',
     pictureUrl: 'https://example.test/avatar.png',
+    status: 'ACTIVE' as const,
     identities: [googleIdentity],
     roles: [{ role: 'PLAYER' as const }]
   };
@@ -41,7 +44,8 @@ describe('users module behavior', () => {
     name: 'User Name',
     pictureUrl: 'https://example.test/avatar.png',
     provider: 'Google',
-    roles: ['PLAYER']
+    roles: ['PLAYER'],
+    status: 'ACTIVE'
   };
 
   it('converts user entities to API-safe profiles', () => {
@@ -60,7 +64,8 @@ describe('users module behavior', () => {
       name: undefined,
       pictureUrl: undefined,
       provider: undefined,
-      roles: ['PLAYER']
+      roles: ['PLAYER'],
+      status: 'ACTIVE'
     });
   });
 
@@ -70,6 +75,7 @@ describe('users module behavior', () => {
       email: 'user@example.test',
       name: null,
       pictureUrl: null,
+      status: 'ACTIVE',
       currentIdentity: null
     });
 
@@ -80,6 +86,7 @@ describe('users module behavior', () => {
     const entity = UserEntity.fromPersistence({
       id: 'user-id',
       email: 'user@example.test',
+      status: 'ACTIVE',
       roles: ['OWNER']
     });
 
@@ -697,7 +704,52 @@ describe('users module behavior', () => {
     await expect(repository.findByCognitoSub('missing-sub')).resolves.toBeNull();
   });
 
+  it('wraps Prisma failures when loading an admin by Cognito subject', async () => {
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn()
+      },
+      userIdentity: {
+        findFirst: jest.fn().mockRejectedValueOnce(new Error('database unavailable'))
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(repository.findByCognitoSub('admin-sub')).rejects.toBeInstanceOf(
+      UserListUnavailableError
+    );
+  });
+
   it('lists synchronized users through the repository port', async () => {
+    const entity = UserEntity.fromPersistence({
+      ...persistenceUser,
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
+    });
+    const admin = UserEntity.fromPersistence({
+      id: 'admin-id',
+      email: 'admin@example.test',
+      status: 'ACTIVE',
+      roles: ['ADMIN']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(admin),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn().mockResolvedValue([entity])
+    } satisfies IUserRepository;
+    const useCase = new ListUsersUseCase(repository, createProfileService());
+
+    await expect(
+      useCase.execute({ sub: 'admin-sub', groups: [] })
+    ).resolves.toEqual([userProfile]);
+    expect(repository.findByCognitoSub).toHaveBeenCalledWith('admin-sub');
+    expect(repository.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists synchronized users for admins authenticated through Cognito groups even without a local admin row', async () => {
     const entity = UserEntity.fromPersistence({
       ...persistenceUser,
       currentIdentity: googleIdentity,
@@ -711,8 +763,67 @@ describe('users module behavior', () => {
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
-    await expect(useCase.execute()).resolves.toEqual([userProfile]);
+    await expect(
+      useCase.execute({ sub: 'admin-sub', groups: ['Admin'] })
+    ).resolves.toEqual([userProfile]);
+    expect(repository.findByCognitoSub).not.toHaveBeenCalled();
     expect(repository.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an empty users list for administrators when no users exist', async () => {
+    const admin = UserEntity.fromPersistence({
+      id: 'admin-id',
+      email: 'admin@example.test',
+      status: 'ACTIVE',
+      roles: ['ADMIN']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(admin),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn().mockResolvedValue([])
+    } satisfies IUserRepository;
+    const useCase = new ListUsersUseCase(repository, createProfileService());
+
+    await expect(useCase.execute({ sub: 'admin-sub', groups: [] })).resolves.toEqual(
+      []
+    );
+  });
+
+  it('rejects the users list when the authenticated user is not an administrator', async () => {
+    const player = UserEntity.fromPersistence({
+      id: 'player-id',
+      email: 'player@example.test',
+      status: 'ACTIVE',
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(player),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new ListUsersUseCase(repository, createProfileService());
+
+    await expect(useCase.execute({ sub: 'player-sub', groups: [] })).rejects.toBeInstanceOf(
+      AdminRoleRequiredError
+    );
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  it('rejects the users list when the authenticated user has no admin group and no local admin role', async () => {
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(null),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new ListUsersUseCase(repository, createProfileService());
+
+    await expect(useCase.execute({ sub: 'player-sub', groups: ['players'] })).rejects.toBeInstanceOf(
+      AdminRoleRequiredError
+    );
+    expect(repository.list).not.toHaveBeenCalled();
   });
 
   it('lists users from Prisma by recent updates', async () => {
@@ -733,6 +844,19 @@ describe('users module behavior', () => {
       },
       orderBy: { updatedAt: 'desc' }
     });
+  });
+
+  it('wraps Prisma failures when listing users', async () => {
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn().mockRejectedValueOnce(new Error('database unavailable'))
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(repository.list()).rejects.toBeInstanceOf(UserListUnavailableError);
   });
 
   it('delegates the current user endpoint to the sync use case', async () => {
@@ -769,7 +893,12 @@ describe('users module behavior', () => {
       { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase
     );
 
-    await expect(controller.list()).resolves.toEqual([userProfile]);
-    expect(listUsers.execute).toHaveBeenCalledTimes(1);
+    const currentUser = {
+      sub: 'admin-sub',
+      groups: []
+    };
+
+    await expect(controller.list(currentUser)).resolves.toEqual([userProfile]);
+    expect(listUsers.execute).toHaveBeenCalledWith(currentUser);
   });
 });

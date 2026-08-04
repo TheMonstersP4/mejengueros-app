@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserIdentityResponse } from '../../../../../shared/interfaces/http/dto/user-identity.response';
-import type { UserRoleKind } from '../../../domain/entities/user.entity';
+import type { UserRoleKind, UserStatusKind } from '../../../domain/entities/user.entity';
 
 /**
  * HTTP response body for the authenticated user profile.
@@ -27,4 +27,10 @@ export class UserProfileResponse extends UserIdentityResponse {
     isArray: true
   })
   roles!: UserRoleKind[];
+
+  /**
+   * Current application status assigned to the user.
+   */
+  @ApiProperty({ example: 'ACTIVE', enum: ['ACTIVE', 'INACTIVE'] })
+  status!: UserStatusKind;
 }

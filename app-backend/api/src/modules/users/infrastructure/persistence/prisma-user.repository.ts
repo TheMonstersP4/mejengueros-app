@@ -8,6 +8,7 @@ import type {
 } from '../../domain/repositories/user.repository';
 import { InvalidProfileImageUploadError } from '../../domain/errors/invalid-profile-image-upload.error';
 import { UserMapper } from '../mappers/user.mapper';
+import { UserListUnavailableError } from '../errors/user-list-unavailable.error';
 import {
   grantDemoOwnerRoleIfEligible,
   type IUserPersistenceRecord,
@@ -64,19 +65,23 @@ export class PrismaUserRepository implements IUserRepository {
    * @returns User entity or `null` when no local user exists.
    */
   async findByCognitoSub(cognitoSub: string): Promise<UserEntity | null> {
-    const identity = await this.prisma.userIdentity.findFirst({
-      where: { providerSubject: cognitoSub },
-      include: {
-        user: {
-          include: {
-            identities: true,
-            roles: true
+    try {
+      const identity = await this.prisma.userIdentity.findFirst({
+        where: { providerSubject: cognitoSub },
+        include: {
+          user: {
+            include: {
+              identities: true,
+              roles: true
+            }
           }
         }
-      }
-    });
+      });
 
-    return identity ? UserMapper.toDomain(identity.user, identity) : null;
+      return identity ? UserMapper.toDomain(identity.user, identity) : null;
+    } catch (error) {
+      throw new UserListUnavailableError(error);
+    }
   }
 
   /**
@@ -113,13 +118,19 @@ export class PrismaUserRepository implements IUserRepository {
    * @returns User entities stored by the application.
    */
   async list(): Promise<UserEntity[]> {
-    const users = await this.prisma.user.findMany({
-      include: {
-        identities: true,
-        roles: true
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
+    let users: Awaited<ReturnType<typeof this.prisma.user.findMany>>;
+
+    try {
+      users = await this.prisma.user.findMany({
+        include: {
+          identities: true,
+          roles: true
+        },
+        orderBy: { updatedAt: 'desc' }
+      });
+    } catch (error) {
+      throw new UserListUnavailableError(error);
+    }
 
     return users.map((user) => UserMapper.toDomain(user));
   }
