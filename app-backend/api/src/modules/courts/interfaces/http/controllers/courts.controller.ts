@@ -1,12 +1,18 @@
-import { Controller, Get, Inject, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ApiEnvelopeArrayOk,
-  ApiEnvelopeErrors
+  ApiEnvelopeErrors,
+  ApiEnvelopeOk
 } from '../../../../../shared/interfaces/http/swagger/api-envelope.decorators';
 import { withApiMeta } from '@/shared/interfaces/http/responses/api-response';
+import type { IAuthenticatedUserOutput } from '@/modules/auth/application/dto/authenticated-user.output';
+import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
+import { CurrentUser } from '@/shared/interfaces/http/decorators/current-user.decorator';
+import { DeactivateCourtUseCase } from '../../../application/use-cases/deactivate-court.use-case';
 import { ListPublicCourtCatalogUseCase } from '../../../application/use-cases/list-public-court-catalog.use-case';
 import { CourtCatalogResponse } from '../dto/court-catalog.response';
+import { DeactivateCourtResponse } from '../dto/deactivate-court.response';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
 import { ListCourtCatalogQuery } from '../dto/list-court-catalog.query';
 
@@ -15,7 +21,9 @@ import { ListCourtCatalogQuery } from '../dto/list-court-catalog.query';
 export class CourtsController {
   constructor(
     @Inject(ListPublicCourtCatalogUseCase)
-    private readonly listPublicCourtCatalog: ListPublicCourtCatalogUseCase
+    private readonly listPublicCourtCatalog: ListPublicCourtCatalogUseCase,
+    @Inject(DeactivateCourtUseCase)
+    private readonly deactivateCourt: DeactivateCourtUseCase
   ) {}
 
   @Get('catalog')
@@ -54,5 +62,28 @@ export class CourtsController {
         totalPages
       }
     });
+  }
+
+  @Patch(':courtId/deactivate')
+  @UseGuards(CognitoAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Deactivate one court.',
+    description:
+      'Requires an authenticated administrator and marks the court inactive without deleting historical reservations or related records.'
+  })
+  @ApiParam({ name: 'courtId', description: 'Court identifier.', format: 'uuid' })
+  @ApiEnvelopeOk(
+    DeactivateCourtResponse,
+    'Deactivated court wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 403, 404)
+  async deactivate(
+    @CurrentUser() user: IAuthenticatedUserOutput,
+    @Param('courtId', new ParseUUIDPipe()) courtId: string
+  ): Promise<DeactivateCourtResponse> {
+    return {
+      court: await this.deactivateCourt.execute(user, courtId)
+    };
   }
 }
