@@ -21,9 +21,9 @@ locals {
 resource "aws_cognito_user_pool" "user_pool" {
   name = "${var.name_prefix}-users"
 
-  username_attributes      = ["email"]
-  auto_verified_attributes = ["email"]
-  mfa_configuration        = var.mfa_configuration
+  username_attributes        = ["email"]
+  auto_verified_attributes   = ["email"]
+  mfa_configuration          = var.mfa_configuration
   email_verification_subject = var.email_verification_subject
   email_verification_message = var.email_verification_message
 

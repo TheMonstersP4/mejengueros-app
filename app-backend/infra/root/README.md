@@ -76,7 +76,7 @@ Cloudflare stays optional. Terraform still configures the provider during valida
 | `reservation_completion_worker_runtime` | Runtime used by the reservation completion worker zip Lambda. |
 | `reservation_completion_worker_memory_size` | Reservation completion worker Lambda memory size in MB. |
 | `reservation_completion_worker_timeout` | Reservation completion worker Lambda timeout in seconds. |
-| `reservation_completion_worker_schedule_expression` | EventBridge schedule expression for the reservation completion worker. |
+| `reservation_completion_worker_schedule_expression` | EventBridge `rate(...)` or `cron(...)` expression for the reservation completion worker. |
 | `reservation_completion_worker_log_retention_days` | CloudWatch log retention in days for the reservation completion worker Lambda. |
 | `reservation_completion_worker_alarm_actions` | Optional CloudWatch alarm action ARNs for reservation completion worker failure alarms. |
 | `api_lambda_vpc_enabled` | Attaches the HTTP API Lambda to private subnets. Keep false unless it must reach private RDS because this stack does not create NAT. |

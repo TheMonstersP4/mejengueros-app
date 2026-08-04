@@ -457,6 +457,11 @@ variable "reservation_completion_worker_schedule_expression" {
   description = "EventBridge schedule expression for the reservation completion worker."
   type        = string
   default     = "rate(5 minutes)"
+
+  validation {
+    condition     = can(regex("^(rate|cron)\\(", var.reservation_completion_worker_schedule_expression))
+    error_message = "reservation_completion_worker_schedule_expression must be an EventBridge rate(...) or cron(...) expression."
+  }
 }
 
 variable "reservation_completion_worker_log_retention_days" {
