@@ -1,4 +1,6 @@
 import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   type GetObjectCommandOutput,
@@ -16,10 +18,12 @@ import type {
   ICreatePresignedReadUrlOutput,
   IFileStoragePort,
   IInspectUploadedObjectInput,
-  IInspectUploadedObjectOutput
+  IInspectUploadedObjectOutput,
+  IPromoteUploadedObjectInput
 } from '../../application/ports/file-storage.port';
 import { StorageInspectionError } from '../errors/storage-inspection.error';
 import { StorageObjectNotFoundError } from '../errors/storage-object-not-found.error';
+import { StoragePromotionError } from '../errors/storage-promotion.error';
 import { StorageUploadUrlError } from '../errors/storage-upload-url.error';
 
 /**
@@ -110,6 +114,41 @@ export class S3FileStorageAdapter implements IFileStoragePort {
       }
 
       throw new StorageInspectionError(input.objectKey, error);
+    }
+  }
+
+  /**
+   * Copies a verified upload to durable storage and then removes its temporary source.
+   *
+   * @param input - Temporary and durable object keys.
+   */
+  async promoteUploadedObject(input: IPromoteUploadedObjectInput): Promise<void> {
+    const bucketName = this.configService.get<string>('storage.bucketName', '');
+
+    try {
+      if (!bucketName) {
+        throw new Error('Missing S3 bucket name.');
+      }
+
+      await this.s3Client.send(
+        new CopyObjectCommand({
+          Bucket: bucketName,
+          CopySource: `${bucketName}/${input.sourceObjectKey}`,
+          Key: input.destinationObjectKey
+        })
+      );
+      await this.s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: bucketName,
+          Key: input.sourceObjectKey
+        })
+      );
+    } catch (error) {
+      throw new StoragePromotionError(
+        input.sourceObjectKey,
+        input.destinationObjectKey,
+        error
+      );
     }
   }
 

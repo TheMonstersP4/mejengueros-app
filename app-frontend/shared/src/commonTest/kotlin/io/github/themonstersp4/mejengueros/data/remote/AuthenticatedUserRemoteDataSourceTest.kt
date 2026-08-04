@@ -55,7 +55,7 @@ class AuthenticatedUserRemoteDataSourceTest {
                     addHandler {
                       respond(
                           content =
-                              """{"success":true,"data":{"id":"owner-id","roles":["OWNER","PLAYER"]}}""",
+                              """{"success":true,"data":{"id":"owner-id","email":"owner@example.test","name":"Owner One","pictureUrl":"https://read.example.test/profile.jpg","provider":"Google","roles":["OWNER","PLAYER"]}}""",
                           status = HttpStatusCode.OK,
                           headers = headersOf("Content-Type", "application/json"),
                       )
@@ -69,5 +69,38 @@ class AuthenticatedUserRemoteDataSourceTest {
 
     assertEquals("owner-id", profile.id)
     assertEquals(listOf(UserRoleKind.OWNER, UserRoleKind.PLAYER), profile.roles)
+    assertEquals("owner@example.test", profile.email)
+    assertEquals("Owner One", profile.name)
+    assertEquals("https://read.example.test/profile.jpg", profile.pictureUrl)
+    assertEquals("Google", profile.provider)
+  }
+
+  @Test
+  fun syncCurrentUserKeepsNullableProfileIdentityFields() = runTest {
+    val dataSource =
+        AuthenticatedUserRemoteDataSource(
+            httpClient =
+                HttpClient(MockEngine) {
+                  install(ContentNegotiation) { json(json) }
+                  engine {
+                    addHandler {
+                      respond(
+                          content =
+                              """{"success":true,"data":{"id":"player-id","pictureUrl":null,"provider":null,"roles":["PLAYER"]}}""",
+                          status = HttpStatusCode.OK,
+                          headers = headersOf("Content-Type", "application/json"),
+                      )
+                    }
+                  }
+                },
+            json = json,
+        )
+
+    val profile = dataSource.syncCurrentUser()
+
+    assertEquals(null, profile.email)
+    assertEquals(null, profile.name)
+    assertEquals(null, profile.pictureUrl)
+    assertEquals(null, profile.provider)
   }
 }

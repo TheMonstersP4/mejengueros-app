@@ -6,6 +6,9 @@ import { InvalidFileObjectKeyError } from '../errors/invalid-file-object-key.err
 import { InvalidFilePurposeError } from '../errors/invalid-file-purpose.error';
 import { UnsupportedFileTypeError } from '../errors/unsupported-file-type.error';
 
+const PENDING_KEY_SEGMENT = 'pending';
+const CONFIRMED_KEY_SEGMENT = 'confirmed';
+
 /**
  * Image upload policy values required by domain validation.
  */
@@ -141,7 +144,30 @@ export class ImageUploadPolicyService {
     const ownerId = this.normalizePathSegment(input.ownerId);
     const prefix = this.normalizePrefix(this.options.keyPrefix);
 
-    return `${prefix}/${input.purpose}/${ownerId}/${year}/${month}/${objectId}.${extension}`;
+    return `${prefix}/${PENDING_KEY_SEGMENT}/${input.purpose}/${ownerId}/${year}/${month}/${objectId}.${extension}`;
+  }
+
+  /**
+   * Builds the durable key for a pending or legacy upload owned by the current user.
+   *
+   * @param input - Upload ownership and source key.
+   * @returns Durable confirmed object key.
+   */
+  buildConfirmedObjectKey(input: {
+    purpose: string;
+    ownerId: string;
+    objectKey: string;
+  }): string {
+    const purpose = this.resolveAllowedPurpose(input.purpose);
+    const sourcePrefix = this.validateObjectKeyOwnership({
+      purpose,
+      ownerId: input.ownerId,
+      objectKey: input.objectKey
+    });
+    const prefix = this.normalizePrefix(this.options.keyPrefix);
+    const suffix = input.objectKey.slice(sourcePrefix.length);
+
+    return `${prefix}/${CONFIRMED_KEY_SEGMENT}/${purpose}/${this.normalizePathSegment(input.ownerId)}/${suffix}`;
   }
 
   /**
@@ -235,18 +261,24 @@ export class ImageUploadPolicyService {
     purpose: FilePurpose;
     ownerId: string;
     objectKey: string;
-  }): void {
+  }): string {
     if (!input.objectKey || input.objectKey.includes('..')) {
       throw new InvalidFileObjectKeyError(input.objectKey);
     }
 
     const prefix = this.normalizePrefix(this.options.keyPrefix);
     const ownerId = this.normalizePathSegment(input.ownerId);
-    const expectedPrefix = `${prefix}/${input.purpose}/${ownerId}/`;
+    const pendingPrefix = `${prefix}/${PENDING_KEY_SEGMENT}/${input.purpose}/${ownerId}/`;
+    const legacyPrefix = `${prefix}/${input.purpose}/${ownerId}/`;
+    const matchingPrefix = [pendingPrefix, legacyPrefix].find((candidate) =>
+      input.objectKey.startsWith(candidate)
+    );
 
-    if (!input.objectKey.startsWith(expectedPrefix)) {
+    if (!matchingPrefix) {
       throw new FileOwnershipError(input.objectKey);
     }
+
+    return matchingPrefix;
   }
 
   private extensionFor(contentType: string): string {

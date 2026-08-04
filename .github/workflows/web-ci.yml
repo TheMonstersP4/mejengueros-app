@@ -1,0 +1,35 @@
+name: Web CI
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/web-ci.yml
+      - app-web/**
+
+jobs:
+  web-quality-gate:
+    name: Web quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app-web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: app-web
+        run: npm ci
+
+      - name: Test web
+        working-directory: app-web
+        run: npm test
+
+      - name: Build web
+        working-directory: app-web
+        run: npm run build

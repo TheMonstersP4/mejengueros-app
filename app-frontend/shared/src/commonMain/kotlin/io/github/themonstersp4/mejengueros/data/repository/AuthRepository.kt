@@ -17,10 +17,13 @@ import io.github.themonstersp4.mejengueros.domain.model.AuthSignInRequest
 import io.github.themonstersp4.mejengueros.domain.model.AuthSignOutRequest
 import io.github.themonstersp4.mejengueros.domain.model.UserProfile
 import io.github.themonstersp4.mejengueros.domain.repository.IAuthRepository
+import io.github.themonstersp4.mejengueros.domain.repository.IAuthenticatedUserProfileRepository
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class AuthRepository(
     private val secureStorage: IAuthSecureStorage,
@@ -32,10 +35,21 @@ class AuthRepository(
     private val randomStringGenerator: IRandomStringGenerator,
     private val callbackParser: OAuthCallbackParser,
     private val idTokenDecoder: JwtIdTokenDecoder,
-) : IAuthRepository {
+) : IAuthRepository, IAuthenticatedUserProfileRepository {
   private val _userProfile = MutableStateFlow<UserProfile?>(null)
+  override val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
   override fun getUserProfile(): UserProfile? = _userProfile.value
+
+  override fun updateUserProfile(profile: UserProfile) {
+    _userProfile.value = profile
+  }
+
+  override suspend fun refreshAuthenticatedUserProfile(): UserProfile {
+    val profile = authenticatedUserRemoteDataSource.syncCurrentUser()
+    _userProfile.value = profile
+    return profile
+  }
 
   override suspend fun getSession(): AuthSession? {
     // Startup restore must come from the locally persisted session only. Backend profile sync runs
@@ -104,7 +118,7 @@ class AuthRepository(
   }
 
   override suspend fun refreshUserProfile() {
-    _userProfile.value = authenticatedUserRemoteDataSource.syncCurrentUser()
+    refreshAuthenticatedUserProfile()
   }
 
   @OptIn(ExperimentalTime::class)

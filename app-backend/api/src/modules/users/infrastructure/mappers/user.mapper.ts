@@ -10,6 +10,7 @@ interface IUserPersistenceRecord {
   email: string;
   name?: string | null;
   pictureUrl?: string | null;
+  profileImageUploadId?: string | null;
   identities?: IUserIdentityPersistenceRecord[];
   roles?: IUserRolePersistenceRecord[];
 }
@@ -41,6 +42,7 @@ export class UserMapper {
       email: user.email,
       name: user.name,
       pictureUrl: user.pictureUrl,
+      profileImageUploadId: user.profileImageUploadId,
       currentIdentity: identity,
       roles: user.roles?.map((r) => r.role) ?? []
     });

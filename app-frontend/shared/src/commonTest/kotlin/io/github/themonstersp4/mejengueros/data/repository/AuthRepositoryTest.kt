@@ -363,6 +363,46 @@ class AuthRepositoryTest {
     assertNull(repository.getUserProfile())
   }
 
+  @Test
+  fun updateUserProfileReplacesCachedAuthenticatedProfile() {
+    val repository = createRepository()
+    val updatedProfile =
+        UserProfile(
+            id = "user-id",
+            roles = emptyList(),
+            pictureUrl = "https://example.test/updated.jpg",
+        )
+
+    repository.updateUserProfile(updatedProfile)
+
+    assertEquals(updatedProfile, repository.getUserProfile())
+  }
+
+  @Test
+  fun observableProfileReflectsRefreshUpdateAndSignOut() = runTest {
+    val refreshedProfile =
+        UserProfile(
+            id = "user-id",
+            roles = emptyList(),
+            pictureUrl = "https://example.test/refreshed.jpg",
+        )
+    val updatedProfile = refreshedProfile.copy(pictureUrl = "https://example.test/updated.jpg")
+    val repository =
+        createRepository(
+            authenticatedUserRemoteDataSource =
+                FakeAuthenticatedUserRemoteDataSource(returnedProfile = refreshedProfile)
+        )
+
+    assertEquals(refreshedProfile, repository.refreshAuthenticatedUserProfile())
+    assertEquals(refreshedProfile, repository.userProfile.value)
+
+    repository.updateUserProfile(updatedProfile)
+    assertEquals(updatedProfile, repository.userProfile.value)
+
+    repository.signOut()
+    assertNull(repository.userProfile.value)
+  }
+
   private fun createRepository(
       secureStorage: IAuthSecureStorage = InMemoryAuthSecureStorage(),
       remoteDataSource: FakeAuthRemoteDataSource = FakeAuthRemoteDataSource(),
