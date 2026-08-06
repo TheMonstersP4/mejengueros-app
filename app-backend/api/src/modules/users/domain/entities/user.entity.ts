@@ -4,6 +4,11 @@
 export type UserRoleKind = 'PLAYER' | 'OWNER' | 'ADMIN';
 
 /**
+ * Catalog of role kinds accepted by the users domain.
+ */
+export const USER_ROLE_KINDS = ['PLAYER', 'OWNER', 'ADMIN'] as const;
+
+/**
  * Application-level user status values.
  */
 export type UserStatusKind = 'ACTIVE' | 'INACTIVE';

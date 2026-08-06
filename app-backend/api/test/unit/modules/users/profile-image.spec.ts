@@ -72,6 +72,7 @@ describe('user profile image association', () => {
       replaceProfileImage: jest
         .fn()
         .mockResolvedValue(createUser('profile-upload-id')),
+      updateAccount: jest.fn(),
       list: jest.fn()
     };
   }
