@@ -2,9 +2,12 @@ import { ListUsersUseCase } from '@/modules/users/application/use-cases/list-use
 import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
 import type { UserProfileService } from '@/modules/users/application/services/user-profile.service';
 import type { UpdateMyProfileImageUseCase } from '@/modules/users/application/use-cases/update-my-profile-image.use-case';
+import { UpdateUserAccountUseCase } from '@/modules/users/application/use-cases/update-user-account.use-case';
 import { UserEntity } from '@/modules/users/domain/entities/user.entity';
 import { AdminRoleRequiredError } from '@/modules/users/domain/errors/admin-role-required.error';
+import { InvalidUserRoleError } from '@/modules/users/domain/errors/invalid-user-role.error';
 import { UserEmailAlreadyExistsError } from '@/modules/users/domain/errors/user-email-already-exists.error';
+import { UserNotFoundError } from '@/modules/users/domain/errors/user-not-found.error';
 import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
 import { UserListUnavailableError } from '@/modules/users/infrastructure/errors/user-list-unavailable.error';
 import { UserMapper } from '@/modules/users/infrastructure/mappers/user.mapper';
@@ -107,6 +110,7 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn().mockResolvedValue(entity),
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
       list: jest.fn()
     } satisfies IUserRepository;
     const useCase = new SyncAuthenticatedUserUseCase(
@@ -738,6 +742,7 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
       list: jest.fn().mockResolvedValue([entity])
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
@@ -759,6 +764,7 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
       list: jest.fn().mockResolvedValue([entity])
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
@@ -781,6 +787,7 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
       list: jest.fn().mockResolvedValue([])
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
@@ -801,6 +808,7 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(player),
       replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
       list: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
@@ -816,6 +824,7 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(null),
       replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
       list: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
@@ -824,6 +833,153 @@ describe('users module behavior', () => {
       AdminRoleRequiredError
     );
     expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  it('updates a user account name when the authenticated user is an administrator', async () => {
+    const admin = UserEntity.fromPersistence({
+      id: 'admin-id',
+      email: 'admin@example.test',
+      status: 'ACTIVE',
+      roles: ['ADMIN']
+    });
+    const updatedUser = UserEntity.fromPersistence({
+      ...persistenceUser,
+      name: 'Updated Account Name',
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(admin),
+      replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn().mockResolvedValue(updatedUser),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new UpdateUserAccountUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute(
+        { sub: 'admin-sub', groups: [] },
+        { userId: 'user-id', name: 'Updated Account Name' }
+      )
+    ).resolves.toEqual({
+      ...userProfile,
+      name: 'Updated Account Name'
+    });
+    expect(repository.updateAccount).toHaveBeenCalledWith({
+      userId: 'user-id',
+      name: 'Updated Account Name',
+      role: undefined
+    });
+  });
+
+  it('updates a user account role when the authenticated user has an admin group', async () => {
+    const updatedUser = UserEntity.fromPersistence({
+      ...persistenceUser,
+      currentIdentity: googleIdentity,
+      roles: ['OWNER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn().mockResolvedValue(updatedUser),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new UpdateUserAccountUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute(
+        { sub: 'admin-sub', groups: ['Admin'] },
+        { userId: 'user-id', role: 'OWNER' }
+      )
+    ).resolves.toEqual({
+      ...userProfile,
+      roles: ['OWNER']
+    });
+    expect(repository.findByCognitoSub).not.toHaveBeenCalled();
+    expect(repository.updateAccount).toHaveBeenCalledWith({
+      userId: 'user-id',
+      name: undefined,
+      role: 'OWNER'
+    });
+  });
+
+  it('rejects invalid user roles before updating the account', async () => {
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new UpdateUserAccountUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute(
+        { sub: 'admin-sub', groups: ['admin'] },
+        { userId: 'user-id', role: 'COACH' }
+      )
+    ).rejects.toBeInstanceOf(InvalidUserRoleError);
+    expect(repository.updateAccount).not.toHaveBeenCalled();
+  });
+
+  it('rejects account updates when the authenticated user is not an administrator', async () => {
+    const player = UserEntity.fromPersistence({
+      id: 'player-id',
+      email: 'player@example.test',
+      status: 'ACTIVE',
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(player),
+      replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn(),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new UpdateUserAccountUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute(
+        { sub: 'player-sub', groups: [] },
+        { userId: 'user-id', name: 'Blocked Update' }
+      )
+    ).rejects.toBeInstanceOf(AdminRoleRequiredError);
+    expect(repository.updateAccount).not.toHaveBeenCalled();
+  });
+
+  it('rejects account updates when the target user does not exist', async () => {
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
+      updateAccount: jest.fn().mockResolvedValue(null),
+      list: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new UpdateUserAccountUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute(
+        { sub: 'admin-sub', groups: ['admin'] },
+        { userId: 'missing-user-id', role: 'PLAYER' }
+      )
+    ).rejects.toBeInstanceOf(UserNotFoundError);
   });
 
   it('lists users from Prisma by recent updates', async () => {
@@ -844,6 +1000,91 @@ describe('users module behavior', () => {
       },
       orderBy: { updatedAt: 'desc' }
     });
+  });
+
+  it('updates only the account name through Prisma', async () => {
+    const updatedUser = {
+      ...persistenceUser,
+      name: 'Updated Account Name'
+    };
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValueOnce(persistenceUser),
+        findMany: jest.fn(),
+        update: jest.fn().mockResolvedValueOnce(updatedUser)
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(
+      repository.updateAccount({
+        userId: 'user-id',
+        name: 'Updated Account Name'
+      })
+    ).resolves.toEqual(expect.any(UserEntity));
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      data: { name: 'Updated Account Name' },
+      include: {
+        identities: true,
+        roles: true
+      }
+    });
+  });
+
+  it('replaces account roles through a Prisma transaction', async () => {
+    const updatedUser = {
+      ...persistenceUser,
+      roles: [{ role: 'OWNER' as const }]
+    };
+    const tx = {
+      user: {
+        findUnique: jest.fn().mockResolvedValueOnce(persistenceUser),
+        update: jest.fn().mockResolvedValueOnce(updatedUser)
+      },
+      userRole: {
+        deleteMany: jest.fn(),
+        create: jest.fn()
+      }
+    };
+    const prisma = {
+      $transaction: jest.fn(async (callback) => callback(tx))
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    const result = await repository.updateAccount({
+      userId: 'user-id',
+      role: 'OWNER'
+    });
+
+    expect(result?.toProfile().roles).toEqual(['OWNER']);
+    expect(tx.userRole.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-id' }
+    });
+    expect(tx.userRole.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-id',
+        role: 'OWNER'
+      }
+    });
+  });
+
+  it('returns null when Prisma cannot find the account to update', async () => {
+    const prisma = {
+      user: {
+        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValueOnce(null),
+        findMany: jest.fn(),
+        update: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(
+      repository.updateAccount({ userId: 'missing-user-id', name: 'No User' })
+    ).resolves.toBeNull();
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   it('wraps Prisma failures when listing users', async () => {
@@ -869,7 +1110,8 @@ describe('users module behavior', () => {
     const controller = new UsersController(
       listUsers,
       syncAuthenticatedUser,
-      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase
+      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
+      { execute: jest.fn() } as unknown as UpdateUserAccountUseCase
     );
     const currentUser = {
       sub: 'cognito-sub',
@@ -890,7 +1132,8 @@ describe('users module behavior', () => {
     const controller = new UsersController(
       listUsers,
       syncAuthenticatedUser,
-      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase
+      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
+      { execute: jest.fn() } as unknown as UpdateUserAccountUseCase
     );
 
     const currentUser = {
@@ -900,5 +1143,49 @@ describe('users module behavior', () => {
 
     await expect(controller.list(currentUser)).resolves.toEqual([userProfile]);
     expect(listUsers.execute).toHaveBeenCalledWith(currentUser);
+  });
+
+  it('delegates account updates without forwarding forbidden fields', async () => {
+    const listUsers = {
+      execute: jest.fn()
+    } as unknown as ListUsersUseCase;
+    const syncAuthenticatedUser = {
+      execute: jest.fn()
+    } as unknown as SyncAuthenticatedUserUseCase;
+    const updateUserAccount = {
+      execute: jest.fn().mockResolvedValue({
+        ...userProfile,
+        name: 'Updated Account Name',
+        roles: ['OWNER']
+      })
+    } as unknown as UpdateUserAccountUseCase;
+    const controller = new UsersController(
+      listUsers,
+      syncAuthenticatedUser,
+      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
+      updateUserAccount
+    );
+    const currentUser = {
+      sub: 'admin-sub',
+      groups: ['admin']
+    };
+
+    await expect(
+      controller.update(currentUser, 'user-id', {
+        name: 'Updated Account Name',
+        role: 'OWNER',
+        email: 'forbidden@example.test',
+        status: 'INACTIVE'
+      } as never)
+    ).resolves.toEqual({
+      ...userProfile,
+      name: 'Updated Account Name',
+      roles: ['OWNER']
+    });
+    expect(updateUserAccount.execute).toHaveBeenCalledWith(currentUser, {
+      userId: 'user-id',
+      name: 'Updated Account Name',
+      role: 'OWNER'
+    });
   });
 });

@@ -1,4 +1,4 @@
-import type { UserEntity } from '../entities/user.entity';
+import type { UserEntity, UserRoleKind } from '../entities/user.entity';
 
 /**
  * External identity data accepted by the users module.
@@ -48,6 +48,15 @@ export interface IReplaceUserProfileImageInput {
 }
 
 /**
+ * Administrative account update command.
+ */
+export interface IUpdateUserAccountInput {
+  userId: string;
+  name?: string;
+  role?: UserRoleKind;
+}
+
+/**
  * Persistence contract for user profiles.
  */
 export interface IUserRepository {
@@ -74,6 +83,14 @@ export interface IUserRepository {
    * @returns Updated user entity.
    */
   replaceProfileImage(input: IReplaceUserProfileImageInput): Promise<UserEntity>;
+
+  /**
+   * Updates administrator-editable account fields for one user.
+   *
+   * @param input - Target user and allowed account fields.
+   * @returns Updated user entity, or `null` when the target user does not exist.
+   */
+  updateAccount(input: IUpdateUserAccountInput): Promise<UserEntity | null>;
 
   /**
    * Lists local user profiles by most recently updated first.

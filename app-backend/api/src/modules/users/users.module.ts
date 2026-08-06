@@ -6,6 +6,7 @@ import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.r
 import { ListUsersUseCase } from './application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from './application/use-cases/sync-authenticated-user.use-case';
 import { UpdateMyProfileImageUseCase } from './application/use-cases/update-my-profile-image.use-case';
+import { UpdateUserAccountUseCase } from './application/use-cases/update-user-account.use-case';
 import { UserProfileService } from './application/services/user-profile.service';
 import { UsersController } from './interfaces/http/controllers/users.controller';
 
@@ -16,6 +17,7 @@ import { UsersController } from './interfaces/http/controllers/users.controller'
     ListUsersUseCase,
     SyncAuthenticatedUserUseCase,
     UpdateMyProfileImageUseCase,
+    UpdateUserAccountUseCase,
     UserProfileService,
     {
       provide: USER_REPOSITORY,
