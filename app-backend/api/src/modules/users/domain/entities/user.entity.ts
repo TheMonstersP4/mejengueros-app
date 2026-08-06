@@ -4,6 +4,11 @@
 export type UserRoleKind = 'PLAYER' | 'OWNER' | 'ADMIN';
 
 /**
+ * Application-level user status values.
+ */
+export type UserStatusKind = 'ACTIVE' | 'INACTIVE';
+
+/**
  * Properties required to rebuild a user entity from persistence.
  */
 export interface IUserEntityProps {
@@ -41,6 +46,11 @@ export interface IUserEntityProps {
    * Application roles assigned to the user.
    */
   roles?: UserRoleKind[] | null;
+
+  /**
+   * Current application status assigned to the user.
+   */
+  status: UserStatusKind;
 }
 
 /**
@@ -96,6 +106,11 @@ export interface IUserProfileSnapshot {
    * Application roles assigned to the user.
    */
   roles: UserRoleKind[];
+
+  /**
+   * Current application status assigned to the user.
+   */
+  status: UserStatusKind;
 }
 
 /**
@@ -138,7 +153,8 @@ export class UserEntity {
       name: this.props.name ?? undefined,
       pictureUrl: this.props.pictureUrl ?? undefined,
       provider: this.props.currentIdentity?.provider,
-      roles: this.props.roles ?? []
+      roles: this.props.roles ?? [],
+      status: this.props.status
     };
   }
 }

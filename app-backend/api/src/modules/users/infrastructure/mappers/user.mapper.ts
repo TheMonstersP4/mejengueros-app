@@ -1,5 +1,5 @@
 import { UserEntity } from '../../domain/entities/user.entity';
-import type { UserRoleKind } from '../../domain/entities/user.entity';
+import type { UserRoleKind, UserStatusKind } from '../../domain/entities/user.entity';
 
 interface IUserRolePersistenceRecord {
   role: UserRoleKind;
@@ -11,6 +11,7 @@ interface IUserPersistenceRecord {
   name?: string | null;
   pictureUrl?: string | null;
   profileImageUploadId?: string | null;
+  status: UserStatusKind;
   identities?: IUserIdentityPersistenceRecord[];
   roles?: IUserRolePersistenceRecord[];
 }
@@ -43,6 +44,7 @@ export class UserMapper {
       name: user.name,
       pictureUrl: user.pictureUrl,
       profileImageUploadId: user.profileImageUploadId,
+      status: user.status,
       currentIdentity: identity,
       roles: user.roles?.map((r) => r.role) ?? []
     });

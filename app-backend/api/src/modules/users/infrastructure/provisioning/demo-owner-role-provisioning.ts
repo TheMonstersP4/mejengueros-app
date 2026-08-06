@@ -1,4 +1,5 @@
 import type { IExternalUserIdentity } from '../../domain/repositories/user.repository';
+import type { UserStatusKind } from '../../domain/entities/user.entity';
 import { UserEmailAlreadyExistsError } from '../../domain/errors/user-email-already-exists.error';
 
 const COGNITO_NATIVE_PROVIDER = 'Cognito';
@@ -10,6 +11,7 @@ export interface IUserPersistenceRecord {
   name?: string | null;
   pictureUrl?: string | null;
   profileImageUploadId?: string | null;
+  status: UserStatusKind;
   identities?: IUserIdentityRecord[];
 }
 

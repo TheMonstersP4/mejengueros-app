@@ -47,9 +47,11 @@ export class UsersController {
     UserProfileResponse,
     'Synchronized users wrapped in the API response envelope.'
   )
-  @ApiEnvelopeErrors(401)
-  async list(): Promise<UserProfileResponse[]> {
-    return this.listUsers.execute();
+  @ApiEnvelopeErrors(401, 403, 503)
+  async list(
+    @CurrentUser() user: IAuthenticatedUserOutput
+  ): Promise<UserProfileResponse[]> {
+    return this.listUsers.execute(user);
   }
 
   /**

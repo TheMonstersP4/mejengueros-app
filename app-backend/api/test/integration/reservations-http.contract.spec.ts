@@ -111,7 +111,8 @@ describe('reservations HTTP contract', () => {
     syncAuthenticatedUser.execute.mockResolvedValue({
       id: 'user-id',
       email: 'player@example.test',
-      roles: []
+      roles: [],
+      status: 'ACTIVE'
     });
     fileReadUrl.createReadUrl.mockImplementation(async (objectKey: string) => {
       return signedCourtImageUrls[objectKey] ?? `https://read.example.test/${objectKey}`;

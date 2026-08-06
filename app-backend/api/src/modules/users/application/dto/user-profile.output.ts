@@ -1,4 +1,4 @@
-import type { UserRoleKind } from '../../domain/entities/user.entity';
+import type { UserRoleKind, UserStatusKind } from '../../domain/entities/user.entity';
 
 /**
  * User profile returned by users application use cases.
@@ -38,4 +38,9 @@ export interface IUserProfileOutput {
    * Application roles assigned to the user.
    */
   roles: UserRoleKind[];
+
+  /**
+   * Current application status assigned to the user.
+   */
+  status: UserStatusKind;
 }

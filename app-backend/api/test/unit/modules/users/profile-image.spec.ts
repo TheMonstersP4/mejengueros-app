@@ -30,6 +30,7 @@ describe('user profile image association', () => {
       name: 'Player One',
       pictureUrl: 'https://provider.example.test/avatar.png',
       profileImageUploadId,
+      status: 'ACTIVE',
       currentIdentity: {
         provider: 'Google',
         providerSubject: 'cognito-sub'
@@ -190,7 +191,9 @@ describe('user profile image association', () => {
       new UserProfileService(images, createReadUrl())
     );
 
-    await expect(useCase.execute()).resolves.toEqual([
+    await expect(
+      useCase.execute({ sub: 'admin-sub', groups: ['admin'] })
+    ).resolves.toEqual([
       expect.objectContaining({
         pictureUrl: 'https://read.example.test/custom-profile.jpg'
       })
@@ -203,6 +206,7 @@ describe('user profile image association', () => {
       email: 'player@example.test',
       pictureUrl: 'https://provider.example.test/avatar.png',
       profileImageUploadId: 'new-profile-upload-id',
+      status: 'ACTIVE' as const,
       identities: [],
       roles: []
     };
