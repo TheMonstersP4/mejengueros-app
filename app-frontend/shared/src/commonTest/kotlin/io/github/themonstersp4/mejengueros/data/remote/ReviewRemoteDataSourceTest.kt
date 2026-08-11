@@ -1,6 +1,7 @@
 package io.github.themonstersp4.mejengueros.data.remote
 
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
+import io.github.themonstersp4.mejengueros.domain.model.ReviewQuestionnaireAnswer
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -144,6 +145,20 @@ class ReviewRemoteDataSourceTest {
                                   "rating": 1,
                                   "comment": "La iluminación falló toda la hora.",
                                   "evidenceImageUploadId": "evidence-image-id",
+                                  "questionnaireAnswers": [
+                                    {
+                                      "questionKey": "FIELD_CONDITION",
+                                      "answerKey": "GOOD"
+                                    },
+                                    {
+                                      "questionKey": "LIGHTING",
+                                      "answerKey": "REGULAR"
+                                    },
+                                    {
+                                      "questionKey": "WOULD_RETURN",
+                                      "answerKey": "YES"
+                                    }
+                                  ],
                                   "createdAt": "2026-07-03T02:00:00.000Z"
                                 }
                               }
@@ -174,11 +189,13 @@ class ReviewRemoteDataSourceTest {
                 rating = 1,
                 comment = "La iluminación falló toda la hora.",
                 evidenceImageUploadId = "evidence-image-id",
+                questionnaireAnswers = sampleQuestionnaireAnswers(),
             )
         )
 
     assertEquals("review-id", result.id)
     assertEquals(1, result.rating)
+    assertEquals(3, result.questionnaireAnswers.size)
     assertEquals(1, requestBodies.size)
     assertEquals(listOf("POST"), requestMethods)
     assertEquals(listOf("/v1/reviews"), requestPaths)
@@ -188,6 +205,8 @@ class ReviewRemoteDataSourceTest {
         requestBodies.single().contains("\"comment\":\"La iluminación falló toda la hora.\"")
     )
     assertTrue(requestBodies.single().contains("\"evidenceImageUploadId\":\"evidence-image-id\""))
+    assertTrue(requestBodies.single().contains("\"questionKey\":\"FIELD_CONDITION\""))
+    assertTrue(requestBodies.single().contains("\"answerKey\":\"GOOD\""))
   }
 
   @Test
@@ -240,4 +259,11 @@ class ReviewRemoteDataSourceTest {
         is OutgoingContent.NoContent -> ""
         else -> error("Unsupported request body type in test: ${this::class}")
       }
+
+  private fun sampleQuestionnaireAnswers() =
+      listOf(
+          ReviewQuestionnaireAnswer("FIELD_CONDITION", "GOOD"),
+          ReviewQuestionnaireAnswer("LIGHTING", "REGULAR"),
+          ReviewQuestionnaireAnswer("WOULD_RETURN", "YES"),
+      )
 }

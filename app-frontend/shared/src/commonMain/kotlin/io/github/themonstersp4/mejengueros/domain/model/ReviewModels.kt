@@ -27,6 +27,7 @@ data class CreateReviewRequest(
     val rating: Int,
     val comment: String? = null,
     val evidenceImageUploadId: String? = null,
+    val questionnaireAnswers: List<ReviewQuestionnaireAnswer> = emptyList(),
 )
 
 data class CreatedReview(
@@ -35,5 +36,6 @@ data class CreatedReview(
     val rating: Int,
     val comment: String? = null,
     val evidenceImageUploadId: String? = null,
+    val questionnaireAnswers: List<ReviewQuestionnaireAnswer> = emptyList(),
     val createdAt: String,
 )
