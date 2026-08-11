@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 
@@ -26,6 +27,8 @@ interface IComplexRemoteDataSource {
       courtId: String,
       imageUploadId: String,
   ): io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
+
+  suspend fun reactivateCourt(courtId: String): ReactivatedCourt
 
   suspend fun getMyComplexHub(): MyComplexHub
 }
