@@ -24,6 +24,13 @@ data class CreateReviewRequestDto(
     val rating: Int,
     val comment: String? = null,
     val evidenceImageUploadId: String? = null,
+    val questionnaireAnswers: List<ReviewQuestionnaireAnswerDto> = emptyList(),
+)
+
+@Serializable
+data class ReviewQuestionnaireAnswerDto(
+    val questionKey: String,
+    val answerKey: String,
 )
 
 @Serializable
@@ -39,6 +46,7 @@ data class CreateReviewResponseDto(
     val rating: Int,
     val comment: String? = null,
     val evidenceImageUploadId: String? = null,
+    val questionnaireAnswers: List<ReviewQuestionnaireAnswerDto> = emptyList(),
     val createdAt: String,
 )
 

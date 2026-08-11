@@ -6,6 +6,7 @@ import io.github.themonstersp4.mejengueros.data.remote.dto.LatestReviewableReser
 import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReceivedReviewItemDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReceivedReviewSummaryDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.OwnerReceivedReviewsEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.ReviewQuestionnaireAnswerDto
 import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.ReceivedReview
@@ -13,6 +14,7 @@ import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewCourt
 import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewPage
 import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewer
 import io.github.themonstersp4.mejengueros.domain.model.ReceivedReviewsSummary
+import io.github.themonstersp4.mejengueros.domain.model.ReviewQuestionnaireAnswer
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -63,6 +65,13 @@ class ReviewRemoteDataSource(
                         rating = request.rating,
                         comment = request.comment,
                         evidenceImageUploadId = request.evidenceImageUploadId,
+                        questionnaireAnswers =
+                            request.questionnaireAnswers.map {
+                              ReviewQuestionnaireAnswerDto(
+                                  questionKey = it.questionKey,
+                                  answerKey = it.answerKey,
+                              )
+                            },
                     )
                 )
               }
@@ -75,6 +84,13 @@ class ReviewRemoteDataSource(
           rating = data.rating,
           comment = data.comment,
           evidenceImageUploadId = data.evidenceImageUploadId,
+          questionnaireAnswers =
+              data.questionnaireAnswers.map {
+                ReviewQuestionnaireAnswer(
+                    questionKey = it.questionKey,
+                    answerKey = it.answerKey,
+                )
+              },
           createdAt = data.createdAt,
       )
     } catch (error: ResponseException) {

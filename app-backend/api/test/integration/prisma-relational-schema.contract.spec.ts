@@ -201,12 +201,25 @@ describe('Prisma relational MVP schema contract', () => {
   it('represents review uniqueness and rating bounds in schema and migration contracts', () => {
     const contract = loadPrismaRelationalSchemaContract();
     const reviewModel = extractPrismaBlock(contract.schema, 'model', 'Review');
+    const questionnaireAnswerModel = extractPrismaBlock(
+      contract.schema,
+      'model',
+      'ReviewQuestionnaireAnswer'
+    );
     const imageUploadModel = extractPrismaBlock(contract.schema, 'model', 'ImageUpload');
 
     expect(reviewModel).toMatch(prismaFieldPattern('reservationId', 'String'));
     expect(reviewModel).toContain('@unique');
     expect(reviewModel).toMatch(prismaFieldPattern('evidenceImageUploadId', 'String?'));
     expect(reviewModel).toMatch(prismaFieldPattern('rating', 'Int'));
+    expect(reviewModel).toMatch(
+      prismaFieldPattern('questionnaireAnswers', 'ReviewQuestionnaireAnswer[]')
+    );
+    expect(questionnaireAnswerModel).toMatch(prismaFieldPattern('reviewId', 'String'));
+    expect(questionnaireAnswerModel).toMatch(prismaFieldPattern('questionKey', 'String'));
+    expect(questionnaireAnswerModel).toMatch(prismaFieldPattern('answerKey', 'String'));
+    expect(questionnaireAnswerModel).toContain('@@unique([reviewId, questionKey])');
+    expect(questionnaireAnswerModel).toContain('@@index([questionKey, answerKey])');
     expect(reviewModel).toMatch(
       /evidenceImageUpload\s+ImageUpload\?\s+@relation\("ReviewEvidenceImage",\s*fields:\s*\[evidenceImageUploadId\],\s*references:\s*\[id\],\s*onDelete:\s*SetNull\)/
     );
@@ -231,6 +244,21 @@ describe('Prisma relational MVP schema contract', () => {
     expect(contract.migration).toMatch(
       sqlFragmentPattern(
         'ADD CONSTRAINT "Review_evidenceImageUploadId_fkey" FOREIGN KEY ("evidenceImageUploadId") REFERENCES "mejengueros_dev"."ImageUpload"("id") ON DELETE SET NULL ON UPDATE CASCADE;'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'CREATE TABLE "mejengueros_dev"."ReviewQuestionnaireAnswer"'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'CREATE UNIQUE INDEX "ReviewQuestionnaireAnswer_reviewId_questionKey_key"'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'ADD CONSTRAINT "ReviewQuestionnaireAnswer_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "mejengueros_dev"."Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;'
       )
     );
   });

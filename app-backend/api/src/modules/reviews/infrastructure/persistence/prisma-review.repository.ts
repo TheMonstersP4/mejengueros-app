@@ -351,7 +351,13 @@ export class PrismaReviewRepository implements IReviewRepository {
           reservationId: command.reservationId,
           rating: command.rating,
           comment: command.comment,
-          evidenceImageUploadId: command.evidenceImageUploadId
+          evidenceImageUploadId: command.evidenceImageUploadId,
+          questionnaireAnswers: {
+            create: command.questionnaireAnswers.map((answer) => ({
+              questionKey: answer.questionKey,
+              answerKey: answer.answerKey
+            }))
+          }
         }
       });
 
@@ -361,6 +367,7 @@ export class PrismaReviewRepository implements IReviewRepository {
         rating: review.rating,
         comment: review.comment ?? undefined,
         evidenceImageUploadId: review.evidenceImageUploadId ?? undefined,
+        questionnaireAnswers: command.questionnaireAnswers,
         createdAt: review.createdAt.toISOString()
       };
     } catch (error) {
