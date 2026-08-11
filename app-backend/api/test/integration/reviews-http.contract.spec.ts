@@ -18,6 +18,11 @@ const reservationId = '38fad3d5-0f6a-4c8a-a49a-c3dce07af6cf';
 const evidenceImageUploadId = '6f554321-6df0-43c4-b310-f3d7e6bf00a1';
 const courtId = '0dd3a274-7d7b-45c6-a90d-4d14298ae7aa';
 const TEST_DATABASE_URL = 'file:memory:';
+const questionnaireAnswers = [
+  { questionKey: 'FIELD_CONDITION', answerKey: 'GOOD' },
+  { questionKey: 'LIGHTING', answerKey: 'REGULAR' },
+  { questionKey: 'WOULD_RETURN', answerKey: 'YES' }
+];
 
 describe('reviews HTTP contract', () => {
   const originalEnv = {
@@ -245,7 +250,8 @@ describe('reviews HTTP contract', () => {
         reservationId,
         rating: 1,
         comment: '  The court lights failed during the entire reservation.  ',
-        evidenceImageUploadId
+        evidenceImageUploadId,
+        questionnaireAnswers
       }
     });
 
@@ -260,7 +266,10 @@ describe('reviews HTTP contract', () => {
         reservationId,
         rating: 1,
         comment: 'The court lights failed during the entire reservation.',
-        evidenceImageUploadId
+        evidenceImageUploadId,
+        questionnaireAnswers: {
+          create: questionnaireAnswers
+        }
       }
     });
     expect(response.json()).toEqual({
@@ -271,11 +280,42 @@ describe('reviews HTTP contract', () => {
         rating: 1,
         comment: 'The court lights failed during the entire reservation.',
         evidenceImageUploadId,
+        questionnaireAnswers,
         createdAt: '2026-07-03T02:00:00.000Z'
       },
       errors: [],
       meta: expect.objectContaining({ path: '/v1/reviews' })
     });
+  });
+
+  it('rejects review creation when the required questionnaire is missing', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/reviews',
+      headers: { Authorization: 'Bearer valid-token' },
+      payload: {
+        reservationId,
+        rating: 5,
+        comment: 'Good court.'
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(syncAuthenticatedUser.execute).not.toHaveBeenCalled();
+    expect(prismaService.review.create).not.toHaveBeenCalled();
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        success: false,
+        data: null,
+        errors: expect.arrayContaining([
+          expect.objectContaining({
+            code: APP_ERROR_CODES.VALIDATION_FAILED,
+            status: 400
+          })
+        ]),
+        meta: expect.objectContaining({ path: '/v1/reviews' })
+      })
+    );
   });
 
   it.each([
@@ -323,7 +363,8 @@ describe('reviews HTTP contract', () => {
       payload: {
         reservationId,
         rating: 6,
-        evidenceImageUploadId: 'not-a-uuid'
+        evidenceImageUploadId: 'not-a-uuid',
+        questionnaireAnswers
       }
     });
 
@@ -369,7 +410,8 @@ describe('reviews HTTP contract', () => {
       payload: {
         reservationId,
         rating: 1,
-        comment: 'The field was unsafe.'
+        comment: 'The field was unsafe.',
+        questionnaireAnswers
       }
     });
 
@@ -403,7 +445,8 @@ describe('reviews HTTP contract', () => {
         reservationId,
         rating: 1,
         comment: 'The field was unsafe.',
-        evidenceImageUploadId
+        evidenceImageUploadId,
+        questionnaireAnswers
       }
     });
 
@@ -549,7 +592,8 @@ describe('reviews HTTP contract', () => {
         reservationId,
         rating: 1,
         comment: 'The field was unsafe.',
-        evidenceImageUploadId
+        evidenceImageUploadId,
+        questionnaireAnswers
       }
     });
 
@@ -622,6 +666,7 @@ function createPrismaMock() {
         rating: 1,
         comment: 'The court lights failed during the entire reservation.',
         evidenceImageUploadId,
+        questionnaireAnswers,
         createdAt: new Date('2026-07-03T02:00:00.000Z')
       })
     },
