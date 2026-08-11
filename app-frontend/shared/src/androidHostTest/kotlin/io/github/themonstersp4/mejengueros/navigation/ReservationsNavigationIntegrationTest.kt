@@ -157,6 +157,7 @@ class ReservationsNavigationIntegrationTest {
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
         .performTextInput("Otro comentario temporal")
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
@@ -200,6 +201,7 @@ class ReservationsNavigationIntegrationTest {
     composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
     composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
@@ -242,6 +244,7 @@ class ReservationsNavigationIntegrationTest {
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
         .performTextInput("El piso estaba resbaloso y no había buena iluminación")
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_pick_evidence_button").performScrollTo().performClick()
 
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
@@ -280,6 +283,7 @@ class ReservationsNavigationIntegrationTest {
     composeRule
         .onNodeWithText("Contá tu experiencia: la cancha, la superficie, el ambiente...")
         .performTextInput("La cancha estaba impecable")
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
@@ -374,6 +378,7 @@ class ReservationsNavigationIntegrationTest {
     composeRule.onNodeWithTag(FinalizedReservationActionTag).performScrollTo().performClick()
     composeRule.waitForIdle()
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
     advanceUntilIdle()
     composeRule.waitForIdle()
@@ -561,6 +566,12 @@ class ReservationsNavigationIntegrationTest {
           reviewEvidenceUploadRepository = reviewEvidenceUploadRepository,
           coroutineScope = coroutineScope,
       )
+
+  private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.answerQuestionnaire() {
+    onNodeWithTag("review_answer_FIELD_CONDITION_GOOD").performScrollTo().performClick()
+    onNodeWithTag("review_answer_LIGHTING_REGULAR").performScrollTo().performClick()
+    onNodeWithTag("review_answer_WOULD_RETURN_YES").performScrollTo().performClick()
+  }
 
   private class RecordingReviewRepository(
       private val latestReservation: ReviewableReservation? = null,

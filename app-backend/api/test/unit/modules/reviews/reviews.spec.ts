@@ -632,6 +632,11 @@ describe('reviews module — create review and latest reviewable reservation', (
     endsAt: '2026-07-02T21:00:00.000Z',
     imageObjectKey: 'uploads/court-image/player-sub/2026/07/court-a.png'
   };
+  const questionnaireAnswers = [
+    { questionKey: 'FIELD_CONDITION', answerKey: 'GOOD' },
+    { questionKey: 'LIGHTING', answerKey: 'REGULAR' },
+    { questionKey: 'WOULD_RETURN', answerKey: 'YES' }
+  ];
 
   function createSyncAuthenticatedUserUseCase(): SyncAuthenticatedUserUseCase {
     return {
@@ -656,6 +661,7 @@ describe('reviews module — create review and latest reviewable reservation', (
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
         evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers,
         createdAt: '2026-07-03T02:00:00.000Z'
       })
     } as unknown as jest.Mocked<IReviewRepository>;
@@ -697,7 +703,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).resolves.toMatchObject({
       id: 'review-id',
@@ -705,6 +712,48 @@ describe('reviews module — create review and latest reviewable reservation', (
       rating: 1,
       evidenceImageUploadId: 'evidence-image-id'
     });
+  });
+
+  it('rejects reviews when the required questionnaire is incomplete', async () => {
+    const useCase = new CreateReviewUseCase(
+      createReviewRepository(),
+      createImageUploadRepository(),
+      createSyncAuthenticatedUserUseCase()
+    );
+
+    await expect(
+      useCase.execute(player, {
+        reservationId: 'reservation-id',
+        rating: 5,
+        questionnaireAnswers: [
+          { questionKey: 'FIELD_CONDITION', answerKey: 'GOOD' },
+          { questionKey: 'LIGHTING', answerKey: 'GOOD' }
+        ]
+      })
+    ).rejects.toThrow('questionnaire');
+  });
+
+  it('normalizes questionnaire answers before creating the review', async () => {
+    const reviewRepository = createReviewRepository();
+    const useCase = new CreateReviewUseCase(
+      reviewRepository,
+      createImageUploadRepository(),
+      createSyncAuthenticatedUserUseCase()
+    );
+
+    await useCase.execute(player, {
+      reservationId: 'reservation-id',
+      rating: 5,
+      questionnaireAnswers: [
+        { questionKey: ' field_condition ', answerKey: ' good ' },
+        { questionKey: ' lighting ', answerKey: ' regular ' },
+        { questionKey: ' would_return ', answerKey: ' yes ' }
+      ]
+    });
+
+    expect(reviewRepository.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ questionnaireAnswers })
+    );
   });
 
   it('rejects a 1-star review without comment', async () => {
@@ -762,7 +811,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).rejects.toThrow('purpose');
   });
@@ -789,7 +839,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).rejects.toThrow('authenticated');
   });
@@ -810,7 +861,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).rejects.toThrow('already assigned');
   });

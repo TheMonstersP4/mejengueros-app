@@ -913,6 +913,7 @@ internal fun ReservationsEntryContent(
                     LeaveReviewScreenActions(
                         onRatingSelected = reviewViewModel::updateRating,
                         onCommentChanged = reviewViewModel::updateComment,
+                        onQuestionnaireAnswerSelected = reviewViewModel::updateQuestionnaireAnswer,
                         onPickEvidenceImage = reviewEvidenceImagePicker.launch,
                         onClearEvidenceImage = reviewViewModel::clearSelectedEvidenceImage,
                         onSubmit = reviewViewModel::submit,
@@ -962,6 +963,7 @@ private fun ReviewUiState.toLeaveReviewUiState(
       reservationContext = reservation.toReservationContext(),
       selectedRating = selectedRating,
       comment = comment,
+      selectedQuestionnaireAnswers = selectedQuestionnaireAnswers,
       selectedEvidenceImage = selectedEvidenceImage,
       isEvidenceImagePickerAvailable = isEvidenceImagePickerAvailable,
       isSubmitting = isSubmitting,
@@ -1096,6 +1098,7 @@ private fun NotificationsEntryContent(
                     LeaveReviewScreenActions(
                         onRatingSelected = reviewViewModel::updateRating,
                         onCommentChanged = reviewViewModel::updateComment,
+                        onQuestionnaireAnswerSelected = reviewViewModel::updateQuestionnaireAnswer,
                         onPickEvidenceImage = reviewEvidenceImagePicker.launch,
                         onClearEvidenceImage = reviewViewModel::clearSelectedEvidenceImage,
                         onSubmit = reviewViewModel::submit,

@@ -46,6 +46,32 @@ export class PrismaCourtAdminRepository implements ICourtAdminRepository {
     return this.toSnapshot(updatedCourt);
   }
 
+  async reactivateById(courtId: string): Promise<ICourtAdminSnapshot> {
+    const court = await this.prisma.court.findFirst({
+      where: {
+        id: courtId,
+        deletedAt: null
+      },
+      select: COURT_ADMIN_SELECT
+    });
+
+    if (court == null) {
+      throw new CourtNotFoundError(courtId);
+    }
+
+    if (court.status === 'ACTIVE') {
+      return this.toSnapshot(court);
+    }
+
+    const updatedCourt = await this.prisma.court.update({
+      where: { id: courtId },
+      data: { status: 'ACTIVE' },
+      select: COURT_ADMIN_SELECT
+    });
+
+    return this.toSnapshot(updatedCourt);
+  }
+
   private toSnapshot(court: {
     id: string;
     name: string;

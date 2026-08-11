@@ -3,6 +3,7 @@ import { FilesModule } from '../files/files.module';
 import { AuthModule } from '../auth/auth.module';
 import { DeactivateCourtUseCase } from './application/use-cases/deactivate-court.use-case';
 import { ListPublicCourtCatalogUseCase } from './application/use-cases/list-public-court-catalog.use-case';
+import { ReactivateCourtUseCase } from './application/use-cases/reactivate-court.use-case';
 import { COURT_ADMIN_REPOSITORY } from './domain/repositories/court-admin.repository';
 import { COURT_CATALOG_REPOSITORY } from './domain/repositories/court-catalog.repository';
 import { PrismaCourtAdminRepository } from './infrastructure/persistence/prisma-court-admin.repository';
@@ -18,6 +19,7 @@ import { CourtsController } from './interfaces/http/controllers/courts.controlle
   providers: [
     DeactivateCourtUseCase,
     ListPublicCourtCatalogUseCase,
+    ReactivateCourtUseCase,
     {
       provide: COURT_ADMIN_REPOSITORY,
       useClass: PrismaCourtAdminRepository

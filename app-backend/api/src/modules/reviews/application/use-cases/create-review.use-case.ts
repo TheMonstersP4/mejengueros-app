@@ -18,6 +18,7 @@ import {
   type IReviewRepository
 } from '../../domain/repositories/review.repository';
 import { validateReviewEvidenceUpload } from '../services/validate-review-evidence-upload';
+import { validateReviewQuestionnaireAnswers } from '../services/validate-review-questionnaire';
 
 @Injectable()
 export class CreateReviewUseCase {
@@ -63,6 +64,10 @@ export class CreateReviewUseCase {
       throw new OneStarReviewEvidenceRequiredError();
     }
 
+    const questionnaireAnswers = validateReviewQuestionnaireAnswers(
+      input.questionnaireAnswers
+    );
+
     await validateReviewEvidenceUpload(
       this.reviewRepository,
       this.imageUploadRepository,
@@ -74,7 +79,8 @@ export class CreateReviewUseCase {
       reservationId: input.reservationId,
       rating: input.rating,
       comment: normalizedComment || undefined,
-      evidenceImageUploadId: input.evidenceImageUploadId
+      evidenceImageUploadId: input.evidenceImageUploadId,
+      questionnaireAnswers
     });
   }
 }

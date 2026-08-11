@@ -48,14 +48,21 @@ class LeaveReviewScreenBehaviorTest {
   }
 
   @Test
-  fun selectingAndChangingRatingUpdatesHelperAndEnablesSubmit() {
+  fun selectingAndChangingRatingUpdatesHelperAndRequiresQuestionnaireBeforeSubmit() {
     setReviewScreenContent()
 
     composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
     composeRule.onNodeWithText("4 de 5 · Muy buena").assertExists()
+    composeRule.onNodeWithTag("leave_review_submit_button").assertIsNotEnabled()
+
+    composeRule.answerQuestionnaire()
+
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
 
-    composeRule.onNodeWithContentDescription("Seleccionar 2 de 5 estrellas").performClick()
+    composeRule
+        .onNodeWithContentDescription("Seleccionar 2 de 5 estrellas")
+        .performScrollTo()
+        .performClick()
     composeRule.onNodeWithText("2 de 5 · Regular").assertExists()
     composeRule.onNodeWithText("4 de 5 · Muy buena").assertDoesNotExist()
   }
@@ -64,7 +71,10 @@ class LeaveReviewScreenBehaviorTest {
   fun oneStarRequiresCommentBeforeSubmit() {
     setReviewScreenContent()
 
-    composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
+    composeRule
+        .onNodeWithContentDescription("Seleccionar 1 de 5 estrellas")
+        .performScrollTo()
+        .performClick()
 
     composeRule.onNodeWithText("1 de 5 · Muy mala").assertExists()
     composeRule
@@ -86,6 +96,7 @@ class LeaveReviewScreenBehaviorTest {
     composeRule
         .commentField()
         .performTextInput("La iluminación falló y la cancha estaba muy descuidada")
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_pick_evidence_button").performScrollTo().performClick()
 
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
@@ -100,8 +111,12 @@ class LeaveReviewScreenBehaviorTest {
 
     composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
     composeRule.commentField().performTextInput("Comentario que debe quedarse")
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_pick_evidence_button").performClick()
-    composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
+    composeRule
+        .onNodeWithContentDescription("Seleccionar 4 de 5 estrellas")
+        .performScrollTo()
+        .performClick()
 
     composeRule
         .onNodeWithText("Si dejás 1 estrella, contanos qué pasó para revisar mejor tu experiencia.")
@@ -114,7 +129,10 @@ class LeaveReviewScreenBehaviorTest {
   fun oneStarWithCommentButWithoutImageStaysBlocked() {
     setReviewScreenContent()
 
-    composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
+    composeRule
+        .onNodeWithContentDescription("Seleccionar 1 de 5 estrellas")
+        .performScrollTo()
+        .performClick()
     composeRule
         .commentField()
         .performTextInput("La iluminación falló y la cancha estaba muy descuidada")
@@ -177,9 +195,13 @@ class LeaveReviewScreenBehaviorTest {
     setReviewScreenContent()
 
     composeRule.onNodeWithContentDescription("Seleccionar 4 de 5 estrellas").performClick()
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
 
-    composeRule.onNodeWithContentDescription("Seleccionar 1 de 5 estrellas").performClick()
+    composeRule
+        .onNodeWithContentDescription("Seleccionar 1 de 5 estrellas")
+        .performScrollTo()
+        .performClick()
 
     composeRule
         .onNodeWithText("Si dejás 1 estrella, contanos qué pasó para revisar mejor tu experiencia.")
@@ -198,6 +220,7 @@ class LeaveReviewScreenBehaviorTest {
     }
 
     composeRule.commentField().assertIsFocused().performTextInput("La experiencia fue mala")
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_pick_evidence_button").performScrollTo().performClick()
 
     composeRule.onNodeWithTag("leave_review_submit_button").assertIsEnabled()
@@ -208,6 +231,7 @@ class LeaveReviewScreenBehaviorTest {
     setReviewScreenContent()
 
     composeRule.onNodeWithContentDescription("Seleccionar 5 de 5 estrellas").performClick()
+    composeRule.answerQuestionnaire()
     composeRule.onNodeWithTag("leave_review_submit_button").performClick()
 
     composeRule.onNodeWithText("TU RESEÑA FUE ENVIADA").assertExists()
@@ -269,6 +293,13 @@ class LeaveReviewScreenBehaviorTest {
             LeaveReviewScreenActions(
                 onRatingSelected = { rating -> state = state.copy(selectedRating = rating) },
                 onCommentChanged = { comment -> state = state.copy(comment = comment) },
+                onQuestionnaireAnswerSelected = { questionKey, answerKey ->
+                  state =
+                      state.copy(
+                          selectedQuestionnaireAnswers =
+                              state.selectedQuestionnaireAnswers + (questionKey to answerKey)
+                      )
+                },
                 onPickEvidenceImage = {
                   state = state.copy(selectedEvidenceImage = sampleEvidenceImage())
                 },
@@ -312,6 +343,7 @@ class LeaveReviewScreenBehaviorTest {
       LeaveReviewScreenActions(
           onRatingSelected = {},
           onCommentChanged = {},
+          onQuestionnaireAnswerSelected = { _, _ -> },
           onPickEvidenceImage = {},
           onClearEvidenceImage = {},
           onSubmit = {},
@@ -321,4 +353,10 @@ class LeaveReviewScreenBehaviorTest {
 
   private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.commentField() =
       onNode(hasSetTextAction() and hasContentDescription("COMENTARIO"))
+
+  private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.answerQuestionnaire() {
+    onNodeWithTag("review_answer_FIELD_CONDITION_GOOD").performScrollTo().performClick()
+    onNodeWithTag("review_answer_LIGHTING_REGULAR").performScrollTo().performClick()
+    onNodeWithTag("review_answer_WOULD_RETURN_YES").performScrollTo().performClick()
+  }
 }

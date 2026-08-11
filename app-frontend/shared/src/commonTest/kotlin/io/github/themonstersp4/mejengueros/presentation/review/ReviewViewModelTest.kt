@@ -42,6 +42,36 @@ class ReviewViewModelTest {
 
     viewModel.updateSelectedEvidenceImage(sampleEvidenceImage())
 
+    assertFalse(viewModel.uiState.value.canSubmit)
+
+    viewModel.answerRequiredQuestionnaire()
+
+    assertTrue(viewModel.uiState.value.canSubmit)
+  }
+
+  @Test
+  fun submitBlocksUntilQuestionnaireAnswersAreComplete() = runTest {
+    val scope = TestScope(StandardTestDispatcher(testScheduler))
+    val viewModel =
+        ReviewViewModel(
+            reviewRepository = FakeReviewRepository(),
+            reviewEvidenceUploadRepository = FakeReviewEvidenceUploadRepository(),
+            coroutineScope = scope,
+        )
+
+    advanceUntilIdle()
+    viewModel.startReview()
+    viewModel.updateRating(5)
+
+    assertFalse(viewModel.uiState.value.canSubmit)
+
+    viewModel.updateQuestionnaireAnswer("FIELD_CONDITION", "GOOD")
+    viewModel.updateQuestionnaireAnswer("LIGHTING", "REGULAR")
+
+    assertFalse(viewModel.uiState.value.canSubmit)
+
+    viewModel.updateQuestionnaireAnswer("WOULD_RETURN", "YES")
+
     assertTrue(viewModel.uiState.value.canSubmit)
   }
 
@@ -62,12 +92,14 @@ class ReviewViewModelTest {
     viewModel.updateRating(1)
     viewModel.updateComment("La iluminación falló toda la hora.")
     viewModel.updateSelectedEvidenceImage(sampleEvidenceImage())
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     advanceUntilIdle()
 
     assertEquals("reservation-id", reviewRepository.lastCreateRequest?.reservationId)
     assertEquals("evidence-image-id", reviewRepository.lastCreateRequest?.evidenceImageUploadId)
+    assertEquals(3, reviewRepository.lastCreateRequest?.questionnaireAnswers?.size)
     assertEquals("review-id", viewModel.uiState.value.submittedReview?.id)
   }
 
@@ -88,6 +120,7 @@ class ReviewViewModelTest {
     viewModel.updateRating(1)
     viewModel.updateComment("La iluminación falló toda la hora.")
     viewModel.updateSelectedEvidenceImage(sampleEvidenceImage())
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     advanceUntilIdle()
@@ -126,6 +159,7 @@ class ReviewViewModelTest {
     viewModel.startReview()
     viewModel.updateRating(5)
     viewModel.updateComment("Borrador que no debe volver")
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     advanceUntilIdle()
@@ -140,6 +174,7 @@ class ReviewViewModelTest {
     assertEquals(2, reviewRepository.latestReservationCalls)
     assertEquals(0, viewModel.uiState.value.selectedRating)
     assertEquals("", viewModel.uiState.value.comment)
+    assertEquals(emptyMap(), viewModel.uiState.value.selectedQuestionnaireAnswers)
     assertFalse(viewModel.uiState.value.isSubmitting)
     assertNull(viewModel.uiState.value.reviewableReservation)
     assertNull(viewModel.uiState.value.submittedReview)
@@ -165,6 +200,7 @@ class ReviewViewModelTest {
     viewModel.updateRating(1)
     viewModel.updateComment("Borrador de una estrella")
     viewModel.updateSelectedEvidenceImage(sampleEvidenceImage())
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     advanceUntilIdle()
@@ -179,6 +215,7 @@ class ReviewViewModelTest {
     assertEquals(2, reviewRepository.latestReservationCalls)
     assertEquals(0, viewModel.uiState.value.selectedRating)
     assertEquals("", viewModel.uiState.value.comment)
+    assertEquals(emptyMap(), viewModel.uiState.value.selectedQuestionnaireAnswers)
     assertNull(viewModel.uiState.value.selectedEvidenceImage)
     assertFalse(viewModel.uiState.value.isSubmitting)
     assertNull(viewModel.uiState.value.reviewableReservation)
@@ -283,6 +320,7 @@ class ReviewViewModelTest {
     viewModel.updateRating(1)
     viewModel.updateComment("La iluminación falló toda la hora.")
     viewModel.updateSelectedEvidenceImage(sampleEvidenceImage())
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     advanceUntilIdle()
@@ -618,6 +656,7 @@ class ReviewViewModelTest {
     scope.advanceUntilIdle()
     viewModel.startReview()
     viewModel.updateRating(5)
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     scope.advanceUntilIdle()
@@ -640,6 +679,7 @@ class ReviewViewModelTest {
     viewModel.updateRating(1)
     viewModel.updateComment("La iluminación falló toda la hora.")
     viewModel.updateSelectedEvidenceImage(sampleEvidenceImage())
+    viewModel.answerRequiredQuestionnaire()
 
     viewModel.submit()
     scope.advanceUntilIdle()
@@ -670,6 +710,12 @@ class ReviewViewModelTest {
           bytes = byteArrayOf(1, 2, 3),
           previewUrl = "content://evidence.png",
       )
+
+  private fun ReviewViewModel.answerRequiredQuestionnaire() {
+    updateQuestionnaireAnswer("FIELD_CONDITION", "GOOD")
+    updateQuestionnaireAnswer("LIGHTING", "REGULAR")
+    updateQuestionnaireAnswer("WOULD_RETURN", "YES")
+  }
 }
 
 private fun sampleReservation(
