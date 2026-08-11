@@ -337,15 +337,29 @@ model Notification {
 }
 
 model Review {
-  id                    String       @id @default(uuid())
-  reservationId         String       @unique
-  evidenceImageUploadId String?      @unique
+  id                    String                      @id @default(uuid())
+  reservationId         String                      @unique
+  evidenceImageUploadId String?                     @unique
   rating                Int
   comment               String?
-  reservation           Reservation  @relation(fields: [reservationId], references: [id], onDelete: Restrict)
-  evidenceImageUpload   ImageUpload? @relation("ReviewEvidenceImage", fields: [evidenceImageUploadId], references: [id], onDelete: SetNull)
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  reservation           Reservation                 @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  evidenceImageUpload   ImageUpload?                @relation("ReviewEvidenceImage", fields: [evidenceImageUploadId], references: [id], onDelete: SetNull)
+  questionnaireAnswers  ReviewQuestionnaireAnswer[]
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
 
+  @@schema("mejengueros_dev")
+}
+
+model ReviewQuestionnaireAnswer {
+  id          String   @id @default(uuid())
+  reviewId    String
+  questionKey String
+  answerKey   String
+  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([reviewId, questionKey])
+  @@index([questionKey, answerKey])
   @@schema("mejengueros_dev")
 }
