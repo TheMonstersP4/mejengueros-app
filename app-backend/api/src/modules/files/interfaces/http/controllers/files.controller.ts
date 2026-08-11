@@ -14,6 +14,7 @@ import {
 } from '../../../../../shared/interfaces/http/swagger/api-envelope.decorators';
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
 import { ConfirmUploadUseCase } from '../../../application/use-cases/confirm-upload.use-case';
 import { CreateUploadUrlUseCase } from '../../../application/use-cases/create-upload-url.use-case';
@@ -49,7 +50,7 @@ export class FilesController {
    * @returns Uploaded image responses.
    */
   @Get('uploads')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List the current user confirmed image uploads.',
     description:
@@ -74,7 +75,7 @@ export class FilesController {
    * @returns Presigned upload URL response.
    */
   @Post('uploads')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Create a presigned image upload URL.',
     description:
@@ -109,7 +110,7 @@ export class FilesController {
    * @returns Confirmed upload response.
    */
   @Post('uploads/confirm')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Confirm a direct S3 image upload.',
     description:

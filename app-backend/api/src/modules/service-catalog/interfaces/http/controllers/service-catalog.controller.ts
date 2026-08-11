@@ -1,6 +1,7 @@
 import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import {
   ApiEnvelopeArrayOk,
   ApiEnvelopeErrors
@@ -23,7 +24,7 @@ export class ServiceCatalogController {
   ) {}
 
   @Get()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List active services for the complex wizard.',
     description:

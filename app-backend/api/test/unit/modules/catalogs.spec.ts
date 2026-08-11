@@ -1,4 +1,5 @@
 import { ListCantonsByProvinceUseCase } from '@/modules/locations/application/use-cases/list-cantons-by-province.use-case';
+import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
 import { ListProvincesUseCase } from '@/modules/locations/application/use-cases/list-provinces.use-case';
 import { DeactivateCourtUseCase } from '@/modules/courts/application/use-cases/deactivate-court.use-case';
 import { ListPublicCourtCatalogUseCase } from '@/modules/courts/application/use-cases/list-public-court-catalog.use-case';
@@ -16,6 +17,8 @@ import { ListActiveServicesUseCase } from '@/modules/service-catalog/application
 import { PrismaServiceCatalogRepository } from '@/modules/service-catalog/infrastructure/persistence/prisma-service-catalog.repository';
 import { ServiceCatalogController } from '@/modules/service-catalog/interfaces/http/controllers/service-catalog.controller';
 import { ListCourtCatalogQuery } from '@/modules/courts/interfaces/http/dto/list-court-catalog.query';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
@@ -137,6 +140,14 @@ describe('catalog modules behavior', () => {
     expect(repository.listActiveServices).toHaveBeenCalledWith('COURT');
   });
 
+  it('requires an active local account to use authenticated setup catalogs', () => {
+    const activeUserGuards = [CognitoAuthGuard, ActiveUserAccountGuard];
+
+    expect(getLocationMethodGuards('listProvincesCatalog')).toEqual(activeUserGuards);
+    expect(getLocationMethodGuards('listCantonsCatalog')).toEqual(activeUserGuards);
+    expect(getServiceCatalogMethodGuards('list')).toEqual(activeUserGuards);
+  });
+
   it('builds Prisma queries for active service catalogs', async () => {
     const prisma = {
       serviceCatalog: {
@@ -255,6 +266,13 @@ describe('catalog modules behavior', () => {
     expect(deactivateCourt.execute).toHaveBeenCalledWith(adminUser, COURT_ID_A);
   });
 
+  it('requires an active local account to deactivate a court', () => {
+    expect(getCourtMethodGuards('deactivate')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
+  });
+
   it('rejects court deactivation when the authenticated user is not an administrator', async () => {
     const repository = {
       deactivateById: jest.fn(),
@@ -306,6 +324,13 @@ describe('catalog modules behavior', () => {
       }
     });
     expect(reactivateCourt.execute).toHaveBeenCalledWith(adminUser, COURT_ID_A);
+  });
+
+  it('requires an active local account to reactivate a court', () => {
+    expect(getCourtMethodGuards('reactivate')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
   });
 
   it('rejects court reactivation when the authenticated user is not an administrator', async () => {
@@ -1233,6 +1258,29 @@ describe('catalog modules behavior', () => {
     return {
       createReadUrl: jest.fn().mockResolvedValue(CATALOG_IMAGE_READ_URL)
     };
+  }
+
+  function getCourtMethodGuards(methodName: keyof CourtsController): unknown[] {
+    return Reflect.getMetadata(
+      GUARDS_METADATA,
+      CourtsController.prototype[methodName]
+    ) as unknown[];
+  }
+
+  function getLocationMethodGuards(methodName: keyof LocationsController): unknown[] {
+    return Reflect.getMetadata(
+      GUARDS_METADATA,
+      LocationsController.prototype[methodName]
+    ) as unknown[];
+  }
+
+  function getServiceCatalogMethodGuards(
+    methodName: keyof ServiceCatalogController
+  ): unknown[] {
+    return Reflect.getMetadata(
+      GUARDS_METADATA,
+      ServiceCatalogController.prototype[methodName]
+    ) as unknown[];
   }
 
   function createCatalogCourtRow({

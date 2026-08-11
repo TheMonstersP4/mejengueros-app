@@ -1,15 +1,20 @@
+import type { ExecutionContext } from '@nestjs/common';
 import { ListUsersUseCase } from '@/modules/users/application/use-cases/list-users.use-case';
+import { DeactivateUserUseCase } from '@/modules/users/application/use-cases/deactivate-user.use-case';
 import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
 import type { UserProfileService } from '@/modules/users/application/services/user-profile.service';
 import type { UpdateMyProfileImageUseCase } from '@/modules/users/application/use-cases/update-my-profile-image.use-case';
 import { UserEntity } from '@/modules/users/domain/entities/user.entity';
 import { AdminRoleRequiredError } from '@/modules/users/domain/errors/admin-role-required.error';
+import { UserAccountInactiveError } from '@/modules/users/domain/errors/user-account-inactive.error';
 import { UserEmailAlreadyExistsError } from '@/modules/users/domain/errors/user-email-already-exists.error';
+import { UserNotFoundError } from '@/modules/users/domain/errors/user-not-found.error';
 import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
 import { UserListUnavailableError } from '@/modules/users/infrastructure/errors/user-list-unavailable.error';
 import { UserMapper } from '@/modules/users/infrastructure/mappers/user.mapper';
 import { PrismaUserRepository } from '@/modules/users/infrastructure/persistence/prisma-user.repository';
 import { UsersController } from '@/modules/users/interfaces/http/controllers/users.controller';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
 
 describe('users module behavior', () => {
   function createProfileService(): UserProfileService {
@@ -22,6 +27,14 @@ describe('users module behavior', () => {
     return Object.assign(new Error('Unique constraint failed'), {
       code: 'P2002' as const
     });
+  }
+
+  function createHttpContext(request: unknown): ExecutionContext {
+    return {
+      switchToHttp: () => ({
+        getRequest: () => request
+      })
+    } as unknown as ExecutionContext;
   }
 
   const googleIdentity = {
@@ -107,7 +120,8 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn().mockResolvedValue(entity),
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new SyncAuthenticatedUserUseCase(
       repository,
@@ -133,6 +147,67 @@ describe('users module behavior', () => {
       pictureUrl: 'https://example.test/avatar.png',
       provider: 'Google'
     });
+  });
+
+  it('blocks synchronized inactive users from normal profile flow', async () => {
+    const inactiveUser = UserEntity.fromPersistence({
+      ...persistenceUser,
+      status: 'INACTIVE',
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
+    });
+    const profileService = createProfileService();
+    const repository = {
+      syncAuthenticatedUser: jest.fn().mockResolvedValue(inactiveUser),
+      findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new SyncAuthenticatedUserUseCase(repository, profileService);
+
+    await expect(
+      useCase.execute({ sub: 'cognito-sub', groups: [] })
+    ).rejects.toBeInstanceOf(UserAccountInactiveError);
+    expect(profileService.render).not.toHaveBeenCalled();
+  });
+
+  it('blocks inactive local users from guarded operational routes', async () => {
+    const inactiveUser = UserEntity.fromPersistence({
+      ...persistenceUser,
+      status: 'INACTIVE',
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(inactiveUser),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn()
+    } satisfies IUserRepository;
+    const guard = new ActiveUserAccountGuard(repository);
+
+    await expect(
+      guard.canActivate(createHttpContext({ user: { sub: 'cognito-sub', groups: [] } }))
+    ).rejects.toBeInstanceOf(UserAccountInactiveError);
+    expect(repository.findByCognitoSub).toHaveBeenCalledWith('cognito-sub');
+  });
+
+  it('allows guarded operational routes when no local user exists yet', async () => {
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(null),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn()
+    } satisfies IUserRepository;
+    const guard = new ActiveUserAccountGuard(repository);
+
+    await expect(
+      guard.canActivate(createHttpContext({ user: { sub: 'new-cognito-sub', groups: [] } }))
+    ).resolves.toBe(true);
+    expect(repository.findByCognitoSub).toHaveBeenCalledWith('new-cognito-sub');
   });
 
   it('returns roles from userRole records after sync', async () => {
@@ -738,7 +813,8 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
-      list: jest.fn().mockResolvedValue([entity])
+      list: jest.fn().mockResolvedValue([entity]),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -759,7 +835,8 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
-      list: jest.fn().mockResolvedValue([entity])
+      list: jest.fn().mockResolvedValue([entity]),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -781,7 +858,8 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
-      list: jest.fn().mockResolvedValue([])
+      list: jest.fn().mockResolvedValue([]),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -801,7 +879,8 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(player),
       replaceProfileImage: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -816,7 +895,8 @@ describe('users module behavior', () => {
       syncAuthenticatedUser: jest.fn(),
       findByCognitoSub: jest.fn().mockResolvedValue(null),
       replaceProfileImage: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -824,6 +904,113 @@ describe('users module behavior', () => {
       AdminRoleRequiredError
     );
     expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  it('deactivates a user when the actor has a local ADMIN role', async () => {
+    const admin = UserEntity.fromPersistence({
+      id: 'admin-id',
+      email: 'admin@example.test',
+      status: 'ACTIVE',
+      roles: ['ADMIN']
+    });
+    const inactiveUser = UserEntity.fromPersistence({
+      ...persistenceUser,
+      status: 'INACTIVE',
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(admin),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn().mockResolvedValue(inactiveUser)
+    } satisfies IUserRepository;
+    const useCase = new DeactivateUserUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute({ sub: 'admin-sub', groups: [] }, 'user-id')
+    ).resolves.toEqual({
+      ...userProfile,
+      status: 'INACTIVE'
+    });
+    expect(repository.findByCognitoSub).toHaveBeenCalledWith('admin-sub');
+    expect(repository.deactivateById).toHaveBeenCalledWith('user-id');
+  });
+
+  it('deactivates a user when the actor has an admin Cognito group', async () => {
+    const inactiveUser = UserEntity.fromPersistence({
+      ...persistenceUser,
+      status: 'INACTIVE',
+      currentIdentity: googleIdentity,
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn().mockResolvedValue(inactiveUser)
+    } satisfies IUserRepository;
+    const useCase = new DeactivateUserUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute({ sub: 'admin-sub', groups: ['Admin'] }, 'user-id')
+    ).resolves.toEqual({
+      ...userProfile,
+      status: 'INACTIVE'
+    });
+    expect(repository.findByCognitoSub).not.toHaveBeenCalled();
+    expect(repository.deactivateById).toHaveBeenCalledWith('user-id');
+  });
+
+  it('rejects user deactivation when the actor is not an administrator', async () => {
+    const player = UserEntity.fromPersistence({
+      id: 'player-id',
+      email: 'player@example.test',
+      status: 'ACTIVE',
+      roles: ['PLAYER']
+    });
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn().mockResolvedValue(player),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn()
+    } satisfies IUserRepository;
+    const useCase = new DeactivateUserUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute({ sub: 'player-sub', groups: [] }, 'user-id')
+    ).rejects.toBeInstanceOf(AdminRoleRequiredError);
+    expect(repository.deactivateById).not.toHaveBeenCalled();
+  });
+
+  it('returns a typed not found error when deactivating an unknown user', async () => {
+    const repository = {
+      syncAuthenticatedUser: jest.fn(),
+      findByCognitoSub: jest.fn(),
+      replaceProfileImage: jest.fn(),
+      list: jest.fn(),
+      deactivateById: jest.fn().mockResolvedValue(null)
+    } satisfies IUserRepository;
+    const useCase = new DeactivateUserUseCase(
+      repository,
+      createProfileService()
+    );
+
+    await expect(
+      useCase.execute({ sub: 'admin-sub', groups: ['admin'] }, 'missing-user-id')
+    ).rejects.toBeInstanceOf(UserNotFoundError);
   });
 
   it('lists users from Prisma by recent updates', async () => {
@@ -844,6 +1031,86 @@ describe('users module behavior', () => {
       },
       orderBy: { updatedAt: 'desc' }
     });
+  });
+
+  it('updates Prisma user status to INACTIVE without deleting records', async () => {
+    const inactivePersistenceUser = {
+      ...persistenceUser,
+      status: 'INACTIVE' as const
+    };
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValueOnce(persistenceUser),
+        update: jest.fn().mockResolvedValueOnce(inactivePersistenceUser),
+        delete: jest.fn(),
+        deleteMany: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(repository.deactivateById('user-id')).resolves.toEqual(
+      expect.any(UserEntity)
+    );
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      include: {
+        identities: true,
+        roles: true
+      }
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      data: { status: 'INACTIVE' },
+      include: {
+        identities: true,
+        roles: true
+      }
+    });
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+    expect(prisma.user.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('returns the current inactive user without updating Prisma again', async () => {
+    const inactivePersistenceUser = {
+      ...persistenceUser,
+      status: 'INACTIVE' as const
+    };
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValueOnce(inactivePersistenceUser),
+        update: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    const user = await repository.deactivateById('user-id');
+
+    expect(user?.toProfile()).toEqual({
+      ...userProfile,
+      status: 'INACTIVE'
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+    expect(prisma.user.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('returns null when Prisma cannot find a user to deactivate', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValueOnce(null),
+        update: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn()
+      }
+    };
+    const repository = new PrismaUserRepository(prisma as never);
+
+    await expect(repository.deactivateById('missing-user-id')).resolves.toBeNull();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+    expect(prisma.user.deleteMany).not.toHaveBeenCalled();
   });
 
   it('wraps Prisma failures when listing users', async () => {
@@ -869,7 +1136,8 @@ describe('users module behavior', () => {
     const controller = new UsersController(
       listUsers,
       syncAuthenticatedUser,
-      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase
+      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
+      { execute: jest.fn() } as unknown as DeactivateUserUseCase
     );
     const currentUser = {
       sub: 'cognito-sub',
@@ -890,7 +1158,8 @@ describe('users module behavior', () => {
     const controller = new UsersController(
       listUsers,
       syncAuthenticatedUser,
-      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase
+      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
+      { execute: jest.fn() } as unknown as DeactivateUserUseCase
     );
 
     const currentUser = {
@@ -900,5 +1169,36 @@ describe('users module behavior', () => {
 
     await expect(controller.list(currentUser)).resolves.toEqual([userProfile]);
     expect(listUsers.execute).toHaveBeenCalledWith(currentUser);
+  });
+
+  it('delegates the user deactivation endpoint to the deactivate use case', async () => {
+    const listUsers = {
+      execute: jest.fn()
+    } as unknown as ListUsersUseCase;
+    const syncAuthenticatedUser = {
+      execute: jest.fn()
+    } as unknown as SyncAuthenticatedUserUseCase;
+    const deactivateUser = {
+      execute: jest.fn().mockResolvedValue({
+        ...userProfile,
+        status: 'INACTIVE'
+      })
+    } as unknown as DeactivateUserUseCase;
+    const controller = new UsersController(
+      listUsers,
+      syncAuthenticatedUser,
+      { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
+      deactivateUser
+    );
+    const currentUser = {
+      sub: 'admin-sub',
+      groups: ['admin']
+    };
+
+    await expect(controller.deactivate(currentUser, 'user-id')).resolves.toEqual({
+      ...userProfile,
+      status: 'INACTIVE'
+    });
+    expect(deactivateUser.execute).toHaveBeenCalledWith(currentUser, 'user-id');
   });
 });

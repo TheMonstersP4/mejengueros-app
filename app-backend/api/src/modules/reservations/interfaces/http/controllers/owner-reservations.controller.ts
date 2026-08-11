@@ -2,6 +2,7 @@ import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
 import {
   ApiEnvelopeErrors,
@@ -25,7 +26,7 @@ export class OwnerReservationsController {
   ) {}
 
   @Get()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List reservations booked on courts owned by the authenticated owner.',
     description:

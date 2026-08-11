@@ -81,6 +81,14 @@ export interface IUserRepository {
    * @returns User entities stored by the application.
    */
   list(): Promise<UserEntity[]>;
+
+  /**
+   * Marks one local user profile inactive without deleting related records.
+   *
+   * @param userId - Local user identifier.
+   * @returns Updated user entity or `null` when no local user exists.
+   */
+  deactivateById(userId: string): Promise<UserEntity | null>;
 }
 
 /**

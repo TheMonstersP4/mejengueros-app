@@ -3,6 +3,9 @@ import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import type { ITokenVerifierPort } from '@/modules/auth/application/ports/token-verifier.port';
 import { TOKEN_VERIFIER_PORT } from '@/modules/auth/application/ports/token-verifier.port';
+import { UserEntity } from '@/modules/users/domain/entities/user.entity';
+import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
+import { USER_REPOSITORY } from '@/modules/users/domain/repositories/user.repository';
 import { configureValidation } from '@/bootstrap/validation';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
@@ -24,6 +27,7 @@ describe('court availability HTTP contract', () => {
   let app: NestFastifyApplication;
   let prismaService: ReturnType<typeof createPrismaMock>;
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
+  let users: jest.Mocked<IUserRepository>;
 
   beforeAll(async () => {
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test?schema=mejengueros';
@@ -50,10 +54,13 @@ describe('court availability HTTP contract', () => {
         groups: ['owners']
       })
     };
+    users = createUserRepository();
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prismaService)
+      .overrideProvider(USER_REPOSITORY)
+      .useValue(users)
       .overrideProvider(TOKEN_VERIFIER_PORT)
       .useValue(tokenVerifier)
       .compile();
@@ -70,6 +77,7 @@ describe('court availability HTTP contract', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaService = Object.assign(prismaService, createPrismaMock());
+    users.findByCognitoSub.mockResolvedValue(createActiveOwner());
   });
 
   afterAll(async () => {
@@ -185,4 +193,26 @@ function createPrismaMock() {
       update: jest.fn().mockResolvedValue({ id: 'availability-id' })
     }
   };
+}
+
+function createUserRepository(): jest.Mocked<IUserRepository> {
+  return {
+    syncAuthenticatedUser: jest.fn(),
+    findByCognitoSub: jest.fn().mockResolvedValue(createActiveOwner()),
+    replaceProfileImage: jest.fn(),
+    list: jest.fn(),
+    deactivateById: jest.fn()
+  };
+}
+
+function createActiveOwner(): UserEntity {
+  return UserEntity.fromPersistence({
+    id: 'owner-id',
+    email: 'owner@example.test',
+    name: 'Owner User',
+    pictureUrl: 'https://example.test/owner.png',
+    status: 'ACTIVE',
+    currentIdentity: { provider: 'Google', providerSubject: 'owner-sub' },
+    roles: ['OWNER']
+  });
 }
