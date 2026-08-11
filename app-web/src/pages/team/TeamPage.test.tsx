@@ -26,7 +26,10 @@ describe('TeamPage', () => {
     expect(screen.getByText('Daniel Nazario')).toBeInTheDocument();
     expect(screen.getByText('Carl Levey')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /kmp \+ react/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /arquitectura cloud/i })).toBeInTheDocument();
-    expect(screen.getByText('API Gateway + Lambda')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /funcionalidades principales/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Encontrar cancha')).toBeInTheDocument();
+    expect(screen.getByText('Reseñas reales')).toBeInTheDocument();
   });
 });

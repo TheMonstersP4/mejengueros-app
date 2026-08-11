@@ -46,30 +46,30 @@ export const deliveryTracks = [
   },
 ] as const;
 
-export const cloudArchitectureStages = [
+export const productFeatureHighlights = [
   {
-    label: 'Entrada',
-    title: 'Dominio + hosting',
-    body: 'Sitio público, rutas de desarrollo y entrada al ecosistema cloud.',
+    label: 'Acceso',
+    title: 'Entrar rápido',
+    body: 'Registro con correo y login social para empezar sin vueltas.',
   },
   {
-    label: 'Autenticación',
-    title: 'Cognito',
-    body: 'Login con correo, Google y Microsoft.',
+    label: 'Búsqueda',
+    title: 'Encontrar cancha',
+    body: 'Filtros por zona, horario y disponibilidad para elegir dónde jugar.',
   },
   {
-    label: 'Backend',
-    title: 'API Gateway + Lambda',
-    body: 'Contratos HTTP para usuarios, reservas, imágenes y notificaciones.',
+    label: 'Reservas',
+    title: 'Apartar horario',
+    body: 'Reservas claras para jugadores y menos coordinación manual para dueños.',
   },
   {
-    label: 'Datos',
-    title: 'S3 + PostgreSQL',
-    body: 'Imágenes en S3 y datos relacionales en PostgreSQL.',
+    label: 'Confianza',
+    title: 'Reseñas reales',
+    body: 'Calificaciones, comentarios y fotos para conocer mejor cada cancha.',
   },
   {
-    label: 'Tiempo real',
-    title: 'WebSocket + EventBridge',
-    body: 'Avisos en vivo y tareas programadas para cerrar reservas.',
+    label: 'Avisos',
+    title: 'Notificaciones',
+    body: 'Recordatorios y avisos para dar seguimiento antes y después de jugar.',
   },
 ] as const;
