@@ -500,6 +500,7 @@ describe('reviews HTTP contract', () => {
             rating: 5,
             comment: 'Great court and lighting.',
             createdAt: '2026-07-02T18:00:00.000Z',
+            evidenceImageUrl: null,
             reviewer: { displayName: 'Diego R.', initials: 'DR' }
           },
           {
@@ -507,6 +508,7 @@ describe('reviews HTTP contract', () => {
             rating: 4,
             comment: null,
             createdAt: '2026-07-01T18:00:00.000Z',
+            evidenceImageUrl: null,
             reviewer: { displayName: 'Player', initials: 'PP' }
           }
         ]
