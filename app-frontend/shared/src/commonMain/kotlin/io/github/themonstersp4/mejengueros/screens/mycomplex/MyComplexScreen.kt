@@ -119,13 +119,16 @@ fun ComplexDetailScreen(
     isLoading: Boolean,
     errorMessage: String?,
     courtImageErrorMessage: String? = null,
+    courtStatusErrorMessage: String? = null,
     isCourtImagePickerAvailable: Boolean = false,
     isUpdatingCourtImage: Boolean = false,
+    reactivatingCourtId: String? = null,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onReactivateCourt: (String, String) -> Unit = { _, _ -> },
     onOpenOwnerReceivedReviews: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -145,11 +148,14 @@ fun ComplexDetailScreen(
               complex = complex,
               isRefreshing = isLoading,
               courtImageErrorMessage = courtImageErrorMessage,
+              courtStatusErrorMessage = courtStatusErrorMessage,
               isCourtImagePickerAvailable = isCourtImagePickerAvailable,
               isUpdatingCourtImage = isUpdatingCourtImage,
+              reactivatingCourtId = reactivatingCourtId,
               onConfigureAvailability = onConfigureAvailability,
               onOpenOwnerReservations = onOpenOwnerReservations,
               onPickCourtImage = onPickCourtImage,
+              onReactivateCourt = onReactivateCourt,
               onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
           )
       isLoading -> LoadingState()
@@ -290,11 +296,14 @@ private fun ComplexDetailContent(
     complex: MyComplexHubComplex,
     isRefreshing: Boolean,
     courtImageErrorMessage: String?,
+    courtStatusErrorMessage: String?,
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
+    reactivatingCourtId: String?,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onReactivateCourt: (String, String) -> Unit,
     onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -312,13 +321,21 @@ private fun ComplexDetailContent(
           modifier = Modifier.testTag("complex_detail_image_error"),
       )
     }
+    courtStatusErrorMessage?.let { message ->
+      MejenguerosErrorText(
+          text = message,
+          modifier = Modifier.testTag("complex_detail_status_error"),
+      )
+    }
     ComplexHubSection(
         complex = complex,
         isCourtImagePickerAvailable = isCourtImagePickerAvailable,
         isUpdatingCourtImage = isUpdatingCourtImage,
+        reactivatingCourtId = reactivatingCourtId,
         onConfigureAvailability = onConfigureAvailability,
         onOpenOwnerReservations = onOpenOwnerReservations,
         onPickCourtImage = onPickCourtImage,
+        onReactivateCourt = onReactivateCourt,
         onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
     )
   }
@@ -329,9 +346,11 @@ private fun ComplexHubSection(
     complex: MyComplexHubComplex,
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
+    reactivatingCourtId: String?,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onReactivateCourt: (String, String) -> Unit,
     onOpenOwnerReceivedReviews: () -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -341,8 +360,10 @@ private fun ComplexHubSection(
         complex = complex,
         isCourtImagePickerAvailable = isCourtImagePickerAvailable,
         isUpdatingCourtImage = isUpdatingCourtImage,
+        reactivatingCourtId = reactivatingCourtId,
         onConfigureAvailability = onConfigureAvailability,
         onPickCourtImage = onPickCourtImage,
+        onReactivateCourt = onReactivateCourt,
     )
     Spacer(modifier = Modifier.height(8.dp))
     ActivitySection(
@@ -414,8 +435,10 @@ private fun CourtsGroup(
     complex: MyComplexHubComplex,
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
+    reactivatingCourtId: String?,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onReactivateCourt: (String, String) -> Unit,
 ) {
   if (complex.courts.isEmpty()) {
     MejenguerosListGroup {
@@ -435,12 +458,15 @@ private fun CourtsGroup(
     complex.courts.forEachIndexed { index, court ->
       CourtRow(
           complexName = complex.name,
+          complexId = complex.id,
           court = court,
           isCourtImagePickerAvailable = isCourtImagePickerAvailable,
           isUpdatingCourtImage = isUpdatingCourtImage,
+          reactivatingCourtId = reactivatingCourtId,
           showDivider = index < complex.courts.lastIndex,
           onConfigureAvailability = onConfigureAvailability,
           onPickCourtImage = onPickCourtImage,
+          onReactivateCourt = onReactivateCourt,
       )
     }
   }
@@ -449,12 +475,15 @@ private fun CourtsGroup(
 @Composable
 private fun CourtRow(
     complexName: String,
+    complexId: String,
     court: MyComplexHubCourt,
     isCourtImagePickerAvailable: Boolean,
     isUpdatingCourtImage: Boolean,
+    reactivatingCourtId: String?,
     showDivider: Boolean,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onPickCourtImage: (String) -> Unit,
+    onReactivateCourt: (String, String) -> Unit,
 ) {
   MejenguerosListItem(
       content =
@@ -487,10 +516,27 @@ private fun CourtRow(
                       horizontalArrangement = Arrangement.spacedBy(10.dp),
                       verticalAlignment = Alignment.CenterVertically,
                   ) {
+                    court.toStatusLabel()?.let { statusLabel ->
+                      MejenguerosStatusPill(
+                          text = statusLabel,
+                          style = court.toStatusPillStyle(),
+                      )
+                    }
                     MejenguerosStatusPill(
                         text = court.availabilityStatus.toPillLabel(),
                         style = court.availabilityStatus.toPillStyle(),
                     )
+                    if (court.status.equals("INACTIVE", ignoreCase = true)) {
+                      val isReactivating = reactivatingCourtId == court.id
+                      TextButton(
+                          onClick = { onReactivateCourt(complexId, court.id) },
+                          enabled = !isReactivating,
+                          modifier =
+                              Modifier.testTag("my_complex_court_reactivate_button_${court.id}"),
+                      ) {
+                        Text(text = if (isReactivating) "Reactivando..." else "Reactivar")
+                      }
+                    }
                     TextButton(
                         onClick = {
                           onConfigureAvailability(
@@ -701,7 +747,7 @@ private fun MyComplexHubCourt.toSupportingText(): String =
 
 private fun CourtAvailabilitySetupStatus.toPillLabel(): String =
     when (this) {
-      CourtAvailabilitySetupStatus.CONFIGURED -> "Activa"
+      CourtAvailabilitySetupStatus.CONFIGURED -> "Configurada"
       CourtAvailabilitySetupStatus.PENDING -> "Pendiente"
     }
 
@@ -709,4 +755,18 @@ private fun CourtAvailabilitySetupStatus.toPillStyle(): MejenguerosStatusPillSty
     when (this) {
       CourtAvailabilitySetupStatus.CONFIGURED -> MejenguerosStatusPillStyle.Primary
       CourtAvailabilitySetupStatus.PENDING -> MejenguerosStatusPillStyle.Neutral
+    }
+
+private fun MyComplexHubCourt.toStatusLabel(): String? =
+    when (status.uppercase()) {
+      "ACTIVE" -> "Activa"
+      "INACTIVE" -> "Inactiva"
+      else -> null
+    }
+
+private fun MyComplexHubCourt.toStatusPillStyle(): MejenguerosStatusPillStyle =
+    when (status.uppercase()) {
+      "ACTIVE" -> MejenguerosStatusPillStyle.Primary
+      "INACTIVE" -> MejenguerosStatusPillStyle.Error
+      else -> MejenguerosStatusPillStyle.Neutral
     }
