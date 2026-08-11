@@ -1,8 +1,8 @@
 import { ButtonLink } from '../../shared/components/Button';
 import { Icon } from '../../shared/components/Icon';
 import {
-  cloudArchitectureStages,
   deliveryTracks,
+  productFeatureHighlights,
   teamMembers,
   teamPrinciples,
 } from '../../features/team/data/team-content';
@@ -94,43 +94,43 @@ function DeliveryTrackSection() {
   );
 }
 
-function CloudArchitectureSection() {
+function ProductFeaturesSection() {
   return (
     <div className="mb-10">
       <div className="rounded-[28px] border border-lime/20 bg-[linear-gradient(135deg,rgba(195,244,0,.12),rgba(24,28,18,.7)_42%,rgba(10,12,12,.96))] p-6 shadow-panel md:p-8">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[13px] font-bold uppercase tracking-[.18em] text-lime">
-              Infraestructura
+              Producto
             </p>
             <h2 className="mt-3 font-display text-5xl uppercase text-ink">
-              Arquitectura cloud
+              Funcionalidades principales
             </h2>
           </div>
           <p className="max-w-xl text-base leading-7 text-muted">
-            El flujo actual combina autenticación administrada, funciones serverless,
-            almacenamiento y comunicación en tiempo real.
+            Mejengueros reúne acceso rápido, búsqueda de canchas, reservas,
+            reseñas y avisos para que organizar una mejenga sea más simple.
           </p>
         </div>
         <div className="mt-8 grid gap-4 lg:grid-cols-5">
-          {cloudArchitectureStages.map((stage, index) => (
+          {productFeatureHighlights.map((feature, index) => (
             <article
-              key={stage.label}
+              key={feature.label}
               className="relative rounded-[22px] border border-white/10 bg-black/35 p-5"
             >
-              {index < cloudArchitectureStages.length - 1 ? (
+              {index < productFeatureHighlights.length - 1 ? (
                 <span
                   aria-hidden="true"
                   className="absolute -right-4 top-1/2 hidden h-px w-4 bg-lime/50 lg:block"
                 />
               ) : null}
               <p className="text-[11px] font-bold uppercase tracking-[.16em] text-lime">
-                {stage.label}
+                {feature.label}
               </p>
               <h3 className="mt-4 font-display text-2xl uppercase text-ink">
-                {stage.title}
+                {feature.title}
               </h3>
-              <p className="mt-3 text-sm leading-6 text-muted">{stage.body}</p>
+              <p className="mt-3 text-sm leading-6 text-muted">{feature.body}</p>
             </article>
           ))}
         </div>
@@ -152,7 +152,7 @@ function TeamMembersSection() {
           </h2>
         </div>
       </div>
-      <CloudArchitectureSection />
+      <ProductFeaturesSection />
       <div className="grid gap-5 md:grid-cols-2">
         {teamMembers.map((member) => (
           <article

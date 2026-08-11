@@ -14,7 +14,8 @@ export function DownloadCta() {
           Mejengueros
         </h2>
         <p className="mt-4 max-w-xl text-lg font-semibold text-[#2a3400]">
-          Gratis para iOS y Android. Tu próxima mejenga está a un toque.
+          La app móvil estará disponible pronto para iOS y Android. Tu próxima mejenga está cada
+          vez más cerca.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row md:flex-col">

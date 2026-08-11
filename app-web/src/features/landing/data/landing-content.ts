@@ -44,13 +44,13 @@ export const ownerBenefits = [
 export const storeLinks = [
   {
     label: 'App Store',
-    kicker: 'Descargá en',
+    kicker: 'Próximamente en',
     icon: 'apple',
     href: '#app-store',
   },
   {
     label: 'Google Play',
-    kicker: 'Disponible en',
+    kicker: 'Próximamente en',
     icon: 'shop',
     href: '#google-play',
   },

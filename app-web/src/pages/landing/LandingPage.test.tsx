@@ -30,4 +30,13 @@ describe('LandingPage', () => {
     expect(screen.getByText('Elegí la hora')).toBeInTheDocument();
     expect(screen.getByText('Reservá y jugá')).toBeInTheDocument();
   });
+
+  it('presents mobile stores as upcoming availability', () => {
+    render(<LandingPage />);
+
+    expect(screen.getAllByText('Próximamente en')).toHaveLength(2);
+    expect(
+      screen.getByText(/la app móvil estará disponible pronto para ios y android/i),
+    ).toBeInTheDocument();
+  });
 });
