@@ -7,6 +7,7 @@ export interface ICourtAdminSnapshot {
 
 export interface ICourtAdminRepository {
   deactivateById(courtId: string): Promise<ICourtAdminSnapshot>;
+  reactivateById(courtId: string): Promise<ICourtAdminSnapshot>;
 }
 
 export const COURT_ADMIN_REPOSITORY = Symbol('COURT_ADMIN_REPOSITORY');
