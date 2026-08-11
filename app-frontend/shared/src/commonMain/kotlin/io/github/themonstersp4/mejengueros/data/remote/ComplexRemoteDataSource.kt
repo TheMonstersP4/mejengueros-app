@@ -9,6 +9,7 @@ import io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtEnvelopeDt
 import io.github.themonstersp4.mejengueros.data.remote.dto.CreateCourtRequestPayloadDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.MyComplexHubEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ProvinceCatalogEnvelopeDto
+import io.github.themonstersp4.mejengueros.data.remote.dto.ReactivateCourtEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.ServiceCatalogEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.UpdateCourtImageEnvelopeDto
 import io.github.themonstersp4.mejengueros.data.remote.dto.UpdateCourtImageRequestDto
@@ -21,6 +22,7 @@ import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.model.Province
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.ktor.client.HttpClient
@@ -28,6 +30,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.patch
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -188,6 +191,27 @@ class ComplexRemoteDataSource(
               )
 
       return data.court.toDomain()
+    } catch (error: ResponseException) {
+      throw error.toAppApiException(json)
+    }
+  }
+
+  override suspend fun reactivateCourt(courtId: String): ReactivatedCourt {
+    try {
+      val response = httpClient.patch("/v1/courts/$courtId/reactivate").body<ReactivateCourtEnvelopeDto>()
+
+      val data =
+          response.data
+              ?: throw AppApiException(
+                  statusCode = 502,
+                  message = "No se recibiÃ³ la respuesta esperada del API.",
+              )
+
+      return ReactivatedCourt(
+          id = data.court.id,
+          name = data.court.name,
+          status = data.court.status,
+      )
     } catch (error: ResponseException) {
       throw error.toAppApiException(json)
     }
