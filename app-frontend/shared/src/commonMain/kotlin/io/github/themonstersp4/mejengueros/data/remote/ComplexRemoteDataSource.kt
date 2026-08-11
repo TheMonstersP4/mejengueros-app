@@ -30,8 +30,8 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.patch
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -198,13 +198,14 @@ class ComplexRemoteDataSource(
 
   override suspend fun reactivateCourt(courtId: String): ReactivatedCourt {
     try {
-      val response = httpClient.patch("/v1/courts/$courtId/reactivate").body<ReactivateCourtEnvelopeDto>()
+      val response =
+          httpClient.patch("/v1/courts/$courtId/reactivate").body<ReactivateCourtEnvelopeDto>()
 
       val data =
           response.data
               ?: throw AppApiException(
                   statusCode = 502,
-                  message = "No se recibiÃ³ la respuesta esperada del API.",
+                  message = "No se recibió la respuesta esperada del API.",
               )
 
       return ReactivatedCourt(

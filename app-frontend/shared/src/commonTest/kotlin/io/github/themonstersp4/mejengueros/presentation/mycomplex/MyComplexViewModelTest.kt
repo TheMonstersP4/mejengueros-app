@@ -304,7 +304,11 @@ class MyComplexViewModelTest {
     assertNull(viewModel.uiState.value.reactivatingCourtId)
     assertEquals(
         "ACTIVE",
-        viewModel.uiState.value.complexes.single().courts.last { it.id == "court-inactive-id" }.status,
+        viewModel.uiState.value.complexes
+            .single()
+            .courts
+            .last { it.id == "court-inactive-id" }
+            .status,
     )
     assertEquals(
         "La cancha se reactivó correctamente.",
