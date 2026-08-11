@@ -3,4 +3,8 @@ export interface ICreateReviewInput {
   rating: number;
   comment?: string;
   evidenceImageUploadId?: string;
+  questionnaireAnswers?: {
+    questionKey: string;
+    answerKey: string;
+  }[];
 }
