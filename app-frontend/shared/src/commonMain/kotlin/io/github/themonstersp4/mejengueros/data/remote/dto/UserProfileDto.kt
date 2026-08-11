@@ -11,6 +11,7 @@ data class UserProfileEnvelopeDto(
 @Serializable
 data class UserProfileDto(
     val id: String,
+    val cognitoSub: String? = null,
     val roles: List<String> = emptyList(),
     val email: String? = null,
     val name: String? = null,
