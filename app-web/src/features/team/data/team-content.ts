@@ -15,6 +15,10 @@ export const teamMembers = [
     name: 'Daniel Nazario',
     initials: 'DN',
   },
+  {
+    name: 'Carl Levey',
+    initials: 'CL',
+  },
 ] as const;
 
 export const teamPrinciples = [

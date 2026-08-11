@@ -24,6 +24,7 @@ describe('TeamPage', () => {
     expect(screen.getByText('David Gutiérrez')).toBeInTheDocument();
     expect(screen.getByText('Maxwell Chinchilla')).toBeInTheDocument();
     expect(screen.getByText('Daniel Nazario')).toBeInTheDocument();
+    expect(screen.getByText('Carl Levey')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /kmp \+ react/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /arquitectura cloud/i })).toBeInTheDocument();
     expect(screen.getByText('API Gateway + Lambda')).toBeInTheDocument();
