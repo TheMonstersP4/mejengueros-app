@@ -136,6 +136,14 @@
       "sessions": 0,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "8cf6ef58",
+      "created_by": "screi",
+      "created_at": "2026-08-12T03:23:21Z",
+      "sessions": 5,
+      "memories": 23,
+      "prompts": 12
     }
   ]
 }
