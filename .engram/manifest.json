@@ -136,6 +136,38 @@
       "sessions": 0,
       "memories": 1,
       "prompts": 0
+    },
+    {
+      "id": "8cf6ef58",
+      "created_by": "screi",
+      "created_at": "2026-08-12T03:23:21Z",
+      "sessions": 5,
+      "memories": 23,
+      "prompts": 12
+    },
+    {
+      "id": "223ba367",
+      "created_by": "screi",
+      "created_at": "2026-08-12T03:28:59Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 2
+    },
+    {
+      "id": "8ecee427",
+      "created_by": "screi",
+      "created_at": "2026-08-12T03:31:57Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 0
+    },
+    {
+      "id": "fa6d7a51",
+      "created_by": "screi",
+      "created_at": "2026-08-12T03:45:18Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 1
     }
   ]
 }
