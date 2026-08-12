@@ -286,9 +286,11 @@ export DATABASE_URL="$(rg -N '^DATABASE_URL=(.+)$' -r '$1' ../.env)"
 
 ### Owned complexes
 
-`Complex.owner` is `onDelete: Restrict`, so a user who owns a complex cannot be deleted while that ownership stands. The script refuses by default and names the complexes it found.
+`Complex.owner` is `onDelete: Restrict`, so a user who owns a complex cannot be deleted while that ownership stands. Owned complexes and their courts are therefore always part of the purge — re-running the script always leaves the account empty, with no second flag to remember.
 
-Passing `--include-owned-complexes=true` removes the complexes and their courts too. Be deliberate about it: other users' reservations, reviews and notifications on those courts are `Restrict` as well, so they are destroyed in the same pass. The report's `scope.collateralReservations` counts exactly how many reservations belong to somebody else — check it before committing. The alternative is to reassign `Complex.ownerId` first and then purge without the flag.
+The one case that stops the run is collateral damage. Other users' reservations and notifications on those courts are `Restrict` as well, so they die in the same pass and cannot be preserved. When any exist the script refuses and reports how many; `--include-owned-complexes=true` accepts the loss. Reassigning `Complex.ownerId` to another user first is the alternative that keeps their history.
+
+When nothing belongs to anybody else there is nothing to confirm, so no flag is needed. The report always carries `scope.collateralReservations` and `scope.collateralNotifications` — read them before passing `--execute=true`.
 
 ### Deletion order
 

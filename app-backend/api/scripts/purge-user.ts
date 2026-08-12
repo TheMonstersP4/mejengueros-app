@@ -8,10 +8,13 @@ import { createReservationCompletionWorkerApplicationContext } from '@/bootstrap
  * Complex.owner), so a plain user delete fails. The order below is the only one that
  * satisfies every foreign key.
  *
- * Blast radius: when the user owns complexes, their courts are referenced by OTHER users'
+ * Owned complexes are always part of the purge, so re-running always leaves the user empty.
+ *
+ * Blast radius: when the user owns complexes, their courts can be referenced by OTHER users'
  * reservations, reviews and notifications. Those rows are Restrict too, so purging the owner
- * necessarily destroys that data. Pass --include-owned-complexes=true to accept it; without
- * the flag the script refuses to touch an owner and explains what it found.
+ * necessarily destroys that data. The script refuses only when such rows actually exist —
+ * pass --include-owned-complexes=true to accept the loss, or reassign Complex.ownerId first.
+ * With nothing collateral at stake there is nothing to confirm and the purge just runs.
  *
  * Dry run by default — nothing is committed unless --execute=true is passed.
  */
@@ -62,7 +65,8 @@ async function main(): Promise<void> {
             reservations: scope.reservationIds.length,
             reviews: scope.reviewIds.length,
             imageUploads: scope.imageUploadIds.length,
-            collateralReservations: scope.collateralReservationCount
+            collateralReservations: scope.collateralReservationCount,
+            collateralNotifications: scope.collateralNotificationCount
           },
           deleted: counts
         },
@@ -86,6 +90,7 @@ interface PurgeScope {
   reviewIds: string[];
   imageUploadIds: string[];
   collateralReservationCount: number;
+  collateralNotificationCount: number;
 }
 
 async function resolveScope(
@@ -98,19 +103,6 @@ async function resolveScope(
     where: { ownerId: userId },
     select: { id: true, name: true }
   });
-
-  if (ownedComplexes.length > 0 && !includeOwnedComplexes) {
-    const names = ownedComplexes.map((complex) => complex.name).join(', ');
-
-    throw new Error(
-      `User owns ${ownedComplexes.length} complex(es) [${names}]. ` +
-        'Complex.owner is onDelete: Restrict, so the user cannot be deleted while they remain ' +
-        'the owner. Deleting those complexes also deletes other users\' reservations and reviews ' +
-        'on their courts. Re-run with --include-owned-complexes=true to accept that, or reassign ' +
-        'ownership first.'
-    );
-  }
-
   const complexIds = ownedComplexes.map((complex) => complex.id);
   const courts = await prisma.court.findMany({
     where: { complexId: { in: complexIds } },
@@ -127,6 +119,26 @@ async function resolveScope(
   const collateralReservationCount = reservations.filter(
     (reservation) => reservation.userId !== userId
   ).length;
+
+  // Notifications on those reservations can belong to somebody else too.
+  const collateralNotificationCount = await prisma.notification.count({
+    where: { reservationId: { in: reservationIds }, userId: { not: userId } }
+  });
+  const collateralCount = collateralReservationCount + collateralNotificationCount;
+
+  // The guard exists to protect OTHER people's rows, not the user's own complexes.
+  // With nothing collateral at stake there is nothing to confirm, so the purge just runs.
+  if (collateralCount > 0 && !includeOwnedComplexes) {
+    const names = ownedComplexes.map((complex) => complex.name).join(', ');
+
+    throw new Error(
+      `Purging this user destroys ${collateralCount} row(s) belonging to other users ` +
+        `(${collateralReservationCount} reservation(s), ${collateralNotificationCount} notification(s)) ` +
+        `on courts of the complex(es) they own [${names}]. Those relations are onDelete: Restrict, ` +
+        'so they cannot be preserved while the owner is deleted. Re-run with ' +
+        '--include-owned-complexes=true to accept that, or reassign Complex.ownerId first.'
+    );
+  }
 
   const reviews = await prisma.review.findMany({
     where: { reservationId: { in: reservationIds } },
@@ -152,7 +164,8 @@ async function resolveScope(
     reservationIds,
     reviewIds: reviews.map((review) => review.id),
     imageUploadIds: imageUploads.map((imageUpload) => imageUpload.id),
-    collateralReservationCount
+    collateralReservationCount,
+    collateralNotificationCount
   };
 }
 
