@@ -182,7 +182,7 @@ class PlayerProfileViewModelTest {
     viewModel.activate("user-id", null, "")
 
     profileSource.updateUserProfile(
-        activeProfile.copy(id = "other-user", pictureUrl = "https://example.test/other.jpg")
+        activeProfile.copy(cognitoSub = "other-user", pictureUrl = "https://example.test/other.jpg")
     )
     runCurrent()
 
@@ -328,15 +328,88 @@ class PlayerProfileViewModelTest {
     assertEquals("https://example.test/updated.jpg", recreatedViewModel.uiState.value.pictureUrl)
   }
 
+  @Test
+  fun refreshedProfileWithoutSessionSubjectIsAdoptedInsteadOfReportedAsFailed() = runTest {
+    val refreshed = profileWithoutSessionSubject(pictureUrl = "https://example.test/refreshed.jpg")
+    val profileSource =
+        FakeAuthenticatedUserProfileRepository(
+            initialProfile = null,
+            refreshOutcomes = mutableListOf(Result.success(refreshed)),
+        )
+    val viewModel = PlayerProfileViewModel(profileSource, FakeProfileRepository(), backgroundScope)
+
+    viewModel.activate("user-id", "Fallback name", "fallback@example.com")
+    runCurrent()
+
+    assertFalse(viewModel.uiState.value.profileRefreshFailed)
+    assertEquals(refreshed, viewModel.uiState.value.profile)
+    assertEquals("https://example.test/refreshed.jpg", viewModel.uiState.value.pictureUrl)
+  }
+
+  @Test
+  fun recreatedViewModelKeepsUploadedPictureWhenAssociationOmitsSessionSubject() = runTest {
+    val profileSource =
+        FakeAuthenticatedUserProfileRepository(
+            profile(pictureUrl = "https://example.test/original.jpg")
+        )
+    val profileImageRepository =
+        ProfileImageRepository(
+            remoteDataSource =
+                FakeProfileImageRemoteDataSource(
+                    profileWithoutSessionSubject(pictureUrl = "https://example.test/updated.jpg")
+                ),
+            authenticatedUserProfileRepository = profileSource,
+        )
+    val initialViewModel =
+        PlayerProfileViewModel(profileSource, profileImageRepository, backgroundScope)
+    initialViewModel.activate("user-id", null, "")
+
+    initialViewModel.onPickerResult(ProfileImagePickerResult.Selected(localImage()))
+    runCurrent()
+
+    assertEquals("user-id", initialViewModel.uiState.value.userId)
+    assertEquals("https://example.test/updated.jpg", initialViewModel.uiState.value.pictureUrl)
+
+    val recreatedViewModel =
+        PlayerProfileViewModel(profileSource, profileImageRepository, backgroundScope)
+    recreatedViewModel.activate("user-id", null, "")
+    runCurrent()
+
+    assertEquals(0, profileSource.refreshRequests)
+    assertFalse(recreatedViewModel.uiState.value.profileRefreshFailed)
+    assertEquals("https://example.test/updated.jpg", recreatedViewModel.uiState.value.pictureUrl)
+  }
+
+  @Test
+  fun refreshedProfileFromAnotherSessionSubjectIsStillReportedAsFailed() = runTest {
+    val profileSource =
+        FakeAuthenticatedUserProfileRepository(
+            initialProfile = null,
+            refreshOutcomes =
+                mutableListOf(Result.success(profile().copy(cognitoSub = "other-user"))),
+        )
+    val viewModel = PlayerProfileViewModel(profileSource, FakeProfileRepository(), backgroundScope)
+
+    viewModel.activate("user-id", null, "player@example.com")
+    runCurrent()
+
+    assertTrue(viewModel.uiState.value.profileRefreshFailed)
+    assertNull(viewModel.uiState.value.profile)
+  }
+
   private fun profile(pictureUrl: String? = null) =
       UserProfile(
-          id = "user-id",
+          id = "application-user-id",
           roles = emptyList(),
+          cognitoSub = "user-id",
           email = "player@example.com",
           name = "Player One",
           pictureUrl = pictureUrl,
           provider = "Google",
       )
+
+  private fun profileWithoutSessionSubject(pictureUrl: String? = null) =
+      profile(pictureUrl).copy(cognitoSub = null)
 
   private fun localImage() =
       LocalProfileImage(

@@ -23,9 +23,10 @@ class AuthenticatedUserRemoteDataSource(
                   message = "No se recibió la respuesta esperada del API.",
               )
       UserProfile(
-          id = data.cognitoSub ?: data.id,
+          id = data.id,
           roles =
               data.roles.mapNotNull { rawRole -> UserRoleKind.entries.find { it.name == rawRole } },
+          cognitoSub = data.cognitoSub,
           email = data.email,
           name = data.name,
           pictureUrl = data.pictureUrl,

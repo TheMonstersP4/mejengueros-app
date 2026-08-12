@@ -739,6 +739,57 @@ describe('catalog modules behavior', () => {
     );
   });
 
+  it('lists one entry per service when the catalog holds accent or casing variants', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [
+              { serviceCatalog: { name: 'Sintetico' } },
+              { serviceCatalog: { name: 'Sintético' } },
+              { serviceCatalog: { name: 'Iluminacion' } }
+            ],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              latitude: 9.935,
+              longitude: -84.091,
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: [
+                { serviceCatalog: { name: 'Parqueo' } },
+                { serviceCatalog: { name: ' PARQUEO ' } },
+                { serviceCatalog: { name: 'Iluminación' } }
+              ]
+            },
+            availability: null,
+            reservations: [],
+            imageUpload: null
+          }
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    const result = await repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION });
+
+    // Clients render every variant through one normalized label, so listing more
+    // than one of them per service shows the same service several times.
+    expect(result.items[0]?.services).toEqual(['Sintetico', 'Iluminacion', 'Parqueo']);
+  });
+
   it('requires courts to offer every selected service on the court or its complex', async () => {
     const fileStorage = createFileReadUrlMock();
     const prisma = {

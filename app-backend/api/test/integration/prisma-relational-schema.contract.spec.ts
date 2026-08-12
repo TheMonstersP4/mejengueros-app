@@ -136,6 +136,29 @@ describe('Prisma relational MVP schema contract', () => {
     expect(serviceCatalogModel).not.toContain('isGlobal');
   });
 
+  it('keeps service catalog names unique by their normalized form so variants cannot duplicate a service', () => {
+    const contract = loadPrismaRelationalSchemaContract();
+
+    // Not expressible in the Prisma schema, so the normalized unique index lives in
+    // raw migration SQL.
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        `CREATE UNIQUE INDEX "ServiceCatalog_name_key_normalized" ON "mejengueros_dev"."ServiceCatalog" ((translate(lower(btrim("name")), 'áàäâéèëêíìïîóòöôúùüû', 'aaaaeeeeiiiioooouuuu')));`
+      )
+    );
+    // Existing variants have to be collapsed before the index can be created.
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'UPDATE "mejengueros_dev"."CourtService" "courtService" SET "serviceCatalogId" = duplicate."canonicalId"'
+      )
+    );
+    expect(contract.migration).toMatch(
+      sqlFragmentPattern(
+        'UPDATE "mejengueros_dev"."ComplexService" "complexService" SET "serviceCatalogId" = duplicate."canonicalId"'
+      )
+    );
+  });
+
   it('stores shared availability ranges separately from selected weekdays', () => {
     const contract = loadPrismaRelationalSchemaContract();
     const availabilityModel = extractPrismaBlock(
