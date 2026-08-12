@@ -228,6 +228,9 @@ model Court {
   @@schema("mejengueros_dev")
 }
 
+// ServiceCatalog names are also unique by their accent- and case-insensitive form, so name variants
+// cannot list the same service twice. That expression index is not expressible here and lives in
+// raw migration SQL as "ServiceCatalog_name_key_normalized".
 model ServiceCatalog {
   id        String           @id @default(uuid())
   name      String           @unique

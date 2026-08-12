@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { serviceCatalogNameKey } from '../src/modules/service-catalog/domain/services/service-catalog-name-key';
 
 type ProvinceSeedRecord = {
   id: string;
@@ -439,15 +440,31 @@ export async function ensureCantonCatalog(
 }
 
 export async function seedSharedCatalogs(prisma: PrismaClient) {
-  return Promise.all(
-    SERVICE_CATALOG_SEEDS.map((service) =>
-      prisma.serviceCatalog.upsert({
-        where: { name: service.name },
-        create: { name: service.name, scope: service.scope, isActive: true },
-        update: { scope: service.scope, isActive: true }
-      })
-    )
+  // The catalog is unique by normalized name, so an existing accent or casing variant has to be
+  // renamed in place. Upserting on the exact name would try to insert a second row for the same
+  // service and reintroduce the duplicate entries the normalized unique index prevents.
+  const existingServices = await prisma.serviceCatalog.findMany();
+  const existingServiceByNameKey = new Map(
+    existingServices.map((service) => [serviceCatalogNameKey(service.name), service])
   );
+  const reconciledServices = [];
+
+  for (const service of SERVICE_CATALOG_SEEDS) {
+    const existingService = existingServiceByNameKey.get(serviceCatalogNameKey(service.name));
+
+    reconciledServices.push(
+      existingService
+        ? await prisma.serviceCatalog.update({
+            where: { id: existingService.id },
+            data: { name: service.name, scope: service.scope, isActive: true }
+          })
+        : await prisma.serviceCatalog.create({
+            data: { name: service.name, scope: service.scope, isActive: true }
+          })
+    );
+  }
+
+  return reconciledServices;
 }
 
 export async function seed(prisma: PrismaClient): Promise<void> {
