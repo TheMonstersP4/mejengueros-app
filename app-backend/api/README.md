@@ -264,6 +264,46 @@ npm run docker:migration-db:reset
 
 Both runs must complete without errors and leave the expected demo dataset.
 
+## Purge A User
+
+`npm run dev:users:purge` hard-deletes one user and every entity that hangs off them. Unlike the demo seed teardown above, it targets an arbitrary email instead of the `demo` provider, so it works on real dev accounts.
+
+It runs as a **dry run by default**: the whole deletion executes inside a transaction that is rolled back, and the row counts are printed. Nothing is committed unless `--execute=true` is passed.
+
+```bash
+# 1. Preview (rolls back, prints what would be deleted)
+npm run dev:users:purge -- --email=someone@example.com
+
+# 2. Commit
+npm run dev:users:purge -- --email=someone@example.com --execute=true
+```
+
+`DATABASE_URL` must point at the target database. For the shared dev database it lives in `app-backend/.env` (not `app-backend/api/.env`, where it is empty):
+
+```bash
+export DATABASE_URL="$(rg -N '^DATABASE_URL=(.+)$' -r '$1' ../.env)"
+```
+
+### Owned complexes
+
+`Complex.owner` is `onDelete: Restrict`, so a user who owns a complex cannot be deleted while that ownership stands. The script refuses by default and names the complexes it found.
+
+Passing `--include-owned-complexes=true` removes the complexes and their courts too. Be deliberate about it: other users' reservations, reviews and notifications on those courts are `Restrict` as well, so they are destroyed in the same pass. The report's `scope.collateralReservations` counts exactly how many reservations belong to somebody else — check it before committing. The alternative is to reassign `Complex.ownerId` first and then purge without the flag.
+
+### Deletion order
+
+Driven by the foreign keys, not by preference: `ReviewQuestionnaireAnswer` → `Review` → `Notification` → `Reservation` → `CourtAvailabilityDay` → `CourtAvailability` → `CourtService` → `Court` → `ComplexService` → `Complex` → `UserRole` → `UserIdentity` → `User` → `ImageUpload`.
+
+Two details worth keeping:
+
+- Notifications are matched by `reservationId OR userId`. A reservation on the purged user's court can carry a notification owned by a different user; matching on `userId` alone leaves it behind and the `Reservation` delete then fails.
+- `ImageUpload` goes last because `Court.imageUpload`, `Review.evidenceImageUpload` and `User.profileImageUpload` are `SetNull` — the referencing rows have to be gone first.
+
+### What it does not do
+
+- **S3 objects are not deleted.** The `ImageUpload` rows are removed, the blobs under `dev/uploads/<purpose>/<ownerSub>/` are not.
+- **The Cognito user is not deleted.** Identity lives in the user pool, and `sync-authenticated-user.use-case.ts` re-provisions a fresh `User` row on the next login with the same provider subject. Use this script to reset an account's data, not to unregister it. To also unregister, run `aws cognito-idp admin-delete-user --region <region> --user-pool-id <pool> --username <providerSubject>`.
+
 ## Quality
 
 Main commands:
