@@ -76,7 +76,7 @@ class AuthenticatedUserRemoteDataSourceTest {
   }
 
   @Test
-  fun syncCurrentUserUsesCognitoSubAsSessionIdentityWhenAvailable() = runTest {
+  fun syncCurrentUserKeepsApplicationIdAndSessionSubjectApart() = runTest {
     val dataSource =
         AuthenticatedUserRemoteDataSource(
             httpClient =
@@ -98,7 +98,8 @@ class AuthenticatedUserRemoteDataSourceTest {
 
     val profile = dataSource.syncCurrentUser()
 
-    assertEquals("cognito-session-sub", profile.id)
+    assertEquals("database-user-id", profile.id)
+    assertEquals("cognito-session-sub", profile.cognitoSub)
   }
 
   @Test

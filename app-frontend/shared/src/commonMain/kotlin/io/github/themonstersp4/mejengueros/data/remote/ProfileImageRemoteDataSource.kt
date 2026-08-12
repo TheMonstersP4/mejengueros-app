@@ -126,11 +126,12 @@ class ProfileImageRemoteDataSource(
     val profile = response.data ?: missingApiData()
 
     return UserProfile(
-        id = profile.cognitoSub ?: profile.id,
+        id = profile.id,
         roles =
             profile.roles.mapNotNull { rawRole ->
               UserRoleKind.entries.find { it.name == rawRole }
             },
+        cognitoSub = profile.cognitoSub,
         email = profile.email,
         name = profile.name,
         pictureUrl = profile.pictureUrl,

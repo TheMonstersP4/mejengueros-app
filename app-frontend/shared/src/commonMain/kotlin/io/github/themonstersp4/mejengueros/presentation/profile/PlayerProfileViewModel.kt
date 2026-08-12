@@ -29,7 +29,7 @@ class PlayerProfileViewModel(
         val currentState = _uiState.value
         when {
           profile == null -> _uiState.value = currentState.copy(profile = null)
-          profile.id == currentState.userId ->
+          profile.belongsToAuthenticatedUser(currentState.userId) ->
               _uiState.value =
                   currentState.copy(
                       profile = profile,
@@ -50,7 +50,9 @@ class PlayerProfileViewModel(
 
     profileRefreshJob?.cancel()
     val cachedProfile =
-        authenticatedUserProfileRepository.getUserProfile()?.takeIf { it.id == userId }
+        authenticatedUserProfileRepository.getUserProfile()?.takeIf {
+          it.belongsToAuthenticatedUser(userId)
+        }
     _uiState.value =
         PlayerProfileUiState(
             userId = userId,
@@ -96,7 +98,7 @@ class PlayerProfileViewModel(
             val profile = authenticatedUserProfileRepository.refreshAuthenticatedUserProfile()
             if (_uiState.value.userId == expectedUserId) {
               _uiState.value =
-                  if (profile.id == expectedUserId) {
+                  if (profile.belongsToAuthenticatedUser(expectedUserId)) {
                     _uiState.value.copy(
                         profile = profile,
                         isRefreshingProfile = false,
@@ -137,7 +139,6 @@ class PlayerProfileViewModel(
         if (_uiState.value.userId == uploadUserId) {
           _uiState.value =
               _uiState.value.copy(
-                  userId = profile.id,
                   profile = profile,
                   isUploadingImage = false,
                   feedback = PlayerProfileFeedback.ImageUpdated,
