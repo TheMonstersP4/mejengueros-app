@@ -637,8 +637,10 @@ class AuthenticatedNavigationState(
   }
 
   // Signals the Reservations tab to refetch so a freshly booked reservation appears
-  // without waiting for the retained MyReservationsViewModel to be recreated. Also refreshes
-  // the retained court detail preview so the just-booked slot no longer shows as available.
+  // without waiting for the retained MyReservationsViewModel to be recreated. The same key
+  // drives the owner variant of the tab, because an owner can book their own court from the
+  // mejenguero shell and must see it when switching back. Also refreshes the retained court
+  // detail preview so the just-booked slot no longer shows as available.
   fun notifyReservationCreated() {
     reservationsReloadRequestKeyState.value += 1
     catalogCourtDetailReloadRequestKeyState.value += 1

@@ -766,6 +766,7 @@ private fun ReservationsEntry(
     OwnerReservationsEntryContent(
         shellActions = shellActions,
         ownerReservationsViewModel = koinViewModel(),
+        reservationsReloadRequestKey = authenticatedNavigationState.reservationsReloadRequestKey,
     )
   } else {
     ReservationsEntryContent(
@@ -781,8 +782,17 @@ private fun ReservationsEntry(
 internal fun OwnerReservationsEntryContent(
     shellActions: AuthenticatedShellActions,
     ownerReservationsViewModel: OwnerReservationsViewModel,
+    reservationsReloadRequestKey: Int = 0,
 ) {
   val ownerReservationsState by ownerReservationsViewModel.uiState.collectAsState()
+
+  // An owner can book one of their own courts from the mejenguero shell. The retained
+  // OwnerReservationsViewModel only loads in its init block, so without this effect the
+  // owner list stays stale until the court filter forces a refetch.
+  ReservationsReloadEffect(
+      reservationsReloadRequestKey = reservationsReloadRequestKey,
+      onReloadRequested = ownerReservationsViewModel::refresh,
+  )
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Reservations,
