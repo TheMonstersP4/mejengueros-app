@@ -8,6 +8,7 @@ import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.monitoring.ErrorReporter
@@ -288,6 +289,78 @@ class MyComplexViewModelTest {
   }
 
   @Test
+  fun reactivateCourtUpdatesInactiveCourtStatusAndShowsSuccessMessage() = runTest {
+    val repository = FakeComplexRepository(hub = hubWithInactiveCourt())
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, coroutineScope = scope)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    viewModel.reactivateCourt("complex-id", "court-inactive-id")
+    advanceUntilIdle()
+
+    assertEquals("court-inactive-id", repository.reactivatedCourtId)
+    assertNull(viewModel.uiState.value.reactivatingCourtId)
+    assertEquals(
+        "ACTIVE",
+        viewModel.uiState.value.complexes
+            .single()
+            .courts
+            .last { it.id == "court-inactive-id" }
+            .status,
+    )
+    assertEquals(
+        "La cancha se reactivó correctamente.",
+        viewModel.uiState.value.courtStatusSuccessMessage,
+    )
+    assertNull(viewModel.uiState.value.courtStatusErrorMessage)
+  }
+
+  @Test
+  fun reactivateCourtMapsPermissionErrorsToControlledCopy() = runTest {
+    val errorReporter = FakeErrorReporter()
+    val repository =
+        FakeComplexRepository(
+            hub = hubWithInactiveCourt(),
+            reactivateCourtFailure = AppApiException(403, "forbidden"),
+        )
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel =
+        MyComplexViewModel(repository, errorReporter = errorReporter, coroutineScope = scope)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+
+    viewModel.reactivateCourt("complex-id", "court-inactive-id")
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.value.reactivatingCourtId)
+    assertEquals(
+        "No tenés permisos para reactivar esta cancha.",
+        viewModel.uiState.value.courtStatusErrorMessage,
+    )
+    assertNull(viewModel.uiState.value.courtStatusSuccessMessage)
+    assertEquals("my_complex_court_reactivate_failed", errorReporter.events.last().name)
+  }
+
+  @Test
+  fun acknowledgeCourtStatusSuccessClearsSuccessMessage() = runTest {
+    val repository = FakeComplexRepository(hub = hubWithInactiveCourt())
+    val scope = TestScope(UnconfinedTestDispatcher(testScheduler))
+    val viewModel = MyComplexViewModel(repository, coroutineScope = scope)
+
+    viewModel.refresh()
+    advanceUntilIdle()
+    viewModel.reactivateCourt("complex-id", "court-inactive-id")
+    advanceUntilIdle()
+
+    viewModel.acknowledgeCourtStatusSuccess()
+
+    assertNull(viewModel.uiState.value.courtStatusSuccessMessage)
+  }
+
+  @Test
   fun onSessionChangedReloadsForNewUserAndDiscardsPreviousOwnerComplex() = runTest {
     val repository =
         QueuedComplexRepository(
@@ -437,10 +510,12 @@ private class FakeComplexRepository(
     private val failure: Throwable? = null,
     private val failures: ArrayDeque<Throwable> = ArrayDeque(),
     private val updateCourtImageFailure: Throwable? = null,
+    private val reactivateCourtFailure: Throwable? = null,
 ) : IComplexRepository {
   var hubRequests = 0
   var updatedCourtId: String? = null
   var updatedImageUploadId: String? = null
+  var reactivatedCourtId: String? = null
 
   override suspend fun getMyComplexHub(): MyComplexHub {
     hubRequests += 1
@@ -463,6 +538,16 @@ private class FakeComplexRepository(
         status = "ACTIVE",
         availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
         imageUrl = "https://signed.example.test/court-a.png",
+    )
+  }
+
+  override suspend fun reactivateCourt(courtId: String): ReactivatedCourt {
+    reactivatedCourtId = courtId
+    reactivateCourtFailure?.let { throw it }
+    return ReactivatedCourt(
+        id = courtId,
+        name = "Court B",
+        status = "ACTIVE",
     )
   }
 
@@ -580,6 +665,40 @@ private fun hubWithCourtImage(imageUrl: String? = null) =
                                 name = "Court B",
                                 status = "ACTIVE",
                                 availabilityStatus = CourtAvailabilitySetupStatus.PENDING,
+                            ),
+                        ),
+                )
+            )
+    )
+
+private fun hubWithInactiveCourt() =
+    MyComplexHub(
+        complexes =
+            listOf(
+                MyComplexHubComplex(
+                    id = "complex-id",
+                    name = "North Sports Center",
+                    address = "123 Main Street",
+                    provinceId = "province-id",
+                    cantonId = "canton-id",
+                    latitude = 9.935,
+                    longitude = -84.091,
+                    status = "ACTIVE",
+                    courts =
+                        listOf(
+                            MyComplexHubCourt(
+                                id = "court-configured-id",
+                                name = "Court A",
+                                status = "ACTIVE",
+                                availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
+                                imageUrl = null,
+                            ),
+                            MyComplexHubCourt(
+                                id = "court-inactive-id",
+                                name = "Court B",
+                                status = "INACTIVE",
+                                availabilityStatus = CourtAvailabilitySetupStatus.PENDING,
+                                imageUrl = null,
                             ),
                         ),
                 )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -156,6 +157,7 @@ fun MejenguerosReceivedReviewCard(
     date: String,
     rating: Int,
     comment: String,
+    evidenceImageUrl: String? = null,
     modifier: Modifier = Modifier,
     avatarInitials: String? = null,
     maxRating: Int = 5,
@@ -202,6 +204,15 @@ fun MejenguerosReceivedReviewCard(
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurface,
       )
+      if (!evidenceImageUrl.isNullOrBlank()) {
+        MejenguerosThumbnail(
+            imageUrl = evidenceImageUrl,
+            contentDescription = "Evidencia de reseña",
+            modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
+            size = null,
+            shape = MaterialTheme.shapes.medium,
+        )
+      }
     }
   }
 }

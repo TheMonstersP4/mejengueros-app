@@ -254,7 +254,7 @@ private fun ReviewQuestionnaireSection(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
       Text(
-          text = "RespondÃ© estas preguntas para completar la reseÃ±a.",
+          text = "Respondé estas preguntas para completar la reseña.",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onBackground,
       )

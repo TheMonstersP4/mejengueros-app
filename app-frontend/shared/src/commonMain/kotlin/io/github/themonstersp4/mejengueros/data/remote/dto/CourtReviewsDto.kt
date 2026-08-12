@@ -26,6 +26,7 @@ data class CourtReviewItemDto(
     val rating: Int,
     val comment: String? = null,
     val createdAt: String? = null,
+    val evidenceImageUrl: String? = null,
     val reviewer: CourtReviewerDto = CourtReviewerDto(),
 )
 

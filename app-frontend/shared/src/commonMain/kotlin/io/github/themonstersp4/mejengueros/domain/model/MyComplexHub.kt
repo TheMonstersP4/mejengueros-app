@@ -28,3 +28,9 @@ data class MyComplexHubCourt(
     val availabilityStatus: CourtAvailabilitySetupStatus,
     val imageUrl: String? = null,
 )
+
+data class ReactivatedCourt(
+    val id: String,
+    val name: String,
+    val status: String,
+)

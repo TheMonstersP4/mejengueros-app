@@ -8,6 +8,7 @@ import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
@@ -39,6 +40,10 @@ class ComplexRepository(private val remoteDataSource: IComplexRemoteDataSource) 
       courtId: String,
       imageUploadId: String,
   ) = remoteDataSource.updateCourtImage(complexId, courtId, imageUploadId)
+
+  override suspend fun reactivateCourt(courtId: String): ReactivatedCourt {
+    return remoteDataSource.reactivateCourt(courtId)
+  }
 
   override suspend fun getMyComplexHub(): MyComplexHub {
     return remoteDataSource.getMyComplexHub()
