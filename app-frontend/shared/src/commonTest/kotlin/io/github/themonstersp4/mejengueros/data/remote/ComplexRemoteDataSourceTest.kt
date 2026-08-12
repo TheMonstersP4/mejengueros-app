@@ -590,6 +590,42 @@ class ComplexRemoteDataSourceTest {
   }
 
   @Test
+  fun reactivateCourtUsesAdministrativeEndpointAndMapsStatusSnapshot() = runTest {
+    var requestedPath = ""
+    var requestedMethod = HttpMethod.Get
+    val dataSource =
+        ComplexRemoteDataSource(
+            httpClient =
+                mockClient(
+                    responseBody =
+                        """
+                        {
+                          "success": true,
+                          "data": {
+                            "court": {
+                              "id": "court-id",
+                              "name": "Court A",
+                              "status": "ACTIVE",
+                              "updatedAt": "2026-08-11T18:00:00.000Z"
+                            }
+                          }
+                        }
+                        """,
+                    capturePath = { requestedPath = it.orEmpty() },
+                    captureMethod = { requestedMethod = it ?: HttpMethod.Get },
+                ),
+            json = json,
+        )
+
+    val reactivatedCourt = dataSource.reactivateCourt("court-id")
+
+    assertEquals(HttpMethod.Patch, requestedMethod)
+    assertEquals("/v1/courts/court-id/reactivate", requestedPath)
+    assertEquals("court-id", reactivatedCourt.id)
+    assertEquals("ACTIVE", reactivatedCourt.status)
+  }
+
+  @Test
   fun getMyComplexHubMapsEmptyHubEnvelope() = runTest {
     val dataSource =
         ComplexRemoteDataSource(

@@ -48,6 +48,7 @@ class ProfileImageRemoteDataSourceTest {
     assertEquals(true, bodies[2].contains("\"purpose\":\"profile-image\""))
     assertEquals(true, bodies[2].contains("\"objectKey\":\"pending-profile-key\""))
     assertEquals(true, bodies[3].contains("\"imageUploadId\":\"profile-upload-id\""))
+    assertEquals("cognito-session-sub", profile.id)
     assertEquals("player@example.test", profile.email)
     assertEquals("Player One", profile.name)
     assertEquals("https://read.example.test/profile.jpg", profile.pictureUrl)
@@ -153,7 +154,7 @@ class ProfileImageRemoteDataSourceTest {
         FailureStage.Confirm ->
             """{"success":true,"data":{"id":"profile-upload-id","objectKey":"confirmed-profile-key","readUrl":"https://read.example.test/profile.jpg"}}"""
         FailureStage.Associate ->
-            """{"success":true,"data":{"id":"player-id","email":"player@example.test","name":"Player One","pictureUrl":"https://read.example.test/profile.jpg","provider":"Google","roles":["PLAYER"]}}"""
+            """{"success":true,"data":{"id":"player-id","cognitoSub":"cognito-session-sub","email":"player@example.test","name":"Player One","pictureUrl":"https://read.example.test/profile.jpg","provider":"Google","roles":["PLAYER"]}}"""
         FailureStage.Upload -> error("Storage does not return an API body.")
       }
 

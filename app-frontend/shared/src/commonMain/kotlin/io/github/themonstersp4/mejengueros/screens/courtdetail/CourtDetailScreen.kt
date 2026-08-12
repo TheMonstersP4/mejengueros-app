@@ -603,6 +603,7 @@ private fun ReseñasSection(
                 date = review.dateLabel.orEmpty(),
                 rating = review.rating,
                 comment = review.comment.orEmpty(),
+                evidenceImageUrl = review.evidenceImageUrl,
                 avatarInitials = review.authorInitials,
                 modifier = Modifier.testTag("court_detail_review_${review.id}"),
             )

@@ -68,6 +68,7 @@ class CourtReviewsRemoteDataSourceTest {
                         "rating": 5,
                         "comment": "  Cancha impecable, volvería.  ",
                         "createdAt": "2026-07-02T18:00:00.000Z",
+                        "evidenceImageUrl": "https://cdn.example.test/reviews/review-a.png",
                         "reviewer": { "displayName": "Diego R.", "initials": "DR" }
                       },
                       {
@@ -95,12 +96,14 @@ class CourtReviewsRemoteDataSourceTest {
     assertEquals("review-a", first.id)
     assertEquals(5, first.rating)
     assertEquals("Cancha impecable, volvería.", first.comment)
+    assertEquals("https://cdn.example.test/reviews/review-a.png", first.evidenceImageUrl)
     assertEquals("Diego R.", first.authorName)
     assertEquals("DR", first.authorInitials)
     assertEquals("2 de julio de 2026", first.dateLabel)
 
     val second = reviews[1]
     assertNull(second.comment)
+    assertNull(second.evidenceImageUrl)
     assertNull(second.dateLabel)
     assertEquals("Player", second.authorName)
   }

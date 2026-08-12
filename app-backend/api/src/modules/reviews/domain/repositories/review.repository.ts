@@ -100,6 +100,7 @@ export interface IPublicCourtReviewItem {
   rating: number;
   comment: string | null;
   createdAt: string;
+  evidenceImageUrl: string | null;
   reviewer: IReviewerDisplay;
 }
 
