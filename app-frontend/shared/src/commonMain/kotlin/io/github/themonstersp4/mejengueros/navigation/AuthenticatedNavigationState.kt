@@ -428,12 +428,16 @@ class AuthenticatedNavigationState(
   }
 
   fun openCatalogCourtDetail(route: CatalogCourtDetailRoute) {
+    val hadSameDetailOpen = searchBackStack.any { it == route }
     navigateTo(AuthenticatedTopLevelRoute.Search)
     while (searchBackStack.size > 1) {
       searchBackStack.removeLastOrNull()
     }
     if (searchBackStack.lastOrNull() != route) {
       searchBackStack.add(route)
+    }
+    if (hadSameDetailOpen) {
+      catalogCourtDetailReloadRequestKeyState.value += 1
     }
   }
 
