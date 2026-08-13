@@ -278,6 +278,7 @@ class LoginScreenBehaviorTest {
             onCancelExternalAuth = onCancelExternalAuth,
             onForgotPassword = onForgotPassword,
             onRegister = onRegister,
+            brandMark = {},
         )
       }
     }
