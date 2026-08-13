@@ -8,11 +8,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.themonstersp4.mejengueros.app.App
 import io.github.themonstersp4.mejengueros.data.auth.handleOAuthCallback
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    installSplashScreen()
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     handleIntent(intent)
