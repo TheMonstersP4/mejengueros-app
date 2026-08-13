@@ -291,7 +291,7 @@ private fun LoginPitchHero(
     modifier: Modifier = Modifier,
 ) {
   Box(
-      modifier = modifier.fillMaxWidth().height(184.dp),
+      modifier = modifier.fillMaxWidth().height(96.dp),
       contentAlignment = Alignment.Center,
   ) {
     brandMark()
