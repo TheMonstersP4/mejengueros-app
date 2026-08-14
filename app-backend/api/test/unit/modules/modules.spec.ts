@@ -10,6 +10,7 @@ import { ReviewsModule } from '@/modules/reviews/reviews.module';
 import { ServiceCatalogModule } from '@/modules/service-catalog/service-catalog.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { PrismaModule } from '@/shared/infrastructure/database/prisma.module';
+import { MODULE_METADATA } from '@nestjs/common/constants';
 
 describe('Nest modules', () => {
   const originalEnv = process.env;
@@ -79,5 +80,36 @@ describe('Nest modules', () => {
     const { AppModule } = await import('@/app.module');
 
     expect(AppModule).toBeDefined();
+  });
+
+  it('keeps FilesModule metadata stable without DATABASE_URL', async () => {
+    delete process.env.DATABASE_URL;
+    jest.resetModules();
+
+    const [{ FilesModule }, { ActiveUserAccountGuard }] = await Promise.all([
+      import('@/modules/files/files.module'),
+      import('@/modules/users/interfaces/http/guards/active-user-account.guard')
+    ]);
+
+    const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, FilesModule) as unknown[];
+    const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, FilesModule) as unknown[];
+
+    expect(imports).toHaveLength(3);
+    expect(providers).toContain(ActiveUserAccountGuard);
+  });
+
+  it('keeps FilesModule metadata stable when DATABASE_URL exists', async () => {
+    jest.resetModules();
+
+    const [{ FilesModule }, { ActiveUserAccountGuard }] = await Promise.all([
+      import('@/modules/files/files.module'),
+      import('@/modules/users/interfaces/http/guards/active-user-account.guard')
+    ]);
+
+    const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, FilesModule) as unknown[];
+    const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, FilesModule) as unknown[];
+
+    expect(imports).toHaveLength(3);
+    expect(providers).toContain(ActiveUserAccountGuard);
   });
 });

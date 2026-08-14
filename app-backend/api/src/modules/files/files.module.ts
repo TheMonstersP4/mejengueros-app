@@ -1,8 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PrismaModule } from '../../shared/infrastructure/database/prisma.module';
+import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 import { S3StorageModule } from '../../shared/infrastructure/storage/s3-storage.module';
 import { AuthModule } from '../auth/auth.module';
+import {
+  USER_REPOSITORY,
+  type IExternalUserIdentity,
+  type IReplaceUserProfileImageInput,
+  type IUpdateUserAccountInput,
+  type IUserRepository
+} from '../users/domain/repositories/user.repository';
+import type { PrismaUserRepository as PrismaUserRepositoryClass } from '../users/infrastructure/persistence/prisma-user.repository';
+import { ActiveUserAccountGuard } from '../users/interfaces/http/guards/active-user-account.guard';
 import { FILE_READ_URL_PORT } from './application/ports/file-read-url.port';
 import { FILE_STORAGE_PORT } from './application/ports/file-storage.port';
 import { StorageReadUrlService } from './application/services/storage-read-url.service';
@@ -12,23 +21,86 @@ import { ConfirmUploadUseCase } from './application/use-cases/confirm-upload.use
 import { CreateUploadUrlUseCase } from './application/use-cases/create-upload-url.use-case';
 import { ListImageUploadsUseCase } from './application/use-cases/list-image-uploads.use-case';
 import { PROFILE_IMAGE_DEFAULT_MAX_BYTES } from './domain/constants/image-upload.constants';
-import { IMAGE_UPLOAD_REPOSITORY } from './domain/repositories/image-upload.repository';
+import {
+  IMAGE_UPLOAD_REPOSITORY,
+  type IImageUploadRepository
+} from './domain/repositories/image-upload.repository';
 import { ImageUploadPolicyService } from './domain/services/image-upload-policy.service';
 import { DisabledImageUploadRepository } from './infrastructure/persistence/disabled-image-upload.repository';
-import { PrismaImageUploadRepository } from './infrastructure/persistence/prisma-image-upload.repository';
+import type { PrismaImageUploadRepository as PrismaImageUploadRepositoryClass } from './infrastructure/persistence/prisma-image-upload.repository';
 import { S3FileStorageAdapter } from './infrastructure/storage/s3-file-storage.adapter';
 import { FilesController } from './interfaces/http/controllers/files.controller';
 
-const databaseImports = process.env.DATABASE_URL ? [PrismaModule] : [];
-const imageUploadRepositoryClass = process.env.DATABASE_URL
-  ? PrismaImageUploadRepository
-  : DisabledImageUploadRepository;
+function loadPrismaUserRepository(): typeof PrismaUserRepositoryClass {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { PrismaUserRepository } = require('../users/infrastructure/persistence/prisma-user.repository') as {
+    PrismaUserRepository: typeof PrismaUserRepositoryClass;
+  };
+
+  return PrismaUserRepository;
+}
+
+function createImageUploadRepository(
+  prisma?: PrismaService
+): IImageUploadRepository {
+  if (!prisma) {
+    return new DisabledImageUploadRepository();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { PrismaImageUploadRepository } = require('./infrastructure/persistence/prisma-image-upload.repository') as {
+    PrismaImageUploadRepository: typeof PrismaImageUploadRepositoryClass;
+  };
+
+  return new PrismaImageUploadRepository(prisma);
+}
+
+function createUserRepository(prisma?: PrismaService): IUserRepository {
+  if (!prisma) {
+    return new DisabledUserRepository();
+  }
+
+  const PrismaUserRepository = loadPrismaUserRepository();
+
+  return new PrismaUserRepository(prisma);
+}
+
+class DisabledUserRepository implements IUserRepository {
+  syncAuthenticatedUser(identity: IExternalUserIdentity): Promise<never> {
+    void identity;
+    throw new Error('User persistence is unavailable without DATABASE_URL.');
+  }
+
+  findByCognitoSub(cognitoSub: string): Promise<null> {
+    void cognitoSub;
+    return Promise.resolve(null);
+  }
+
+  replaceProfileImage(input: IReplaceUserProfileImageInput): Promise<never> {
+    void input;
+    throw new Error('User persistence is unavailable without DATABASE_URL.');
+  }
+
+  updateAccount(input: IUpdateUserAccountInput): Promise<never> {
+    void input;
+    throw new Error('User persistence is unavailable without DATABASE_URL.');
+  }
+
+  list(): Promise<never> {
+    throw new Error('User persistence is unavailable without DATABASE_URL.');
+  }
+
+  deactivateById(userId: string): Promise<never> {
+    void userId;
+    throw new Error('User persistence is unavailable without DATABASE_URL.');
+  }
+}
 
 /**
  * Feature module for application-managed files.
  */
 @Module({
-  imports: [AuthModule, ConfigModule, ...databaseImports, S3StorageModule],
+  imports: [AuthModule, ConfigModule, S3StorageModule],
   controllers: [FilesController],
   providers: [
     ConfirmUploadUseCase,
@@ -65,7 +137,8 @@ const imageUploadRepositoryClass = process.env.DATABASE_URL
     },
     {
       provide: IMAGE_UPLOAD_REPOSITORY,
-      useClass: imageUploadRepositoryClass
+      inject: [{ token: PrismaService, optional: true }],
+      useFactory: createImageUploadRepository
     },
     {
       provide: FILE_STORAGE_PORT,
@@ -74,7 +147,13 @@ const imageUploadRepositoryClass = process.env.DATABASE_URL
     {
       provide: FILE_READ_URL_PORT,
       useExisting: StorageReadUrlService
-    }
+    },
+    {
+      provide: USER_REPOSITORY,
+      inject: [{ token: PrismaService, optional: true }],
+      useFactory: createUserRepository
+    },
+    ActiveUserAccountGuard
   ],
   exports: [IMAGE_UPLOAD_REPOSITORY, FILE_READ_URL_PORT]
 })

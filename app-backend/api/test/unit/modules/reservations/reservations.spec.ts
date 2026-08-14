@@ -1,7 +1,10 @@
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import type { PinoLogger } from 'nestjs-pino';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
 import type { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
 import { CreateReservationUseCase } from '@/modules/reservations/application/use-cases/create-reservation.use-case';
 import { GetReservableDaysUseCase } from '@/modules/reservations/application/use-cases/get-reservable-days.use-case';
 import { ListMyReservationsUseCase } from '@/modules/reservations/application/use-cases/list-my-reservations.use-case';
@@ -876,6 +879,17 @@ describe('reservations module behavior', () => {
     });
   });
 
+  it('requires an active local account to discover reservable days and slots', () => {
+    expect(getReservableDaysMethodGuards('get')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
+    expect(getReservableSlotsMethodGuards('get')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
+  });
+
   it('defaults reservable day query days to the safe bounded window', () => {
     const query = plainToInstance(GetReservableDaysRequest, { from: '2026-07-01' });
 
@@ -1310,4 +1324,22 @@ describe('reservations module behavior', () => {
       slots: []
     });
   });
+
+  function getReservableDaysMethodGuards(
+    methodName: keyof ReservableDaysController
+  ): unknown[] {
+    return Reflect.getMetadata(
+      GUARDS_METADATA,
+      ReservableDaysController.prototype[methodName]
+    ) as unknown[];
+  }
+
+  function getReservableSlotsMethodGuards(
+    methodName: keyof ReservableSlotsController
+  ): unknown[] {
+    return Reflect.getMetadata(
+      GUARDS_METADATA,
+      ReservableSlotsController.prototype[methodName]
+    ) as unknown[];
+  }
 });

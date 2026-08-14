@@ -1,18 +1,15 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { FastifyAdapter } from '@nestjs/platform-fastify';
-import { Test } from '@nestjs/testing';
 import type { ITokenVerifierPort } from '@/modules/auth/application/ports/token-verifier.port';
-import { TOKEN_VERIFIER_PORT } from '@/modules/auth/application/ports/token-verifier.port';
 import { ImageUploadEntity } from '@/modules/files/domain/entities/image-upload.entity';
 import { FilePurpose } from '@/modules/files/domain/enums/file-purpose.enum';
 import type { IImageUploadRepository } from '@/modules/files/domain/repositories/image-upload.repository';
-import { IMAGE_UPLOAD_REPOSITORY } from '@/modules/files/domain/repositories/image-upload.repository';
-import { StorageObjectNotFoundError } from '@/modules/files/infrastructure/errors/storage-object-not-found.error';
+import type { StorageObjectNotFoundError as StorageObjectNotFoundErrorClass } from '@/modules/files/infrastructure/errors/storage-object-not-found.error';
 import type { IFileStoragePort } from '@/modules/files/application/ports/file-storage.port';
-import { FILE_STORAGE_PORT } from '@/modules/files/application/ports/file-storage.port';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
-import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
-import { configureValidation } from '@/bootstrap/validation';
+import {
+  createActiveUser,
+  createActiveUserRepository
+} from '../support/active-user-repository.mock';
 
 describe('HTTP API response contract', () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -20,6 +17,8 @@ describe('HTTP API response contract', () => {
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
   let fileStorage: jest.Mocked<IFileStoragePort>;
   let imageUploadRepository: jest.Mocked<IImageUploadRepository>;
+  let users: ReturnType<typeof createActiveUserRepository>;
+  let StorageObjectNotFoundError: typeof StorageObjectNotFoundErrorClass;
 
   beforeAll(async () => {
     delete process.env.DATABASE_URL;
@@ -28,7 +27,33 @@ describe('HTTP API response contract', () => {
     process.env.APP_S3_ALLOWED_IMAGE_MIME_TYPES =
       'image/jpeg,image/png,image/webp';
 
-    const { AppModule } = await import('@/app.module');
+    jest.resetModules();
+    const [
+      { Test },
+      { FastifyAdapter },
+      { configureValidation },
+      { AppModule },
+      { TOKEN_VERIFIER_PORT },
+      { IMAGE_UPLOAD_REPOSITORY },
+      { FILE_STORAGE_PORT },
+      { PrismaService },
+      storageErrors,
+      { USER_REPOSITORY },
+      { ActiveUserAccountGuard }
+    ] = await Promise.all([
+        import('@nestjs/testing'),
+        import('@nestjs/platform-fastify'),
+        import('@/bootstrap/validation'),
+        import('@/app.module'),
+        import('@/modules/auth/application/ports/token-verifier.port'),
+        import('@/modules/files/domain/repositories/image-upload.repository'),
+        import('@/modules/files/application/ports/file-storage.port'),
+        import('@/shared/infrastructure/database/prisma.service'),
+        import('@/modules/files/infrastructure/errors/storage-object-not-found.error'),
+        import('../../src/modules/users/domain/repositories/user.repository'),
+        import('../../src/modules/users/interfaces/http/guards/active-user-account.guard')
+      ]);
+    StorageObjectNotFoundError = storageErrors.StorageObjectNotFoundError;
     tokenVerifier = {
       verify: jest.fn().mockResolvedValue({
         sub: 'cognito-sub',
@@ -36,6 +61,11 @@ describe('HTTP API response contract', () => {
         groups: []
       })
     };
+    users = createActiveUserRepository({
+      id: 'user-id',
+      subject: 'cognito-sub',
+      email: 'user@example.test'
+    });
     fileStorage = {
       createPresignedUploadUrl: jest.fn().mockResolvedValue({
         method: 'POST',
@@ -79,6 +109,10 @@ describe('HTTP API response contract', () => {
     })
       .overrideProvider(TOKEN_VERIFIER_PORT)
       .useValue(tokenVerifier)
+      .overrideProvider(USER_REPOSITORY)
+      .useValue(users)
+      .overrideProvider(ActiveUserAccountGuard)
+      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
       .overrideProvider(PrismaService)
       .useValue({
         onModuleInit: jest.fn(),
@@ -101,6 +135,13 @@ describe('HTTP API response contract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    users.findByCognitoSub.mockResolvedValue(
+      createActiveUser({
+        id: 'user-id',
+        subject: 'cognito-sub',
+        email: 'user@example.test'
+      })
+    );
   });
 
   afterAll(async () => {

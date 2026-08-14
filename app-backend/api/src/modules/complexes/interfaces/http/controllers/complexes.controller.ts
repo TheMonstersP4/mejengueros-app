@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
 import {
   ApiEnvelopeCreated,
@@ -50,7 +51,7 @@ export class ComplexesController {
   ) {}
 
   @Get('my-hub')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Read the authenticated owner complex hub.',
     description:
@@ -69,7 +70,7 @@ export class ComplexesController {
    * Creates a complex and its first court in a single backend action.
    */
   @Post()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Create a sports complex with its first court.',
     description:
@@ -92,7 +93,7 @@ export class ComplexesController {
   }
 
   @Post(':complexId/courts')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Add one more court to an owned complex.',
     description:
@@ -119,7 +120,7 @@ export class ComplexesController {
   }
 
   @Put(':complexId/courts/:courtId/image')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Associate or replace the image of one owned court.',
     description:

@@ -2,6 +2,7 @@ import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
 import {
   ApiEnvelopeOk,
@@ -26,7 +27,7 @@ export class ReservationsController {
   ) {}
 
   @Get('my')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List the authenticated player reservations grouped for the My Reservations screen.',
     description:
@@ -42,7 +43,7 @@ export class ReservationsController {
   }
 
   @Post()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Create one confirmed reservation.',
     description:

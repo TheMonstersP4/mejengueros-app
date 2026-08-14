@@ -2,6 +2,7 @@ import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { IAuthenticatedUserOutput } from '@/modules/auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '@/shared/interfaces/http/decorators/current-user.decorator';
 import {
   ApiEnvelopeCreated,
@@ -26,7 +27,7 @@ export class ReviewsController {
   ) {}
 
   @Get('latest-eligible-reservation')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Read the latest completed reservation pending review.',
     description:
@@ -45,7 +46,7 @@ export class ReviewsController {
   }
 
   @Post()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Create one review for one completed reservation.',
     description:

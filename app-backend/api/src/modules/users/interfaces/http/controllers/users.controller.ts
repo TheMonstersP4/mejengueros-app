@@ -1,5 +1,16 @@
-import { Body, Controller, Get, Inject, Param, Patch, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Put,
+  UseGuards
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ApiEnvelopeArrayOk,
   ApiEnvelopeErrors,
@@ -8,10 +19,12 @@ import {
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
+import { DeactivateUserUseCase } from '../../../application/use-cases/deactivate-user.use-case';
 import { ListUsersUseCase } from '../../../application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from '../../../application/use-cases/sync-authenticated-user.use-case';
 import { UpdateMyProfileImageUseCase } from '../../../application/use-cases/update-my-profile-image.use-case';
 import { UpdateUserAccountUseCase } from '../../../application/use-cases/update-user-account.use-case';
+import { ActiveUserAccountGuard } from '../guards/active-user-account.guard';
 import { UserProfileResponse } from '../dto/user-profile.response';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
 import { UpdateProfileImageRequest } from '../dto/update-profile-image.request';
@@ -33,7 +46,9 @@ export class UsersController {
     @Inject(UpdateMyProfileImageUseCase)
     private readonly updateMyProfileImage: UpdateMyProfileImageUseCase,
     @Inject(UpdateUserAccountUseCase)
-    private readonly updateUserAccount: UpdateUserAccountUseCase
+    private readonly updateUserAccount: UpdateUserAccountUseCase,
+    @Inject(DeactivateUserUseCase)
+    private readonly deactivateUser: DeactivateUserUseCase
   ) {}
 
   /**
@@ -42,7 +57,7 @@ export class UsersController {
    * @returns Local user profile responses.
    */
   @Get()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List synchronized application users.',
     description:
@@ -63,7 +78,7 @@ export class UsersController {
    * Updates administrator-editable account fields for one user.
    */
   @Patch(':userId')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Update one user account as an administrator.',
     description:
@@ -94,7 +109,7 @@ export class UsersController {
    * @returns Local user profile response.
    */
   @Get('me')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Synchronize and return the current user profile.',
     description:
@@ -104,7 +119,7 @@ export class UsersController {
     UserProfileResponse,
     'Current user profile wrapped in the API response envelope.'
   )
-  @ApiEnvelopeErrors(401, 502)
+  @ApiEnvelopeErrors(401, 403, 502)
   async me(
     @CurrentUser() user: IAuthenticatedUserOutput
   ): Promise<UserProfileResponse> {
@@ -115,7 +130,7 @@ export class UsersController {
    * Associates a confirmed upload as the authenticated user's custom profile image.
    */
   @Put('me/profile-image')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Replace the current user custom profile image.',
     description:
@@ -132,5 +147,28 @@ export class UsersController {
     @Body() request: UpdateProfileImageRequest
   ): Promise<UserProfileResponse> {
     return this.updateMyProfileImage.execute(user, request.imageUploadId);
+  }
+
+  /**
+   * Marks a local user account inactive without deleting historical data.
+   */
+  @Delete(':userId')
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
+  @ApiOperation({
+    summary: 'Deactivate a user account.',
+    description:
+      'Requires an authenticated administrator and marks the target user inactive without deleting historical data or relationships.'
+  })
+  @ApiParam({ name: 'userId', description: 'Local user identifier.', format: 'uuid' })
+  @ApiEnvelopeOk(
+    UserProfileResponse,
+    'Deactivated user profile wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 403, 404, 503)
+  async deactivate(
+    @CurrentUser() user: IAuthenticatedUserOutput,
+    @Param('userId', new ParseUUIDPipe()) userId: string
+  ): Promise<UserProfileResponse> {
+    return this.deactivateUser.execute(user, userId);
   }
 }
