@@ -45,7 +45,8 @@ describe('users profile image HTTP contract', () => {
       replaceProfileImage: jest
         .fn()
         .mockResolvedValue(createUser(imageUploadId)),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     };
     images = {
       findById: jest.fn().mockResolvedValue(createUpload()),

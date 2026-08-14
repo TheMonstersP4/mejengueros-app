@@ -17,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import type { IAuthenticatedUserOutput } from '../../../../auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '../../../../../shared/interfaces/http/decorators/current-user.decorator';
 import {
   ApiEnvelopeErrors,
@@ -39,7 +40,7 @@ export class CourtAvailabilityController {
   ) {}
 
   @Get()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Read one owned court availability.',
     description:
@@ -59,7 +60,7 @@ export class CourtAvailabilityController {
   }
 
   @Put()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'Create or update one owned court availability.',
     description:

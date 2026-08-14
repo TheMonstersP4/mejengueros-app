@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
 import { ListCantonsByProvinceUseCase } from './application/use-cases/list-cantons-by-province.use-case';
 import { ListProvincesUseCase } from './application/use-cases/list-provinces.use-case';
 import { LOCATION_CATALOG_REPOSITORY } from './domain/repositories/location-catalog.repository';
@@ -10,7 +11,7 @@ import { LocationsController } from './interfaces/http/controllers/locations.con
  * Feature module for controlled wizard location catalogs.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, UsersModule],
   controllers: [LocationsController],
   providers: [
     ListProvincesUseCase,

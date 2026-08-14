@@ -134,6 +134,38 @@ export class PrismaUserRepository implements IUserRepository {
 
     return users.map((user) => UserMapper.toDomain(user));
   }
+
+  /**
+   * Marks one local user profile inactive without deleting relationships.
+   */
+  async deactivateById(userId: string): Promise<UserEntity | null> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        identities: true,
+        roles: true
+      }
+    });
+
+    if (!existingUser) {
+      return null;
+    }
+
+    if (existingUser.status === 'INACTIVE') {
+      return UserMapper.toDomain(existingUser);
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { status: 'INACTIVE' },
+      include: {
+        identities: true,
+        roles: true
+      }
+    });
+
+    return UserMapper.toDomain(user);
+  }
 }
 
 function isPrismaUniqueConstraintError(error: unknown): boolean {

@@ -11,8 +11,13 @@ import { IMAGE_UPLOAD_REPOSITORY } from '@/modules/files/domain/repositories/ima
 import type { IFileReadUrlPort } from '@/modules/files/application/ports/file-read-url.port';
 import { FILE_READ_URL_PORT } from '@/modules/files/application/ports/file-read-url.port';
 import { SyncAuthenticatedUserUseCase } from '@/modules/users/application/use-cases/sync-authenticated-user.use-case';
+import { USER_REPOSITORY } from '@/modules/users/domain/repositories/user.repository';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
+import {
+  createActiveUser,
+  createActiveUserRepository
+} from '../support/active-user-repository.mock';
 
 const reservationId = '38fad3d5-0f6a-4c8a-a49a-c3dce07af6cf';
 const evidenceImageUploadId = '6f554321-6df0-43c4-b310-f3d7e6bf00a1';
@@ -43,6 +48,7 @@ describe('reviews HTTP contract', () => {
   let syncAuthenticatedUser: jest.Mocked<SyncAuthenticatedUserUseCase>;
   let fileReadUrl: jest.Mocked<IFileReadUrlPort>;
   let imageUploadRepository: jest.Mocked<IImageUploadRepository>;
+  let users: ReturnType<typeof createActiveUserRepository>;
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -76,6 +82,13 @@ describe('reviews HTTP contract', () => {
         roles: []
       })
     } as unknown as jest.Mocked<SyncAuthenticatedUserUseCase>;
+    users = createActiveUserRepository({
+      id: 'user-id',
+      subject: 'player-sub',
+      email: 'player@example.test',
+      name: 'Player One',
+      pictureUrl: 'https://example.test/player.png'
+    });
     fileReadUrl = {
       createReadUrl: jest.fn().mockResolvedValue('https://read.example.test/court-a.png')
     } as jest.Mocked<IFileReadUrlPort>;
@@ -86,6 +99,8 @@ describe('reviews HTTP contract', () => {
       .useValue(prismaService)
       .overrideProvider(TOKEN_VERIFIER_PORT)
       .useValue(tokenVerifier)
+      .overrideProvider(USER_REPOSITORY)
+      .useValue(users)
       .overrideProvider(SyncAuthenticatedUserUseCase)
       .useValue(syncAuthenticatedUser)
       .overrideProvider(FILE_READ_URL_PORT)
@@ -106,6 +121,15 @@ describe('reviews HTTP contract', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaService = Object.assign(prismaService, createPrismaMock());
+    users.findByCognitoSub.mockResolvedValue(
+      createActiveUser({
+        id: 'user-id',
+        subject: 'player-sub',
+        email: 'player@example.test',
+        name: 'Player One',
+        pictureUrl: 'https://example.test/player.png'
+      })
+    );
     tokenVerifier.verify.mockResolvedValue({
       sub: 'player-sub',
       email: 'player@example.test',

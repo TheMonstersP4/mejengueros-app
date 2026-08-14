@@ -9,6 +9,7 @@ import { ListUsersUseCase } from '@/modules/users/application/use-cases/list-use
 import { UpdateMyProfileImageUseCase } from '@/modules/users/application/use-cases/update-my-profile-image.use-case';
 import { UserEntity } from '@/modules/users/domain/entities/user.entity';
 import { InvalidProfileImageUploadError } from '@/modules/users/domain/errors/invalid-profile-image-upload.error';
+import { UserAccountInactiveError } from '@/modules/users/domain/errors/user-account-inactive.error';
 import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
 import { PrismaUserRepository } from '@/modules/users/infrastructure/persistence/prisma-user.repository';
 
@@ -23,14 +24,17 @@ describe('user profile image association', () => {
     groups: ['players']
   };
 
-  function createUser(profileImageUploadId?: string): UserEntity {
+  function createUser(
+    profileImageUploadId?: string,
+    status: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'
+  ): UserEntity {
     return UserEntity.fromPersistence({
       id: 'user-id',
       email: 'player@example.test',
       name: 'Player One',
       pictureUrl: 'https://provider.example.test/avatar.png',
       profileImageUploadId,
-      status: 'ACTIVE',
+      status,
       currentIdentity: {
         provider: 'Google',
         providerSubject: 'cognito-sub'
@@ -72,7 +76,8 @@ describe('user profile image association', () => {
       replaceProfileImage: jest
         .fn()
         .mockResolvedValue(createUser('profile-upload-id')),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     };
   }
 
@@ -149,6 +154,23 @@ describe('user profile image association', () => {
       code: 'RESOURCE_NOT_FOUND',
       kind: 'not_found'
     });
+    expect(users.replaceProfileImage).not.toHaveBeenCalled();
+  });
+
+  it('blocks inactive users before replacing a profile image', async () => {
+    const users = createUserRepository();
+    users.syncAuthenticatedUser.mockResolvedValue(createUser(undefined, 'INACTIVE'));
+    const images = createImageRepository();
+    const useCase = new UpdateMyProfileImageUseCase(
+      users,
+      images,
+      new UserProfileService(images, createReadUrl())
+    );
+
+    await expect(
+      useCase.execute(identity, 'profile-upload-id')
+    ).rejects.toBeInstanceOf(UserAccountInactiveError);
+    expect(images.findById).not.toHaveBeenCalled();
     expect(users.replaceProfileImage).not.toHaveBeenCalled();
   });
 

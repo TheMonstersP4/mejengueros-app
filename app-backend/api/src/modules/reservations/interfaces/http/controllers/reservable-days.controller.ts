@@ -15,6 +15,7 @@ import {
   ApiTags
 } from '@nestjs/swagger';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import {
   ApiEnvelopeErrors,
   ApiEnvelopeOk
@@ -34,7 +35,7 @@ export class ReservableDaysController {
   ) {}
 
   @Get()
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List upcoming court dates that still have reservable one-hour slots.',
     description:

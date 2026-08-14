@@ -1,4 +1,5 @@
 import type { ConfirmUploadUseCase } from '@/modules/files/application/use-cases/confirm-upload.use-case';
+import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
 import type { CreateUploadUrlUseCase } from '@/modules/files/application/use-cases/create-upload-url.use-case';
 import type { ListImageUploadsUseCase } from '@/modules/files/application/use-cases/list-image-uploads.use-case';
 import { FilePurpose } from '@/modules/files/domain/enums/file-purpose.enum';
@@ -6,6 +7,8 @@ import { FileTooLargeError } from '@/modules/files/domain/errors/file-too-large.
 import { InvalidFilePurposeError } from '@/modules/files/domain/errors/invalid-file-purpose.error';
 import { UnsupportedFileTypeError } from '@/modules/files/domain/errors/unsupported-file-type.error';
 import { FilesController } from '@/modules/files/interfaces/http/controllers/files.controller';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 
 describe('FilesController', () => {
   function createListUseCase(): ListImageUploadsUseCase {
@@ -13,6 +16,21 @@ describe('FilesController', () => {
       execute: jest.fn()
     } as unknown as ListImageUploadsUseCase;
   }
+
+  it('requires an active local account to list, create, and confirm uploads', () => {
+    expect(getMethodGuards('listUploads')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
+    expect(getMethodGuards('createUpload')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
+    expect(getMethodGuards('confirm')).toEqual([
+      CognitoAuthGuard,
+      ActiveUserAccountGuard
+    ]);
+  });
 
   it('delegates upload URL creation to the use case', async () => {
     const response = {
@@ -273,4 +291,11 @@ describe('FilesController', () => {
     await expect(controller.listUploads({ sub: 'sub', groups: [] })).resolves.toEqual(response);
     expect(listUseCase.execute).toHaveBeenCalledWith('sub');
   });
+
+  function getMethodGuards(methodName: keyof FilesController): unknown[] {
+    return Reflect.getMetadata(
+      GUARDS_METADATA,
+      FilesController.prototype[methodName]
+    ) as unknown[];
+  }
 });
