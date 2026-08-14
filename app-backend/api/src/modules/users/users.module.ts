@@ -7,6 +7,7 @@ import { DeactivateUserUseCase } from './application/use-cases/deactivate-user.u
 import { ListUsersUseCase } from './application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from './application/use-cases/sync-authenticated-user.use-case';
 import { UpdateMyProfileImageUseCase } from './application/use-cases/update-my-profile-image.use-case';
+import { UpdateUserAccountUseCase } from './application/use-cases/update-user-account.use-case';
 import { UserProfileService } from './application/services/user-profile.service';
 import { UsersController } from './interfaces/http/controllers/users.controller';
 import { ActiveUserAccountGuard } from './interfaces/http/guards/active-user-account.guard';
@@ -19,6 +20,7 @@ import { ActiveUserAccountGuard } from './interfaces/http/guards/active-user-acc
     DeactivateUserUseCase,
     SyncAuthenticatedUserUseCase,
     UpdateMyProfileImageUseCase,
+    UpdateUserAccountUseCase,
     UserProfileService,
     ActiveUserAccountGuard,
     {

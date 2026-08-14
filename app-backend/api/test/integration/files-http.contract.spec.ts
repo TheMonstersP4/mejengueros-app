@@ -316,6 +316,7 @@ function createUserRepository(): jest.Mocked<IUserRepository> {
     syncAuthenticatedUser: jest.fn(),
     findByCognitoSub: jest.fn().mockResolvedValue(createActiveUser()),
     replaceProfileImage: jest.fn(),
+    updateAccount: jest.fn(),
     list: jest.fn(),
     deactivateById: jest.fn()
   };

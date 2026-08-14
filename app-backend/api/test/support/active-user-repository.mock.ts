@@ -21,6 +21,7 @@ export function createActiveUserRepository(
     syncAuthenticatedUser: jest.fn(),
     findByCognitoSub: jest.fn().mockResolvedValue(createActiveUser(options)),
     replaceProfileImage: jest.fn(),
+    updateAccount: jest.fn(),
     list: jest.fn(),
     deactivateById: jest.fn()
   };

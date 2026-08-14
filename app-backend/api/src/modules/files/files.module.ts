@@ -7,6 +7,7 @@ import {
   USER_REPOSITORY,
   type IExternalUserIdentity,
   type IReplaceUserProfileImageInput,
+  type IUpdateUserAccountInput,
   type IUserRepository
 } from '../users/domain/repositories/user.repository';
 import type { PrismaUserRepository as PrismaUserRepositoryClass } from '../users/infrastructure/persistence/prisma-user.repository';
@@ -76,6 +77,11 @@ class DisabledUserRepository implements IUserRepository {
   }
 
   replaceProfileImage(input: IReplaceUserProfileImageInput): Promise<never> {
+    void input;
+    throw new Error('User persistence is unavailable without DATABASE_URL.');
+  }
+
+  updateAccount(input: IUpdateUserAccountInput): Promise<never> {
     void input;
     throw new Error('User persistence is unavailable without DATABASE_URL.');
   }

@@ -9,8 +9,8 @@ export class AdminRoleRequiredError extends DomainError {
     super({
       code: APP_ERROR_CODES.FORBIDDEN,
       kind: 'forbidden',
-      userMessage: 'Only administrators can list application users.',
-      internalMessage: 'Authenticated user is missing ADMIN role for users list access.',
+      userMessage: 'Only administrators can manage application users.',
+      internalMessage: 'Authenticated user is missing ADMIN role for users management access.',
       logContext: { cognitoSub }
     });
 

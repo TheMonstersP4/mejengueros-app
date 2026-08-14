@@ -6,6 +6,7 @@ import {
   Inject,
   Param,
   ParseUUIDPipe,
+  Patch,
   Put,
   UseGuards
 } from '@nestjs/common';
@@ -22,10 +23,13 @@ import { DeactivateUserUseCase } from '../../../application/use-cases/deactivate
 import { ListUsersUseCase } from '../../../application/use-cases/list-users.use-case';
 import { SyncAuthenticatedUserUseCase } from '../../../application/use-cases/sync-authenticated-user.use-case';
 import { UpdateMyProfileImageUseCase } from '../../../application/use-cases/update-my-profile-image.use-case';
+import { UpdateUserAccountUseCase } from '../../../application/use-cases/update-user-account.use-case';
 import { ActiveUserAccountGuard } from '../guards/active-user-account.guard';
 import { UserProfileResponse } from '../dto/user-profile.response';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
 import { UpdateProfileImageRequest } from '../dto/update-profile-image.request';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Nest needs DTO classes at runtime for validation metadata.
+import { UpdateUserAccountRequest } from '../dto/update-user-account.request';
 
 /**
  * HTTP endpoints for authenticated user profiles.
@@ -41,6 +45,8 @@ export class UsersController {
     private readonly syncAuthenticatedUser: SyncAuthenticatedUserUseCase,
     @Inject(UpdateMyProfileImageUseCase)
     private readonly updateMyProfileImage: UpdateMyProfileImageUseCase,
+    @Inject(UpdateUserAccountUseCase)
+    private readonly updateUserAccount: UpdateUserAccountUseCase,
     @Inject(DeactivateUserUseCase)
     private readonly deactivateUser: DeactivateUserUseCase
   ) {}
@@ -66,6 +72,34 @@ export class UsersController {
     @CurrentUser() user: IAuthenticatedUserOutput
   ): Promise<UserProfileResponse[]> {
     return this.listUsers.execute(user);
+  }
+
+  /**
+   * Updates administrator-editable account fields for one user.
+   */
+  @Patch(':userId')
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
+  @ApiOperation({
+    summary: 'Update one user account as an administrator.',
+    description:
+      'Allows administrators to update only the account display name and application role.'
+  })
+  @ApiBody({ type: UpdateUserAccountRequest })
+  @ApiEnvelopeOk(
+    UserProfileResponse,
+    'Updated user profile wrapped in the API response envelope.'
+  )
+  @ApiEnvelopeErrors(400, 401, 403, 404)
+  async update(
+    @CurrentUser() user: IAuthenticatedUserOutput,
+    @Param('userId') userId: string,
+    @Body() request: UpdateUserAccountRequest
+  ): Promise<UserProfileResponse> {
+    return this.updateUserAccount.execute(user, {
+      userId,
+      name: request.name,
+      role: request.role
+    });
   }
 
   /**

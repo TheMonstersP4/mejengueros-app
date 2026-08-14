@@ -4,6 +4,7 @@ import type { UserEntity } from '../../domain/entities/user.entity';
 import type {
   IExternalUserIdentity,
   IReplaceUserProfileImageInput,
+  IUpdateUserAccountInput,
   IUserRepository
 } from '../../domain/repositories/user.repository';
 import { InvalidProfileImageUploadError } from '../../domain/errors/invalid-profile-image-upload.error';
@@ -113,6 +114,67 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   /**
+   * Updates administrator-editable account fields for one user.
+   */
+  async updateAccount(input: IUpdateUserAccountInput): Promise<UserEntity | null> {
+    const include = {
+      identities: true,
+      roles: true
+    } as const;
+
+    if (input.role) {
+      const role = input.role;
+      const user = await this.prisma.$transaction(async (tx) => {
+        const existingUser = await tx.user.findUnique({
+          where: { id: input.userId },
+          include
+        });
+
+        if (!existingUser) {
+          return null;
+        }
+
+        await tx.userRole.deleteMany({ where: { userId: input.userId } });
+        await tx.userRole.create({
+          data: {
+            userId: input.userId,
+            role
+          }
+        });
+
+        return tx.user.update({
+          where: { id: input.userId },
+          data: buildAccountUpdateData(input),
+          include
+        });
+      });
+
+      return user ? UserMapper.toDomain(user) : null;
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: input.userId },
+      include
+    });
+
+    if (!existingUser) {
+      return null;
+    }
+
+    if (input.name === undefined) {
+      return UserMapper.toDomain(existingUser);
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: input.userId },
+      data: buildAccountUpdateData(input),
+      include
+    });
+
+    return UserMapper.toDomain(user);
+  }
+
+  /**
    * Lists local user profiles by most recently updated first.
    *
    * @returns User entities stored by the application.
@@ -166,6 +228,10 @@ export class PrismaUserRepository implements IUserRepository {
 
     return UserMapper.toDomain(user);
   }
+}
+
+function buildAccountUpdateData(input: IUpdateUserAccountInput): { name?: string } {
+  return input.name === undefined ? {} : { name: input.name };
 }
 
 function isPrismaUniqueConstraintError(error: unknown): boolean {
