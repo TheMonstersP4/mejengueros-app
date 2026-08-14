@@ -2,6 +2,7 @@ import { ListCantonsByProvinceUseCase } from '@/modules/locations/application/us
 import { ListProvincesUseCase } from '@/modules/locations/application/use-cases/list-provinces.use-case';
 import { DeactivateCourtUseCase } from '@/modules/courts/application/use-cases/deactivate-court.use-case';
 import { ListPublicCourtCatalogUseCase } from '@/modules/courts/application/use-cases/list-public-court-catalog.use-case';
+import { ReactivateCourtUseCase } from '@/modules/courts/application/use-cases/reactivate-court.use-case';
 import { AdminRoleRequiredError } from '@/modules/courts/domain/errors/admin-role-required.error';
 import { CourtNotFoundError } from '@/modules/courts/domain/errors/court-not-found.error';
 import { PrismaCourtCatalogRepository } from '@/modules/courts/infrastructure/persistence/prisma-court-catalog.repository';
@@ -33,6 +34,12 @@ describe('catalog modules behavior', () => {
     return {
       execute: jest.fn()
     } as unknown as DeactivateCourtUseCase;
+  }
+
+  function createReactivateCourtUseCase(): ReactivateCourtUseCase {
+    return {
+      execute: jest.fn()
+    } as unknown as ReactivateCourtUseCase;
   }
 
   it('normalizes and validates optional courtIds catalog query filters', async () => {
@@ -174,7 +181,11 @@ describe('catalog modules behavior', () => {
       })
     };
     const useCase = new ListPublicCourtCatalogUseCase(repository);
-    const controller = new CourtsController(useCase, createDeactivateCourtUseCase());
+    const controller = new CourtsController(
+      useCase,
+      createDeactivateCourtUseCase(),
+      createReactivateCourtUseCase()
+    );
 
     const response = await controller.listCatalog({
       q: 'north',
@@ -223,7 +234,11 @@ describe('catalog modules behavior', () => {
         updatedAt: '2026-08-04T02:14:00.000Z'
       })
     } as unknown as DeactivateCourtUseCase;
-    const controller = new CourtsController(listPublicCourtCatalog, deactivateCourt);
+    const controller = new CourtsController(
+      listPublicCourtCatalog,
+      deactivateCourt,
+      createReactivateCourtUseCase()
+    );
     const adminUser = {
       sub: 'admin-sub',
       groups: ['admin']
@@ -242,7 +257,8 @@ describe('catalog modules behavior', () => {
 
   it('rejects court deactivation when the authenticated user is not an administrator', async () => {
     const repository = {
-      deactivateById: jest.fn()
+      deactivateById: jest.fn(),
+      reactivateById: jest.fn()
     };
     const useCase = new DeactivateCourtUseCase(repository);
 
@@ -256,6 +272,59 @@ describe('catalog modules behavior', () => {
       )
     ).rejects.toThrow(AdminRoleRequiredError);
     expect(repository.deactivateById).not.toHaveBeenCalled();
+  });
+
+  it('allows an authenticated administrator to reactivate a court through the controller', async () => {
+    const listPublicCourtCatalog = {
+      execute: jest.fn()
+    } as unknown as ListPublicCourtCatalogUseCase;
+    const deactivateCourt = createDeactivateCourtUseCase();
+    const reactivateCourt = {
+      execute: jest.fn().mockResolvedValue({
+        id: COURT_ID_A,
+        name: 'Court A',
+        status: 'ACTIVE',
+        updatedAt: '2026-08-04T02:14:00.000Z'
+      })
+    } as unknown as ReactivateCourtUseCase;
+    const controller = new CourtsController(
+      listPublicCourtCatalog,
+      deactivateCourt,
+      reactivateCourt
+    );
+    const adminUser = {
+      sub: 'admin-sub',
+      groups: ['admin']
+    };
+
+    await expect(controller.reactivate(adminUser, COURT_ID_A)).resolves.toEqual({
+      court: {
+        id: COURT_ID_A,
+        name: 'Court A',
+        status: 'ACTIVE',
+        updatedAt: '2026-08-04T02:14:00.000Z'
+      }
+    });
+    expect(reactivateCourt.execute).toHaveBeenCalledWith(adminUser, COURT_ID_A);
+  });
+
+  it('rejects court reactivation when the authenticated user is not an administrator', async () => {
+    const repository = {
+      deactivateById: jest.fn(),
+      reactivateById: jest.fn()
+    };
+    const useCase = new ReactivateCourtUseCase(repository);
+
+    await expect(
+      useCase.execute(
+        {
+          sub: 'player-sub',
+          groups: ['players']
+        },
+        COURT_ID_A
+      )
+    ).rejects.toThrow(AdminRoleRequiredError);
+    expect(repository.reactivateById).not.toHaveBeenCalled();
   });
 
   it('deactivates an active court without deleting it', async () => {
@@ -332,6 +401,68 @@ describe('catalog modules behavior', () => {
     expect(prisma.court.update).not.toHaveBeenCalled();
   });
 
+  it('reactivates an inactive court without recreating it', async () => {
+    const updatedAt = new Date('2026-08-04T02:14:00.000Z');
+    const prisma = {
+      court: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: COURT_ID_A,
+          name: 'Court A',
+          status: 'INACTIVE',
+          updatedAt: new Date('2026-08-04T02:00:00.000Z')
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: COURT_ID_A,
+          name: 'Court A',
+          status: 'ACTIVE',
+          updatedAt
+        })
+      }
+    };
+    const repository = new PrismaCourtAdminRepository(prisma as never);
+
+    await expect(repository.reactivateById(COURT_ID_A)).resolves.toEqual({
+      id: COURT_ID_A,
+      name: 'Court A',
+      status: 'ACTIVE',
+      updatedAt: updatedAt.toISOString()
+    });
+    expect(prisma.court.update).toHaveBeenCalledWith({
+      where: { id: COURT_ID_A },
+      data: { status: 'ACTIVE' },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        updatedAt: true
+      }
+    });
+  });
+
+  it('returns the current active court without rewriting it', async () => {
+    const updatedAt = new Date('2026-08-04T02:14:00.000Z');
+    const prisma = {
+      court: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: COURT_ID_A,
+          name: 'Court A',
+          status: 'ACTIVE',
+          updatedAt
+        }),
+        update: jest.fn()
+      }
+    };
+    const repository = new PrismaCourtAdminRepository(prisma as never);
+
+    await expect(repository.reactivateById(COURT_ID_A)).resolves.toEqual({
+      id: COURT_ID_A,
+      name: 'Court A',
+      status: 'ACTIVE',
+      updatedAt: updatedAt.toISOString()
+    });
+    expect(prisma.court.update).not.toHaveBeenCalled();
+  });
+
   it('raises the expected not found error when the court does not exist', async () => {
     const prisma = {
       court: {
@@ -342,6 +473,19 @@ describe('catalog modules behavior', () => {
     const repository = new PrismaCourtAdminRepository(prisma as never);
 
     await expect(repository.deactivateById(COURT_ID_A)).rejects.toThrow(CourtNotFoundError);
+    expect(prisma.court.update).not.toHaveBeenCalled();
+  });
+
+  it('raises the expected not found error when reactivating a missing court', async () => {
+    const prisma = {
+      court: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn()
+      }
+    };
+    const repository = new PrismaCourtAdminRepository(prisma as never);
+
+    await expect(repository.reactivateById(COURT_ID_A)).rejects.toThrow(CourtNotFoundError);
     expect(prisma.court.update).not.toHaveBeenCalled();
   });
 
@@ -356,7 +500,11 @@ describe('catalog modules behavior', () => {
       })
     };
     const useCase = new ListPublicCourtCatalogUseCase(repository);
-    const controller = new CourtsController(useCase, createDeactivateCourtUseCase());
+    const controller = new CourtsController(
+      useCase,
+      createDeactivateCourtUseCase(),
+      createReactivateCourtUseCase()
+    );
 
     await controller.listCatalog({
       serviceIds: ['service-a', 'service-b'],
@@ -388,7 +536,11 @@ describe('catalog modules behavior', () => {
       })
     };
     const useCase = new ListPublicCourtCatalogUseCase(repository);
-    const controller = new CourtsController(useCase, createDeactivateCourtUseCase());
+    const controller = new CourtsController(
+      useCase,
+      createDeactivateCourtUseCase(),
+      createReactivateCourtUseCase()
+    );
 
     await controller.listCatalog({
       minRating: 4,
@@ -418,7 +570,11 @@ describe('catalog modules behavior', () => {
       })
     };
     const useCase = new ListPublicCourtCatalogUseCase(repository);
-    const controller = new CourtsController(useCase, createDeactivateCourtUseCase());
+    const controller = new CourtsController(
+      useCase,
+      createDeactivateCourtUseCase(),
+      createReactivateCourtUseCase()
+    );
 
     await controller.listCatalog({
       courtIds: [COURT_ID_A, COURT_ID_B],
@@ -448,7 +604,11 @@ describe('catalog modules behavior', () => {
       })
     };
     const useCase = new ListPublicCourtCatalogUseCase(repository);
-    const controller = new CourtsController(useCase, createDeactivateCourtUseCase());
+    const controller = new CourtsController(
+      useCase,
+      createDeactivateCourtUseCase(),
+      createReactivateCourtUseCase()
+    );
 
     const response = await controller.listCatalog({ page: 1, pageSize: 20 });
 
@@ -577,6 +737,57 @@ describe('catalog modules behavior', () => {
     expect(prisma.$queryRaw.mock.calls[0]?.[0]?.strings?.join(' ')).toContain(
       'AVG(review.rating)::float8 AS average'
     );
+  });
+
+  it('lists one entry per service when the catalog holds accent or casing variants', async () => {
+    const fileStorage = createFileReadUrlMock();
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      canton: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      },
+      court: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'court-id',
+            name: 'Court A',
+            services: [
+              { serviceCatalog: { name: 'Sintetico' } },
+              { serviceCatalog: { name: 'Sintético' } },
+              { serviceCatalog: { name: 'Iluminacion' } }
+            ],
+            complex: {
+              id: 'complex-id',
+              name: 'North Sports Center',
+              latitude: 9.935,
+              longitude: -84.091,
+              province: { id: 'province-id', name: 'San José' },
+              canton: { id: 'canton-id', name: 'Escazú' },
+              services: [
+                { serviceCatalog: { name: 'Parqueo' } },
+                { serviceCatalog: { name: ' PARQUEO ' } },
+                { serviceCatalog: { name: 'Iluminación' } }
+              ]
+            },
+            availability: null,
+            reservations: [],
+            imageUpload: null
+          }
+        ])
+      }
+    };
+    const repository = new PrismaCourtCatalogRepository(
+      prisma as never,
+      fileStorage,
+      () => FIXED_MONDAY
+    );
+
+    const result = await repository.listPublicCatalog({ pagination: DEFAULT_PAGINATION });
+
+    // Clients render every variant through one normalized label, so listing more
+    // than one of them per service shows the same service several times.
+    expect(result.items[0]?.services).toEqual(['Sintetico', 'Iluminacion', 'Parqueo']);
   });
 
   it('requires courts to offer every selected service on the court or its complex', async () => {

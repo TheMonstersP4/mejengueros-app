@@ -1,4 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+  FILE_READ_URL_PORT,
+  type IFileReadUrlPort
+} from '@/modules/files/application/ports/file-read-url.port';
 import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../../shared/infrastructure/database/prisma.service';
 import { InvalidReviewEvidenceUploadError } from '../../domain/errors/invalid-review-evidence-upload.error';
@@ -48,6 +52,9 @@ type PublicReviewRow = {
   rating: number;
   comment: string | null;
   createdAt: Date;
+  evidenceImageUpload: {
+    objectKey: string;
+  } | null;
   reservation: {
     user: {
       name: string | null;
@@ -88,7 +95,10 @@ interface IReviewPersistenceClient {
 export class PrismaReviewRepository implements IReviewRepository {
   constructor(
     @Inject(PrismaService)
-    private readonly prisma: IReviewPersistenceClient & IOwnerReviewPersistenceClient
+    private readonly prisma: IReviewPersistenceClient & IOwnerReviewPersistenceClient,
+    @Optional()
+    @Inject(FILE_READ_URL_PORT)
+    private readonly fileReadUrl?: IFileReadUrlPort
   ) {}
 
   async listOwnerCourtReviews(
@@ -224,6 +234,11 @@ export class PrismaReviewRepository implements IReviewRepository {
           rating: true,
           comment: true,
           createdAt: true,
+          evidenceImageUpload: {
+            select: {
+              objectKey: true
+            }
+          },
           reservation: {
             select: {
               user: { select: { name: true } }
@@ -234,16 +249,21 @@ export class PrismaReviewRepository implements IReviewRepository {
       this.loadAggregateRating([query.courtId])
     ]);
 
-    const items: IPublicCourtReviewItem[] = (rows as PublicReviewRow[]).map((row) => ({
-      reviewId: row.id,
-      rating: row.rating,
-      comment: row.comment,
-      createdAt: row.createdAt.toISOString(),
-      reviewer: {
-        displayName: buildReviewerDisplayName(row.reservation.user.name),
-        initials: buildReviewerInitials(row.reservation.user.name)
-      }
-    }));
+    const items: IPublicCourtReviewItem[] = await Promise.all(
+      (rows as PublicReviewRow[]).map(async (row) => ({
+        reviewId: row.id,
+        rating: row.rating,
+        comment: row.comment,
+        createdAt: row.createdAt.toISOString(),
+        evidenceImageUrl: await this.createImageUrl(
+          row.evidenceImageUpload?.objectKey ?? null
+        ),
+        reviewer: {
+          displayName: buildReviewerDisplayName(row.reservation.user.name),
+          initials: buildReviewerInitials(row.reservation.user.name)
+        }
+      }))
+    );
 
     return {
       summary: {
@@ -351,7 +371,13 @@ export class PrismaReviewRepository implements IReviewRepository {
           reservationId: command.reservationId,
           rating: command.rating,
           comment: command.comment,
-          evidenceImageUploadId: command.evidenceImageUploadId
+          evidenceImageUploadId: command.evidenceImageUploadId,
+          questionnaireAnswers: {
+            create: command.questionnaireAnswers.map((answer) => ({
+              questionKey: answer.questionKey,
+              answerKey: answer.answerKey
+            }))
+          }
         }
       });
 
@@ -361,6 +387,7 @@ export class PrismaReviewRepository implements IReviewRepository {
         rating: review.rating,
         comment: review.comment ?? undefined,
         evidenceImageUploadId: review.evidenceImageUploadId ?? undefined,
+        questionnaireAnswers: command.questionnaireAnswers,
         createdAt: review.createdAt.toISOString()
       };
     } catch (error) {
@@ -467,5 +494,13 @@ export class PrismaReviewRepository implements IReviewRepository {
         : [meta.target];
 
     return targets.some((target) => String(target).includes(field));
+  }
+
+  private async createImageUrl(objectKey: string | null): Promise<string | null> {
+    if (objectKey == null || this.fileReadUrl == null) {
+      return null;
+    }
+
+    return this.fileReadUrl.createReadUrl(objectKey);
   }
 }

@@ -13,6 +13,7 @@ import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
 import io.github.themonstersp4.mejengueros.domain.model.Province
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 import kotlin.test.Test
@@ -127,6 +128,18 @@ class ComplexRepositoryTest {
   }
 
   @Test
+  fun reactivateCourtDelegatesDirectlyToRemoteDataSource() = runTest {
+    val remoteDataSource = FakeComplexRemoteDataSource()
+    val repository = ComplexRepository(remoteDataSource)
+
+    val reactivated = repository.reactivateCourt("court-id")
+
+    assertEquals(listOf("reactivateCourt"), remoteDataSource.calls)
+    assertEquals(listOf("court-id"), remoteDataSource.reactivateCourtRequests)
+    assertEquals(reactivatedCourt, reactivated)
+  }
+
+  @Test
   fun getMyComplexHubDelegatesDirectlyToRemoteDataSource() = runTest {
     val remoteDataSource = FakeComplexRemoteDataSource()
     val repository = ComplexRepository(remoteDataSource)
@@ -156,6 +169,7 @@ class ComplexRepositoryTest {
       private val addCourtResult: CreatedCourt = createdCourt,
       private val updateCourtImageFailure: Throwable? = null,
       private val updateCourtImageResult: MyComplexHubCourt = updatedCourt,
+      private val reactivateCourtResult: ReactivatedCourt = reactivatedCourt,
       private val getMyComplexHubFailure: Throwable? = null,
       private val myComplexHubResult: MyComplexHub = myComplexHub,
   ) : IComplexRemoteDataSource {
@@ -165,6 +179,7 @@ class ComplexRepositoryTest {
     val createRequests = mutableListOf<CreateComplexRequest>()
     val addCourtRequests = mutableListOf<Pair<String, CreateCourtRequest>>()
     val updateCourtImageRequests = mutableListOf<Triple<String, String, String>>()
+    val reactivateCourtRequests = mutableListOf<String>()
 
     override suspend fun getProvinces(): List<Province> {
       calls.add("getProvinces")
@@ -206,6 +221,12 @@ class ComplexRepositoryTest {
       updateCourtImageRequests.add(Triple(complexId, courtId, imageUploadId))
       updateCourtImageFailure?.let { throw it }
       return updateCourtImageResult
+    }
+
+    override suspend fun reactivateCourt(courtId: String): ReactivatedCourt {
+      calls.add("reactivateCourt")
+      reactivateCourtRequests.add(courtId)
+      return reactivateCourtResult
     }
 
     override suspend fun getMyComplexHub(): MyComplexHub {
@@ -271,6 +292,13 @@ class ComplexRepositoryTest {
             status = "ACTIVE",
             availabilityStatus = CourtAvailabilitySetupStatus.CONFIGURED,
             imageUrl = "https://signed.example.test/court.png",
+        )
+
+    val reactivatedCourt =
+        ReactivatedCourt(
+            id = "court-id",
+            name = "Court A",
+            status = "ACTIVE",
         )
 
     val myComplexHub =

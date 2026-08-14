@@ -192,6 +192,44 @@ class CourtDetailViewModelTest {
       }
 
   @Test
+  fun retryLoadRefreshesPublishedReviewsWhenTheDetailIsReopened() =
+      runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        try {
+          val reviewsRepository =
+              SequentialCourtReviewsRepository(
+                  reviewSnapshots =
+                      listOf(
+                          listOf(defaultReviews.first()),
+                          defaultReviews,
+                      ),
+              )
+          val viewModel =
+              CourtDetailViewModel(
+                  userId = "user-1",
+                  courtId = "court-1",
+                  repository = FakeCourtDetailRepository(availabilityPreview = defaultAvailability),
+                  reviewsRepository = reviewsRepository,
+                  favoriteRepository = FakeCourtFavoriteRepository(),
+                  coroutineScope = this,
+              )
+
+          advanceUntilIdle()
+          assertEquals(listOf("review-a"), viewModel.uiState.value.reviews.map { it.id })
+
+          viewModel.retryLoad()
+          advanceUntilIdle()
+
+          assertEquals(
+              listOf("review-a", "review-b"),
+              viewModel.uiState.value.reviews.map { it.id },
+          )
+        } finally {
+          Dispatchers.resetMain()
+        }
+      }
+
+  @Test
   fun initWithNextAvailableDayExposesFutureAvailabilityHeadline() =
       runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
@@ -620,6 +658,18 @@ private class FakeCourtReviewsRepository(
     private val reviews: List<CourtReview> = emptyList(),
 ) : ICourtReviewsRepository {
   override suspend fun getCourtReviews(courtId: String): List<CourtReview> = reviews
+}
+
+private class SequentialCourtReviewsRepository(
+    private val reviewSnapshots: List<List<CourtReview>>,
+) : ICourtReviewsRepository {
+  private var invocations = 0
+
+  override suspend fun getCourtReviews(courtId: String): List<CourtReview> {
+    val index = invocations.coerceAtMost(reviewSnapshots.lastIndex)
+    invocations += 1
+    return reviewSnapshots[index]
+  }
 }
 
 private class FakeCourtFavoriteRepository(

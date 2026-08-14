@@ -107,6 +107,36 @@ describe('user profile image association', () => {
     );
   });
 
+  it('returns the requesting identity when the user links several logins', async () => {
+    const users = createUserRepository();
+    users.replaceProfileImage.mockResolvedValue(
+      UserEntity.fromPersistence({
+        id: 'user-id',
+        email: 'player@example.test',
+        profileImageUploadId: 'profile-upload-id',
+        status: 'ACTIVE',
+        currentIdentity: {
+          provider: 'Cognito',
+          providerSubject: 'other-linked-sub'
+        },
+        roles: ['PLAYER']
+      })
+    );
+    const images = createImageRepository();
+    const useCase = new UpdateMyProfileImageUseCase(
+      users,
+      images,
+      new UserProfileService(images, createReadUrl())
+    );
+
+    await expect(
+      useCase.execute(identity, 'profile-upload-id')
+    ).resolves.toMatchObject({
+      cognitoSub: 'cognito-sub',
+      provider: 'Google'
+    });
+  });
+
   it('rejects a missing upload', async () => {
     const users = createUserRepository();
     const images = createImageRepository(null);

@@ -1,11 +1,7 @@
 package io.github.themonstersp4.mejengueros.screens.auth
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,9 +12,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,19 +27,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.themonstersp4.mejengueros.domain.model.AuthProvider
 import io.github.themonstersp4.mejengueros.presentation.auth.AuthUiState
 import io.github.themonstersp4.mejengueros.ui.components.GoogleProviderIcon
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthHeadingText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosAuthTaglineText
+import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBrandMark
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosEmailField
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosErrorText
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
@@ -54,7 +46,6 @@ import io.github.themonstersp4.mejengueros.ui.components.MejenguerosPasswordFiel
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosSupportingText
 import io.github.themonstersp4.mejengueros.ui.components.MicrosoftProviderIcon
 import io.github.themonstersp4.mejengueros.ui.components.clearFocusOnTap
-import kotlin.math.min
 
 private data class LoginEmailAccessUiModel(
     val enabled: Boolean,
@@ -91,6 +82,7 @@ fun LoginScreen(
     onCancelExternalAuth: () -> Unit,
     onForgotPassword: () -> Unit,
     onRegister: () -> Unit,
+    brandMark: @Composable () -> Unit = { MejenguerosBrandMark(modifier = Modifier.width(142.dp)) },
 ) {
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
@@ -118,7 +110,10 @@ fun LoginScreen(
           modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(24.dp),
       ) {
-        LoginPitchHero(modifier = Modifier.padding(top = 8.dp))
+        LoginPitchHero(
+            brandMark = brandMark,
+            modifier = Modifier.padding(top = 8.dp),
+        )
         LoginBrandHeader()
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -291,149 +286,14 @@ private fun LoginProviderSection(
 }
 
 @Composable
-private fun LoginPitchHero(modifier: Modifier = Modifier) {
-  Surface(
-      modifier = modifier.fillMaxWidth(),
-      color = MaterialTheme.colorScheme.surfaceContainerLow,
-      shape = RoundedCornerShape(28.dp),
-      border =
-          BorderStroke(
-              width = 1.dp,
-              color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f),
-          ),
-  ) {
-    BoxWithConstraints(
-        modifier =
-            Modifier.fillMaxWidth().height(184.dp).padding(horizontal = 18.dp, vertical = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-      val fieldHeight = maxHeight - 24.dp
-      GoalPitchField(
-          modifier = Modifier.fillMaxWidth().height(fieldHeight),
-          lineThickness = 2.dp,
-      )
-      GoalPitchBall(modifier = Modifier.size(56.dp))
-    }
-  }
-}
-
-@Composable
-private fun GoalPitchField(
+private fun LoginPitchHero(
+    brandMark: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    lineThickness: Dp,
 ) {
-  val lineColor = MaterialTheme.colorScheme.primary
-  val haloColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-
   Box(
-      modifier =
-          modifier
-              .clip(RoundedCornerShape(24.dp))
-              .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+      modifier = modifier.fillMaxWidth().height(96.dp),
+      contentAlignment = Alignment.Center,
   ) {
-    Box(
-        modifier =
-            Modifier.fillMaxSize()
-                .border(
-                    width = lineThickness,
-                    color = lineColor.copy(alpha = 0.72f),
-                    shape = RoundedCornerShape(24.dp),
-                ),
-    )
-    Box(
-        modifier =
-            Modifier.align(Alignment.Center)
-                .fillMaxWidth()
-                .height(lineThickness)
-                .background(lineColor.copy(alpha = 0.72f)),
-    )
-    Box(
-        modifier =
-            Modifier.align(Alignment.Center)
-                .size(72.dp)
-                .border(
-                    width = lineThickness,
-                    color = lineColor.copy(alpha = 0.82f),
-                    shape = CircleShape,
-                ),
-    )
-    Box(
-        modifier =
-            Modifier.align(Alignment.CenterStart)
-                .padding(start = 12.dp)
-                .fillMaxWidth(0.18f)
-                .height(54.dp)
-                .border(
-                    width = lineThickness,
-                    color = haloColor,
-                    shape = RoundedCornerShape(16.dp),
-                ),
-    )
-    Box(
-        modifier =
-            Modifier.align(Alignment.CenterEnd)
-                .padding(end = 12.dp)
-                .fillMaxWidth(0.18f)
-                .height(54.dp)
-                .border(
-                    width = lineThickness,
-                    color = haloColor,
-                    shape = RoundedCornerShape(16.dp),
-                ),
-    )
-    Box(
-        modifier =
-            Modifier.align(Alignment.CenterStart)
-                .padding(start = 28.dp)
-                .size(8.dp)
-                .background(lineColor, CircleShape),
-    )
-    Box(
-        modifier =
-            Modifier.align(Alignment.CenterEnd)
-                .padding(end = 28.dp)
-                .size(8.dp)
-                .background(lineColor, CircleShape),
-    )
-  }
-}
-
-@Composable
-private fun GoalPitchBall(modifier: Modifier = Modifier) {
-  val fillColor = MaterialTheme.colorScheme.primary
-  val seamColor = MaterialTheme.colorScheme.onPrimary
-
-  Surface(
-      modifier = modifier,
-      color = fillColor,
-      shape = CircleShape,
-      shadowElevation = 0.dp,
-  ) {
-    Box(contentAlignment = Alignment.Center) {
-      androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize().padding(11.dp)) {
-        val center = center
-        val radius = min(size.width, size.height) / 2f
-        val seamStroke = radius * 0.16f
-
-        drawCircle(
-            color = seamColor.copy(alpha = 0.92f),
-            radius = radius * 0.36f,
-            center = center,
-            style = Stroke(width = seamStroke),
-        )
-        drawLine(
-            color = seamColor.copy(alpha = 0.92f),
-            start = Offset(center.x - radius * 0.72f, center.y),
-            end = Offset(center.x + radius * 0.72f, center.y),
-            strokeWidth = seamStroke,
-        )
-        drawLine(
-            color = seamColor.copy(alpha = 0.92f),
-            start = Offset(center.x, center.y - radius * 0.72f),
-            end = Offset(center.x, center.y + radius * 0.72f),
-            strokeWidth = seamStroke,
-        )
-      }
-    }
+    brandMark()
   }
 }

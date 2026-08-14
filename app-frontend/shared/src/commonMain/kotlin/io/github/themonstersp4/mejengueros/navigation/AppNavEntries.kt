@@ -766,6 +766,7 @@ private fun ReservationsEntry(
     OwnerReservationsEntryContent(
         shellActions = shellActions,
         ownerReservationsViewModel = koinViewModel(),
+        reservationsReloadRequestKey = authenticatedNavigationState.reservationsReloadRequestKey,
     )
   } else {
     ReservationsEntryContent(
@@ -781,8 +782,17 @@ private fun ReservationsEntry(
 internal fun OwnerReservationsEntryContent(
     shellActions: AuthenticatedShellActions,
     ownerReservationsViewModel: OwnerReservationsViewModel,
+    reservationsReloadRequestKey: Int = 0,
 ) {
   val ownerReservationsState by ownerReservationsViewModel.uiState.collectAsState()
+
+  // An owner can book one of their own courts from the mejenguero shell. The retained
+  // OwnerReservationsViewModel only loads in its init block, so without this effect the
+  // owner list stays stale until the court filter forces a refetch.
+  ReservationsReloadEffect(
+      reservationsReloadRequestKey = reservationsReloadRequestKey,
+      onReloadRequested = ownerReservationsViewModel::refresh,
+  )
 
   AuthenticatedScaffold(
       selectedRoute = AuthenticatedTopLevelRoute.Reservations,
@@ -913,6 +923,7 @@ internal fun ReservationsEntryContent(
                     LeaveReviewScreenActions(
                         onRatingSelected = reviewViewModel::updateRating,
                         onCommentChanged = reviewViewModel::updateComment,
+                        onQuestionnaireAnswerSelected = reviewViewModel::updateQuestionnaireAnswer,
                         onPickEvidenceImage = reviewEvidenceImagePicker.launch,
                         onClearEvidenceImage = reviewViewModel::clearSelectedEvidenceImage,
                         onSubmit = reviewViewModel::submit,
@@ -962,6 +973,7 @@ private fun ReviewUiState.toLeaveReviewUiState(
       reservationContext = reservation.toReservationContext(),
       selectedRating = selectedRating,
       comment = comment,
+      selectedQuestionnaireAnswers = selectedQuestionnaireAnswers,
       selectedEvidenceImage = selectedEvidenceImage,
       isEvidenceImagePickerAvailable = isEvidenceImagePickerAvailable,
       isSubmitting = isSubmitting,
@@ -1096,6 +1108,7 @@ private fun NotificationsEntryContent(
                     LeaveReviewScreenActions(
                         onRatingSelected = reviewViewModel::updateRating,
                         onCommentChanged = reviewViewModel::updateComment,
+                        onQuestionnaireAnswerSelected = reviewViewModel::updateQuestionnaireAnswer,
                         onPickEvidenceImage = reviewEvidenceImagePicker.launch,
                         onClearEvidenceImage = reviewViewModel::clearSelectedEvidenceImage,
                         onSubmit = reviewViewModel::submit,
@@ -1243,9 +1256,11 @@ private fun ComplexDetailEntry(
       shellActions = shellActions,
       onRetry = myComplexViewModel::refresh,
       onAcknowledgeCourtImageSuccess = myComplexViewModel::acknowledgeCourtImageSuccess,
+      onAcknowledgeCourtStatusSuccess = myComplexViewModel::acknowledgeCourtStatusSuccess,
       onPickCourtImage = { courtId ->
         pickerCoordinator.onPickCourtImage(courtId, courtImagePicker.launch)
       },
+      onReactivateCourt = myComplexViewModel::reactivateCourt,
       onOpenOwnerReceivedReviews = shellActions.openOwnerReceivedReviews,
   )
 }
@@ -1257,7 +1272,9 @@ internal fun ComplexDetailRouteContent(
     shellActions: AuthenticatedShellActions,
     onRetry: () -> Unit,
     onAcknowledgeCourtImageSuccess: () -> Unit = {},
+    onAcknowledgeCourtStatusSuccess: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onReactivateCourt: (String, String) -> Unit = { _, _ -> },
     onOpenOwnerReceivedReviews: () -> Unit = {},
 ) {
   OwnerRouteGuard(canRender = shellActions.isOwner, onUnauthorized = shellActions.selectSearch) {
@@ -1306,13 +1323,16 @@ internal fun ComplexDetailRouteContent(
           isLoading = state.isLoading,
           errorMessage = state.errorMessage,
           courtImageErrorMessage = state.courtImageErrorMessage,
+          courtStatusErrorMessage = state.courtStatusErrorMessage,
           isCourtImagePickerAvailable = state.isCourtImagePickerAvailable,
           isUpdatingCourtImage = state.isUpdatingCourtImage,
+          reactivatingCourtId = state.reactivatingCourtId,
           contentPadding = contentPadding,
           onRetry = onRetry,
           onConfigureAvailability = shellActions.openCourtAvailability,
           onOpenOwnerReservations = shellActions.selectReservations,
           onPickCourtImage = onPickCourtImage,
+          onReactivateCourt = onReactivateCourt,
           onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
       )
 
@@ -1332,6 +1352,17 @@ internal fun ComplexDetailRouteContent(
             modifier = Modifier.testTag("complex_detail_image_success_dialog"),
         )
       }
+
+      state.courtStatusSuccessMessage?.let { message ->
+        MejenguerosConfirmationDialog(
+            title = "Cancha reactivada",
+            message = message,
+            confirmText = "Aceptar",
+            onConfirm = onAcknowledgeCourtStatusSuccess,
+            onDismissRequest = {},
+            modifier = Modifier.testTag("complex_detail_status_success_dialog"),
+        )
+      }
     }
   }
 }
@@ -1342,13 +1373,16 @@ internal fun ComplexDetailEntryContent(
     isLoading: Boolean,
     errorMessage: String?,
     courtImageErrorMessage: String? = null,
+    courtStatusErrorMessage: String? = null,
     isCourtImagePickerAvailable: Boolean = false,
     isUpdatingCourtImage: Boolean = false,
+    reactivatingCourtId: String? = null,
     contentPadding: PaddingValues,
     onRetry: () -> Unit,
     onConfigureAvailability: (OwnerCourtAvailabilityEntrypoint) -> Unit,
     onOpenOwnerReservations: () -> Unit = {},
     onPickCourtImage: (String) -> Unit = {},
+    onReactivateCourt: (String, String) -> Unit = { _, _ -> },
     onOpenOwnerReceivedReviews: () -> Unit = {},
 ) {
   ComplexDetailScreen(
@@ -1356,13 +1390,16 @@ internal fun ComplexDetailEntryContent(
       isLoading = isLoading,
       errorMessage = errorMessage,
       courtImageErrorMessage = courtImageErrorMessage,
+      courtStatusErrorMessage = courtStatusErrorMessage,
       isCourtImagePickerAvailable = isCourtImagePickerAvailable,
       isUpdatingCourtImage = isUpdatingCourtImage,
+      reactivatingCourtId = reactivatingCourtId,
       contentPadding = contentPadding,
       onRetry = onRetry,
       onConfigureAvailability = onConfigureAvailability,
       onOpenOwnerReservations = onOpenOwnerReservations,
       onPickCourtImage = onPickCourtImage,
+      onReactivateCourt = onReactivateCourt,
       onOpenOwnerReceivedReviews = onOpenOwnerReceivedReviews,
   )
 }

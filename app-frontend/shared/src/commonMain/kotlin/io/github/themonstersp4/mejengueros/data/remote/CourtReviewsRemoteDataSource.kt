@@ -25,6 +25,7 @@ class CourtReviewsRemoteDataSource(
                 id = item.reviewId,
                 rating = item.rating,
                 comment = item.comment?.trim()?.takeIf { it.isNotEmpty() },
+                evidenceImageUrl = item.evidenceImageUrl,
                 authorName = item.reviewer.displayName,
                 authorInitials = item.reviewer.initials,
                 dateLabel = monthDayYearLabelOrNull(item.createdAt),

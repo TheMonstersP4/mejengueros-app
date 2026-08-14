@@ -1,4 +1,5 @@
 import type { ReservationStatus } from '@/generated/prisma/enums';
+import type { IReviewQuestionnaireAnswer } from '../review-questionnaire.catalog';
 
 /**
  * Authenticated owner identity used to scope owner-only review reads.
@@ -99,6 +100,7 @@ export interface IPublicCourtReviewItem {
   rating: number;
   comment: string | null;
   createdAt: string;
+  evidenceImageUrl: string | null;
   reviewer: IReviewerDisplay;
 }
 
@@ -143,6 +145,7 @@ export interface ICreateReviewCommand {
   rating: number;
   comment?: string;
   evidenceImageUploadId?: string;
+  questionnaireAnswers: IReviewQuestionnaireAnswer[];
 }
 
 export interface ICreatedReviewSnapshot {
@@ -151,6 +154,7 @@ export interface ICreatedReviewSnapshot {
   rating: number;
   comment?: string;
   evidenceImageUploadId?: string;
+  questionnaireAnswers: IReviewQuestionnaireAnswer[];
   createdAt: string;
 }
 

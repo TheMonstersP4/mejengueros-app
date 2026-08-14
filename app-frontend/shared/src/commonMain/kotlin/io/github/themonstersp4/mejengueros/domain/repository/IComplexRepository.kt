@@ -7,6 +7,7 @@ import io.github.themonstersp4.mejengueros.domain.model.CreatedComplex
 import io.github.themonstersp4.mejengueros.domain.model.CreatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHub
 import io.github.themonstersp4.mejengueros.domain.model.Province
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.model.ServiceCatalogItem
 import io.github.themonstersp4.mejengueros.domain.model.ServiceScope
 
@@ -27,6 +28,9 @@ interface IComplexRepository {
       imageUploadId: String,
   ): io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt =
       error("Court image updates are not implemented.")
+
+  suspend fun reactivateCourt(courtId: String): ReactivatedCourt =
+      error("Court reactivation is not implemented.")
 
   suspend fun getMyComplexHub(): MyComplexHub
 }

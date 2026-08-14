@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.themonstersp4.mejengueros.data.remote.AppApiException
 import io.github.themonstersp4.mejengueros.domain.model.LocalCourtImage
+import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex
 import io.github.themonstersp4.mejengueros.domain.model.MyComplexHubCourt
+import io.github.themonstersp4.mejengueros.domain.model.ReactivatedCourt
 import io.github.themonstersp4.mejengueros.domain.repository.IComplexRepository
 import io.github.themonstersp4.mejengueros.domain.repository.ICourtImageUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.NoOpCourtImageUploadRepository
@@ -92,6 +94,7 @@ class MyComplexViewModel(
                         errorMessage = error.toUserMessage(),
                         isCourtImagePickerAvailable = _uiState.value.isCourtImagePickerAvailable,
                         courtImageErrorMessage = _uiState.value.courtImageErrorMessage,
+                        courtStatusErrorMessage = _uiState.value.courtStatusErrorMessage,
                     )
               }
         }
@@ -103,6 +106,10 @@ class MyComplexViewModel(
 
   fun acknowledgeCourtImageSuccess() {
     _uiState.value = _uiState.value.copy(courtImageSuccessMessage = null)
+  }
+
+  fun acknowledgeCourtStatusSuccess() {
+    _uiState.value = _uiState.value.copy(courtStatusSuccessMessage = null)
   }
 
   fun updateCourtImage(complexId: String, courtId: String, image: LocalCourtImage) {
@@ -159,6 +166,49 @@ class MyComplexViewModel(
           }
     }
   }
+
+  fun reactivateCourt(complexId: String, courtId: String) {
+    if (_uiState.value.reactivatingCourtId != null) return
+
+    coroutineScope.launch {
+      _uiState.value =
+          _uiState.value.copy(
+              reactivatingCourtId = courtId,
+              courtStatusErrorMessage = null,
+              courtStatusSuccessMessage = null,
+          )
+
+      runCatching { repository.reactivateCourt(courtId) }
+          .onSuccess { reactivatedCourt ->
+            _uiState.value =
+                _uiState.value.copy(
+                    complexes =
+                        _uiState.value.complexes.replaceCourtStatus(complexId, reactivatedCourt),
+                    reactivatingCourtId = null,
+                    courtStatusErrorMessage = null,
+                    courtStatusSuccessMessage = "La cancha se reactivó correctamente.",
+                )
+          }
+          .onFailure { error ->
+            if (error is CancellationException) {
+              _uiState.value = _uiState.value.copy(reactivatingCourtId = null)
+              return@onFailure
+            }
+
+            _uiState.value =
+                _uiState.value.copy(
+                    reactivatingCourtId = null,
+                    courtStatusErrorMessage = error.toCourtStatusUserMessage(),
+                    courtStatusSuccessMessage = null,
+                )
+
+            errorReporter.reportRecoverableFailure(
+                name = "my_complex_court_reactivate_failed",
+                attributes = error.toReportAttributes(),
+            )
+          }
+    }
+  }
 }
 
 private fun Throwable.toUserMessage(): String =
@@ -196,6 +246,18 @@ private fun Throwable.toCourtImageUserMessage(): String =
       else -> "No pudimos actualizar la imagen de la cancha. Intentá de nuevo."
     }
 
+private fun Throwable.toCourtStatusUserMessage(): String =
+    when (this) {
+      is AppApiException ->
+          when (statusCode) {
+            401,
+            403 -> "No tenés permisos para reactivar esta cancha."
+            404 -> "No encontramos la cancha seleccionada."
+            else -> "No pudimos reactivar la cancha. Intentá de nuevo."
+          }
+      else -> "No pudimos reactivar la cancha. Intentá de nuevo."
+    }
+
 private fun Throwable.unwrapCourtImageAssociationFailure(): Throwable =
     if (this is CourtImageAssociationUploadFailed) {
       cause ?: this
@@ -203,16 +265,36 @@ private fun Throwable.unwrapCourtImageAssociationFailure(): Throwable =
       this
     }
 
-private fun List<io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex>.replaceCourt(
+private fun List<MyComplexHubComplex>.replaceCourt(
     complexId: String,
     updatedCourt: MyComplexHubCourt,
-): List<io.github.themonstersp4.mejengueros.domain.model.MyComplexHubComplex> = map { complex ->
+): List<MyComplexHubComplex> = map { complex ->
   if (complex.id != complexId) {
     complex
   } else {
     complex.copy(
         courts =
             complex.courts.map { court -> if (court.id == updatedCourt.id) updatedCourt else court }
+    )
+  }
+}
+
+private fun List<MyComplexHubComplex>.replaceCourtStatus(
+    complexId: String,
+    reactivatedCourt: ReactivatedCourt,
+): List<MyComplexHubComplex> = map { complex ->
+  if (complex.id != complexId) {
+    complex
+  } else {
+    complex.copy(
+        courts =
+            complex.courts.map { court ->
+              if (court.id == reactivatedCourt.id) {
+                court.copy(status = reactivatedCourt.status)
+              } else {
+                court
+              }
+            }
     )
   }
 }

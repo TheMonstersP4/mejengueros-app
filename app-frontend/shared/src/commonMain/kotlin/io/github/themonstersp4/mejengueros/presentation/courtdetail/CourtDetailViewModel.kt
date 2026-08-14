@@ -35,6 +35,10 @@ class CourtDetailViewModel(
 
   fun retryLoad() {
     loadSlots()
+    loadReviews()
+    if (_uiState.value.favoriteStatus != CourtFavoriteStatus.Updating) {
+      loadFavorite()
+    }
   }
 
   fun retryLoadReviews() {

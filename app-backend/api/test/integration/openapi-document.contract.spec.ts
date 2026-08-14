@@ -304,10 +304,15 @@ describe('OpenAPI document contract', () => {
       createReviewRequest,
       'evidenceImageUploadId'
     );
+    const questionnaireAnswers = schemaProperty(
+      createReviewRequest,
+      'questionnaireAnswers'
+    );
     const latestReviewableReservationResponse = componentSchema(
       'LatestReviewableReservationResponse'
     );
     const createReviewResponse = componentSchema('CreateReviewResponse');
+    const required = (createReviewRequest.required as string[] | undefined) ?? [];
 
     expect(rating).toEqual(
       expect.objectContaining({ minimum: 1, maximum: 5, type: 'number' })
@@ -315,11 +320,25 @@ describe('OpenAPI document contract', () => {
     expect(evidenceImageUploadId).toEqual(
       expect.objectContaining({ format: 'uuid', type: 'string' })
     );
+    expect(questionnaireAnswers).toEqual(
+      expect.objectContaining({
+        minItems: 3,
+        type: 'array',
+        items: { $ref: '#/components/schemas/ReviewQuestionnaireAnswerRequest' }
+      })
+    );
+    expect(required).toContain('questionnaireAnswers');
     expect(schemaProperty(latestReviewableReservationResponse, 'reservationId')).toEqual(
       expect.objectContaining({ type: 'string' })
     );
     expect(schemaProperty(createReviewResponse, 'evidenceImageUploadId')).toEqual(
       expect.objectContaining({ format: 'uuid', type: 'string' })
+    );
+    expect(schemaProperty(createReviewResponse, 'questionnaireAnswers')).toEqual(
+      expect.objectContaining({
+        type: 'array',
+        items: { $ref: '#/components/schemas/CreatedReviewQuestionnaireAnswerResponse' }
+      })
     );
   });
 

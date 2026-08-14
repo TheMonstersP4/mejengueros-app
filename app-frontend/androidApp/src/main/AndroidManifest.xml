@@ -11,11 +11,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="true"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/Theme.Mejengueros">
         <activity
             android:exported="true"
             android:launchMode="singleTask"
-            android:name=".MainActivity">
+            android:name=".MainActivity"
+            android:theme="@style/Theme.Mejengueros.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

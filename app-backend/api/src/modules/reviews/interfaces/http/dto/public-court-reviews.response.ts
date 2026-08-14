@@ -27,6 +27,12 @@ export class PublicCourtReviewItemResponse {
   @ApiProperty({ example: '2026-07-01T18:00:00.000Z' })
   createdAt!: string;
 
+  @ApiProperty({
+    example: 'https://signed-cdn.example.com/reviews/review-evidence.png',
+    nullable: true
+  })
+  evidenceImageUrl!: string | null;
+
   @ApiProperty({ type: PublicCourtReviewerResponse })
   reviewer!: PublicCourtReviewerResponse;
 }

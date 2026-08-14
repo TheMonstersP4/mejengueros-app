@@ -4,5 +4,9 @@ export interface ICreateReviewOutput {
   rating: number;
   comment?: string;
   evidenceImageUploadId?: string;
+  questionnaireAnswers: {
+    questionKey: string;
+    answerKey: string;
+  }[];
   createdAt: string;
 }

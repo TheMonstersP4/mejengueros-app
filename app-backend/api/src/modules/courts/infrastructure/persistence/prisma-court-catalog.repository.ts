@@ -4,6 +4,7 @@ import {
   type IFileReadUrlPort
 } from '@/modules/files/application/ports/file-read-url.port';
 import { buildReservableSlots } from '@/modules/reservations/domain/services/reservation-slot-policy';
+import { serviceCatalogNameKey } from '@/modules/service-catalog/domain/services/service-catalog-name-key';
 import {
   costaRicaBusinessDayBounds,
   formatCostaRicaBusinessDate
@@ -418,7 +419,21 @@ function formatTimeOnly(value: Date): string {
 }
 
 function uniqueSortedServices(services: string[]): string[] {
-  return Array.from(new Set(services)).sort((left, right) => {
+  // A court and its complex can reference historical name variants of the same
+  // catalog entry, and the clients render every variant through one normalized
+  // label. Deduplicating by that same key is what keeps the service list free of
+  // entries that read identically to the user.
+  const serviceByNameKey = new Map<string, string>();
+
+  for (const service of services) {
+    const nameKey = serviceCatalogNameKey(service);
+
+    if (!serviceByNameKey.has(nameKey)) {
+      serviceByNameKey.set(nameKey, service);
+    }
+  }
+
+  return Array.from(serviceByNameKey.values()).sort((left, right) => {
     const leftPriority = surfacePriority(left);
     const rightPriority = surfacePriority(right);
 

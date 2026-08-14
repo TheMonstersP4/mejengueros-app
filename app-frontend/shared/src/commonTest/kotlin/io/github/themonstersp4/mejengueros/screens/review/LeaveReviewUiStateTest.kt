@@ -57,9 +57,17 @@ class LeaveReviewUiStateTest {
     assertTrue(sampleState(selectedRating = 4).canSubmit)
   }
 
+  @Test
+  fun higherRatingsRequireQuestionnaireAnswers() {
+    assertFalse(
+        sampleState(selectedRating = 4, selectedQuestionnaireAnswers = emptyMap()).canSubmit
+    )
+  }
+
   private fun sampleState(
       selectedRating: Int = 0,
       comment: String = "",
+      selectedQuestionnaireAnswers: Map<String, String> = sampleQuestionnaireAnswers(),
       selectedEvidenceImage: LocalReviewEvidenceImage? = null,
       mode: LeaveReviewUiMode = LeaveReviewUiMode.Form,
   ) =
@@ -71,8 +79,16 @@ class LeaveReviewUiStateTest {
               ),
           selectedRating = selectedRating,
           comment = comment,
+          selectedQuestionnaireAnswers = selectedQuestionnaireAnswers,
           selectedEvidenceImage = selectedEvidenceImage,
           mode = mode,
+      )
+
+  private fun sampleQuestionnaireAnswers() =
+      mapOf(
+          "FIELD_CONDITION" to "GOOD",
+          "LIGHTING" to "REGULAR",
+          "WOULD_RETURN" to "YES",
       )
 
   private fun sampleEvidenceImage() =

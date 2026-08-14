@@ -8,6 +8,8 @@ import io.github.themonstersp4.mejengueros.domain.model.CreateReviewRequest
 import io.github.themonstersp4.mejengueros.domain.model.CreatedReview
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
 import io.github.themonstersp4.mejengueros.domain.model.ReviewableReservation
+import io.github.themonstersp4.mejengueros.domain.model.hasRequiredReviewQuestionnaireAnswers
+import io.github.themonstersp4.mejengueros.domain.model.toReviewQuestionnaireAnswers
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewEvidenceUploadRepository
 import io.github.themonstersp4.mejengueros.domain.repository.IReviewRepository
 import io.github.themonstersp4.mejengueros.domain.repository.NoOpReviewEvidenceUploadRepository
@@ -27,6 +29,7 @@ data class ReviewUiState(
     val reviewableReservation: ReviewableReservation? = null,
     val selectedRating: Int = 0,
     val comment: String = "",
+    val selectedQuestionnaireAnswers: Map<String, String> = emptyMap(),
     val selectedEvidenceImage: LocalReviewEvidenceImage? = null,
     val confirmedEvidenceImageUpload: ConfirmedReviewEvidenceImageUpload? = null,
     val isEvidenceImagePickerAvailable: Boolean = false,
@@ -38,6 +41,7 @@ data class ReviewUiState(
     get() {
       if (reviewableReservation == null || isSubmitting) return false
       if (selectedRating !in 1..5) return false
+      if (!selectedQuestionnaireAnswers.hasRequiredReviewQuestionnaireAnswers()) return false
       if (selectedRating == 1) return comment.isNotBlank() && selectedEvidenceImage != null
       return true
     }
@@ -115,6 +119,7 @@ class ReviewViewModel(
             reviewableReservation = reservation,
             selectedRating = 0,
             comment = "",
+            selectedQuestionnaireAnswers = emptyMap(),
             selectedEvidenceImage = null,
             confirmedEvidenceImageUpload = null,
             isSubmitting = false,
@@ -135,6 +140,16 @@ class ReviewViewModel(
   fun updateComment(comment: String) {
     _uiState.value =
         _uiState.value.copy(comment = comment, submitErrorMessage = null, submittedReview = null)
+  }
+
+  fun updateQuestionnaireAnswer(questionKey: String, answerKey: String) {
+    _uiState.value =
+        _uiState.value.copy(
+            selectedQuestionnaireAnswers =
+                _uiState.value.selectedQuestionnaireAnswers + (questionKey to answerKey),
+            submitErrorMessage = null,
+            submittedReview = null,
+        )
   }
 
   fun updateSelectedEvidenceImage(image: LocalReviewEvidenceImage?) {
@@ -166,6 +181,7 @@ class ReviewViewModel(
         currentState.copy(
             selectedRating = 0,
             comment = "",
+            selectedQuestionnaireAnswers = emptyMap(),
             selectedEvidenceImage = null,
             confirmedEvidenceImageUpload = null,
             isSubmitting = false,
@@ -208,6 +224,9 @@ class ReviewViewModel(
                         rating = currentState.selectedRating,
                         comment = currentState.comment.trim().ifBlank { null },
                         evidenceImageUploadId = confirmedEvidenceImageUpload?.id,
+                        questionnaireAnswers =
+                            currentState.selectedQuestionnaireAnswers
+                                .toReviewQuestionnaireAnswers(),
                     )
                 )
               }

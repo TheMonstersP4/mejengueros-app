@@ -76,6 +76,33 @@ class AuthenticatedUserRemoteDataSourceTest {
   }
 
   @Test
+  fun syncCurrentUserKeepsApplicationIdAndSessionSubjectApart() = runTest {
+    val dataSource =
+        AuthenticatedUserRemoteDataSource(
+            httpClient =
+                HttpClient(MockEngine) {
+                  install(ContentNegotiation) { json(json) }
+                  engine {
+                    addHandler {
+                      respond(
+                          content =
+                              """{"success":true,"data":{"id":"database-user-id","cognitoSub":"cognito-session-sub","roles":["PLAYER"]}}""",
+                          status = HttpStatusCode.OK,
+                          headers = headersOf("Content-Type", "application/json"),
+                      )
+                    }
+                  }
+                },
+            json = json,
+        )
+
+    val profile = dataSource.syncCurrentUser()
+
+    assertEquals("database-user-id", profile.id)
+    assertEquals("cognito-session-sub", profile.cognitoSub)
+  }
+
+  @Test
   fun syncCurrentUserKeepsNullableProfileIdentityFields() = runTest {
     val dataSource =
         AuthenticatedUserRemoteDataSource(

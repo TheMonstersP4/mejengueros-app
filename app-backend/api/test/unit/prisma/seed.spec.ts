@@ -198,7 +198,9 @@ describe('prisma seed safeguards', () => {
         update: jest.fn()
       },
       serviceCatalog: {
-        upsert: jest.fn().mockImplementation(async ({ where, create }) => ({ id: `service-${where.name}`, ...create }))
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockImplementation(async ({ data }) => ({ id: `service-${data.name}`, ...data })),
+        update: jest.fn()
       },
       user: {
         create: jest
@@ -234,23 +236,52 @@ describe('prisma seed safeguards', () => {
   });
 
   it('reconciles shared service catalog scope and active state on every run', async () => {
-    const upsert = jest.fn().mockResolvedValue({ id: 'service-id' });
+    const findMany = jest.fn().mockResolvedValue([]);
+    const create = jest.fn().mockResolvedValue({ id: 'service-id' });
+    const update = jest.fn().mockResolvedValue({ id: 'service-id' });
     const prisma = {
-      serviceCatalog: { upsert }
+      serviceCatalog: { findMany, create, update }
     } as unknown as PrismaClient;
 
     await seedSharedCatalogs(prisma);
 
-    expect(upsert).toHaveBeenNthCalledWith(1, {
-      where: { name: 'Parqueo' },
-      create: { name: 'Parqueo', scope: 'COMPLEX', isActive: true },
-      update: { scope: 'COMPLEX', isActive: true }
+    expect(create).toHaveBeenNthCalledWith(1, {
+      data: { name: 'Parqueo', scope: 'COMPLEX', isActive: true }
     });
-    expect(upsert).toHaveBeenNthCalledWith(2, {
-      where: { name: 'Iluminacion' },
-      create: { name: 'Iluminacion', scope: 'COURT', isActive: true },
-      update: { scope: 'COURT', isActive: true }
+    expect(create).toHaveBeenNthCalledWith(2, {
+      data: { name: 'Iluminacion', scope: 'COURT', isActive: true }
     });
-    expect(upsert).toHaveBeenCalledTimes(5);
+    expect(create).toHaveBeenCalledTimes(5);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('renames stored accent and casing variants instead of adding a second catalog row', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 'service-iluminacion', name: 'Iluminación', scope: 'COURT', isActive: false },
+      { id: 'service-sintetico', name: ' SINTÉTICO ', scope: 'COURT', isActive: true }
+    ]);
+    const create = jest.fn().mockResolvedValue({ id: 'service-id' });
+    const update = jest.fn().mockResolvedValue({ id: 'service-id' });
+    const prisma = {
+      serviceCatalog: { findMany, create, update }
+    } as unknown as PrismaClient;
+
+    await seedSharedCatalogs(prisma);
+
+    // The catalog is unique by normalized name, so inserting the seed spelling
+    // next to a stored variant would duplicate the service instead of fixing it.
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'service-iluminacion' },
+      data: { name: 'Iluminacion', scope: 'COURT', isActive: true }
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'service-sintetico' },
+      data: { name: 'Sintetico', scope: 'COURT', isActive: true }
+    });
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ name: 'Iluminacion' }) })
+    );
   });
 });

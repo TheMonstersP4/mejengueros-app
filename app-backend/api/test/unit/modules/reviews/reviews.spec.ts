@@ -632,6 +632,11 @@ describe('reviews module — create review and latest reviewable reservation', (
     endsAt: '2026-07-02T21:00:00.000Z',
     imageObjectKey: 'uploads/court-image/player-sub/2026/07/court-a.png'
   };
+  const questionnaireAnswers = [
+    { questionKey: 'FIELD_CONDITION', answerKey: 'GOOD' },
+    { questionKey: 'LIGHTING', answerKey: 'REGULAR' },
+    { questionKey: 'WOULD_RETURN', answerKey: 'YES' }
+  ];
 
   function createSyncAuthenticatedUserUseCase(): SyncAuthenticatedUserUseCase {
     return {
@@ -656,6 +661,7 @@ describe('reviews module — create review and latest reviewable reservation', (
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
         evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers,
         createdAt: '2026-07-03T02:00:00.000Z'
       })
     } as unknown as jest.Mocked<IReviewRepository>;
@@ -697,7 +703,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).resolves.toMatchObject({
       id: 'review-id',
@@ -705,6 +712,48 @@ describe('reviews module — create review and latest reviewable reservation', (
       rating: 1,
       evidenceImageUploadId: 'evidence-image-id'
     });
+  });
+
+  it('rejects reviews when the required questionnaire is incomplete', async () => {
+    const useCase = new CreateReviewUseCase(
+      createReviewRepository(),
+      createImageUploadRepository(),
+      createSyncAuthenticatedUserUseCase()
+    );
+
+    await expect(
+      useCase.execute(player, {
+        reservationId: 'reservation-id',
+        rating: 5,
+        questionnaireAnswers: [
+          { questionKey: 'FIELD_CONDITION', answerKey: 'GOOD' },
+          { questionKey: 'LIGHTING', answerKey: 'GOOD' }
+        ]
+      })
+    ).rejects.toThrow('questionnaire');
+  });
+
+  it('normalizes questionnaire answers before creating the review', async () => {
+    const reviewRepository = createReviewRepository();
+    const useCase = new CreateReviewUseCase(
+      reviewRepository,
+      createImageUploadRepository(),
+      createSyncAuthenticatedUserUseCase()
+    );
+
+    await useCase.execute(player, {
+      reservationId: 'reservation-id',
+      rating: 5,
+      questionnaireAnswers: [
+        { questionKey: ' field_condition ', answerKey: ' good ' },
+        { questionKey: ' lighting ', answerKey: ' regular ' },
+        { questionKey: ' would_return ', answerKey: ' yes ' }
+      ]
+    });
+
+    expect(reviewRepository.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ questionnaireAnswers })
+    );
   });
 
   it('rejects a 1-star review without comment', async () => {
@@ -762,7 +811,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).rejects.toThrow('purpose');
   });
@@ -789,7 +839,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).rejects.toThrow('authenticated');
   });
@@ -810,7 +861,8 @@ describe('reviews module — create review and latest reviewable reservation', (
         reservationId: 'reservation-id',
         rating: 1,
         comment: 'La iluminación falló toda la hora.',
-        evidenceImageUploadId: 'evidence-image-id'
+        evidenceImageUploadId: 'evidence-image-id',
+        questionnaireAnswers
       })
     ).rejects.toThrow('already assigned');
   });
@@ -946,6 +998,7 @@ describe('public court reviews', () => {
         rating: 5,
         comment: 'Great court and lighting.',
         createdAt: '2026-07-02T18:00:00.000Z',
+        evidenceImageUrl: 'https://cdn.example.test/reviews/review-a.png',
         reviewer: { displayName: 'Diego R.', initials: 'DR' }
       }
     ],
@@ -1036,6 +1089,9 @@ describe('public court reviews', () => {
         rating: 5,
         comment: 'Great court and lighting.',
         createdAt: new Date('2026-07-02T18:00:00.000Z'),
+        evidenceImageUpload: {
+          objectKey: 'dev/uploads/confirmed/review-evidence-image/user/review-a.png'
+        },
         reservation: { user: { name: 'Diego Rivera' } }
       },
       {
@@ -1043,9 +1099,15 @@ describe('public court reviews', () => {
         rating: 4,
         comment: null,
         createdAt: new Date('2026-07-01T18:00:00.000Z'),
+        evidenceImageUpload: null,
         reservation: { user: { name: null } }
       }
     ];
+    const fileReadUrl = {
+      createReadUrl: jest
+        .fn()
+        .mockResolvedValue('https://cdn.example.test/reviews/review-a.png')
+    };
     const prisma = {
       court: { findFirst: jest.fn() },
       review: {
@@ -1054,7 +1116,7 @@ describe('public court reviews', () => {
       },
       $queryRaw: jest.fn().mockResolvedValue([{ average: 4.5 }])
     };
-    const repository = new PrismaReviewRepository(prisma as never);
+    const repository = new PrismaReviewRepository(prisma as never, fileReadUrl);
 
     await expect(
       repository.listPublicCourtReviews({
@@ -1069,6 +1131,7 @@ describe('public court reviews', () => {
           rating: 5,
           comment: 'Great court and lighting.',
           createdAt: '2026-07-02T18:00:00.000Z',
+          evidenceImageUrl: 'https://cdn.example.test/reviews/review-a.png',
           reviewer: { displayName: 'Diego R.', initials: 'DR' }
         },
         {
@@ -1076,6 +1139,7 @@ describe('public court reviews', () => {
           rating: 4,
           comment: null,
           createdAt: '2026-07-01T18:00:00.000Z',
+          evidenceImageUrl: null,
           reviewer: { displayName: 'Player', initials: 'PP' }
         }
       ],
@@ -1098,6 +1162,7 @@ describe('public court reviews', () => {
       | { values?: ReadonlyArray<unknown> }
       | undefined;
     expect(aggregateCall?.values).toEqual([courtId]);
+    expect(fileReadUrl.createReadUrl).toHaveBeenCalledTimes(1);
   });
 
   it('returns an empty summary and list when the court has no reviews', async () => {

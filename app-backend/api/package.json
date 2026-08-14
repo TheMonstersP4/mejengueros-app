@@ -19,6 +19,7 @@
     "lambda:package:reservation-completion": "node ./scripts/package-reservation-completion-lambda.mjs",
     "lambda:package:websocket": "node ./scripts/package-websocket-lambda.mjs",
     "dev:notifications:review-prompts": "ts-node -r tsconfig-paths/register ./scripts/create-dev-review-prompt-notifications.ts",
+    "dev:users:purge": "ts-node -r tsconfig-paths/register ./scripts/purge-user.ts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "pretest": "npm run guard:focused-tests && npm run prisma:generate",

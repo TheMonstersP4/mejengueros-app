@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.themonstersp4.mejengueros.domain.model.LocalReviewEvidenceImage
+import io.github.themonstersp4.mejengueros.domain.model.hasRequiredReviewQuestionnaireAnswers
+import io.github.themonstersp4.mejengueros.domain.model.reviewQuestionnaireQuestions
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosBottomActionBar
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthOutlinedButton
 import io.github.themonstersp4.mejengueros.ui.components.MejenguerosFullWidthPrimaryButton
@@ -52,6 +56,7 @@ data class LeaveReviewUiState(
     val reservationContext: LeaveReviewReservationContext,
     val selectedRating: Int = 0,
     val comment: String = "",
+    val selectedQuestionnaireAnswers: Map<String, String> = emptyMap(),
     val selectedEvidenceImage: LocalReviewEvidenceImage? = null,
     val isEvidenceImagePickerAvailable: Boolean = false,
     val isSubmitting: Boolean = false,
@@ -65,6 +70,7 @@ data class LeaveReviewUiState(
     get() =
         selectedRating in 1..MaxReviewRating &&
             mode == LeaveReviewUiMode.Form &&
+            selectedQuestionnaireAnswers.hasRequiredReviewQuestionnaireAnswers() &&
             (!requiresComment || hasValidComment) &&
             (!requiresEvidenceImage || selectedEvidenceImage != null)
 }
@@ -81,6 +87,7 @@ sealed interface LeaveReviewUiMode {
 data class LeaveReviewScreenActions(
     val onRatingSelected: (Int) -> Unit,
     val onCommentChanged: (String) -> Unit,
+    val onQuestionnaireAnswerSelected: (String, String) -> Unit,
     val onPickEvidenceImage: () -> Unit,
     val onClearEvidenceImage: () -> Unit,
     val onSubmit: () -> Unit,
@@ -186,6 +193,12 @@ private fun LeaveReviewFormContent(
             placeholderLabel = "Contá tu experiencia: la cancha, la superficie, el ambiente...",
         )
 
+        ReviewQuestionnaireSection(
+            selectedAnswers = state.selectedQuestionnaireAnswers,
+            onAnswerSelected = actions.onQuestionnaireAnswerSelected,
+            enabled = !state.isSubmitting,
+        )
+
         ReviewEvidenceSection(
             isPickerAvailable = state.isEvidenceImagePickerAvailable,
             selectedEvidenceImage = state.selectedEvidenceImage,
@@ -223,6 +236,53 @@ private fun LeaveReviewFormContent(
                 "Estamos enviando tu reseña."
               },
       )
+    }
+  }
+}
+
+@Composable
+private fun ReviewQuestionnaireSection(
+    selectedAnswers: Map<String, String>,
+    onAnswerSelected: (String, String) -> Unit,
+    enabled: Boolean,
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      Text(
+          text = "CUESTIONARIO BREVE",
+          style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Text(
+          text = "Respondé estas preguntas para completar la reseña.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onBackground,
+      )
+    }
+
+    reviewQuestionnaireQuestions.forEach { question ->
+      Column(
+          modifier = Modifier.fillMaxWidth().testTag("review_question_${question.questionKey}"),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        Text(
+            text = question.label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          question.options.forEach { option ->
+            FilterChip(
+                selected = selectedAnswers[question.questionKey] == option.answerKey,
+                onClick = { onAnswerSelected(question.questionKey, option.answerKey) },
+                enabled = enabled,
+                label = { Text(option.label) },
+                modifier =
+                    Modifier.testTag("review_answer_${question.questionKey}_${option.answerKey}"),
+            )
+          }
+        }
+      }
     }
   }
 }

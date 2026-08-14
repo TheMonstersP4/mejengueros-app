@@ -8,6 +8,7 @@ data class CourtReview(
     val id: String,
     val rating: Int,
     val comment: String?,
+    val evidenceImageUrl: String? = null,
     val authorName: String,
     val authorInitials: String,
     val dateLabel: String?,

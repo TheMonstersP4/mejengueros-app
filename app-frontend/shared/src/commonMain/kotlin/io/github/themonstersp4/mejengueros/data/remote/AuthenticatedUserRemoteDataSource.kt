@@ -26,6 +26,7 @@ class AuthenticatedUserRemoteDataSource(
           id = data.id,
           roles =
               data.roles.mapNotNull { rawRole -> UserRoleKind.entries.find { it.name == rawRole } },
+          cognitoSub = data.cognitoSub,
           email = data.email,
           name = data.name,
           pictureUrl = data.pictureUrl,
