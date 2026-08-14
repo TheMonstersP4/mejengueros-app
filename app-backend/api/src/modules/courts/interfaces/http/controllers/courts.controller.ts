@@ -8,6 +8,7 @@ import {
 import { withApiMeta } from '@/shared/interfaces/http/responses/api-response';
 import type { IAuthenticatedUserOutput } from '@/modules/auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '@/shared/interfaces/http/decorators/current-user.decorator';
 import { DeactivateCourtUseCase } from '../../../application/use-cases/deactivate-court.use-case';
 import { ListPublicCourtCatalogUseCase } from '../../../application/use-cases/list-public-court-catalog.use-case';
@@ -69,7 +70,7 @@ export class CourtsController {
   }
 
   @Patch(':courtId/deactivate')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Deactivate one court.',
@@ -92,7 +93,7 @@ export class CourtsController {
   }
 
   @Patch(':courtId/reactivate')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Reactivate one court.',

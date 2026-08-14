@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
 import { ListActiveServicesUseCase } from './application/use-cases/list-active-services.use-case';
 import { SERVICE_CATALOG_REPOSITORY } from './domain/repositories/service-catalog.repository';
 import { PrismaServiceCatalogRepository } from './infrastructure/persistence/prisma-service-catalog.repository';
@@ -9,7 +10,7 @@ import { ServiceCatalogController } from './interfaces/http/controllers/service-
  * Feature module for active service catalogs used by the complex wizard.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, UsersModule],
   controllers: [ServiceCatalogController],
   providers: [
     ListActiveServicesUseCase,

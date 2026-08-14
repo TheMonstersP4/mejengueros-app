@@ -111,7 +111,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new SyncAuthenticatedUserUseCase(
       repository,
@@ -743,7 +744,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn().mockResolvedValue([entity])
+      list: jest.fn().mockResolvedValue([entity]),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -765,7 +767,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn().mockResolvedValue([entity])
+      list: jest.fn().mockResolvedValue([entity]),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -788,7 +791,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn().mockResolvedValue([])
+      list: jest.fn().mockResolvedValue([]),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -809,7 +813,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn().mockResolvedValue(player),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -825,7 +830,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn().mockResolvedValue(null),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new ListUsersUseCase(repository, createProfileService());
 
@@ -853,7 +859,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn().mockResolvedValue(admin),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn().mockResolvedValue(updatedUser),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new UpdateUserAccountUseCase(
       repository,
@@ -887,7 +894,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn().mockResolvedValue(updatedUser),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new UpdateUserAccountUseCase(
       repository,
@@ -917,7 +925,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new UpdateUserAccountUseCase(
       repository,
@@ -945,7 +954,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn().mockResolvedValue(player),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new UpdateUserAccountUseCase(
       repository,
@@ -967,7 +977,8 @@ describe('users module behavior', () => {
       findByCognitoSub: jest.fn(),
       replaceProfileImage: jest.fn(),
       updateAccount: jest.fn().mockResolvedValue(null),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     } satisfies IUserRepository;
     const useCase = new UpdateUserAccountUseCase(
       repository,
@@ -1111,7 +1122,8 @@ describe('users module behavior', () => {
       listUsers,
       syncAuthenticatedUser,
       { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
-      { execute: jest.fn() } as unknown as UpdateUserAccountUseCase
+      { execute: jest.fn() } as unknown as UpdateUserAccountUseCase,
+      { execute: jest.fn() } as never
     );
     const currentUser = {
       sub: 'cognito-sub',
@@ -1133,7 +1145,8 @@ describe('users module behavior', () => {
       listUsers,
       syncAuthenticatedUser,
       { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
-      { execute: jest.fn() } as unknown as UpdateUserAccountUseCase
+      { execute: jest.fn() } as unknown as UpdateUserAccountUseCase,
+      { execute: jest.fn() } as never
     );
 
     const currentUser = {
@@ -1163,7 +1176,8 @@ describe('users module behavior', () => {
       listUsers,
       syncAuthenticatedUser,
       { execute: jest.fn() } as unknown as UpdateMyProfileImageUseCase,
-      updateUserAccount
+      updateUserAccount,
+      { execute: jest.fn() } as never
     );
     const currentUser = {
       sub: 'admin-sub',

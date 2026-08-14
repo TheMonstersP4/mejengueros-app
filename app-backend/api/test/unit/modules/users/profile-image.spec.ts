@@ -73,7 +73,8 @@ describe('user profile image association', () => {
         .fn()
         .mockResolvedValue(createUser('profile-upload-id')),
       updateAccount: jest.fn(),
-      list: jest.fn()
+      list: jest.fn(),
+      deactivateById: jest.fn()
     };
   }
 

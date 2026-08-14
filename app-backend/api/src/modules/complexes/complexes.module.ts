@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { FilesModule } from '../files/files.module';
+import { UsersModule } from '../users/users.module';
 import { CreateCourtForOwnedComplexUseCase } from './application/use-cases/create-court-for-owned-complex.use-case';
 import { CreateComplexWithFirstCourtUseCase } from './application/use-cases/create-complex-with-first-court.use-case';
 import { GetMyComplexHubUseCase } from './application/use-cases/get-my-complex-hub.use-case';
@@ -13,7 +14,7 @@ import { ComplexesController } from './interfaces/http/controllers/complexes.con
  * Feature module for sports complex management.
  */
 @Module({
-  imports: [AuthModule, FilesModule],
+  imports: [AuthModule, FilesModule, UsersModule],
   controllers: [ComplexesController],
   providers: [
     CreateComplexWithFirstCourtUseCase,

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { IAuthenticatedUserOutput } from '../../../auth/application/dto/authenticated-user.output';
+import { UserAccountInactiveError } from '../../domain/errors/user-account-inactive.error';
 import type { IUserRepository } from '../../domain/repositories/user.repository';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository';
 import type { IUserProfileOutput } from '../dto/user-profile.output';
@@ -36,6 +37,11 @@ export class SyncAuthenticatedUserUseCase {
       pictureUrl: identity.pictureUrl,
       provider: identity.provider
     });
+    const profile = user.toProfile();
+
+    if (profile.status === 'INACTIVE') {
+      throw new UserAccountInactiveError(identity.sub, profile.id);
+    }
 
     return this.userProfileService.render(user);
   }

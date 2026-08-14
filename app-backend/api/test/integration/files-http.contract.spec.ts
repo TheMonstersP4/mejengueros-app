@@ -10,6 +10,9 @@ import type { IImageUploadRepository } from '@/modules/files/domain/repositories
 import { IMAGE_UPLOAD_REPOSITORY } from '@/modules/files/domain/repositories/image-upload.repository';
 import type { IFileStoragePort } from '@/modules/files/application/ports/file-storage.port';
 import { FILE_STORAGE_PORT } from '@/modules/files/application/ports/file-storage.port';
+import { UserEntity } from '@/modules/users/domain/entities/user.entity';
+import type { IUserRepository } from '@/modules/users/domain/repositories/user.repository';
+import { USER_REPOSITORY } from '@/modules/users/domain/repositories/user.repository';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
 
@@ -30,6 +33,7 @@ describe('files HTTP contract', () => {
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
   let fileStorage: jest.Mocked<IFileStoragePort>;
   let imageUploadRepository: jest.Mocked<IImageUploadRepository>;
+  let users: jest.Mocked<IUserRepository>;
 
   beforeAll(async () => {
     process.env.DATABASE_URL = 'file:memory:';
@@ -79,6 +83,7 @@ describe('files HTTP contract', () => {
       saveConfirmedUpload: jest.fn().mockResolvedValue(createReviewEvidenceUpload()),
       listRecent: jest.fn().mockResolvedValue([])
     };
+    users = createUserRepository();
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
@@ -86,6 +91,8 @@ describe('files HTTP contract', () => {
         onModuleInit: jest.fn(),
         onModuleDestroy: jest.fn()
       })
+      .overrideProvider(USER_REPOSITORY)
+      .useValue(users)
       .overrideProvider(TOKEN_VERIFIER_PORT)
       .useValue(tokenVerifier)
       .overrideProvider(FILE_STORAGE_PORT)
@@ -132,6 +139,7 @@ describe('files HTTP contract', () => {
       readUrl: 'https://read.example.test/evidence.jpg'
     });
     imageUploadRepository.saveConfirmedUpload.mockResolvedValue(createReviewEvidenceUpload());
+    users.findByCognitoSub.mockResolvedValue(createActiveUser());
   });
 
   afterAll(async () => {
@@ -300,5 +308,27 @@ function createReviewEvidenceUpload(): ImageUploadEntity {
     contentType: 'image/jpeg',
     sizeBytes: 512,
     createdAt: new Date('2026-07-03T01:30:00.000Z')
+  });
+}
+
+function createUserRepository(): jest.Mocked<IUserRepository> {
+  return {
+    syncAuthenticatedUser: jest.fn(),
+    findByCognitoSub: jest.fn().mockResolvedValue(createActiveUser()),
+    replaceProfileImage: jest.fn(),
+    list: jest.fn(),
+    deactivateById: jest.fn()
+  };
+}
+
+function createActiveUser(): UserEntity {
+  return UserEntity.fromPersistence({
+    id: 'user-id',
+    email: 'player@example.test',
+    name: 'Player One',
+    pictureUrl: 'https://example.test/player.png',
+    status: 'ACTIVE',
+    currentIdentity: { provider: 'Google', providerSubject: 'player-sub' },
+    roles: ['PLAYER']
   });
 }

@@ -1,6 +1,7 @@
 import { Controller, Get, Inject, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { CognitoAuthGuard } from '../../../../auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '../../../../users/interfaces/http/guards/active-user-account.guard';
 import {
   ApiEnvelopeArrayOk,
   ApiEnvelopeErrors
@@ -27,7 +28,7 @@ export class LocationsController {
   ) {}
 
   @Get('provinces')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List controlled provinces for the complex wizard.',
     description:
@@ -43,7 +44,7 @@ export class LocationsController {
   }
 
   @Get('provinces/:provinceId/cantons')
-  @UseGuards(CognitoAuthGuard)
+  @UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
   @ApiOperation({
     summary: 'List controlled cantons for one province.',
     description:

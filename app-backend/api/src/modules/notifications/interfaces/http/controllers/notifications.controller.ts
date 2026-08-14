@@ -2,6 +2,7 @@ import { Controller, Get, Inject, Param, Patch, UseGuards } from '@nestjs/common
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { IAuthenticatedUserOutput } from '@/modules/auth/application/dto/authenticated-user.output';
 import { CognitoAuthGuard } from '@/modules/auth/interfaces/http/guards/cognito-auth.guard';
+import { ActiveUserAccountGuard } from '@/modules/users/interfaces/http/guards/active-user-account.guard';
 import { CurrentUser } from '@/shared/interfaces/http/decorators/current-user.decorator';
 import {
   ApiEnvelopeArrayOk,
@@ -14,7 +15,7 @@ import { NotificationResponse } from '../dto/notification.response';
 
 @ApiTags('notifications')
 @ApiBearerAuth()
-@UseGuards(CognitoAuthGuard)
+@UseGuards(CognitoAuthGuard, ActiveUserAccountGuard)
 @Controller('notifications')
 export class NotificationsController {
   constructor(

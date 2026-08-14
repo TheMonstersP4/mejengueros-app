@@ -5,8 +5,13 @@ import type { ITokenVerifierPort } from '@/modules/auth/application/ports/token-
 import { TOKEN_VERIFIER_PORT } from '@/modules/auth/application/ports/token-verifier.port';
 import { configureValidation } from '@/bootstrap/validation';
 import { FilePurpose } from '@/modules/files/domain/enums/file-purpose.enum';
+import { USER_REPOSITORY } from '@/modules/users/domain/repositories/user.repository';
 import { APP_ERROR_CODES } from '@/shared/domain/errors/app-error-code';
 import { PrismaService } from '@/shared/infrastructure/database/prisma.service';
+import {
+  createActiveUser,
+  createActiveUserRepository
+} from '../support/active-user-repository.mock';
 
 describe('complex wizard HTTP contract', () => {
   const originalEnv = {
@@ -59,6 +64,7 @@ describe('complex wizard HTTP contract', () => {
   let app: NestFastifyApplication;
   let prismaService: ReturnType<typeof createPrismaMock>;
   let tokenVerifier: jest.Mocked<ITokenVerifierPort>;
+  let users: ReturnType<typeof createActiveUserRepository>;
 
   beforeAll(async () => {
     process.env.DATABASE_URL =
@@ -87,12 +93,22 @@ describe('complex wizard HTTP contract', () => {
         groups: ['players']
       })
     };
+    users = createActiveUserRepository({
+      id: 'owner-id',
+      subject: 'owner-sub',
+      email: 'owner@example.test',
+      name: 'Owner User',
+      pictureUrl: 'https://example.test/owner.png',
+      roles: ['OWNER']
+    });
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
     })
       .overrideProvider(PrismaService)
       .useValue(prismaService)
+      .overrideProvider(USER_REPOSITORY)
+      .useValue(users)
       .overrideProvider(TOKEN_VERIFIER_PORT)
       .useValue(tokenVerifier)
       .compile();
@@ -109,6 +125,16 @@ describe('complex wizard HTTP contract', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaService = Object.assign(prismaService, createPrismaMock());
+    users.findByCognitoSub.mockResolvedValue(
+      createActiveUser({
+        id: 'owner-id',
+        subject: 'owner-sub',
+        email: 'owner@example.test',
+        name: 'Owner User',
+        pictureUrl: 'https://example.test/owner.png',
+        roles: ['OWNER']
+      })
+    );
 
     tokenVerifier.verify.mockResolvedValue({
       sub: 'owner-sub',
