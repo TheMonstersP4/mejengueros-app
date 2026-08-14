@@ -12,6 +12,7 @@ dependencies {
   implementation(projects.shared)
 
   implementation(libs.androidx.activity.compose)
+  implementation(libs.androidx.core.splashscreen)
 
   implementation(project.dependencies.platform(libs.koin.bom))
   implementation(libs.koin.android)

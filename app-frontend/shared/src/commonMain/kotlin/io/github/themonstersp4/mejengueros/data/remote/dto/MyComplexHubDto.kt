@@ -51,3 +51,21 @@ data class UpdateCourtImageEnvelopeDto(
 data class UpdateCourtImageEnvelopeDataDto(
     val court: MyComplexHubCourtDto,
 )
+
+@Serializable
+data class ReactivateCourtEnvelopeDto(
+    val success: Boolean,
+    val data: ReactivateCourtEnvelopeDataDto? = null,
+)
+
+@Serializable
+data class ReactivateCourtEnvelopeDataDto(
+    val court: ReactivatedCourtDto,
+)
+
+@Serializable
+data class ReactivatedCourtDto(
+    val id: String,
+    val name: String,
+    val status: String,
+)

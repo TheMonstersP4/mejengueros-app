@@ -70,6 +70,8 @@ export class UpdateMyProfileImageUseCase {
       imageUploadId
     });
 
-    return this.userProfileService.render(updatedUser);
+    return this.userProfileService.render(
+      updatedUser.withCurrentIdentity(user.getCurrentIdentity())
+    );
   }
 }

@@ -141,6 +141,34 @@ export class UserEntity {
   }
 
   /**
+   * Returns the identity used for the current auth context.
+   */
+  getCurrentIdentity(): IUserEntityIdentityProps | undefined {
+    return this.props.currentIdentity ?? undefined;
+  }
+
+  /**
+   * Rebinds the entity to the identity used by the current request.
+   *
+   * @remarks
+   * Users can link several login identities. Reads that resolve the identity
+   * from persistence order would expose an arbitrary subject, so writers pass
+   * the request identity back explicitly.
+   *
+   * @param identity - Identity used for the current auth context.
+   * @returns User entity bound to the given identity.
+   */
+  withCurrentIdentity(
+    identity: IUserEntityIdentityProps | undefined
+  ): UserEntity {
+    if (!identity) {
+      return this;
+    }
+
+    return new UserEntity({ ...this.props, currentIdentity: identity });
+  }
+
+  /**
    * Converts the entity into the profile shape returned by use cases.
    *
    * @returns User profile data safe for API responses.

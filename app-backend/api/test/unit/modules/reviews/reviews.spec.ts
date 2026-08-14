@@ -998,6 +998,7 @@ describe('public court reviews', () => {
         rating: 5,
         comment: 'Great court and lighting.',
         createdAt: '2026-07-02T18:00:00.000Z',
+        evidenceImageUrl: 'https://cdn.example.test/reviews/review-a.png',
         reviewer: { displayName: 'Diego R.', initials: 'DR' }
       }
     ],
@@ -1088,6 +1089,9 @@ describe('public court reviews', () => {
         rating: 5,
         comment: 'Great court and lighting.',
         createdAt: new Date('2026-07-02T18:00:00.000Z'),
+        evidenceImageUpload: {
+          objectKey: 'dev/uploads/confirmed/review-evidence-image/user/review-a.png'
+        },
         reservation: { user: { name: 'Diego Rivera' } }
       },
       {
@@ -1095,9 +1099,15 @@ describe('public court reviews', () => {
         rating: 4,
         comment: null,
         createdAt: new Date('2026-07-01T18:00:00.000Z'),
+        evidenceImageUpload: null,
         reservation: { user: { name: null } }
       }
     ];
+    const fileReadUrl = {
+      createReadUrl: jest
+        .fn()
+        .mockResolvedValue('https://cdn.example.test/reviews/review-a.png')
+    };
     const prisma = {
       court: { findFirst: jest.fn() },
       review: {
@@ -1106,7 +1116,7 @@ describe('public court reviews', () => {
       },
       $queryRaw: jest.fn().mockResolvedValue([{ average: 4.5 }])
     };
-    const repository = new PrismaReviewRepository(prisma as never);
+    const repository = new PrismaReviewRepository(prisma as never, fileReadUrl);
 
     await expect(
       repository.listPublicCourtReviews({
@@ -1121,6 +1131,7 @@ describe('public court reviews', () => {
           rating: 5,
           comment: 'Great court and lighting.',
           createdAt: '2026-07-02T18:00:00.000Z',
+          evidenceImageUrl: 'https://cdn.example.test/reviews/review-a.png',
           reviewer: { displayName: 'Diego R.', initials: 'DR' }
         },
         {
@@ -1128,6 +1139,7 @@ describe('public court reviews', () => {
           rating: 4,
           comment: null,
           createdAt: '2026-07-01T18:00:00.000Z',
+          evidenceImageUrl: null,
           reviewer: { displayName: 'Player', initials: 'PP' }
         }
       ],
@@ -1150,6 +1162,7 @@ describe('public court reviews', () => {
       | { values?: ReadonlyArray<unknown> }
       | undefined;
     expect(aggregateCall?.values).toEqual([courtId]);
+    expect(fileReadUrl.createReadUrl).toHaveBeenCalledTimes(1);
   });
 
   it('returns an empty summary and list when the court has no reviews', async () => {
